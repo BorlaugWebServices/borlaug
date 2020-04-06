@@ -1,6 +1,6 @@
 ![Borlaug Logo](logo.png)
 
-# Borlaug Network
+# Borlaug Blockchain
 Borlaug blockchain network is built for agro economies & self organizing communities.
 
 ## Setup
@@ -19,9 +19,14 @@ cargo build --release
 ```
 
 #### Run
+Run node in "development" mode
 ```bash
-# Run node in "development" mode
 ./target/release/borlaug --dev
+```
+
+Run tests
+```bash
+cargo test --all
 ```
 
 ## License
