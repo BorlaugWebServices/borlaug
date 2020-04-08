@@ -240,6 +240,11 @@ impl asset_registry::Trait for Runtime {
     type Balance = Balance;
     type Event = Event;
 }
+impl audits::Trait for Runtime {
+    type AuditId = u32;
+    type Event = Event;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -262,6 +267,7 @@ construct_runtime!(
         // BWS Modules
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
+        Audits: audits::{Module, Call, Storage, Event<T>},
 
 }
 );

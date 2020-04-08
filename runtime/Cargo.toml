@@ -42,6 +42,7 @@ membership = { package = "pallet-membership", version = "2.0.0-alpha.5", default
 # Borlaug Dependencies
 identity = { package = "pallet-identity", path = "../pallets/identity", default-features = false }
 asset-registry = { package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false }
+audits = { package = "pallet-audits", path = "../pallets/audits", default-features = false }
 
 [build-dependencies]
 wasm-builder-runner = { package = "substrate-wasm-builder-runner", version = "1.0.5" }
@@ -80,4 +81,5 @@ std = [
 	"system-rpc-runtime-api/std",
 	"identity/std",
 	"asset-registry/std",
+	"audits/std",
 ]
