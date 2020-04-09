@@ -242,6 +242,9 @@ impl asset_registry::Trait for Runtime {
 }
 impl audits::Trait for Runtime {
     type AuditId = u32;
+    type ControlPointId = u32;
+    type ObservationId = u32;
+    type EvidenceId = u32;
     type Event = Event;
 }
 

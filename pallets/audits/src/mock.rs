@@ -63,6 +63,9 @@ impl timestamp::Trait for Test {
 
 impl Trait for Test {
     type AuditId = u32;
+    type ControlPointId = u32;
+    type ObservationId = u32;
+    type EvidenceId = u32;
     type Event = TestEvent;
 }
 

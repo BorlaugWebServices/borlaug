@@ -21,7 +21,7 @@ use frame_support::{
     Parameter,
 };
 use frame_system::{self as system, ensure_signed};
-
+use primitives::{ControlPoint, Evidence, Observation};
 use sp_runtime::{
     traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
     DispatchResult,
@@ -36,8 +36,28 @@ pub trait Trait: frame_system::Trait + timestamp::Trait {
         + Copy
         + MaybeSerializeDeserialize
         + PartialEq;
+    type ControlPointId: Parameter
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
+    type EvidenceId: Parameter
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
+    type ObservationId: Parameter
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
-   
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
@@ -70,11 +90,32 @@ decl_storage! {
 
         /// The next available audit index
         pub NextAuditId get(fn next_audit_id) config(): T::AuditId;
+        /// The next available
+        pub NextControlPointId get(fn next_control_point_id) config(): T::ControlPointId;
+        /// The next available  index
+        pub NextObservationId get(fn next_observation_id) config(): T::ObservationId;
+        /// The next available  index
+        pub NextEvidenceId get(fn next_evidence_id) config(): T::EvidenceId;
 
-        /// P
+        /// Audits
         pub Audits get(fn audits):
             map hasher(blake2_128_concat) T::AccountId => Vec<T::AuditId>;
 
+        ///Auditors
+        pub Auditors get(fn auditors):
+            map hasher(blake2_128_concat) T::AuditId => Vec<T::AccountId>;
+
+        /// Check Points
+        pub ControlPoints get(fn control_points):
+            map hasher(blake2_128_concat) T::AuditId => Vec<ControlPoint<T::ControlPointId>>;
+
+        /// Observations
+        pub Observations get(fn observations):
+            map hasher(blake2_128_concat) T::ControlPointId => Vec<Observation<T::ObservationId>>;
+
+            /// Evidence
+       pub Evidences get(fn evidences):
+            map hasher(blake2_128_concat) T::AuditId => Vec<Evidence<T::EvidenceId>>;
 
 
     }
