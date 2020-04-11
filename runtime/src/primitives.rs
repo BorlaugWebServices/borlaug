@@ -1,9 +1,8 @@
 //! Low-level types used throughout the code.
 
 use sp_runtime::{
-    generic,
-    traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature, OpaqueExtrinsic,
+    traits::{IdentifyAccount, Verify},
+    MultiSignature,
 };
 
 /// An index to a block.

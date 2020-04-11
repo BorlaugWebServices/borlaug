@@ -46,7 +46,7 @@
 mod mock;
 mod tests;
 
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure, traits::Randomness,
     weights::SimpleDispatchInfo, Parameter, StorageMap,
@@ -63,10 +63,7 @@ use primitives::{
 use sp_io::hashing::blake2_256;
 use sp_runtime::{
     traits::{AtLeast32Bit, CheckedAdd, One},
-    RuntimeDebug,
 };
-#[cfg(feature = "std")]
-use sp_runtime::{Deserialize, Serialize};
 use sp_std::prelude::*;
 
 /// A claim index.
@@ -80,7 +77,7 @@ pub type DidPropertyName = Vec<u8>;
 
 pub trait Trait: frame_system::Trait + timestamp::Trait {
     type CatalogId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
-
+    
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
@@ -665,7 +662,7 @@ impl<T: Trait> Module<T> {
             false
         }
     }
-
+    
     /// Returns true if a `claim_consumer` can make a claim against `target_did`
     pub fn can_make_claim(target_did: Did, claim_consumer: Did) -> bool {
         if <ClaimConsumers<T>>::contains_key(target_did) {
@@ -675,7 +672,7 @@ impl<T: Trait> Module<T> {
             false
         }
     }
-
+    
     /// Returns true if a `claim_issuer` can attest a claim against `target_did`
     pub fn can_attest_claim(target_did: Did, claim_issuer: Did) -> bool {
         if <ClaimIssuers<T>>::contains_key(target_did) {
@@ -685,15 +682,15 @@ impl<T: Trait> Module<T> {
             false
         }
     }
-
+    
     // -- private functions --
-
+    
     fn next_nonce() -> u64 {
         let nonce = <Nonce>::get();
         <Nonce>::mutate(|n| *n += 1u64);
         nonce
     }
-
+    
     /// Creates a Did with given properties
     fn mint_did(
         subject: T::AccountId,
@@ -704,7 +701,7 @@ impl<T: Trait> Module<T> {
         let random_seed = <randomness::Module<T>>::random_seed();
         let encoded = (random_seed, subject.clone(), nonce).encode();
         let id = sp_io::hashing::blake2_256(&encoded);
-
+        
         let did = Did { id };
         let did_doc = if let Some(props) = properties {
             DidDocument { properties: props }
@@ -713,11 +710,11 @@ impl<T: Trait> Module<T> {
                 properties: Vec::new(),
             }
         };
-
+        
         <DidRegistry<T>>::append_or_insert(&subject, &[did][..]);
         <DidInfo>::insert(&did, did_doc);
         <DidController<T>>::append_or_insert(controller.clone(), &[did][..]);
-
+        
         Self::deposit_event(RawEvent::Registered(subject, controller, did));
     }
 }
