@@ -118,22 +118,15 @@ decl_storage! {
 
         /// Check Points
         pub ControlPoints get(fn control_points):
-            map hasher(blake2_128_concat) T::AuditId => Vec<ControlPoint<T::ControlPointId>>;
-
-        /// Observations associated with a Control Point
-        /// Control Point Id => collection of Observation Id
-        pub ObservationsOf get(fn observation_of):
-            double_map hasher(blake2_128_concat) T::AuditId, hasher(blake2_128_concat) T::ControlPointId => Vec<T::ObservationId>;
-
-        /// Observations
-        pub Observations get(fn observations):
-            double_map hasher(blake2_128_concat) T::ControlPointId, hasher(blake2_128_concat) T::ObservationId => Observation<T::ObservationId>;
+            double_map hasher(blake2_128_concat) T::AuditId, hasher(blake2_128_concat) T::ControlPointId => Vec<Observation<T::ObservationId>>;
 
        /// Evidence
        pub Evidences get(fn evidences):
             map hasher(blake2_128_concat) T::AuditId => Vec<Evidence<T::EvidenceId>>;
 
-
+              /// Evidence
+       pub EvidenceLinks get(fn evidence_links):
+            map hasher(blake2_128_concat) T::EvidenceId => Vec<T::ControlPointId>;
     }
 }
 
@@ -162,21 +155,22 @@ decl_module! {
 
             Self::deposit_event(RawEvent::AuditCreated(sender, audit_id));
         }
-/// Create a new observation
+
+        /// Create a new observation
         ///
         /// Arguments:
         /// - `audit`
         /// - `control_point`
         /// - `compliance`
         /// - `procedural_note`
+
         #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
         fn create_observation(
             origin,
-            audit: T::AuditId,
-            control_point: T::ControlPointId,
-            observation: T::ObservationId,
-            compliance: Option<Compliance>,
-            procedural_note: Option<ProceduralNote>){
+            audit_id: T::AuditId,
+            control_point_id: T::ControlPointId,
+            observation: Observation<T::ObservationId>,
+          ){
                 let sender = ensure_signed(origin)?;
 
                 let observation_id = Self::next_observation_id();
@@ -185,21 +179,35 @@ decl_module! {
                     .ok_or(Error::<T>::NoIdAvailable)?;
                 <NextObservationId<T>>::put(next_id);
 
-                let observation = Observation {
-                    observation_id:Some(observation_id),
-                    compliance,
-                    procedural_note,
-                };
-                <ObservationsOf>::mutate(&control_point, &audit, |observation_ids| observation_ids.push(observation_id));
-                <Observations<T>>::insert(&control_point, observation_id, observation.clone());
+                let mut observation=observation;
+
+                observation.observation_id=Some(observation_id);
+
+                //TODO: append or insert to ControlPoints
 
                 Self::deposit_event(RawEvent::ObservationCreated(
-                    audit,
-                    control_point,
+                    audit_id,
+                    control_point_id,
                     observation_id,
                 ));
 
 
+        }
+
+
+        fn create_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId)
+        {
+            //TODO: create an evidence that is a child of an audit
+        }
+
+        fn link_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
+        {
+            //TODO: link an evidence to a control point
+        }
+
+        fn unlink_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
+        {
+            //TODO: remove a link from an evidence to a control point
         }
 
     }
