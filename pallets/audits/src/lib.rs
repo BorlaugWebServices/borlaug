@@ -22,49 +22,48 @@ use frame_support::{
 };
 use frame_system::{self as system, ensure_signed};
 use primitives::{ControlPoint, Evidence, Observation};
+use sp_core::H256 as Hash;
 use sp_runtime::{
     traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
     DispatchResult,
 };
 use sp_std::prelude::*;
-use sp_core::H256 as Hash;
 
 pub type Compliance = Vec<u8>;
 pub type ProceduralNote = Vec<Hash>;
 
-
 pub trait Trait: frame_system::Trait + timestamp::Trait {
     type AuditId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type ControlPointId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type EvidenceId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type ObservationId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
@@ -123,7 +122,7 @@ decl_storage! {
 
         /// Observations associated with a Control Point
         /// Control Point Id => collection of Observation Id
-        pub ObervationsOf get(fn observation_of):
+        pub ObservationsOf get(fn observation_of):
             double_map hasher(blake2_128_concat) T::AuditId, hasher(blake2_128_concat) T::ControlPointId => Vec<T::ObservationId>;
 
         /// Observations
@@ -163,8 +162,7 @@ decl_module! {
 
             Self::deposit_event(RawEvent::AuditCreated(sender, audit_id));
         }
-
-        /// Create a new observation
+/// Create a new observation
         ///
         /// Arguments:
         /// - `audit`
@@ -176,32 +174,34 @@ decl_module! {
             origin,
             audit: T::AuditId,
             control_point: T::ControlPointId,
-            observation: ObservationId,
-            compliance: Option<Compliance>>,
-            procedural_note: Option<ProceduralNote>
-        )  {
-            let sender = ensure_signed(origin)?;
+            observation: T::ObservationId,
+            compliance: Option<Compliance>,
+            procedural_note: Option<ProceduralNote>){
+                let sender = ensure_signed(origin)?;
 
-            let observation_id = Self::next_observation_id();
-            let next_id = observation_id
-                .checked_add(&One::one())
-                .ok_or(Error::<T>::NoIdAvailable)?;
-            <NextObservationId<T>>::put(next_id);
+                let observation_id = Self::next_observation_id();
+                let next_id = observation_id
+                    .checked_add(&One::one())
+                    .ok_or(Error::<T>::NoIdAvailable)?;
+                <NextObservationId<T>>::put(next_id);
 
-            let observation = Observation {
-                observation_id: observation_id,
-                compliance,
-                procedural_note,
-            };
-            <ObervationsOf>::mutate(&control_point, &audit, |observation_ids| observation_ids.push(observation_id));
-            <Observations<T>>::insert(&control_point, observation_id, observation.clone());
+                let observation = Observation {
+                    observation_id:Some(observation_id),
+                    compliance,
+                    procedural_note,
+                };
+                <ObservationsOf>::mutate(&control_point, &audit, |observation_ids| observation_ids.push(observation_id));
+                <Observations<T>>::insert(&control_point, observation_id, observation.clone());
 
-            Self::deposit_event(RawEvent::ObservationCreated(
-                audit,
-                control_point,
-                observation_id,
-            ));
+                Self::deposit_event(RawEvent::ObservationCreated(
+                    audit,
+                    control_point,
+                    observation_id,
+                ));
+
+
         }
+
     }
 }
 
