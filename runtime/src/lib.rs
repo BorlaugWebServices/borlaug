@@ -8,8 +8,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-pub mod primitives;
 pub mod constants;
+pub mod primitives;
 
 use grandpa::fg_primitives;
 use grandpa::AuthorityList as GrandpaAuthorityList;
@@ -17,9 +17,7 @@ use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::u32_trait::{_1, _2, _3, _4};
 use sp_core::OpaqueMetadata;
-use sp_runtime::traits::{
-    BlakeTwo256, Block as BlockT, ConvertInto, IdentityLookup,
-};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, ConvertInto, IdentityLookup};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys, transaction_validity::TransactionValidity,
     ApplyExtrinsicResult,
@@ -53,16 +51,16 @@ pub type DigestItem = generic::DigestItem<Hash>;
 /// to even the core data structures.
 pub mod opaque {
     use super::*;
-    
+
     pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
-    
+
     /// Opaque block header type.
     pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
     /// Opaque block type.
     pub type Block = generic::Block<Header, UncheckedExtrinsic>;
     /// Opaque block identifier type.
     pub type BlockId = generic::BlockId<Block>;
-    
+
     impl_opaque_keys! {
         pub struct SessionKeys {
             pub aura: Aura,
@@ -209,11 +207,16 @@ type GeneralCouncilMembershipInstance = membership::Instance1;
 
 impl membership::Trait<GeneralCouncilMembershipInstance> for Runtime {
     type Event = Event;
-    type AddOrigin = collective::EnsureProportionMoreThan<_3, _4, AccountId, GeneralCouncilInstance>;
-    type RemoveOrigin = collective::EnsureProportionMoreThan<_3, _4, AccountId, GeneralCouncilInstance>;
-    type SwapOrigin = collective::EnsureProportionMoreThan<_3, _4, AccountId, GeneralCouncilInstance>;
-    type ResetOrigin = collective::EnsureProportionMoreThan<_3, _4, AccountId, GeneralCouncilInstance>;
-    type PrimeOrigin = collective::EnsureProportionMoreThan<_1, _2, AccountId, GeneralCouncilInstance>;
+    type AddOrigin =
+        collective::EnsureProportionMoreThan<_3, _4, AccountId, GeneralCouncilInstance>;
+    type RemoveOrigin =
+        collective::EnsureProportionMoreThan<_3, _4, AccountId, GeneralCouncilInstance>;
+    type SwapOrigin =
+        collective::EnsureProportionMoreThan<_3, _4, AccountId, GeneralCouncilInstance>;
+    type ResetOrigin =
+        collective::EnsureProportionMoreThan<_3, _4, AccountId, GeneralCouncilInstance>;
+    type PrimeOrigin =
+        collective::EnsureProportionMoreThan<_1, _2, AccountId, GeneralCouncilInstance>;
     type MembershipInitialized = GeneralCouncil;
     type MembershipChanged = GeneralCouncil;
 }
@@ -290,7 +293,7 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive =
-frame_executive::Executive<Runtime, Block, system::ChainContext<Runtime>, Runtime, AllModules>;
+    frame_executive::Executive<Runtime, Block, system::ChainContext<Runtime>, Runtime, AllModules>;
 
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
