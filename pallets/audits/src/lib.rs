@@ -17,15 +17,14 @@ mod mock;
 mod tests;
 
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, ensure, weights::SimpleDispatchInfo,
+    decl_error, decl_event, decl_module, decl_storage, weights::SimpleDispatchInfo,
     Parameter,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{ControlPoint, Evidence, Observation};
+use primitives::{ Evidence, Observation};
 use sp_core::H256 as Hash;
 use sp_runtime::{
     traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
-    DispatchResult,
 };
 use sp_std::prelude::*;
 
@@ -169,7 +168,7 @@ decl_module! {
             origin,
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
-            observation: Observation<T::ObservationId>,
+            observation: Observation<T::ObservationId>
           ){
                 let sender = ensure_signed(origin)?;
 
@@ -183,32 +182,30 @@ decl_module! {
 
                 observation.observation_id=Some(observation_id);
 
-                //TODO: append or insert to ControlPoints
+                <ControlPoints<T>>::append_or_insert(&audit_id, &control_point_id, &[&observation][..]);
 
                 Self::deposit_event(RawEvent::ObservationCreated(
                     audit_id,
                     control_point_id,
                     observation_id,
                 ));
-
-
         }
 
 
-        fn create_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId)
-        {
-            //TODO: create an evidence that is a child of an audit
-        }
-
-        fn link_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
-        {
-            //TODO: link an evidence to a control point
-        }
-
-        fn unlink_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
-        {
-            //TODO: remove a link from an evidence to a control point
-        }
+        // fn create_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId)
+        // {
+        //     //TODO: create an evidence that is a child of an audit
+        // }
+        //
+        // fn link_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
+        // {
+        //     //TODO: link an evidence to a control point
+        // }
+        //
+        // fn unlink_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
+        // {
+        //     //TODO: remove a link from an evidence to a control point
+        // }
 
     }
 }
