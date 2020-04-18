@@ -29,8 +29,8 @@ fn creating_observation_should_work() {
 
         let observation = Observation {
             observation_id: None,
-            compliance: Compliance::Compliant,
-            procedural_note: blake2_256(&hello.as_bytes()),
+            compliance: Some(Compliance::Compliant),
+            procedural_note: Some(blake2_256(&hello.as_bytes())),
         };
 
         assert_ok!(Audits::create_observation(
