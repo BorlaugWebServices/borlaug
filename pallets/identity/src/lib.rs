@@ -46,7 +46,7 @@
 mod mock;
 mod tests;
 
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure, traits::Randomness,
     weights::SimpleDispatchInfo, Parameter, StorageMap,
@@ -61,12 +61,7 @@ use primitives::{
 };
 #[cfg(not(feature = "std"))]
 use sp_io::hashing::blake2_256;
-use sp_runtime::{
-    traits::{AtLeast32Bit, CheckedAdd, One},
-    RuntimeDebug,
-};
-#[cfg(feature = "std")]
-use sp_runtime::{Deserialize, Serialize};
+use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, One};
 use sp_std::prelude::*;
 
 /// A claim index.
@@ -284,6 +279,7 @@ decl_module! {
         /// - `did` subject
         /// - `add` DIDs to be added as controllers
         /// - `remove` DIDs to be removed as controllers
+        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
         pub fn manage_controllers(
             origin,
             did: Did,
@@ -632,6 +628,7 @@ decl_module! {
         /// - `owner_did` DID of caller
         /// - `catalog_id` Catalog to which DID are to be removed
         /// - `dids` DIDs are to be removed
+        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
         pub fn remove_dids_from_catalog(
             origin,
             owner_did: Did,

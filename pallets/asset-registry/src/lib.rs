@@ -29,7 +29,7 @@ use frame_support::{
 };
 use frame_system::{self as system, ensure_signed};
 use primitives::{
-    asset::{Asset, AssetStatus},
+    asset::Asset,
     did::Did,
     lease_agreement::{AssetAllocation, LeaseAgreement},
 };
@@ -41,37 +41,37 @@ use sp_std::prelude::*;
 
 pub trait Trait: frame_system::Trait + timestamp::Trait {
     type RegistryId: Parameter
-        + Member
-        + AtLeast32Bit
-        + Default
-        + Copy
-        + MaybeSerializeDeserialize
-        + PartialEq;
-
+    + Member
+    + AtLeast32Bit
+    + Default
+    + Copy
+    + MaybeSerializeDeserialize
+    + PartialEq;
+    
     type AssetId: Parameter
-        + Member
-        + AtLeast32Bit
-        + Default
-        + Copy
-        + MaybeSerializeDeserialize
-        + PartialEq;
-
+    + Member
+    + AtLeast32Bit
+    + Default
+    + Copy
+    + MaybeSerializeDeserialize
+    + PartialEq;
+    
     type LeaseId: Parameter
-        + Member
-        + AtLeast32Bit
-        + Default
-        + Copy
-        + MaybeSerializeDeserialize
-        + PartialEq;
-
+    + Member
+    + AtLeast32Bit
+    + Default
+    + Copy
+    + MaybeSerializeDeserialize
+    + PartialEq;
+    
     type Balance: Parameter
-        + Member
-        + AtLeast32Bit
-        + Default
-        + Copy
-        + MaybeSerializeDeserialize
-        + PartialEq;
-
+    + Member
+    + AtLeast32Bit
+    + Default
+    + Copy
+    + MaybeSerializeDeserialize
+    + PartialEq;
+    
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
@@ -354,14 +354,14 @@ impl<T: Trait> Module<T> {
             .checked_add(&One::one())
             .ok_or(Error::<T>::NoIdAvailable)?;
         <NextAssetId<T>>::put(next_id);
-
+        
         let mut asset = asset;
-
+        
         asset.asset_id = Some(asset_id);
-
+        
         <Assets<T>>::insert(&registry_id, &asset_id, asset);
         Self::deposit_event(RawEvent::AssetCreated(registry_id, asset_id));
-
+        
         Ok(())
     }
     /// Create an asset and store it in the given registry
@@ -373,31 +373,31 @@ impl<T: Trait> Module<T> {
             .clone()
             .into_iter()
             .any(|allocation| Self::check_allocation(allocation));
-
+        
         ensure!(can_allocate, "Cannot allocate some assets");
-
+        
         let lease_id = Self::next_lease_id();
         let next_id = lease_id
             .checked_add(&One::one())
             .ok_or(Error::<T>::NoIdAvailable)?;
         <NextLeaseId<T>>::put(next_id);
-
+        
         let lessor = lease.lessor.clone();
         let lessee = lease.lessee.clone();
-
+        
         lease
             .allocations
             .clone()
             .into_iter()
             .for_each(|allocation| Self::make_allocation(lease_id, allocation, lease.expiry_ts));
-
+        
         <LeaseAgreements<T>>::insert(&lessor, &lease_id, lease);
-
+        
         Self::deposit_event(RawEvent::LeaseCreated(lease_id, lessor, lessee));
-
+        
         Ok(())
     }
-
+    
     fn is_registry_owner(owner_did: Did, registry_id: T::RegistryId) -> bool {
         if <Registries<T>>::contains_key(owner_did.clone()) {
             let registry_ids = <Registries<T>>::get(owner_did);
@@ -418,13 +418,13 @@ impl<T: Trait> Module<T> {
                 if asset_allocation.allocated_shares > total_shares {
                     return true;
                 }
-
+                
                 if <LeaseAllocations<T>>::contains_key(
                     asset_allocation.registry_id,
                     asset_allocation.asset_id,
                 ) {
                     let now: T::Moment = <timestamp::Module<T>>::get();
-
+                    
                     let lease_allocations = <LeaseAllocations<T>>::get(
                         asset_allocation.registry_id,
                         asset_allocation.asset_id,

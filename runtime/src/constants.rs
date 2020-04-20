@@ -1,16 +1,13 @@
 //! A set of constant values used in Borlaug runtime.
 
-use sp_runtime::{
-    generic,
-    traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature, OpaqueExtrinsic,
-};
 
 /// Money matters.
 pub mod currency {
     use crate::primitives::Balance;
+    
     pub const NANOGRAM: Balance = 1;
-    pub const MILLIGRAM: Balance = 1_000 * NANOGRAM; // assume this is worth about a cent.
+    pub const MILLIGRAM: Balance = 1_000 * NANOGRAM;
+    // assume this is worth about a cent.
     pub const GRAM: Balance = 1000 * MILLIGRAM;
     pub const KILOGRAM: Balance = 1000 * GRAM;
 }
@@ -18,7 +15,7 @@ pub mod currency {
 /// Time.
 pub mod time {
     use crate::primitives::{BlockNumber, Moment};
-
+    
     /// Since BABE is probabilistic this is the average expected block time that
     /// we are targetting. Blocks will be produced at a minimum duration defined
     /// by `SLOT_DURATION`, but some slots will not be allocated to any
@@ -38,19 +35,19 @@ pub mod time {
     /// <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
     pub const MILLISECS_PER_BLOCK: Moment = 5000;
     pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
-
+    
     pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-
+    
     // 1 in 4 blocks (on average, not counting collisions) will be primary BABE blocks.
     pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
-
+    
     pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTES;
     pub const EPOCH_DURATION_IN_SLOTS: u64 = {
         const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
-
+        
         (EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
     };
-
+    
     // These time units are defined in number of blocks.
     pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
     pub const HOURS: BlockNumber = MINUTES * 60;
