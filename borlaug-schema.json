@@ -93,5 +93,21 @@
         "expiration": "Moment"
     },
     "DidPropertyName": "Vec<u8>",
-    "ShortName": "Vec<u8>"
+    "ShortName": "Vec<u8>",
+    "AuditId": "u32",
+    "ControlPointId": "u32",
+    "ObservationId": "u32",
+    "EvidenceId": "u32",
+    "Observation": {
+        "observation_id": "Option<ObservationId>",
+        "compliance": "Option<Compliance>",
+        "procedural_note": "Option<[u8; 32]>"
+    },
+    "Compliance": {
+        "_enum": [
+            "NotApplicable",
+            "Compliant",
+            "NonCompliant"
+        ]
+    }
 }

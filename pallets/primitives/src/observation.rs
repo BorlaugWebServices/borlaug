@@ -14,3 +14,9 @@ pub enum Compliance {
     Compliant,
     NonCompliant,
 }
+
+impl Default for Compliance {
+    fn default() -> Self {
+        Compliance::NotApplicable
+    }
+}

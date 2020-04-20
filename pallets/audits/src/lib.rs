@@ -28,9 +28,6 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 
-pub type Compliance = Vec<u8>;
-pub type ProceduralNote = Vec<Hash>;
-
 pub trait Trait: frame_system::Trait + timestamp::Trait {
     type AuditId: Parameter
         + Member
