@@ -41,3 +41,27 @@ fn creating_observation_should_work() {
          ));
     });
 }
+
+#[test]
+fn creating_evidence_should_work() {
+    ExtBuilder::default().build().execute_with(|| {
+        assert_ok!(Audits::create_audit(Origin::signed(1)));
+
+        let audits = Audits::audits(&1);
+        let audit_1 = audits[0];
+
+        let evidence = Evidence {
+            evidence_id: None,
+            name: b"name".to_vec(),
+            content_type: b"image/png".to_vec(),
+            url: Some(b"url".to_vec()),
+            hash: b"hash".to_vec()
+        };
+
+        assert_ok!(Audits::create_evidence(
+            Origin::signed(1),
+            audit_1,
+            evidence.clone(),
+         ));
+    });
+}

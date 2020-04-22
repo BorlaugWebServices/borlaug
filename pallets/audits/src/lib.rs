@@ -71,12 +71,15 @@ decl_event!(
         <T as Trait>::AuditId,
         <T as Trait>::ObservationId,
         <T as Trait>::ControlPointId,
+        <T as Trait>::EvidenceId,
 
     {
         /// New registry created (owner, registry id)
         AuditCreated(AccountId, AuditId),
-        /// New observation created (owner, observation id)
+        /// New observation created (audit id, control point id, observation id)
         ObservationCreated(AuditId, ControlPointId, ObservationId),
+        /// Evidence Attached (audit id, evidence id)
+        EvidenceAttached(AuditId, EvidenceId),
 
     }
 );
@@ -120,7 +123,7 @@ decl_storage! {
        pub Evidences get(fn evidences):
             map hasher(blake2_128_concat) T::AuditId => Vec<Evidence<T::EvidenceId>>;
 
-              /// Evidence
+       /// Evidence
        pub EvidenceLinks get(fn evidence_links):
             map hasher(blake2_128_concat) T::EvidenceId => Vec<T::ControlPointId>;
     }
@@ -153,12 +156,6 @@ decl_module! {
         }
 
         /// Create a new observation
-        ///
-        /// Arguments:
-        /// - `audit`
-        /// - `control_point`
-        /// - `compliance`
-        /// - `procedural_note`
 
         #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
         fn create_observation(
@@ -189,10 +186,31 @@ decl_module! {
         }
 
 
-        // fn create_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId)
-        // {
-        //     //TODO: create an evidence that is a child of an audit
-        // }
+        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        fn create_evidence(
+            origin,
+            audit_id: T::AuditId,
+            evidence: Evidence<T::EvidenceId>
+        ){
+                let sender = ensure_signed(origin)?;
+
+                let evidence_id = Self::next_evidence_id();
+                let next_id = evidence_id
+                    .checked_add(&One::one())
+                    .ok_or(Error::<T>::NoIdAvailable)?;
+                <NextEvidenceId<T>>::put(next_id);
+
+                let mut evidence=evidence;
+
+                evidence.evidence_id=Some(evidence_id);
+
+                <Evidences<T>>::append_or_insert(&audit_id, &[&evidence][..]);
+
+                Self::deposit_event(RawEvent::EvidenceAttached(
+                    audit_id,
+                    evidence_id,
+                ));
+        }
         //
         // fn link_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
         // {
