@@ -80,6 +80,10 @@ decl_event!(
         ObservationCreated(AuditId, ControlPointId, ObservationId),
         /// Evidence Attached (audit id, evidence id)
         EvidenceAttached(AuditId, EvidenceId),
+        ///
+        EvidenceLinked(AuditId, EvidenceId, ObservationId),
+        ///
+        EvidenceUnlinked(AuditId, EvidenceId, ObservationId),
 
     }
 );
@@ -121,11 +125,11 @@ decl_storage! {
 
        /// Evidence
        pub Evidences get(fn evidences):
-            map hasher(blake2_128_concat) T::AuditId => Vec<Evidence<T::EvidenceId>>;
+            double_map hasher(blake2_128_concat) T::AuditId, hasher(blake2_128_concat) T::EvidenceId => Evidence<T::EvidenceId>;
 
-       /// Evidence
+       /// Evidence Link
        pub EvidenceLinks get(fn evidence_links):
-            map hasher(blake2_128_concat) T::EvidenceId => Vec<T::ControlPointId>;
+            double_map hasher(blake2_128_concat) T::ObservationId, hasher(blake2_128_concat) T::EvidenceId => T::EvidenceId;
     }
 }
 
@@ -192,35 +196,61 @@ decl_module! {
             audit_id: T::AuditId,
             evidence: Evidence<T::EvidenceId>
         ){
-                let sender = ensure_signed(origin)?;
+            let sender = ensure_signed(origin)?;
 
-                let evidence_id = Self::next_evidence_id();
-                let next_id = evidence_id
-                    .checked_add(&One::one())
-                    .ok_or(Error::<T>::NoIdAvailable)?;
-                <NextEvidenceId<T>>::put(next_id);
+            let evidence_id = Self::next_evidence_id();
+            let next_id = evidence_id
+                .checked_add(&One::one())
+                .ok_or(Error::<T>::NoIdAvailable)?;
+            <NextEvidenceId<T>>::put(next_id);
 
-                let mut evidence=evidence;
+            let mut evidence=evidence;
 
-                evidence.evidence_id=Some(evidence_id);
+            evidence.evidence_id=Some(evidence_id);
 
-                <Evidences<T>>::append_or_insert(&audit_id, &[&evidence][..]);
+            <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
 
-                Self::deposit_event(RawEvent::EvidenceAttached(
-                    audit_id,
-                    evidence_id,
-                ));
+            Self::deposit_event(RawEvent::EvidenceAttached(
+                audit_id,
+                evidence_id,
+            ));
         }
-        //
-        // fn link_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
-        // {
-        //     //TODO: link an evidence to a control point
-        // }
-        //
-        // fn unlink_evidence(origin,audit_id:T::AuditId,evidence_id:T::EvidenceId,control_point_id:T::ControlPointId)
-        // {
-        //     //TODO: remove a link from an evidence to a control point
-        // }
+
+        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        fn link_evidence(
+            origin,
+            audit_id:T::AuditId,
+            evidence_id:T::EvidenceId,
+            observation_id: T::ObservationId,
+        ){
+            let sender = ensure_signed(origin)?;
+
+            <EvidenceLinks<T>>::insert(&observation_id, &evidence_id, evidence_id);
+
+            Self::deposit_event(RawEvent::EvidenceLinked(
+                audit_id,
+                evidence_id,
+                observation_id
+            ));
+        }
+
+        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        fn unlink_evidence(
+            origin,
+            audit_id:T::AuditId,
+            evidence_id:T::EvidenceId,
+            observation_id:T::ObservationId,
+        ){
+        let sender = ensure_signed(origin)?;
+
+            <EvidenceLinks<T>>::remove(&observation_id, &evidence_id);
+
+            Self::deposit_event(RawEvent::EvidenceUnlinked(
+                audit_id,
+                evidence_id,
+                observation_id
+            ));
+        }
 
     }
 }
