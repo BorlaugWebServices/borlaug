@@ -21,45 +21,42 @@ use frame_support::{
     Parameter,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{Evidence, observation::Observation};
-use sp_core::H256 as Hash;
-use sp_runtime::{
-    traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
-};
+use primitives::{Audit, AuditStatus, Evidence, Observation};
+use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One};
 use sp_std::prelude::*;
 
 pub trait Trait: frame_system::Trait + timestamp::Trait {
     type AuditId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type ControlPointId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type EvidenceId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type ObservationId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
@@ -107,9 +104,6 @@ decl_storage! {
         /// The next available audit index
         pub NextAuditId get(fn next_audit_id) config(): T::AuditId;
 
-        /// The next available
-        pub NextControlPointId get(fn next_control_point_id) config(): T::ControlPointId;
-
         /// The next available  index
         pub NextObservationId get(fn next_observation_id) config(): T::ObservationId;
 
@@ -118,11 +112,7 @@ decl_storage! {
 
         /// Audits
         pub Audits get(fn audits):
-            map hasher(blake2_128_concat) T::AccountId => Vec<T::AuditId>;
-
-        ///Auditors
-        pub Auditors get(fn auditors):
-            map hasher(blake2_128_concat) T::AuditId => Vec<T::AccountId>;
+            double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) T::AuditId => Audit<T::AuditId>;
 
         /// Audit => (Control Point => Collection of Observation)
         pub ObservationOf get(fn observation_of):
@@ -154,7 +144,7 @@ decl_module! {
         /// Arguments: None
 
         #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
-        fn create_audit(origin) {
+        fn create_audit(origin,auditor:Vec<u8>) {
             let sender = ensure_signed(origin)?;
 
             let audit_id = Self::next_audit_id();
@@ -163,7 +153,13 @@ decl_module! {
                 .ok_or(Error::<T>::NoIdAvailable)?;
             <NextAuditId<T>>::put(next_id);
 
-            <Audits<T>>::append_or_insert(&sender, &[&audit_id][..]);
+            let audit=Audit{
+                audit_id:audit_id,
+                auditor:auditor,
+                status:AuditStatus::Requested
+            };
+
+            <Audits<T>>::insert(&sender, &audit_id,audit);
 
             Self::deposit_event(RawEvent::AuditCreated(sender, audit_id));
         }
@@ -302,7 +298,11 @@ decl_module! {
 
 // private functions
 impl<T: Trait> Module<T> {
-    fn is_observation_exist(audit_id: T::AuditId, control_point_id: T::ControlPointId, observation_id: T::ObservationId) -> bool {
+    fn is_observation_exist(
+        audit_id: T::AuditId,
+        control_point_id: T::ControlPointId,
+        observation_id: T::ObservationId,
+    ) -> bool {
         if <ObservationOf<T>>::contains_key(audit_id.clone(), control_point_id.clone()) {
             let observation_ids = <ObservationOf<T>>::get(audit_id, control_point_id);
             observation_ids.contains(&observation_id)
