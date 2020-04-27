@@ -115,12 +115,8 @@ decl_storage! {
             double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) T::AuditId => Audit<T::AuditId>;
 
         /// Audit => (Control Point => Collection of Observation)
-        pub ObservationOf get(fn observation_of):
-            double_map hasher(blake2_128_concat) T::AuditId, hasher(blake2_128_concat) T::ControlPointId => Vec<T::ObservationId>;
-
-        /// Observation Id => Observation(Compliance, Procedural Notes)
-        pub Observations get(fn observations):
-            map hasher(blake2_128_concat) T::ObservationId => Observation<T::ObservationId>;
+        pub Observations get(fn observation_of):
+            double_map hasher(blake2_128_concat) (T::AuditId,T::ControlPointId), hasher(blake2_128_concat) T::ObservationId => Observation<T::ObservationId>;
 
        /// Audit Id => (Evidence Id => Evidence(Name, Content-Type, URL, Hash))
        pub Evidences get(fn evidences):
@@ -189,9 +185,7 @@ decl_module! {
 
                 observation.observation_id=Some(observation_id);
 
-                <ObservationOf<T>>::append_or_insert(&audit_id, &control_point_id, &[&observation_id][..]);
-
-                <Observations<T>>::insert(&observation_id, observation);
+                <Observations<T>>::insert((&audit_id, &control_point_id),&observation_id, observation);
 
                 Self::deposit_event(RawEvent::ObservationCreated(
                     audit_id,
@@ -303,9 +297,11 @@ impl<T: Trait> Module<T> {
         control_point_id: T::ControlPointId,
         observation_id: T::ObservationId,
     ) -> bool {
-        if <ObservationOf<T>>::contains_key(audit_id.clone(), control_point_id.clone()) {
-            let observation_ids = <ObservationOf<T>>::get(audit_id, control_point_id);
-            observation_ids.contains(&observation_id)
+        if <Observations<T>>::contains_key(
+            (audit_id.clone(), control_point_id.clone()),
+            observation_id,
+        ) {
+            true
         } else {
             false
         }
