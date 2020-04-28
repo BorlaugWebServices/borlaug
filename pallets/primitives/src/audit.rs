@@ -3,10 +3,11 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Audit<AuditId> {
+pub struct Audit<AuditId, AdminCreatorId, AuditorId> {
     pub audit_id: AuditId,
     pub status: AuditStatus,
-    pub auditor: Vec<u8>,
+    pub audit_creator: AdminCreatorId,
+    pub auditor: AuditorId,
 }
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
