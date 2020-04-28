@@ -202,7 +202,7 @@ decl_module! {
             ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::Requested),
             <Error<T>>::AuditIsNotRequested);
 
-            ensure!(Self::is_auditor_valid(audit_id, sender),
+            ensure!(Self::is_auditor_valid(audit_id, sender.clone()),
             <Error<T>>::AuditorIsNotValid);
 
             let mut audit = <Audits<T>>::get(audit_id);
@@ -225,7 +225,7 @@ decl_module! {
             ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::Requested),
             <Error<T>>::AuditIsNotRequested);
 
-            ensure!(Self::is_auditor_valid(audit_id, sender),
+            ensure!(Self::is_auditor_valid(audit_id, sender.clone()),
             <Error<T>>::AuditorIsNotValid);
 
             let mut audit = <Audits<T>>::get(audit_id);
@@ -247,7 +247,7 @@ decl_module! {
             ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::InProgress ),
             <Error<T>>::AuditIsNotInProgress);
 
-            ensure!(Self::is_auditor_valid(audit_id, sender),
+            ensure!(Self::is_auditor_valid(audit_id, sender.clone()),
             <Error<T>>::AuditorIsNotValid);
 
             let mut audit = <Audits<T>>::get(audit_id);
@@ -274,7 +274,7 @@ decl_module! {
           ){
                 let sender = ensure_signed(origin)?;
 
-                ensure!(Self::is_auditor_valid(audit_id, sender),
+                ensure!(Self::is_auditor_valid(audit_id, sender.clone()),
                 <Error<T>>::AuditorIsNotValid);
 
                 if Self::is_audit_in_this_status(audit_id, AuditStatus::Accepted) {
