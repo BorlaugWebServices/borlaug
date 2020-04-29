@@ -27,36 +27,36 @@ use sp_std::prelude::*;
 
 pub trait Trait: frame_system::Trait + timestamp::Trait {
     type AuditId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type ControlPointId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type EvidenceId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type ObservationId: Parameter
-    + Member
-    + AtLeast32Bit
-    + Default
-    + Copy
-    + MaybeSerializeDeserialize
-    + PartialEq;
+        + Member
+        + AtLeast32Bit
+        + Default
+        + Copy
+        + MaybeSerializeDeserialize
+        + PartialEq;
 
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
@@ -99,6 +99,7 @@ decl_error! {
         NoneValue,
         NoIdAvailable,
         AuditIsNotRequested,
+        AuditCreatorIsNotPresent,
         AuditIsNotInProgress,
         AuditorIsNotValid,
         NoObservationAvailable,
@@ -185,6 +186,9 @@ decl_module! {
             ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::Requested),
             <Error<T>>::AuditIsNotRequested);
 
+            ensure!(Self::is_audit_creator(audit_id, sender.clone()),
+            <Error<T>>::AuditCreatorIsNotPresent);
+
             <Audits<T>>::remove(&audit_id);
 
             Self::deposit_event(RawEvent::AuditRemoved(sender, audit_id));
@@ -270,35 +274,37 @@ decl_module! {
             origin,
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
-            observation: Observation<T::ObservationId>
-          ){
-                let sender = ensure_signed(origin)?;
+            observation: Observation<T::ObservationId>,
+        ) {
+            let sender = ensure_signed(origin)?;
 
-                ensure!(Self::is_auditor_valid(audit_id, sender.clone()),
-                <Error<T>>::AuditorIsNotValid);
+            ensure!(
+                Self::is_auditor_valid(audit_id, sender.clone()),
+                <Error<T>>::AuditorIsNotValid
+            );
 
-                if Self::is_audit_in_this_status(audit_id, AuditStatus::Accepted) {
-                    let mut audit = <Audits<T>>::get(audit_id);
-                    audit.status = AuditStatus::InProgress;
-                }
+            if Self::is_audit_in_this_status(audit_id, AuditStatus::Accepted) {
+                let mut audit = <Audits<T>>::get(audit_id);
+                audit.status = AuditStatus::InProgress;
 
-                let observation_id = Self::next_observation_id();
-                let next_id = observation_id
-                    .checked_add(&One::one())
-                    .ok_or(Error::<T>::NoIdAvailable)?;
-                <NextObservationId<T>>::put(next_id);
+                <Audits<T>>::insert(&audit_id, audit);
+            }
 
-                let mut observation=observation;
+            let observation_id = Self::next_observation_id();
+            let next_id = observation_id
+                .checked_add(&One::one())
+                .ok_or(Error::<T>::NoIdAvailable)?;
+            <NextObservationId<T>>::put(next_id);
 
-                observation.observation_id=Some(observation_id);
+            let mut observation = observation;
+            observation.observation_id = Some(observation_id);
+            <Observations<T>>::insert((&audit_id, &control_point_id), &observation_id, observation);
 
-                <Observations<T>>::insert((&audit_id, &control_point_id),&observation_id, observation);
-
-                Self::deposit_event(RawEvent::ObservationCreated(
-                    audit_id,
-                    control_point_id,
-                    observation_id,
-                ));
+            Self::deposit_event(RawEvent::ObservationCreated(
+                audit_id,
+                control_point_id,
+                observation_id,
+            ));
         }
 
         /// Attach New Evidence to Audit
@@ -363,6 +369,9 @@ decl_module! {
             ensure!(Self::is_evidence_exist(audit_id, evidence_id),
             <Error<T>>::NoEvidenceAvailable);
 
+            ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::InProgress ),
+            <Error<T>>::AuditIsNotInProgress);
+
             <EvidenceLinks<T>>::insert(&observation_id, &evidence_id, evidence_id);
 
             Self::deposit_event(RawEvent::EvidenceLinked(
@@ -397,6 +406,9 @@ decl_module! {
             ensure!(Self::is_evidence_exist(audit_id, evidence_id),
             <Error<T>>::NoEvidenceAvailable);
 
+            ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::InProgress ),
+            <Error<T>>::AuditIsNotInProgress);
+
             <EvidenceLinks<T>>::remove(&observation_id, &evidence_id);
 
             Self::deposit_event(RawEvent::EvidenceUnlinked(
@@ -411,10 +423,7 @@ decl_module! {
 
 // private functions
 impl<T: Trait> Module<T> {
-    fn is_audit_in_this_status(
-        audit_id: T::AuditId,
-        status: AuditStatus,
-    ) -> bool {
+    fn is_audit_in_this_status(audit_id: T::AuditId, status: AuditStatus) -> bool {
         if <Audits<T>>::contains_key(audit_id.clone()) {
             let audit = <Audits<T>>::get(audit_id);
             audit.status == status
@@ -423,11 +432,16 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    fn is_audit_creator(audit_id: T::AuditId, audit_creator: T::AccountId) -> bool {
+        if <Audits<T>>::contains_key(audit_id.clone()) {
+            let audit = <Audits<T>>::get(audit_id);
+            audit.audit_creator == audit_creator
+        } else {
+            false
+        }
+    }
 
-    fn is_auditor_valid(
-        audit_id: T::AuditId,
-        auditor: T::AccountId,
-    ) -> bool {
+    fn is_auditor_valid(audit_id: T::AuditId, auditor: T::AccountId) -> bool {
         if <Audits<T>>::contains_key(audit_id.clone()) {
             let audit = <Audits<T>>::get(audit_id);
             audit.auditor == auditor
@@ -451,11 +465,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    fn is_evidence_exist(
-        audit_id: T::AuditId,
-        evidence_id:
-        T::EvidenceId,
-    ) -> bool {
+    fn is_evidence_exist(audit_id: T::AuditId, evidence_id: T::EvidenceId) -> bool {
         if <Evidences<T>>::contains_key(audit_id.clone(), evidence_id.clone()) {
             true
         } else {
