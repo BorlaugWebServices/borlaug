@@ -9,6 +9,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub mod constants;
+pub mod offchain_worker_ipfs;
 pub mod primitives;
 
 use grandpa::fg_primitives;
@@ -18,9 +19,14 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::u32_trait::{_1, _2, _3, _4};
 use sp_core::OpaqueMetadata;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT, ConvertInto, IdentityLookup};
+use sp_runtime::transaction_validity;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys, transaction_validity::TransactionValidity,
     ApplyExtrinsicResult,
+};
+use sp_runtime::{
+    traits::{IdentifyAccount, Verify},
+    MultiSignature,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -221,6 +227,56 @@ impl membership::Trait<GeneralCouncilMembershipInstance> for Runtime {
     type MembershipChanged = GeneralCouncil;
 }
 
+// Define the transaction signer using the key definition
+type SubmitTransaction = system::offchain::TransactionSubmitter<
+    offchain_worker_ipfs::crypto::Public,
+    Runtime,
+    UncheckedExtrinsic,
+>;
+
+impl offchain_worker_ipfs::Trait for Runtime {
+    type Event = Event;
+    type Call = Call;
+
+    // To use signed transactions in your runtime
+    type SubmitSignedTransaction = SubmitTransaction;
+
+    // To use unsigned transactions in your runtime
+    type SubmitUnsignedTransaction = SubmitTransaction;
+}
+
+impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
+    type Public = <MultiSignature as Verify>::Signer;
+    type Signature = MultiSignature;
+
+    fn create_transaction<TSigner: system::offchain::Signer<Self::Public, Self::Signature>>(
+        call: Call,
+        public: Self::Public,
+        account: AccountId,
+        index: Index,
+    ) -> Option<(
+        Call,
+        <UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
+    )> {
+        let period = 1 << 8;
+        let current_block = System::block_number().saturated_into::<u64>();
+        let tip = 0;
+        let extra: SignedExtra = (
+            system::CheckVersion::<Runtime>::new(),
+            system::CheckGenesis::<Runtime>::new(),
+            system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
+            system::CheckNonce::<Runtime>::from(index),
+            system::CheckWeight::<Runtime>::new(),
+            transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+        );
+        let raw_payload = generic::SignedPayload::new(call, extra).ok()?;
+        let signature = TSigner::sign(public, &raw_payload)?;
+        let address = account;
+        let (call, extra, _) = raw_payload.deconstruct();
+        Some((call, (address, signature, extra)))
+    }
+}
+
 impl identity::Trait for Runtime {
     type CatalogId = u32;
     type Event = Event;
@@ -243,21 +299,21 @@ impl audits::Trait for Runtime {
 }
 
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = opaque::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
-	{
-		System: system::{Module, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
-		Timestamp: timestamp::{Module, Call, Storage, Inherent},
-		Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
-		Grandpa: grandpa::{Module, Call, Storage, Config, Event},
-		Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
-		TransactionPayment: transaction_payment::{Module, Storage},
-		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		
-		// Governance
+    pub enum Runtime where
+        Block = Block,
+        NodeBlock = opaque::Block,
+        UncheckedExtrinsic = UncheckedExtrinsic
+    {
+        System: system::{Module, Call, Config, Storage, Event<T>},
+        RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
+        Timestamp: timestamp::{Module, Call, Storage, Inherent},
+        Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
+        Grandpa: grandpa::{Module, Call, Storage, Config, Event},
+        Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
+        TransactionPayment: transaction_payment::{Module, Storage},
+        Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
+
+        // Governance
         GeneralCouncil: collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
         GeneralCouncilMembership: membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>},
 
@@ -265,6 +321,12 @@ construct_runtime!(
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},
+
+        // To use unsigned transactions
+        // OffchainPallet: offchain_worker_ipfs::{ Module, Call, Storage, Event<T>, transaction_validity::ValidateUnsigned }
+        // If you are only using signed transactions, it can just be:
+        OffchainPallet: offchain_worker_ipfs::{ Module, Call, Storage, Event<T> }
+
     }
 );
 

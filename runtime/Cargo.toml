@@ -39,10 +39,12 @@ transaction-payment-rpc-runtime-api = { package = "pallet-transaction-payment-rp
 collective = { package = "pallet-collective", git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
 membership = { package = "pallet-membership", git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
 
+
 # Borlaug Dependencies
 identity = { package = "pallet-identity", path = "../pallets/identity", default-features = false }
 asset-registry = { package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false }
 audits = { package = "pallet-audits", path = "../pallets/audits", default-features = false }
+
 
 [build-dependencies]
 wasm-builder-runner = { package = "substrate-wasm-builder-runner", version = "1.0.5" }
