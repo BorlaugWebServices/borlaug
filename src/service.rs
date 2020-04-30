@@ -82,6 +82,9 @@ pub fn new_full(config: Configuration) -> Result<impl AbstractService, ServiceEr
     let name = config.name.clone();
     let disable_grandpa = config.disable_grandpa;
 
+    // This clones the key for Alice.
+    let dev_seed = config.dev_key_seed.clone();
+
     // sentry nodes announce themselves as authorities to the network
     // and should run the same protocols authorities do, but it should
     // never actively participate in any consensus process.
@@ -100,6 +103,17 @@ pub fn new_full(config: Configuration) -> Result<impl AbstractService, ServiceEr
             Ok(Arc::new(GrandpaFinalityProofProvider::new(backend, provider)) as _)
         })?
         .build()?;
+
+    if let Some(seed) = dev_seed {
+        service
+            .keystore()
+            .write()
+            .insert_ephemeral_from_seed_by_type::<runtime::offchain_worker_ipfs::crypto::Pair>(
+                &seed,
+                runtime::offchain_worker_ipfs::KEY_TYPE,
+            )
+            .expect("Dev Seed should always succeed.");
+    }
 
     if participates_in_consensus {
         let proposer =

@@ -1,8 +1,10 @@
 // For better debugging (printout) support
-use frame_support::{debug, decl_event, decl_module, decl_storage, dispatch};
+use frame_support::{debug, decl_event, decl_module, decl_storage, dispatch::DispatchResult};
 use sp_runtime::transaction_validity::{
     InvalidTransaction, TransactionLongevity, TransactionValidity, ValidTransaction,
 };
+use sp_std::prelude::*;
+use system::ensure_signed;
 use system::offchain;
 
 // The key type ID can be any 4-character string
@@ -44,8 +46,22 @@ decl_module! {
 
     fn deposit_event() = default;
 
+    // fn offchain_worker(block: T::BlockNumber) {
+    //   debug::info!("Hello World.");
+    // }
+
+    pub fn onchain_callback(origin, _block: T::BlockNumber, input: Vec<u8>) -> DispatchResult {
+      let who = ensure_signed(origin)?;
+      debug::info!("{:?}", core::str::from_utf8(&input).unwrap());
+      Ok(())
+    }
+
     fn offchain_worker(block: T::BlockNumber) {
-      debug::info!("Hello World.");
+      use system::offchain::SubmitSignedTransaction;
+      // Here we specify the function to be called back on-chain in next block import.
+      let call = Call::onchain_callback(block, b"hello world!".to_vec());
+      T::SubmitSignedTransaction::submit_signed(call);
     }
   }
+
 }
