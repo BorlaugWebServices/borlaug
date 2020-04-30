@@ -18,15 +18,14 @@ use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::u32_trait::{_1, _2, _3, _4};
 use sp_core::OpaqueMetadata;
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT, ConvertInto, IdentityLookup};
+use sp_runtime::traits::{
+    self, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount, IdentityLookup,
+    SaturatedConversion, Verify,
+};
 use sp_runtime::transaction_validity;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys, transaction_validity::TransactionValidity,
-    ApplyExtrinsicResult,
-};
-use sp_runtime::{
-    traits::{IdentifyAccount, Verify},
-    MultiSignature,
+    ApplyExtrinsicResult, MultiSignature,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -36,7 +35,7 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 pub use balances::Call as BalancesCall;
 pub use frame_support::{
-    construct_runtime, parameter_types, traits::Randomness, weights::Weight, StorageValue,
+    construct_runtime, debug, parameter_types, traits::Randomness, weights::Weight, StorageValue,
 };
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -246,8 +245,8 @@ impl offchain_worker_ipfs::Trait for Runtime {
 }
 
 impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
-    type Public = <MultiSignature as Verify>::Signer;
-    type Signature = MultiSignature;
+    type Public = <Signature as Verify>::Signer;
+    type Signature = Signature;
 
     fn create_transaction<TSigner: system::offchain::Signer<Self::Public, Self::Signature>>(
         call: Call,
@@ -256,10 +255,18 @@ impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtim
         index: Index,
     ) -> Option<(
         Call,
-        <UncheckedExtrinsic as sp_runtime::traits::Extrinsic>::SignaturePayload,
+        <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload,
     )> {
-        let period = 1 << 8;
-        let current_block = System::block_number().saturated_into::<u64>();
+        // take the biggest period possible.
+        let period = BlockHashCount::get()
+            .checked_next_power_of_two()
+            .map(|c| c / 2)
+            .unwrap_or(2) as u64;
+        let current_block = System::block_number()
+            .saturated_into::<u64>()
+            // The `System::block_number` is initialized with `n+1`,
+            // so the actual block number is `n`.
+            .saturating_sub(1);
         let tip = 0;
         let extra: SignedExtra = (
             system::CheckVersion::<Runtime>::new(),
@@ -269,7 +276,11 @@ impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtim
             system::CheckWeight::<Runtime>::new(),
             transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
-        let raw_payload = generic::SignedPayload::new(call, extra).ok()?;
+        let raw_payload = SignedPayload::new(call, extra)
+            .map_err(|e| {
+                debug::warn!("Unable to create signed payload: {:?}", e);
+            })
+            .ok()?;
         let signature = TSigner::sign(public, &raw_payload)?;
         let address = account;
         let (call, extra, _) = raw_payload.deconstruct();
@@ -349,6 +360,8 @@ pub type SignedExtra = (
     system::CheckWeight<Runtime>,
     transaction_payment::ChargeTransactionPayment<Runtime>,
 );
+/// The payload being signed in transactions.
+pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
