@@ -77,15 +77,10 @@ macro_rules! new_full_start {
 
 /// Builds a new service for a full client.
 pub fn new_full(config: Configuration) -> Result<impl AbstractService, ServiceError> {
-    let is_authority = config.roles.is_authority();
+    let role = config.role.clone();
     let force_authoring = config.force_authoring;
-    let name = config.name.clone();
+    let name = config.network.node_name.clone();
     let disable_grandpa = config.disable_grandpa;
-
-    // sentry nodes announce themselves as authorities to the network
-    // and should run the same protocols authorities do, but it should
-    // never actively participate in any consensus process.
-    let participates_in_consensus = is_authority && !config.sentry_mode;
 
     let (builder, mut import_setup, inherent_data_providers) = new_full_start!(config);
 
@@ -101,7 +96,7 @@ pub fn new_full(config: Configuration) -> Result<impl AbstractService, ServiceEr
         })?
         .build()?;
 
-    if participates_in_consensus {
+    if role.is_authority() {
         let proposer =
             sc_basic_authorship::ProposerFactory::new(service.client(), service.transaction_pool());
 
@@ -133,7 +128,7 @@ pub fn new_full(config: Configuration) -> Result<impl AbstractService, ServiceEr
 
     // if the node isn't actively participating in consensus then it doesn't
     // need a keystore, regardless of which protocol we use below.
-    let keystore = if participates_in_consensus {
+    let keystore = if role.is_authority() {
         Some(service.keystore())
     } else {
         None
@@ -146,7 +141,7 @@ pub fn new_full(config: Configuration) -> Result<impl AbstractService, ServiceEr
         name: Some(name),
         observer_enabled: false,
         keystore,
-        is_authority,
+        is_authority: role.is_network_authority(),
     };
 
     let enable_grandpa = !disable_grandpa;

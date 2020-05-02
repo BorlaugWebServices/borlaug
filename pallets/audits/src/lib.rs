@@ -17,12 +17,15 @@ mod mock;
 mod tests;
 
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, ensure, weights::SimpleDispatchInfo,
+    debug, decl_error, decl_event, decl_module, decl_storage, ensure, weights::SimpleDispatchInfo,
     Parameter,
 };
 use frame_system::{self as system, ensure_signed};
 use primitives::{Audit, AuditStatus, Evidence, Observation};
-use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One};
+use sp_runtime::{
+    traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
+    DispatchResult,
+};
 use sp_std::prelude::*;
 
 pub trait Trait: frame_system::Trait + timestamp::Trait {
@@ -200,7 +203,7 @@ decl_module! {
         /// Arguments:
         /// - `audit_id`
         #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
-        fn accept_audit(origin, audit_id: T::AuditId) {
+        fn accept_audit(origin, audit_id: T::AuditId) ->DispatchResult {
             let sender = ensure_signed(origin)?;
 
             ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::Requested),
@@ -215,6 +218,8 @@ decl_module! {
             <Audits<T>>::insert(&audit_id, audit);
 
             Self::deposit_event(RawEvent::AuditAccepted(sender, audit_id));
+
+            Ok(())
         }
 
 
@@ -428,6 +433,7 @@ impl<T: Trait> Module<T> {
             let audit = <Audits<T>>::get(audit_id);
             audit.status == status
         } else {
+            debug::warn!("Incorrect audit status");
             false
         }
     }
@@ -437,6 +443,7 @@ impl<T: Trait> Module<T> {
             let audit = <Audits<T>>::get(audit_id);
             audit.audit_creator == audit_creator
         } else {
+            debug::warn!("Not audit creator");
             false
         }
     }
@@ -446,6 +453,7 @@ impl<T: Trait> Module<T> {
             let audit = <Audits<T>>::get(audit_id);
             audit.auditor == auditor
         } else {
+            debug::warn!("Not auditor");
             false
         }
     }

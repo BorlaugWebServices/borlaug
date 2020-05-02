@@ -8,8 +8,23 @@
   "RegistryId": "u32",
   "AssetId": "u32",
   "LeaseId": "u32",
+  "Audit": {
+    "audit_id": "AuditId",
+    "status": "AuditStatus",
+    "audit_creator": "AccountId",
+    "auditor": "AccountId"
+  },
   "Did": {
     "id": "[u8; 32]"
+  },
+  "AuditStatus": {
+    "_enum": [
+      "Requested",
+      "Accepted",
+      "Rejected",
+      "InProgress",
+      "Completed"
+    ]
   },
   "ClaimIndex": "u64",
   "Claim": {
