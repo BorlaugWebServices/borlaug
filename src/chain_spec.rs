@@ -95,6 +95,20 @@ impl Alternative {
                                 .unwrap(),
                             )
                             .into_account(),
+                            AccountPublic::from(
+                                sp_core::sr25519::Public::from_ss58check(
+                                    "5CfMkF8xrakzXaA4dW4S5iEG9PgrSbs8BkE3ooHYn9fckrQS",
+                                )
+                                    .unwrap(),
+                            )
+                                .into_account(),
+                            AccountPublic::from(
+                                sp_core::sr25519::Public::from_ss58check(
+                                    "5EbzuvEYgSgcmDZNsEdCCMwCw4mrzCTNNUk7dAAog9WwotS7",
+                                )
+                                    .unwrap(),
+                            )
+                                .into_account(),
                         ],
                         true,
                     )
@@ -189,6 +203,20 @@ impl Alternative {
                                 .unwrap(),
                             )
                             .into_account(),
+                            AccountPublic::from(
+                                sp_core::sr25519::Public::from_ss58check(
+                                    "5CfMkF8xrakzXaA4dW4S5iEG9PgrSbs8BkE3ooHYn9fckrQS",
+                                )
+                                    .unwrap(),
+                            )
+                                .into_account(),
+                            AccountPublic::from(
+                                sp_core::sr25519::Public::from_ss58check(
+                                    "5EbzuvEYgSgcmDZNsEdCCMwCw4mrzCTNNUk7dAAog9WwotS7",
+                                )
+                                    .unwrap(),
+                            )
+                                .into_account(),
                         ],
                         true,
                     )
@@ -285,6 +313,20 @@ impl Alternative {
                                 .unwrap(),
                             )
                             .into_account(),
+                            AccountPublic::from(
+                                sp_core::sr25519::Public::from_ss58check(
+                                    "5CfMkF8xrakzXaA4dW4S5iEG9PgrSbs8BkE3ooHYn9fckrQS",
+                                )
+                                    .unwrap(),
+                            )
+                                .into_account(),
+                            AccountPublic::from(
+                                sp_core::sr25519::Public::from_ss58check(
+                                    "5EbzuvEYgSgcmDZNsEdCCMwCw4mrzCTNNUk7dAAog9WwotS7",
+                                )
+                                    .unwrap(),
+                            )
+                                .into_account(),
                         ],
                         true,
                     )

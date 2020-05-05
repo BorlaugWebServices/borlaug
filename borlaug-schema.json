@@ -95,6 +95,23 @@
   "DidPropertyName": "Vec<u8>",
   "ShortName": "Vec<u8>",
   "AuditId": "u32",
+  "AuditStatus": {
+    "_enum": [
+      "Requested",
+      "Accepted",
+      "Rejected",
+      "InProgress",
+      "Completed"
+    ]
+  },
+  "AuditCreatorId": "AccountId",
+  "AuditorId": "AccountId",
+  "Audit": {
+    "audit_id": "AuditId",
+    "status": "AuditStatus",
+    "audit_creator": "AuditCreatorId",
+    "auditor": "AuditorId"
+  },
   "ControlPointId": "u32",
   "ObservationId": "u32",
   "Observation": {
