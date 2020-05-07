@@ -116,7 +116,7 @@ pub fn development_config() -> ChainSpec {
 pub fn inca_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Borlaug Inca",
-        "inca",
+        "borlaug_inca",
         ChainType::Live,
         || {
             testnet_genesis(
@@ -207,7 +207,7 @@ pub fn inca_config() -> ChainSpec {
 pub fn maya_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Borlaug Maya",
-        "maya",
+        "borlaug_maya",
         ChainType::Live,
         || {
             testnet_genesis(
