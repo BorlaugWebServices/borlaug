@@ -89,6 +89,8 @@ decl_event!(
         EvidenceLinked(AuditId, EvidenceId, ObservationId),
         /// Evidence Unlinked from Observation
         EvidenceUnlinked(AuditId, EvidenceId, ObservationId),
+        /// Evidence Deleted from Audit
+        EvidenceDeleted(AuditId, EvidenceId),
 
     }
 );
@@ -136,7 +138,7 @@ decl_storage! {
 
        /// Observation Id => (Evidence Id => Evidence Id)
        pub EvidenceLinks get(fn evidence_links):
-            double_map hasher(blake2_128_concat) T::ObservationId, hasher(blake2_128_concat) T::EvidenceId => T::EvidenceId;
+            double_map hasher(blake2_128_concat) T::EvidenceId , hasher(blake2_128_concat) T::ObservationId=> T::EvidenceId;
     }
 }
 
@@ -318,6 +320,7 @@ decl_module! {
             audit_id: T::AuditId,
             evidence: Evidence<T::EvidenceId>
         ){
+            // sp_runtime::print("AA");
             let sender = ensure_signed(origin)?;
 
             ensure!(Self::is_auditor_valid(audit_id, sender),
@@ -359,7 +362,6 @@ decl_module! {
             evidence_id:T::EvidenceId,
         ){
             let sender = ensure_signed(origin)?;
-
             ensure!(Self::is_auditor_valid(audit_id, sender),
             <Error<T>>::AuditorIsNotValid);
 
@@ -372,7 +374,7 @@ decl_module! {
             ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::InProgress ),
             <Error<T>>::AuditIsNotInProgress);
 
-            <EvidenceLinks<T>>::insert(&observation_id, &evidence_id, evidence_id);
+            <EvidenceLinks<T>>::insert(&evidence_id,&observation_id,  evidence_id);
 
             Self::deposit_event(RawEvent::EvidenceLinked(
                 audit_id,
@@ -385,8 +387,9 @@ decl_module! {
         ///
         /// Arguments:
         /// - `audit_id` id of audit created on chain
-        /// - `evidence_id` id of evidence created on chain
+        /// - `control_point_id` id of observation created on chain
         /// - `observation_id` id of observation created on chain
+        /// - `evidence_id` id of evidence created on chain
         #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
         fn unlink_evidence(
             origin,
@@ -409,7 +412,7 @@ decl_module! {
             ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::InProgress ),
             <Error<T>>::AuditIsNotInProgress);
 
-            <EvidenceLinks<T>>::remove(&observation_id, &evidence_id);
+            <EvidenceLinks<T>>::remove(&evidence_id,&observation_id);
 
             Self::deposit_event(RawEvent::EvidenceUnlinked(
                 audit_id,
@@ -418,13 +421,45 @@ decl_module! {
             ));
         }
 
+
+        /// Delete Attached evidence from audit
+        ///
+        /// Arguments:
+        /// - `audit_id` id of audit created on chain
+        /// - `evidence_id` id of evidence created on chain
+        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        fn delete_evidence(
+            origin,
+            audit_id:T::AuditId,
+            evidence_id:T::EvidenceId,
+        ){
+            let sender = ensure_signed(origin)?;
+
+            ensure!(Self::is_auditor_valid(audit_id, sender),
+            <Error<T>>::AuditorIsNotValid);
+
+            ensure!(Self::is_evidence_exist(audit_id, evidence_id),
+            <Error<T>>::NoEvidenceAvailable);
+
+            ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::InProgress ),
+            <Error<T>>::AuditIsNotInProgress);
+
+            <EvidenceLinks<T>>::remove_prefix(&evidence_id);
+
+            <Evidences<T>>::remove(&audit_id,&evidence_id);
+
+            Self::deposit_event(RawEvent::EvidenceDeleted(
+                audit_id,
+                evidence_id
+            ));
+        }
     }
 }
 
 // private functions
 impl<T: Trait> Module<T> {
     fn is_audit_in_this_status(audit_id: T::AuditId, status: AuditStatus) -> bool {
-        if <Audits<T>>::contains_key(audit_id.clone()) {
+        if <Audits<T>>::contains_key(audit_id) {
             let audit = <Audits<T>>::get(audit_id);
             audit.status == status
         } else {

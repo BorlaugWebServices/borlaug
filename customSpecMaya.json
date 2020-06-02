@@ -1,10 +1,10 @@
 {
-  "name": "Borlaug Testnet Inca",
-  "id": "borlaug_testnet_inca",
+  "name": "Borlaug Testnet Maya",
+  "id": "borlaug_maya",
   "bootNodes": [
-    "/ip4/3.6.94.87/tcp/30333/p2p/QmPZHibpY11toY1nQcArpryGyJxYFXBWWotg3TKLpBT7ug",
-    "/ip4/3.1.196.206/tcp/30333/p2p/QmPZrx6TXbMcrgMgMqYMd6rhjbLXEYFYW2rV6i5UF7DnTP",
-    "/ip4/3.124.8.22/tcp/30333/p2p/QmWDUmXLxynkSyBzGGDEwnbW6i3o7qnsupadRLCmMtbMNk"
+    "/ip4/10.0.0.23/tcp/30333/p2p/QmQKY7Lfe5aHfhppg7YtsnUwbEJnUfgcvPQoZX45f2FM5g",
+    "/ip4/10.0.0.253/tcp/30333/p2p/QmRe6NHXio99XN5MDAQbJsqPi52FWmshYq3ALVADMPrKNZ",
+    "/ip4/10.0.0.71/tcp/30333/p2p/QmdYsNn9gRPpXpQSdJXw9dh1wPdxqJnsxoZVzWeUu8LD2Q"
   ],
   "telemetryEndpoints": null,
   "protocolId": "borlaug",

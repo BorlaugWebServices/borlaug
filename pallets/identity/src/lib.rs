@@ -298,7 +298,7 @@ decl_module! {
                     );
                 })
             }
-             sp_runtime::print("C");
+
             if let Some(to_be_added) = add {
                 to_be_added.iter().for_each(|add_account|{
 
@@ -307,7 +307,6 @@ decl_module! {
                     );
                 })
             }
-             sp_runtime::print("D");
 
             Self::deposit_event(RawEvent::DidControllersUpdated(
                 sender,

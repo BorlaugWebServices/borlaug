@@ -26,7 +26,7 @@ pub enum Alternative {
     /// The Inca testnet.
     IncaTestnet,
     /// The development testnet.
-    DevelopmentTestnet,
+    MayaTestnet,
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -240,9 +240,9 @@ impl Alternative {
                 None,
             ),
             
-            Alternative::DevelopmentTestnet => ChainSpec::from_genesis(
-                "Borlaug Testnet Development",
-                "borlaug_testnet_development",
+            Alternative::MayaTestnet => ChainSpec::from_genesis(
+                "Borlaug Testnet Maya",
+                "borlaug_maya",
                 || {
                     testnet_genesis(
                         vec![                        
@@ -356,7 +356,8 @@ impl Alternative {
         match s {
             "dev" => Some(Alternative::Development),
             "inca" => Some(Alternative::IncaTestnet),
-            "" | "development" => Some(Alternative::DevelopmentTestnet),
+            "borlaug_maya" => Some(Alternative::MayaTestnet),
+            "" | "development" => Some(Alternative::MayaTestnet),
             _ => None,
         }
     }
