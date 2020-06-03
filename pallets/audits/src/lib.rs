@@ -16,10 +16,7 @@
 mod mock;
 mod tests;
 
-use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, ensure, weights::SimpleDispatchInfo,
-    Parameter,
-};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
 use frame_system::{self as system, ensure_signed};
 use primitives::{Audit, AuditStatus, Evidence, Observation};
 use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One};
@@ -153,7 +150,7 @@ decl_module! {
         ///
         /// Arguments: None
 
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn create_audit(
             origin,
             auditor: T::AccountId) {
@@ -181,7 +178,7 @@ decl_module! {
         ///
         /// Arguments:
         /// - `audit_id`
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn delete_audit(origin,audit_id: T::AuditId) {
             let sender = ensure_signed(origin)?;
 
@@ -201,7 +198,7 @@ decl_module! {
         ///
         /// Arguments:
         /// - `audit_id`
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn accept_audit(origin, audit_id: T::AuditId) {
             let sender = ensure_signed(origin)?;
 
@@ -224,7 +221,7 @@ decl_module! {
         ///
         /// Arguments:
         /// - `audit_id`
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn reject_audit(origin, audit_id: T::AuditId) {
             let sender = ensure_signed(origin)?;
 
@@ -246,7 +243,7 @@ decl_module! {
         ///
         /// Arguments:
         /// - `audit_id`
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn complete_audit(origin, audit_id: T::AuditId) {
             let sender = ensure_signed(origin)?;
 
@@ -271,7 +268,7 @@ decl_module! {
         /// - `audit_id` id created on chain of audit
         /// - `control_point_id` control point id of audit
         /// - `observation` (compliance, procedural notes)
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn create_observation(
             origin,
             audit_id: T::AuditId,
@@ -314,7 +311,7 @@ decl_module! {
         /// Arguments:
         /// - `audit_id` id of audit created on chain
         /// - `evidence` Body of evidence
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn create_evidence(
             origin,
             audit_id: T::AuditId,
@@ -353,7 +350,7 @@ decl_module! {
         /// - `audit_id` id of audit created on chain
         /// - `evidence_id` id of evidence created on chain
         /// - `observation_id` id of observation created on chain
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn link_evidence(
             origin,
             audit_id:T::AuditId,
@@ -390,7 +387,7 @@ decl_module! {
         /// - `control_point_id` id of observation created on chain
         /// - `observation_id` id of observation created on chain
         /// - `evidence_id` id of evidence created on chain
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn unlink_evidence(
             origin,
             audit_id:T::AuditId,
@@ -427,7 +424,7 @@ decl_module! {
         /// Arguments:
         /// - `audit_id` id of audit created on chain
         /// - `evidence_id` id of evidence created on chain
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn delete_evidence(
             origin,
             audit_id:T::AuditId,

@@ -8,16 +8,16 @@ edition = "2018"
 serde = { version = "1.0", optional = true }
 codec = { package = "parity-scale-codec", version = "1.2.0", default-features = false }
 
-sp-runtime = { git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
-sp-io = { git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
-sp-std = { package = "sp-std", git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
-randomness = { package = "pallet-randomness-collective-flip", git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
-balances = { package = "pallet-balances", git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
-timestamp = { package = "pallet-timestamp", git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
+sp-std = { package = "sp-std", git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
+randomness = { package = "pallet-randomness-collective-flip", git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
+balances = { package = "pallet-balances", git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
+timestamp = { package = "pallet-timestamp", git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
 
-frame-system = { git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate.git", rev = 'd1b9ccad107e4899978858de5ddd2868b9777aab', default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate.git", rev = '3fe22edd5b0fb17dd51532ed53b12dc82d6785fa', default-features = false }
 
 primitives = { package = "pallet-primitives", path = "../primitives" , default-features = false}
 
