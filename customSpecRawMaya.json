@@ -3,9 +3,9 @@
   "id": "borlaug_maya",
   "chainType": "Live",
   "bootNodes": [
-    "/ip4/10.0.0.23/tcp/30333/p2p/QmQvvLyBBHFVU7xt8SzrXMW9J3SigWSoxHA7zX55D1Pknd",
-    "/ip4/10.0.0.253/tcp/30333/p2p/QmZt7xVqXNr2hUZ4JtZFaxw5jQpMmb6xqWmdWqhAkThQ7J",
-    "/ip4/10.0.0.71/tcp/30333/p2p/QmbEmGRbZarhwPNP6qMtbQFpVHrohvKx85GkdCAM3jxHLm"
+    "/ip4/10.0.0.23/tcp/30333/p2p/QmPXxBT5epf195UjNf4j74A72tZmnC3HmnMvzixtzSu9td",
+    "/ip4/10.0.0.253/tcp/30333/p2p/Qme27zddWzfxy4wGPGFQriRtSrT1WeajtX5eSpquRioggw",
+    "/ip4/10.0.0.71/tcp/30333/p2p/QmQqrmhJMyrAa593t7JKJgjkZ4ahWU3eDhvjKTQCNDMPjj"
   ],
   "telemetryEndpoints": null,
   "protocolId": "borlaug",
