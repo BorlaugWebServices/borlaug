@@ -2,7 +2,7 @@
   "name": "Borlaug Testnet Inca",
   "id": "borlaug_testnet_inca",
   "bootNodes": [
-    "/ip4/127.0.0.1/tcp/30333/p2p/QmPZHibpY11toY1nQcArpryGyJxYFXBWWotg3TKLpBT7ug",
+    "/ip4/127.0.0.1/tcp/30333/p2p/QmRq5VvDa7gTpmsJMnww8xatuBcbodqVk6bT1NDdMYNrrF",
     "/ip4/127.0.0.1/tcp/30334/p2p/QmPZrx6TXbMcrgMgMqYMd6rhjbLXEYFYW2rV6i5UF7DnTP",
     "/ip4/127.0.0.1/tcp/30335/p2p/QmWDUmXLxynkSyBzGGDEwnbW6i3o7qnsupadRLCmMtbMNk"
   ],
