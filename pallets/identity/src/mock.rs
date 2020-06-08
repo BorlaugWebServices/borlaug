@@ -56,6 +56,7 @@ impl frame_system::Trait for Test {
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
+    type MaximumExtrinsicWeight = MaximumBlockWeight;
 }
 
 impl timestamp::Trait for Test {
