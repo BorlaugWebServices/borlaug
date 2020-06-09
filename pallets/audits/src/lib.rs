@@ -152,8 +152,9 @@ decl_module! {
 
         #[weight = 100_000]
         fn create_audit(
-            origin,
-            auditor: T::AccountId) {
+            origin            ,
+            auditor: T::AccountId
+        ) {
             let sender = ensure_signed(origin)?;
 
             let audit_id = Self::next_audit_id();
