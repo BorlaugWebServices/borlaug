@@ -286,7 +286,8 @@ pub fn maya_config() -> ChainSpec {
                             "5EbzuvEYgSgcmDZNsEdCCMwCw4mrzCTNNUk7dAAog9WwotS7",
                         )
                         .unwrap(),
-                    ),
+                    )
+                    .into_account(),
                 ],
                 true,
             )
