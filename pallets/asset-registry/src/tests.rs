@@ -27,7 +27,6 @@ fn create_registry(did: Did) -> u32 {
 fn create_asset(did: Did, registry_id: u32) -> u32 {
     let now = Utc::now().timestamp() as u64;
     let asset = Asset {
-        asset_id: None,
         properties: None,
         name: Some(b"Cat".to_vec()),
         asset_number: Some(b"CAR_001".to_vec()),
@@ -49,7 +48,6 @@ fn create_lease(did_lessor: Did, did_lessee: Did) -> u32 {
     let now = Utc::now().timestamp() as u64;
     let next_week = (Utc::now().timestamp() + 60 * 60 * 24 * 7) as u64;
     let lease = LeaseAgreement {
-        lease_id: None,
         contract_number: b"001".to_vec(),
         lessor: did_lessor,
         lessee: did_lessee,
@@ -71,10 +69,10 @@ fn creating_registry_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(Origin::signed(1), None));
-        
+
         let dids = Identity::dids(&1);
         let did_1 = dids[0];
-        
+
         assert_ok!(AssetRegistry::create_registry(Origin::signed(1), did_1));
         assert_eq!(AssetRegistry::registries(&did_1), vec![0u32]);
     });
@@ -88,12 +86,11 @@ fn deleting_registry_should_work() {}
 fn creating_assets_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         let did_1 = create_did();
-        
+
         let registry_id = create_registry(did_1);
-        
+
         let now = Utc::now().timestamp() as u64;
         let mut asset = Asset {
-            asset_id: None,
             properties: None,
             name: Some(b"Cat".to_vec()),
             asset_number: Some(b"CAR_001".to_vec()),
@@ -110,11 +107,11 @@ fn creating_assets_should_work() {
             registry_id,
             asset.clone()
         ));
-        
+
         let created_asset = AssetRegistry::assets(registry_id, 0u32);
-        
+
         asset.asset_id = created_asset.asset_id;
-        
+
         assert_eq!(created_asset, asset);
     });
 }
@@ -123,15 +120,14 @@ fn creating_assets_should_work() {
 fn updating_asset_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         let did_1 = create_did();
-        
+
         let registry_id = create_registry(did_1);
-        
+
         let asset_id = create_asset(did_1, registry_id);
-        
+
         let now = Utc::now().timestamp() as u64;
-        
+
         let new_asset = Asset {
-            asset_id: Some(asset_id),
             properties: None,
             name: Some(b"Dog".to_vec()),
             asset_number: Some(b"CAR_002".to_vec()),
@@ -142,7 +138,7 @@ fn updating_asset_should_work() {
             purchase_value: Some(1_000_000),
             acquired_date: Some(now),
         };
-        
+
         assert_ok!(AssetRegistry::update_asset(
             Origin::signed(1),
             did_1,
@@ -150,7 +146,7 @@ fn updating_asset_should_work() {
             asset_id,
             new_asset.clone()
         ));
-        
+
         assert_eq!(AssetRegistry::assets(registry_id, 0u32), new_asset);
     });
 }
@@ -159,11 +155,11 @@ fn updating_asset_should_work() {
 fn deleting_asset_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         let did_1 = create_did();
-        
+
         let registry_id = create_registry(did_1);
-        
+
         let asset_id = create_asset(did_1, registry_id);
-        
+
         assert_ok!(AssetRegistry::delete_asset(
             Origin::signed(1),
             did_1,
@@ -180,21 +176,20 @@ fn creating_lease_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         // 1 creates a DID for itself (lessor)
         let did_lessor = create_did();
-        
+
         //2 create DID for lessee
         let did_lessee = create_did();
-        
+
         let registry_id = create_registry(did_lessor);
-        
+
         //Create an asset
-        
+
         let asset_id = create_asset(did_lessor, registry_id);
-        
+
         let now = Utc::now().timestamp() as u64;
         let next_week = (Utc::now().timestamp() + 60 * 60 * 24 * 7) as u64;
-        
+
         let lease = LeaseAgreement {
-            lease_id: None,
             contract_number: b"001".to_vec(),
             lessor: did_lessor,
             lessee: did_lessee,
@@ -206,7 +201,7 @@ fn creating_lease_should_work() {
             effective_ts: now,
             expiry_ts: next_week,
         };
-        
+
         assert_ok!(AssetRegistry::new_lease(Origin::signed(1), lease));
     });
 }

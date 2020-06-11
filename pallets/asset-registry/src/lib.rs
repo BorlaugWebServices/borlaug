@@ -132,7 +132,7 @@ decl_storage! {
         /// Registry of assets
         pub Assets get(fn assets):
             double_map hasher(twox_64_concat) T::RegistryId, hasher(twox_64_concat) T::AssetId =>
-            Asset<T::AssetId, T::Moment, T::Balance>;
+            Asset<T::Moment, T::Balance>;
 
         /// Lease allocations of assets
         pub LeaseAllocations get(fn allocations):
@@ -142,7 +142,7 @@ decl_storage! {
         /// Lease agreements by lessor
         pub LeaseAgreements get(fn leases):
             double_map hasher(blake2_128_concat) Did, hasher(twox_64_concat) T::LeaseId =>
-            LeaseAgreement<T::RegistryId, T::AssetId, T::LeaseId, T::Moment>;
+            LeaseAgreement<T::RegistryId, T::AssetId, T::Moment>;
 
     }
 }
@@ -209,7 +209,7 @@ decl_module! {
             origin,
             owner_did: Did,
             registry_id: T::RegistryId,
-            asset: Asset<T::AssetId, T::Moment, T::Balance>,
+            asset: Asset<T::Moment, T::Balance>,
         )  {
 
             let sender = ensure_signed(origin)?;
@@ -236,7 +236,7 @@ decl_module! {
             owner_did: Did,
             registry_id: T::RegistryId,
             asset_id: T::AssetId,
-            asset: Asset<T::AssetId, T::Moment, T::Balance>,
+            asset: Asset<T::Moment, T::Balance>,
         ) {
             let sender = ensure_signed(origin)?;
             ensure!(Self::is_did_subject(sender, owner_did),
@@ -287,7 +287,7 @@ decl_module! {
         #[weight = 100_000]
         fn new_lease(
             origin,
-            lease: LeaseAgreement<T::RegistryId, T::AssetId,T::LeaseId, T::Moment>,
+            lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment>,
         ) -> DispatchResult {
 
             let sender = ensure_signed(origin)?;
@@ -334,7 +334,7 @@ impl<T: Trait> Module<T> {
     pub fn get_asset(
         _registry_id: T::RegistryId,
         _asset_id: T::AssetId,
-    ) -> Option<Asset<T::AssetId, T::Moment, T::Balance>> {
+    ) -> Option<Asset<T::Moment, T::Balance>> {
         None
     }
 }
@@ -344,17 +344,13 @@ impl<T: Trait> Module<T> {
     /// Create an asset and store it in the given registry
     fn create_registry_asset(
         registry_id: T::RegistryId,
-        asset: Asset<T::AssetId, T::Moment, T::Balance>,
+        asset: Asset<T::Moment, T::Balance>,
     ) -> DispatchResult {
         let asset_id = Self::next_asset_id();
         let next_id = asset_id
             .checked_add(&One::one())
             .ok_or(Error::<T>::NoIdAvailable)?;
         <NextAssetId<T>>::put(next_id);
-
-        let mut asset = asset;
-
-        asset.asset_id = Some(asset_id);
 
         <Assets<T>>::insert(&registry_id, &asset_id, asset);
         Self::deposit_event(RawEvent::AssetCreated(registry_id, asset_id));
@@ -363,7 +359,7 @@ impl<T: Trait> Module<T> {
     }
     /// Create an asset and store it in the given registry
     fn create_new_lease(
-        lease: LeaseAgreement<T::RegistryId, T::AssetId, T::LeaseId, T::Moment>,
+        lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment>,
     ) -> DispatchResult {
         let can_allocate = !lease
             .allocations

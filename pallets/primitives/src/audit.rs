@@ -2,11 +2,10 @@ use codec::{Decode, Encode};
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Audit<AuditId, AuditCreatorId, AuditorId> {
-    pub audit_id: AuditId,
+pub struct Audit<AccountId> {
     pub status: AuditStatus,
-    pub audit_creator: AuditCreatorId,
-    pub auditor: AuditorId,
+    pub audit_creator: AccountId,
+    pub auditor: AccountId,
 }
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]

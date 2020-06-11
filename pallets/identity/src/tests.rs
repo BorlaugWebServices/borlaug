@@ -457,8 +457,7 @@ fn claims_work() {
         let claims = Identity::claims_of(&did_1);
         assert_eq!(claims[0], 0);
 
-        let claim = Identity::claims(&did_1, claims[0]);
-        assert_eq!(claim.id, 0);
+        let claim = Identity::claims(&did_1, claims[0]);      
         assert_eq!(claim.description, b"No objection Letter".to_vec());
         assert_eq!(
             claim.statements,

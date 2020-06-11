@@ -5,9 +5,7 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Claim<ClaimIndex, Timestamp> {
-    /// Globally unique id
-    pub id: ClaimIndex,
+pub struct Claim<Timestamp> {
     /// A claim description
     pub description: Vec<u8>,
     /// Statements contained in this claim

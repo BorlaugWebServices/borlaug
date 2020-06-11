@@ -170,7 +170,7 @@ decl_storage! {
         /// Claims associated with a DID
         /// Subject DID => (Claim ID => Claim)
         pub Claims get(fn claims):
-            double_map hasher(blake2_128_concat) Did, hasher(twox_64_concat) ClaimIndex => Claim<ClaimIndex, T::Moment>;
+            double_map hasher(blake2_128_concat) Did, hasher(twox_64_concat) ClaimIndex => Claim<T::Moment>;
 
         /// The next available catalog index
         pub NextCatalogId get(fn next_catalog_id) config(): T::CatalogId;
@@ -446,8 +446,7 @@ decl_module! {
             let claim_index = Self::claim_count();
             ClaimCount::put(claim_index + 1u64);
 
-            let claim = Claim {
-                id: claim_index,
+            let claim = Claim {                
                 description,
                 statements,
                 created_by: claim_consumer,
@@ -503,7 +502,7 @@ decl_module! {
                     attested_by: claim_issuer,
                     valid_until,
                 });
-                <Claims<T>>::insert(&target_did, claim.id, claim);
+                <Claims<T>>::insert(&target_did, claim_index, claim);
 
 
                 Self::deposit_event(RawEvent::ClaimAttested(

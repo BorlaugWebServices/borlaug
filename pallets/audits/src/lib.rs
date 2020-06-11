@@ -123,15 +123,15 @@ decl_storage! {
 
         /// Audits
         pub Audits get(fn audits):
-            map hasher(blake2_128_concat) T::AuditId => Audit<T::AuditId, T::AccountId, T::AccountId>;
+            map hasher(blake2_128_concat) T::AuditId => Audit<T::AccountId>;
 
         /// Audit => (Control Point => Collection of Observation)
         pub Observations get(fn observation_of):
-            double_map hasher(blake2_128_concat) (T::AuditId,T::ControlPointId), hasher(blake2_128_concat) T::ObservationId => Observation<T::ObservationId>;
+            double_map hasher(blake2_128_concat) (T::AuditId,T::ControlPointId), hasher(blake2_128_concat) T::ObservationId => Observation;
 
        /// Audit Id => (Evidence Id => Evidence(Name, Content-Type, URL, Hash))
        pub Evidences get(fn evidences):
-            double_map hasher(blake2_128_concat) T::AuditId, hasher(blake2_128_concat) T::EvidenceId => Evidence<T::EvidenceId>;
+            double_map hasher(blake2_128_concat) T::AuditId, hasher(blake2_128_concat) T::EvidenceId => Evidence;
 
        /// Observation Id => (Evidence Id => Evidence Id)
        pub EvidenceLinks get(fn evidence_links):
@@ -164,7 +164,6 @@ decl_module! {
             <NextAuditId<T>>::put(next_id);
 
             let audit = Audit {
-                audit_id: audit_id,
                 status: AuditStatus::Requested,
                 audit_creator: sender.clone(),
                 auditor: auditor
@@ -274,7 +273,7 @@ decl_module! {
             origin,
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
-            observation: Observation<T::ObservationId>,
+            observation: Observation,
         ) {
             let sender = ensure_signed(origin)?;
 
@@ -296,8 +295,6 @@ decl_module! {
                 .ok_or(Error::<T>::NoIdAvailable)?;
             <NextObservationId<T>>::put(next_id);
 
-            let mut observation = observation;
-            observation.observation_id = Some(observation_id);
             <Observations<T>>::insert((&audit_id, &control_point_id), &observation_id, observation);
 
             Self::deposit_event(RawEvent::ObservationCreated(
@@ -316,7 +313,7 @@ decl_module! {
         fn create_evidence(
             origin,
             audit_id: T::AuditId,
-            evidence: Evidence<T::EvidenceId>
+            evidence: Evidence
         ){
             // sp_runtime::print("AA");
             let sender = ensure_signed(origin)?;
@@ -332,10 +329,6 @@ decl_module! {
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
             <NextEvidenceId<T>>::put(next_id);
-
-            let mut evidence=evidence;
-
-            evidence.evidence_id=Some(evidence_id);
 
             <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
 
