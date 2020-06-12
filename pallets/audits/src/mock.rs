@@ -117,6 +117,7 @@ impl ExtBuilder {
 
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
+#[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
     frame_system::GenesisConfig::default()
         .build_storage::<Test>()

@@ -113,11 +113,6 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-    pub fn next_catalog_id(mut self, asset_id: u32) -> Self {
-        self.catalog_id = asset_id;
-        self
-    }
-
     // builds genesis config
     pub fn build(self) -> sp_io::TestExternalities {
         let t = frame_system::GenesisConfig::default()

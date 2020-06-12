@@ -43,6 +43,8 @@ fn creating_evidence_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         assert_ok!(Audits::create_audit(Origin::signed(1), 1));
 
+        //TODO: check why test is failing
+
         assert_ok!(Audits::accept_audit(Origin::signed(1), 0));
 
         let evidence = Evidence {
