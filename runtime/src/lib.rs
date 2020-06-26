@@ -17,7 +17,7 @@ use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::u32_trait::{_1, _2, _3, _4};
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT, IdentityLookup, NumberFor,Saturating};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, IdentityLookup, NumberFor, Saturating};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     transaction_validity::{TransactionSource, TransactionValidity},
@@ -98,17 +98,19 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 2400;
-	/// We allow for 2 seconds of compute with a 6 second average block time.
-	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
-	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-	/// Assume 10% of weight for average on_initialize calls.
-	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
-		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
-	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
-	pub const Version: RuntimeVersion = VERSION;
+    /// We allow for 2 seconds of compute with a 6 second average block time.
+    pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+    pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    /// Assume 10% of weight for average on_initialize calls.
+    pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
+        .saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
+    pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
+    pub const Version: RuntimeVersion = VERSION;
 }
 
 impl system::Trait for Runtime {
+    /// The basic call filter to use in dispatchable.
+    type BaseCallFilter = ();
     /// The ubiquitous origin type.
     type Origin = Origin;
     /// The aggregated dispatch type that is available for extrinsics.
