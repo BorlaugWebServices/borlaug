@@ -13,7 +13,6 @@
   },
   "ClaimIndex": "u64",
   "Claim": {
-    "id": "ClaimIndex",
     "description": "Vec<u8>",
     "statements": "Vec<Statement>",
     "created_by": "Did",
@@ -48,7 +47,6 @@
     "valid_until": "Timestamp"
   },
   "Asset": {
-    "asset_id": "Option<AssetId>",
     "properties": "Option<Vec<AssetProperty>>",
     "name": "Option<Vec<u8>>",
     "asset_number": "Option<Vec<u8>>",
@@ -64,7 +62,6 @@
     "fact": "Fact"
   },
   "LeaseAgreement": {
-    "lease_id": "Option<LeaseId>",
     "contract_number": "Vec<u8>",
     "lessor": "Did",
     "lessee": "Did",
@@ -107,7 +104,6 @@
   "AuditCreatorId": "AccountId",
   "AuditorId": "AccountId",
   "Audit": {
-    "audit_id": "AuditId",
     "status": "AuditStatus",
     "audit_creator": "AuditCreatorId",
     "auditor": "AuditorId"
@@ -115,7 +111,6 @@
   "ControlPointId": "u32",
   "ObservationId": "u32",
   "Observation": {
-    "observation_id": "Option<ObservationId>",
     "compliance": "Option<Compliance>",
     "procedural_note": "Option<[u8; 32]>"
   },
@@ -128,7 +123,6 @@
   },
   "EvidenceId": "u32",
   "Evidence": {
-    "evidence_id": "Option<EvidenceId>",
     "name": "Vec<u8>",
     "content_type": "Vec<u8>",
     "url": "Option<Vec<u8>>",
