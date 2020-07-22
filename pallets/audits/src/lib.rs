@@ -97,8 +97,9 @@ decl_error! {
         /// Value was None
         NoneValue,
         NoIdAvailable,
-        AuditIsNotRequested,
         AuditCreatorIsNotPresent,
+        AuditIsNotRequested,
+        AuditIsNotAccepted,
         AuditIsNotInProgress,
         AuditorIsNotValid,
         NoObservationAvailable,
@@ -315,14 +316,13 @@ decl_module! {
             audit_id: T::AuditId,
             evidence: Evidence
         ){
-            // sp_runtime::print("AA");
             let sender = ensure_signed(origin)?;
 
             ensure!(Self::is_auditor_valid(audit_id, sender),
             <Error<T>>::AuditorIsNotValid);
 
-            ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::InProgress ),
-            <Error<T>>::AuditIsNotInProgress);
+            ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::Accepted ),
+            <Error<T>>::AuditIsNotAccepted);
 
             let evidence_id = Self::next_evidence_id();
             let next_id = evidence_id
