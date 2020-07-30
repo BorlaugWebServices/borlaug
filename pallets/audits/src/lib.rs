@@ -99,8 +99,8 @@ decl_error! {
         NoIdAvailable,
         AuditCreatorIsNotPresent,
         AuditIsNotRequested,
-        AuditIsNotAccepted,
         AuditIsNotInProgress,
+        AuditIsNotAcceptedOrInProgress,
         AuditorIsNotValid,
         NoObservationAvailable,
         NoEvidenceAvailable,
@@ -321,8 +321,8 @@ decl_module! {
             ensure!(Self::is_auditor_valid(audit_id, sender),
             <Error<T>>::AuditorIsNotValid);
 
-            ensure!(Self::is_audit_in_this_status(audit_id, AuditStatus::Accepted ),
-            <Error<T>>::AuditIsNotAccepted);
+            ensure!(Self::is_audit_inprogress_or_accepted(audit_id),
+            <Error<T>>::AuditIsNotAcceptedOrInProgress);
 
             let evidence_id = Self::next_evidence_id();
             let next_id = evidence_id
@@ -453,6 +453,15 @@ impl<T: Trait> Module<T> {
         if <Audits<T>>::contains_key(audit_id) {
             let audit = <Audits<T>>::get(audit_id);
             audit.status == status
+        } else {
+            false
+        }
+    }
+
+    fn is_audit_inprogress_or_accepted(audit_id: T::AuditId) -> bool {
+        if <Audits<T>>::contains_key(audit_id) {
+            let audit = <Audits<T>>::get(audit_id);
+            audit.status == AuditStatus::Accepted || audit.status == AuditStatus::InProgress
         } else {
             false
         }
