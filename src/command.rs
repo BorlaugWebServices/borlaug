@@ -17,35 +17,37 @@
 use crate::chain_spec;
 use crate::cli::Cli;
 use crate::service;
-use sc_cli::SubstrateCli;
+use crate::service::new_full_params;
+use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
+use sc_service::ServiceParams;
 
 impl SubstrateCli for Cli {
-    fn impl_name() -> &'static str {
-        "Borlaug"
+    fn impl_name() -> String {
+        "Borlaug".into()
     }
 
-    fn impl_version() -> &'static str {
-        env!("CARGO_PKG_VERSION")
+    fn impl_version() -> String {
+        env!("CARGO_PKG_VERSION").into()
     }
 
-    fn description() -> &'static str {
-        env!("CARGO_PKG_DESCRIPTION")
+    fn description() -> String {
+        env!("CARGO_PKG_DESCRIPTION").into()
     }
 
-    fn author() -> &'static str {
-        env!("CARGO_PKG_AUTHORS")
+    fn author() -> String {
+        env!("CARGO_PKG_AUTHORS").into()
     }
 
-    fn support_url() -> &'static str {
-        "https://gitlab.com/Borlaug/blockchain/bg/-/issues"
+    fn support_url() -> String {
+        "https://gitlab.com/Borlaug/blockchain/bg/-/issues".into()
     }
 
     fn copyright_start_year() -> i32 {
         2019
     }
 
-    fn executable_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
+    fn executable_name() -> String {
+        env!("CARGO_PKG_NAME").into()
     }
 
     fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
@@ -58,7 +60,12 @@ impl SubstrateCli for Cli {
             )?),
         })
     }
+
+    fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+        &runtime::VERSION
+    }
 }
+
 
 /// Parse and run command line arguments
 pub fn run() -> sc_cli::Result<()> {
@@ -67,11 +74,26 @@ pub fn run() -> sc_cli::Result<()> {
     match &cli.subcommand {
         Some(subcommand) => {
             let runner = cli.create_runner(subcommand)?;
-            runner.run_subcommand(subcommand, |config| Ok(new_full_start!(config).0))
+            runner.run_subcommand(subcommand, |config| {
+                let (
+                    ServiceParams {
+                        client,
+                        backend,
+                        task_manager,
+                        import_queue,
+                        ..
+                    },
+                    ..,
+                ) = new_full_params(config)?;
+                Ok((client, backend, import_queue, task_manager))
+            })
         }
         None => {
             let runner = cli.create_runner(&cli.run)?;
-            runner.run_node(service::new_light, service::new_full, runtime::VERSION)
+            runner.run_node_until_exit(|config| match config.role {
+                Role::Light => service::new_light(config),
+                _ => service::new_full(config),
+            })
         }
     }
 }
