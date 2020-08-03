@@ -5,11 +5,15 @@
 extern crate chrono;
 
 use super::*;
+#[allow(unused_imports)]
 use crate::mock::{new_test_ext, ExtBuilder, Identity, Origin, System, Test};
 use chrono::Utc;
+#[allow(unused_imports)]
 use frame_support::{assert_noop, assert_ok};
 use primitives::claim::Statement;
+#[allow(unused_imports)]
 use primitives::claim::{Claim, ClaimConsumer, ClaimIssuer};
+#[allow(unused_imports)]
 use primitives::did::Did;
 use primitives::fact::Fact;
 
@@ -457,7 +461,7 @@ fn claims_work() {
         let claims = Identity::claims_of(&did_1);
         assert_eq!(claims[0], 0);
 
-        let claim = Identity::claims(&did_1, claims[0]);      
+        let claim = Identity::claims(&did_1, claims[0]);
         assert_eq!(claim.description, b"No objection Letter".to_vec());
         assert_eq!(
             claim.statements,

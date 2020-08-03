@@ -52,9 +52,9 @@ impl SubstrateCli for Cli {
 
     fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
-            "dev" => Box::new(chain_spec::development_config()),
-            "borlaug_inca" => Box::new(chain_spec::inca_config()),
-            "borlaug_maya" => Box::new(chain_spec::maya_config()),
+            "dev" => Box::new(chain_spec::development_config()?),
+            "borlaug_inca" => Box::new(chain_spec::inca_config()?),
+            "borlaug_maya" => Box::new(chain_spec::maya_config()?),
             path => Box::new(chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
@@ -65,7 +65,6 @@ impl SubstrateCli for Cli {
         &runtime::VERSION
     }
 }
-
 
 /// Parse and run command line arguments
 pub fn run() -> sc_cli::Result<()> {

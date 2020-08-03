@@ -51,6 +51,7 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure, traits::Randomness, Parameter,
     StorageMap,
 };
+#[allow(unused_imports)]
 use frame_system::{self as system, ensure_signed};
 use primitives::{
     attestation::Attestation,
@@ -446,7 +447,7 @@ decl_module! {
             let claim_index = Self::claim_count();
             ClaimCount::put(claim_index + 1u64);
 
-            let claim = Claim {                
+            let claim = Claim {
                 description,
                 statements,
                 created_by: claim_consumer,

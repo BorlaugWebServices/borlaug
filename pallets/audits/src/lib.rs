@@ -17,6 +17,7 @@ mod mock;
 mod tests;
 
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
+#[allow(unused_imports)]
 use frame_system::{self as system, ensure_signed};
 use primitives::{Audit, AuditStatus, Evidence, Observation};
 use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One};

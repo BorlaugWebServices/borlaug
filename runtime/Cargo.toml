@@ -7,7 +7,7 @@ version = '2.0.0'
 [dependencies]
 # third-party dependencies
 serde = { version = "1.0.101", optional = true, features = ["derive"] }
-codec = { package = "parity-scale-codec", version = "1.2.0", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "1.3.4", default-features = false, features = ["derive"] }
 
 
 # primitives
@@ -69,8 +69,7 @@ std = [
 	"frame-executive/std",
 	"balances/std",
 	"aura/std",
-	"grandpa/std",
-	# "indices/std",
+	"grandpa/std", # "indices/std",
 	"collective/std",
 	"membership/std",
 	"timestamp/std",

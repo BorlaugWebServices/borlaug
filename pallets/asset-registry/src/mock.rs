@@ -58,12 +58,14 @@ impl frame_system::Trait for Test {
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type MaximumExtrinsicWeight = MaximumBlockWeight;
+    type SystemWeightInfo = ();
 }
 
 impl timestamp::Trait for Test {
     type Moment = u64;
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
 impl identity::Trait for Test {
@@ -125,6 +127,7 @@ impl ExtBuilder {
 
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
+#[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
     frame_system::GenesisConfig::default()
         .build_storage::<Test>()

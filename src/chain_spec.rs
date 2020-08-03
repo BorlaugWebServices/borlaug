@@ -39,13 +39,15 @@ pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
     (get_from_seed::<AuraId>(s), get_from_seed::<GrandpaId>(s))
 }
 
-pub fn development_config() -> ChainSpec {
-    ChainSpec::from_genesis(
+pub fn development_config() -> Result<ChainSpec, String> {
+    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    Ok(ChainSpec::from_genesis(
         "Development",
         "dev",
         ChainType::Development,
-        || {
+        move || {
             testnet_genesis(
+                wasm_binary,
                 vec![authority_keys_from_seed("Alice")],
                 get_account_id_from_seed::<sr25519::Public>("Alice"),
                 vec![
@@ -98,15 +100,17 @@ pub fn development_config() -> ChainSpec {
             .clone(),
         ),
         None,
-    )
+    ))
 }
-pub fn inca_config() -> ChainSpec {
-    ChainSpec::from_genesis(
+pub fn inca_config() -> Result<ChainSpec, String> {
+    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    Ok(ChainSpec::from_genesis(
         "Borlaug Inca",
         "borlaug_inca",
         ChainType::Live,
-        || {
+        move || {
             testnet_genesis(
+                wasm_binary,
                 vec![
                     // get_authority_keys_from_seed("Alice"),
                     // get_authority_keys_from_seed("Bob"),
@@ -203,15 +207,17 @@ pub fn inca_config() -> ChainSpec {
             .clone(),
         ),
         None,
-    )
+    ))
 }
-pub fn maya_config() -> ChainSpec {
-    ChainSpec::from_genesis(
+pub fn maya_config() -> Result<ChainSpec, String> {
+    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    Ok(ChainSpec::from_genesis(
         "Borlaug Maya",
         "borlaug_maya",
         ChainType::Live,
-        || {
+        move || {
             testnet_genesis(
+                wasm_binary,
                 vec![
                     (
                         AuraId::from_ss58check("5G3WSp2yNJgRZxXvndY3qQ4VhM4mofpzpiVUuWQRVdFvDNzU")
@@ -305,10 +311,11 @@ pub fn maya_config() -> ChainSpec {
             .clone(),
         ),
         None,
-    )
+    ))
 }
 
 fn testnet_genesis(
+    wasm_binary: &[u8],
     initial_authorities: Vec<(AuraId, GrandpaId)>,
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
@@ -316,7 +323,7 @@ fn testnet_genesis(
 ) -> GenesisConfig {
     GenesisConfig {
         system: Some(SystemConfig {
-            code: WASM_BINARY.to_vec(),
+            code: wasm_binary.to_vec(),
             changes_trie_config: Default::default(),
         }),
         // indices: Some(IndicesConfig { indices: vec![] }),

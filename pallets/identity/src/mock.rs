@@ -58,12 +58,14 @@ impl frame_system::Trait for Test {
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type MaximumExtrinsicWeight = MaximumBlockWeight;
+    type SystemWeightInfo = ();
 }
 
 impl timestamp::Trait for Test {
     type Moment = u64;
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
 impl Trait for Test {
@@ -84,7 +86,7 @@ impl_outer_event! {
 }
 
 pub type Identity = Module<Test>;
-
+#[allow(unused_imports)]
 pub type System = frame_system::Module<Test>;
 
 pub struct ExtBuilder {
