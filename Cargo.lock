@@ -495,6 +495,7 @@ dependencies = [
  "pallet-identity",
  "pallet-indices",
  "pallet-membership",
+ "pallet-provenance",
  "pallet-randomness-collective-flip",
  "pallet-sudo",
  "pallet-timestamp",
@@ -3182,6 +3183,27 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-provenance"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "frame-support",
+ "frame-system",
+ "lazy_static",
+ "pallet-balances",
+ "pallet-primitives",
+ "pallet-randomness-collective-flip",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "parking_lot 0.10.2",
+ "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
