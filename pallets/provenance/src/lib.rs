@@ -43,17 +43,25 @@ decl_event!(
         // <T as frame_system::Trait>::AccountId,
         // <T as timestamp::Trait>::Moment,
         <T as Trait>::RegistryId,
-        // <T as Trait>::TemplateId,
-        // <T as Trait>::TemplateStepId,
+        <T as Trait>::TemplateId,
+        <T as Trait>::TemplateStepId,
         // <T as Trait>::SequenceId,
         // <T as Trait>::SequenceStepId,
     {
      /// A new Registry was created (RegistryId)
      RegistryCreated(RegistryId),
-     /// A Registry was updated (RegistryId)
-     RegistryUpdated(RegistryId),
      /// A Registry was Removed (RegistryId)
      RegistryRemoved(RegistryId),
+     /// A new Template was created (TemplateId)
+     TemplateCreated(TemplateId),
+     /// A Template was Removed (TemplateId)
+     TemplateRemoved(TemplateId),
+    /// A new Template was created (TemplateStepId)
+    TemplateStepCreated(TemplateStepId),
+    /// A Template was Removed (TemplateStepId)
+    TemplateStepUpdated(TemplateStepId),
+    /// A Template was Removed (TemplateStepId)
+    TemplateStepRemoved(TemplateStepId),
 
 
     }
@@ -79,13 +87,28 @@ decl_storage! {
         pub Nonce get(fn nonce) build(|_| 1u64): u64;
 
         /// An account can have multiple Regitries of process templates
-        /// AccountId => Vec<RegistryId>
-        pub Registry get(fn registries): map hasher(blake2_128_concat) T::AccountId => Vec<T::RegistryId>;
+        /// (T::AccountId,T::RegistryId) => T::RegistryId
+        pub Registry get(fn registries):
+            double_map hasher(blake2_128_concat)  T::AccountId, hasher(blake2_128_concat) T::RegistryId => T::RegistryId;
+
+        /// A Registry can have multiple process Templates
+        /// (T::RegistryId,T::TemplateId) => T::TemplateId
+        pub Template get(fn templates):
+            double_map hasher(blake2_128_concat) T::RegistryId,  hasher(blake2_128_concat) T::TemplateId => T::TemplateId;
+
+        /// A Process has multiple steps
+        /// (T::RegistryId,T::TemplateId), T::TemplateStepId => T::TemplateStepId
+        pub TemplateStep get(fn template_steps):
+        double_map hasher(blake2_128_concat) (T::RegistryId, T::TemplateId), hasher(blake2_128_concat) T::TemplateStepId => T::TemplateStepId;
 
         /// The next available registry index
         pub NextRegistryId get(fn next_registry_id) config(): T::RegistryId;
 
+         /// The next available template index
+         pub NextTemplateId get(fn next_template_id) config(): T::TemplateId;
 
+         /// The next available template step index
+         pub NextTemplateStepId get(fn next_template_step_id) config(): T::TemplateStepId;
 
     }
 }
@@ -110,6 +133,8 @@ decl_module! {
                 .ok_or(Error::<T>::NoIdAvailable)?;
             <NextRegistryId<T>>::put(next_id);
 
+            <Registry<T>>::insert(&sender, &registry_id, registry_id);
+
             Self::deposit_event(RawEvent::RegistryCreated(registry_id));
         }
 
@@ -121,22 +146,103 @@ decl_module! {
         pub fn remove_registry(origin, registry_id: T::RegistryId) {
             let sender = ensure_signed(origin)?;
 
-            ensure!(
-                    if <Registry<T>>::contains_key(sender.clone()) {
-                        let registryIds = <Registry<T>>::get(&sender);
-                        registryIds.contains(&registry_id)
-                    } else {
-                        false
-                    }
-                ,
-                Error::<T>::NotFound
-            );
+            ensure!(Self::is_registry_owner(&sender,registry_id), Error::<T>::NotFound);
 
-            <Registry<T>>::mutate(&sender, |registrys| {
-                registrys.retain(|cid| *cid != registry_id)
-            });
+            <Registry<T>>::remove(sender, registry_id);
 
             Self::deposit_event(RawEvent::RegistryRemoved(registry_id));
+        }
+
+        /// Add a new template
+        ///
+        /// Arguments: none
+        #[weight = 100_000]
+        pub fn create_template(origin,registry_id: T::RegistryId) {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(Self::is_registry_owner(&sender,registry_id), Error::<T>::NotFound);
+
+            let template_id = Self::next_template_id();
+            let next_id = template_id
+                .checked_add(&One::one())
+                .ok_or(Error::<T>::NoIdAvailable)?;
+            <NextTemplateId<T>>::put(next_id);
+
+            <Template<T>>::insert(registry_id, template_id, template_id);
+
+            Self::deposit_event(RawEvent::TemplateCreated(template_id));
+        }
+
+        /// Remove a template
+        ///
+        /// Arguments:
+        /// - `template_id` Template to be removed
+        #[weight = 100_000]
+        pub fn remove_template(origin, registry_id: T::RegistryId,template_id: T::TemplateId) {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(Self::is_registry_owner(&sender,registry_id), Error::<T>::NotFound);
+            ensure!(Self::is_template_in_registry(registry_id,template_id), Error::<T>::NotFound);
+
+            <Template<T>>::remove(registry_id, template_id);
+
+            Self::deposit_event(RawEvent::TemplateRemoved(template_id));
+        }
+
+        /// Add a new template_step
+        ///
+        /// Arguments: none
+        #[weight = 100_000]
+        pub fn create_template_step(origin,registry_id: T::RegistryId,template_id: T::TemplateId) {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(Self::is_registry_owner(&sender,registry_id), Error::<T>::NotFound);
+            ensure!(Self::is_template_in_registry(registry_id,template_id), Error::<T>::NotFound);
+
+            let template_step_id = Self::next_template_step_id();
+            let next_id = template_step_id
+                .checked_add(&One::one())
+                .ok_or(Error::<T>::NoIdAvailable)?;
+            <NextTemplateStepId<T>>::put(next_id);
+
+            <TemplateStep<T>>::insert((registry_id,template_id), template_step_id, template_step_id);
+
+            //TODO:attestors
+
+            Self::deposit_event(RawEvent::TemplateStepCreated(template_step_id));
+        }
+
+        /// Update a new template_step
+        ///
+        /// Arguments: none
+        #[weight = 100_000]
+        pub fn update_template_step(origin,registry_id: T::RegistryId,template_id: T::TemplateId,template_step_id: T::TemplateStepId) {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(Self::is_registry_owner(&sender,registry_id), Error::<T>::NotFound);
+            ensure!(Self::is_template_in_registry(registry_id,template_id), Error::<T>::NotFound);
+            ensure!(Self::is_template_step_in_template(registry_id,template_id,template_step_id), Error::<T>::NotFound);
+
+            //TODO:attestors
+
+            Self::deposit_event(RawEvent::TemplateStepUpdated(template_step_id));
+        }
+
+        /// Remove a template_step
+        ///
+        /// Arguments:
+        /// - `template_step_id` TemplateStep to be removed
+        #[weight = 100_000]
+        pub fn remove_template_step(origin, registry_id: T::RegistryId,template_id: T::TemplateId,template_step_id: T::TemplateStepId) {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(Self::is_registry_owner(&sender,registry_id), Error::<T>::NotFound);
+            ensure!(Self::is_template_in_registry(registry_id,template_id), Error::<T>::NotFound);
+            ensure!(Self::is_template_step_in_template(registry_id,template_id,template_step_id), Error::<T>::NotFound);
+
+            <TemplateStep<T>>::remove((registry_id, template_id),template_step_id);
+
+            Self::deposit_event(RawEvent::TemplateStepRemoved(template_step_id));
         }
 
     }
@@ -145,9 +251,18 @@ decl_module! {
 impl<T: Trait> Module<T> {
     // -- private functions --
 
-    fn next_nonce() -> u64 {
-        let nonce = <Nonce>::get();
-        <Nonce>::mutate(|n| *n += 1u64);
-        nonce
+    fn is_registry_owner(account: &T::AccountId, registry_id: T::RegistryId) -> bool {
+        <Registry<T>>::contains_key(account, registry_id)
+    }
+
+    fn is_template_in_registry(registry_id: T::RegistryId, template_id: T::TemplateId) -> bool {
+        <Template<T>>::contains_key(registry_id, template_id)
+    }
+    fn is_template_step_in_template(
+        registry_id: T::RegistryId,
+        template_id: T::TemplateId,
+        template_step_id: T::TemplateStepId,
+    ) -> bool {
+        <TemplateStep<T>>::contains_key((registry_id, template_id), template_step_id)
     }
 }
