@@ -282,9 +282,7 @@ impl audits::Trait for Runtime {
 impl provenance::Trait for Runtime {
     type RegistryId = u32;
     type TemplateId = u32;
-    type TemplateStepId = u32;
     type SequenceId = u32;
-    type SequenceStepId = u32;
     type Event = Event;
 }
 

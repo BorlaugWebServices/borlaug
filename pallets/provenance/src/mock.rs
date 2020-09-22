@@ -67,11 +67,13 @@ impl timestamp::Trait for Test {
 }
 
 impl Trait for Test {
-    type CatalogId = u32;
+    type RegistryId = u32;
+    type TemplateId = u32;
+    type SequenceId = u32;
     type Event = TestEvent;
 }
 
-mod identity {
+mod provenance {
     pub use crate::Event;
 }
 
@@ -79,11 +81,11 @@ use frame_system as system;
 impl_outer_event! {
     pub enum TestEvent for Test {
         system<T>,
-        identity<T>,
+        provenance<T>,
     }
 }
 
-pub type Identity = Module<Test>;
+pub type Provenance = Module<Test>;
 
 pub type System = frame_system::Module<Test>;
 
