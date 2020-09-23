@@ -29,7 +29,7 @@ use primitives::{
     did::Did,
     sequence::{Sequence, SequenceStatus},
     sequence_step::SequenceStep,
-    template::{Template, TemplateStatus},
+    template::Template,
     template_step::TemplateStep,
 };
 #[cfg(not(feature = "std"))]
@@ -205,8 +205,7 @@ decl_module! {
             <NextTemplateId<T>>::put(next_id);
 
             let template=Template{
-                name,
-                status:TemplateStatus::Active
+                name
             };
 
             <Templates<T>>::insert(registry_id, template_id, template);
