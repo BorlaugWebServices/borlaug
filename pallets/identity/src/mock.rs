@@ -90,7 +90,9 @@ pub type Identity = Module<Test>;
 pub type System = frame_system::Module<Test>;
 
 pub struct ExtBuilder {
+    #[allow(dead_code)]
     catalog_id: u32,
+    #[allow(dead_code)]
     next_catalog_id: u32,
 }
 
@@ -105,6 +107,7 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
+    #[allow(dead_code)]
     pub fn next_catalog_id(mut self, asset_id: u32) -> Self {
         self.catalog_id = asset_id;
         self
@@ -121,6 +124,7 @@ impl ExtBuilder {
 
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
+#[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
     frame_system::GenesisConfig::default()
         .build_storage::<Test>()

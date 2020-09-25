@@ -43,6 +43,7 @@ membership = { package = "pallet-membership", version = "2.0.0-rc5", default-fea
 identity = { package = "pallet-identity", path = "../pallets/identity", default-features = false }
 asset-registry = { package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false }
 audits = { package = "pallet-audits", path = "../pallets/audits", default-features = false }
+provenance = { package = "pallet-provenance", path = "../pallets/provenance", default-features = false }
 
 [build-dependencies]
 wasm-builder-runner = { package = "substrate-wasm-builder-runner", version = "1.0.6" }

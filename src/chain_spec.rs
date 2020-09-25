@@ -294,6 +294,13 @@ pub fn maya_config() -> Result<ChainSpec, String> {
                         .unwrap(),
                     )
                     .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
                 ],
                 true,
             )

@@ -286,6 +286,13 @@ impl audits::Trait for Runtime {
     type Event = Event;
 }
 
+impl provenance::Trait for Runtime {
+    type RegistryId = u32;
+    type TemplateId = u32;
+    type SequenceId = u32;
+    type Event = Event;
+}
+
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
@@ -309,6 +316,7 @@ construct_runtime!(
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},
+        Provenance: provenance::{Module, Call, Storage, Event<T>},
     }
 );
 
