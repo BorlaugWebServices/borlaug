@@ -60,8 +60,8 @@ use primitives::{
     did_document::DidDocument,
     did_property::DidProperty,
 };
-#[cfg(not(feature = "std"))]
-use sp_io::hashing::blake2_256;
+// #[cfg(not(feature = "std"))]
+// use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, One};
 use sp_std::prelude::*;
 

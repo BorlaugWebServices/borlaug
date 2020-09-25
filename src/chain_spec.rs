@@ -1,8 +1,9 @@
 use runtime::{
     primitives::{AccountId, Signature},
-    AuraConfig, BalancesConfig, GeneralCouncilMembershipConfig, GenesisConfig, GrandpaConfig,
-    SudoConfig, SystemConfig, WASM_BINARY,
+    AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, SudoConfig, SystemConfig,
+    WASM_BINARY,
 };
+// GeneralCouncilMembershipConfig,
 use sc_service;
 use sc_service::ChainType;
 use serde_json::json;
@@ -329,34 +330,34 @@ fn testnet_genesis(
     _enable_println: bool,
 ) -> GenesisConfig {
     GenesisConfig {
-        system: Some(SystemConfig {
+        frame_system: Some(SystemConfig {
             code: wasm_binary.to_vec(),
             changes_trie_config: Default::default(),
         }),
         // indices: Some(IndicesConfig { indices: vec![] }),
-        balances: Some(BalancesConfig {
+        pallet_balances: Some(BalancesConfig {
             balances: endowed_accounts
                 .iter()
                 .cloned()
                 .map(|k| (k, 1 << 60))
                 .collect(),
         }),
-        sudo: Some(SudoConfig {
+        pallet_sudo: Some(SudoConfig {
             key: root_key.clone(),
         }),
-        aura: Some(AuraConfig {
+        pallet_aura: Some(AuraConfig {
             authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
         }),
-        grandpa: Some(GrandpaConfig {
+        pallet_grandpa: Some(GrandpaConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.1.clone(), 1))
                 .collect(),
         }),
-        collective_Instance1: Some(Default::default()),
-        membership_Instance1: Some(GeneralCouncilMembershipConfig {
-            members: vec![root_key],
-            phantom: Default::default(),
-        }),
+        // collective_Instance1: Some(Default::default()),
+        // membership_Instance1: Some(GeneralCouncilMembershipConfig {
+        //     members: vec![root_key],
+        //     phantom: Default::default(),
+        // }),
     }
 }

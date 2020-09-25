@@ -22,7 +22,7 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure, IterableStorageDoubleMap, Parameter,
     StorageDoubleMap,
 };
-use frame_system::{self as system, ensure_signed};
+use frame_system::ensure_signed;
 use primitives::{
     attestor::Attestor,
     attribute::Attribute,
@@ -32,8 +32,8 @@ use primitives::{
     template::Template,
     template_step::TemplateStep,
 };
-#[cfg(not(feature = "std"))]
-use sp_io::hashing::blake2_256;
+// #[cfg(not(feature = "std"))]
+// use sp_io::hashing::blake2_256;
 use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, One, UniqueSaturatedInto};
 use sp_std::prelude::*;
 
@@ -250,13 +250,17 @@ decl_module! {
             ensure!(Self::is_registry_owner(&sender,registry_id), Error::<T>::NotFound);
             ensure!(Self::is_template_step_in_template(registry_id,template_id,template_step_index), Error::<T>::NotFound);
 
-            remove_attestors.iter().for_each(|attestor| {
+            remove_attestors.and_then(|remove_attestors|
+                {
+                    remove_attestors.iter().for_each(|attestor| {
                 <Attestors<T>>::remove((registry_id,template_id,template_step_index),attestor.did);
-            });
-            add_attestors.iter().for_each(|attestor| {
+            });Some(())
+        });
+
+            add_attestors.and_then(|add_attestors|{add_attestors.iter().for_each(|attestor| {
                 <Attestors<T>>::insert((registry_id,template_id,template_step_index),attestor.did,attestor);
             });
-
+            Some(())});
 
             Self::deposit_event(RawEvent::TemplateStepUpdated(registry_id,template_id,template_step_index));
         }
@@ -327,7 +331,7 @@ decl_module! {
         /// Arguments: none
         #[weight = 100_000]
         pub fn create_sequence_step(origin,did:Did,registry_id: T::RegistryId,template_id: T::TemplateId,template_step_index: TemplateStepIndex,sequence_id:T::SequenceId, attributes:Vec<Attribute>) {
-            let sender = ensure_signed(origin)?;
+            let _sender = ensure_signed(origin)?;
 
             //TODO: verify sender owns DID
 
