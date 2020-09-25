@@ -244,7 +244,7 @@ decl_module! {
         ///
         /// Arguments: none
         #[weight = 100_000]
-        pub fn update_template_step(origin,registry_id: T::RegistryId,template_id: T::TemplateId,template_step_index: TemplateStepIndex, add_attestors:Vec<Attestor>, remove_attestors:Vec<Attestor>) {
+        pub fn update_template_step(origin,registry_id: T::RegistryId,template_id: T::TemplateId,template_step_index: TemplateStepIndex, add_attestors:Option<Vec<Attestor>>, remove_attestors:Option<Vec<Attestor>>) {
             let sender = ensure_signed(origin)?;
 
             ensure!(Self::is_registry_owner(&sender,registry_id), Error::<T>::NotFound);
