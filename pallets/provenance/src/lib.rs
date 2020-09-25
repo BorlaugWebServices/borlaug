@@ -69,8 +69,8 @@ decl_event!(
     SequenceUpdated(RegistryId,TemplateId,SequenceId),
     /// A Sequence was Removed (RegistryId,TemplateId,SequenceId)
     SequenceRemoved(RegistryId,TemplateId,SequenceId),
-    /// A new SequenceStep was created (RegistryId,TemplateId,TemplateStepIndex,SequenceId,TemplateStepIndex)
-    SequenceStepCreated(RegistryId,TemplateId,TemplateStepIndex,SequenceId,TemplateStepIndex),
+    /// A new SequenceStep was created (RegistryId,TemplateId,SequenceId,TemplateStepIndex)
+    SequenceStepCreated(RegistryId,TemplateId,SequenceId,TemplateStepIndex),
 
     }
 );
@@ -347,7 +347,7 @@ decl_module! {
 
             <SequenceSteps<T>>::insert((registry_id,template_id,sequence_id), template_step_index, sequence_step);
 
-            Self::deposit_event(RawEvent::SequenceStepCreated(registry_id,template_id,template_step_index,sequence_id,template_step_index));
+            Self::deposit_event(RawEvent::SequenceStepCreated(registry_id,template_id,sequence_id,template_step_index));
         }
 
         // /// Update a new sequence_step
