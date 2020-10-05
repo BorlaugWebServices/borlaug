@@ -8,6 +8,9 @@
   "RegistryId": "u32",
   "AssetId": "u32",
   "LeaseId": "u32",
+  "TemplateId": "u32",
+  "TemplateStepIndex": "u8",
+  "SequenceId": "u32",
   "Did": {
     "id": "[u8; 32]"
   },
@@ -127,5 +130,33 @@
     "content_type": "Vec<u8>",
     "url": "Option<Vec<u8>>",
     "hash": "Vec<u8>"
+  },
+  "Attestor": {
+    "short_name": "Vec<u8>",
+    "did": "Did"
+  },
+  "Attribute": {
+    "name": "Vec<u8>",
+    "fact": "Fact"
+  },
+  "Sequence": {
+    "name": "Vec<u8>",
+    "status": "SequenceStatus"
+  },
+  "SequenceStatus": {
+    "_enum": [
+      "InProgress",
+      "Completed"
+    ]
+  },
+  "SequenceStep": {
+    "attested_by": "Did",
+    "attributes": "Vec<Attribute>"
+  },
+  "Template": {
+    "name": "Vec<u8>"
+  },
+  "TemplateStep": {
+    "name": "Vec<u8>"
   }
 }
