@@ -38,6 +38,8 @@ pallet-transaction-payment = { version = "2.0.0", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "2.0.0", default-features = false }
 pallet-collective = { version = "2.0.0", default-features = false }
 pallet-membership = { version = "2.0.0", default-features = false }
+pallet-proxy = { version = "2.0.0", default-features = false }
+pallet-multisig = { version = "2.0.0", default-features = false }
 
 # Borlaug Dependencies
 identity = { package = "pallet-identity", path = "../pallets/identity", default-features = false }
@@ -78,6 +80,8 @@ std = [
 	"pallet-transaction-payment/std",
 	"pallet-randomness-collective-flip/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
+	"pallet-proxy/std",
+	"pallet-multisig/std",
 	"frame-system-rpc-runtime-api/std",
 	"identity/std",
 	"asset-registry/std",

@@ -11,6 +11,11 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub mod constants;
 pub mod primitives;
 
+/// Weights for pallets used in the runtime.
+mod weights;
+
+use codec::{Decode, Encode};
+use frame_support::traits::InstanceFilter;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
@@ -36,7 +41,7 @@ pub use frame_support::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
     },
-    StorageValue,
+    RuntimeDebug, StorageValue,
 };
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -47,7 +52,7 @@ pub use sp_runtime::{Perbill, Permill};
 pub use primitives::*;
 
 /// Constant values used within the runtime.
-use constants::time::*;
+use constants::{currency::*, time::*};
 
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;
@@ -235,6 +240,95 @@ impl pallet_sudo::Trait for Runtime {
     type Event = Event;
     type Call = Call;
 }
+
+parameter_types! {
+    // One storage item; key size 32, value size 8; .
+    pub const ProxyDepositBase: Balance = deposit(1, 8);
+    // Additional storage item size of 33 bytes.
+    pub const ProxyDepositFactor: Balance = deposit(0, 33);
+    pub const MaxProxies: u16 = 32;
+    pub const AnnouncementDepositBase: Balance = deposit(1, 8);
+    pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+    pub const MaxPending: u16 = 32;
+}
+
+/// The type used to represent the kinds of proxying allowed.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug)]
+pub enum ProxyType {
+    Any,
+    NonTransfer,
+    // Governance,
+    // Staking,
+}
+impl Default for ProxyType {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+impl InstanceFilter<Call> for ProxyType {
+    fn filter(&self, c: &Call) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::NonTransfer => !matches!(
+                c,
+                Call::Balances(..) // | Call::Vesting(pallet_vesting::Call::vested_transfer(..))
+                                   // | Call::Indices(pallet_indices::Call::transfer(..))
+            ),
+            // ProxyType::Governance => matches!(
+            //     c,
+            //     Call::Democracy(..)
+            //         | Call::Council(..)
+            //         | Call::Society(..)
+            //         | Call::TechnicalCommittee(..)
+            //         | Call::Elections(..)
+            //         | Call::Treasury(..)
+            // ),
+            // ProxyType::Staking => matches!(c, Call::Staking(..)),
+        }
+    }
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (x, y) if x == y => true,
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::NonTransfer, _) => true,
+            _ => false,
+        }
+    }
+}
+
+impl pallet_proxy::Trait for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type Currency = Balances;
+    type ProxyType = ProxyType;
+    type ProxyDepositBase = ProxyDepositBase;
+    type ProxyDepositFactor = ProxyDepositFactor;
+    type MaxProxies = MaxProxies;
+    type WeightInfo = weights::pallet_proxy::WeightInfo;
+    type MaxPending = MaxPending;
+    type CallHasher = BlakeTwo256;
+    type AnnouncementDepositBase = AnnouncementDepositBase;
+    type AnnouncementDepositFactor = AnnouncementDepositFactor;
+}
+
+parameter_types! {
+    // One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
+    pub const DepositBase: Balance = deposit(1, 88);
+    // Additional storage item size of 32 bytes.
+    pub const DepositFactor: Balance = deposit(0, 32);
+    pub const MaxSignatories: u16 = 100;
+}
+
+impl pallet_multisig::Trait for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type Currency = Balances;
+    type DepositBase = DepositBase;
+    type DepositFactor = DepositFactor;
+    type MaxSignatories = MaxSignatories;
+    type WeightInfo = weights::pallet_multisig::WeightInfo;
+}
 // parameter_types! {
 //     pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
 //     pub const CouncilMaxProposals: u32 = 100;
@@ -311,6 +405,9 @@ construct_runtime!(
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+
+        Proxy: pallet_proxy::{Module, Call,  Storage, Event<T>},
+        Multisig: pallet_multisig::{Module, Call,  Storage, Event<T>},
 
         // // Governance
         // GeneralCouncil: collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
