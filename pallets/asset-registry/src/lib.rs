@@ -23,13 +23,11 @@
 mod mock;
 mod tests;
 
-use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, ensure, weights::SimpleDispatchInfo,
-    Parameter,
-};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
+#[allow(unused_imports)]
 use frame_system::{self as system, ensure_signed};
 use primitives::{
-    asset::{Asset, AssetStatus},
+    asset::Asset,
     did::Did,
     lease_agreement::{AssetAllocation, LeaseAgreement},
 };
@@ -135,7 +133,7 @@ decl_storage! {
         /// Registry of assets
         pub Assets get(fn assets):
             double_map hasher(twox_64_concat) T::RegistryId, hasher(twox_64_concat) T::AssetId =>
-            Asset<T::AssetId, T::Moment, T::Balance>;
+            Asset<T::Moment, T::Balance>;
 
         /// Lease allocations of assets
         pub LeaseAllocations get(fn allocations):
@@ -145,7 +143,7 @@ decl_storage! {
         /// Lease agreements by lessor
         pub LeaseAgreements get(fn leases):
             double_map hasher(blake2_128_concat) Did, hasher(twox_64_concat) T::LeaseId =>
-            LeaseAgreement<T::RegistryId, T::AssetId, T::LeaseId, T::Moment>;
+            LeaseAgreement<T::RegistryId, T::AssetId, T::Moment>;
 
     }
 }
@@ -161,7 +159,7 @@ decl_module! {
         ///
         /// Arguments:
         /// - `owner_did` DID of caller
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn create_registry(origin, owner_did: Did) {
             let sender = ensure_signed(origin)?;
 
@@ -174,7 +172,7 @@ decl_module! {
                 .ok_or(Error::<T>::NoIdAvailable)?;
             <NextRegistryId<T>>::put(next_id);
 
-            <Registries<T>>::append_or_insert(owner_did, &[&registry_id][..]);
+            <Registries<T>>::append(owner_did, &registry_id);
 
             Self::deposit_event(RawEvent::RegistryCreated(owner_did, registry_id));
         }
@@ -185,7 +183,7 @@ decl_module! {
         /// Arguments:
         /// - `owner_did` DID of caller
         /// - `registry_id` Registry to be removed
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn delete_registry(origin,owner_did: Did, registry_id: T::RegistryId) {
             let sender = ensure_signed(origin)?;
 
@@ -207,12 +205,12 @@ decl_module! {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset` instance to be added
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn create_asset(
             origin,
             owner_did: Did,
             registry_id: T::RegistryId,
-            asset: Asset<T::AssetId, T::Moment, T::Balance>,
+            asset: Asset<T::Moment, T::Balance>,
         )  {
 
             let sender = ensure_signed(origin)?;
@@ -233,13 +231,13 @@ decl_module! {
         /// - `registry_id` Asset is in this registry
         /// - `asset_id` ID of Asset
         /// - `asset` instance to be updated
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn update_asset(
             origin,
             owner_did: Did,
             registry_id: T::RegistryId,
             asset_id: T::AssetId,
-            asset: Asset<T::AssetId, T::Moment, T::Balance>,
+            asset: Asset<T::Moment, T::Balance>,
         ) {
             let sender = ensure_signed(origin)?;
             ensure!(Self::is_did_subject(sender, owner_did),
@@ -263,7 +261,7 @@ decl_module! {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn delete_asset(
             origin,
             owner_did: Did,
@@ -287,10 +285,10 @@ decl_module! {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn new_lease(
             origin,
-            lease: LeaseAgreement<T::RegistryId, T::AssetId,T::LeaseId, T::Moment>,
+            lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment>,
         ) -> DispatchResult {
 
             let sender = ensure_signed(origin)?;
@@ -308,7 +306,7 @@ decl_module! {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         fn void_lease(
             origin,
             lessor: Did,
@@ -335,9 +333,9 @@ decl_module! {
 // public functions
 impl<T: Trait> Module<T> {
     pub fn get_asset(
-        registry_id: T::RegistryId,
-        asset_id: T::AssetId,
-    ) -> Option<Asset<T::AssetId, T::Moment, T::Balance>> {
+        _registry_id: T::RegistryId,
+        _asset_id: T::AssetId,
+    ) -> Option<Asset<T::Moment, T::Balance>> {
         None
     }
 }
@@ -347,17 +345,13 @@ impl<T: Trait> Module<T> {
     /// Create an asset and store it in the given registry
     fn create_registry_asset(
         registry_id: T::RegistryId,
-        asset: Asset<T::AssetId, T::Moment, T::Balance>,
+        asset: Asset<T::Moment, T::Balance>,
     ) -> DispatchResult {
         let asset_id = Self::next_asset_id();
         let next_id = asset_id
             .checked_add(&One::one())
             .ok_or(Error::<T>::NoIdAvailable)?;
         <NextAssetId<T>>::put(next_id);
-
-        let mut asset = asset;
-
-        asset.asset_id = Some(asset_id);
 
         <Assets<T>>::insert(&registry_id, &asset_id, asset);
         Self::deposit_event(RawEvent::AssetCreated(registry_id, asset_id));
@@ -366,7 +360,7 @@ impl<T: Trait> Module<T> {
     }
     /// Create an asset and store it in the given registry
     fn create_new_lease(
-        lease: LeaseAgreement<T::RegistryId, T::AssetId, T::LeaseId, T::Moment>,
+        lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment>,
     ) -> DispatchResult {
         let can_allocate = !lease
             .allocations
@@ -459,10 +453,10 @@ impl<T: Trait> Module<T> {
         asset_allocation: AssetAllocation<T::RegistryId, T::AssetId>,
         lease_expiry: T::Moment,
     ) {
-        <LeaseAllocations<T>>::append_or_insert(
+        <LeaseAllocations<T>>::append(
             asset_allocation.registry_id,
             asset_allocation.asset_id,
-            &[(lease_id, asset_allocation.allocated_shares, lease_expiry)][..],
+            &(lease_id, asset_allocation.allocated_shares, lease_expiry),
         )
     }
 }

@@ -5,12 +5,11 @@
 extern crate chrono;
 
 use super::*;
-use crate::mock::{new_test_ext, AssetRegistry, ExtBuilder, Identity, Origin, System, Test};
+use crate::mock::{AssetRegistry, ExtBuilder, Identity, Origin};
 use chrono::Utc;
-use frame_support::{assert_noop, assert_ok};
-use primitives::asset::Asset;
+use frame_support::assert_ok;
+use primitives::asset::{Asset, AssetStatus};
 use primitives::did::Did;
-use primitives::fact::Fact;
 
 fn create_did() -> Did {
     let _ = Identity::register_did(Origin::signed(1), None);
@@ -24,10 +23,9 @@ fn create_registry(did: Did) -> u32 {
 }
 
 //warning this function doesn't work if called multiple times.
-fn create_asset(did: Did, registry_id: u32) -> u32 {
+fn create_asset(did: Did, registry_id: u32) {
     let now = Utc::now().timestamp() as u64;
     let asset = Asset {
-        asset_id: None,
         properties: None,
         name: Some(b"Cat".to_vec()),
         asset_number: Some(b"CAR_001".to_vec()),
@@ -39,31 +37,27 @@ fn create_asset(did: Did, registry_id: u32) -> u32 {
         acquired_date: Some(now),
     };
     let _ = AssetRegistry::create_asset(Origin::signed(1), did, registry_id, asset.clone());
-    let created_asset = AssetRegistry::assets(registry_id, 0u32);
-    created_asset.asset_id.unwrap()
 }
 
-fn create_lease(did_lessor: Did, did_lessee: Did) -> u32 {
+fn create_lease(did_lessor: Did, did_lessee: Did) {
     let registry_id = create_registry(did_lessor);
-    let asset_id = create_asset(did_lessor, registry_id);
+    create_asset(did_lessor, registry_id);
+    let asset_id = 0u32;
     let now = Utc::now().timestamp() as u64;
     let next_week = (Utc::now().timestamp() + 60 * 60 * 24 * 7) as u64;
     let lease = LeaseAgreement {
-        lease_id: None,
         contract_number: b"001".to_vec(),
         lessor: did_lessor,
         lessee: did_lessee,
         allocations: vec![AssetAllocation {
-            registry_id: registry_id,
-            asset_id: asset_id,
+            registry_id,
+            asset_id,
             allocated_shares: 50,
         }],
         effective_ts: now,
         expiry_ts: next_week,
     };
     let _ = AssetRegistry::new_lease(Origin::signed(1), lease);
-    let created_lease = AssetRegistry::leases(did_lessor, 0u32);
-    created_lease.lease_id.unwrap()
 }
 
 #[test]
@@ -79,8 +73,10 @@ fn creating_registry_should_work() {
         assert_eq!(AssetRegistry::registries(&did_1), vec![0u32]);
     });
 }
+
 #[test]
 fn deleting_registry_should_work() {}
+
 //TODO: add asset properties
 #[test]
 fn creating_assets_should_work() {
@@ -90,8 +86,7 @@ fn creating_assets_should_work() {
         let registry_id = create_registry(did_1);
 
         let now = Utc::now().timestamp() as u64;
-        let mut asset = Asset {
-            asset_id: None,
+        let asset = Asset {
             properties: None,
             name: Some(b"Cat".to_vec()),
             asset_number: Some(b"CAR_001".to_vec()),
@@ -111,8 +106,6 @@ fn creating_assets_should_work() {
 
         let created_asset = AssetRegistry::assets(registry_id, 0u32);
 
-        asset.asset_id = created_asset.asset_id;
-
         assert_eq!(created_asset, asset);
     });
 }
@@ -124,12 +117,13 @@ fn updating_asset_should_work() {
 
         let registry_id = create_registry(did_1);
 
-        let asset_id = create_asset(did_1, registry_id);
+        create_asset(did_1, registry_id);
+
+        let asset_id = 0u32;
 
         let now = Utc::now().timestamp() as u64;
 
         let new_asset = Asset {
-            asset_id: Some(asset_id),
             properties: None,
             name: Some(b"Dog".to_vec()),
             asset_number: Some(b"CAR_002".to_vec()),
@@ -160,7 +154,9 @@ fn deleting_asset_should_work() {
 
         let registry_id = create_registry(did_1);
 
-        let asset_id = create_asset(did_1, registry_id);
+        create_asset(did_1, registry_id);
+
+        let asset_id = 0u32;
 
         assert_ok!(AssetRegistry::delete_asset(
             Origin::signed(1),
@@ -186,19 +182,20 @@ fn creating_lease_should_work() {
 
         //Create an asset
 
-        let asset_id = create_asset(did_lessor, registry_id);
+        create_asset(did_lessor, registry_id);
+
+        let asset_id = 0u32;
 
         let now = Utc::now().timestamp() as u64;
         let next_week = (Utc::now().timestamp() + 60 * 60 * 24 * 7) as u64;
 
         let lease = LeaseAgreement {
-            lease_id: None,
             contract_number: b"001".to_vec(),
             lessor: did_lessor,
             lessee: did_lessee,
             allocations: vec![AssetAllocation {
-                registry_id: registry_id,
-                asset_id: asset_id,
+                registry_id,
+                asset_id,
                 allocated_shares: 50,
             }],
             effective_ts: now,
@@ -229,7 +226,8 @@ fn voiding_lease_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         let did_lessor = create_did();
         let did_lessee = create_did();
-        let lease_id = create_lease(did_lessor, did_lessee);
+        create_lease(did_lessor, did_lessee);
+        let lease_id = 0u32;
         assert_ok!(AssetRegistry::void_lease(
             Origin::signed(1),
             did_lessor,

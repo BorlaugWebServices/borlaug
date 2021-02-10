@@ -46,11 +46,12 @@
 mod mock;
 mod tests;
 
-use codec::{Decode, Encode};
+use codec::Encode;
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, ensure, traits::Randomness,
-    weights::SimpleDispatchInfo, Parameter, StorageMap,
+    decl_error, decl_event, decl_module, decl_storage, ensure, traits::Randomness, Parameter,
+    StorageMap,
 };
+#[allow(unused_imports)]
 use frame_system::{self as system, ensure_signed};
 use primitives::{
     attestation::Attestation,
@@ -59,14 +60,9 @@ use primitives::{
     did_document::DidDocument,
     did_property::DidProperty,
 };
-#[cfg(not(feature = "std"))]
-use sp_io::hashing::blake2_256;
-use sp_runtime::{
-    traits::{AtLeast32Bit, CheckedAdd, One},
-    RuntimeDebug,
-};
-#[cfg(feature = "std")]
-use sp_runtime::{Deserialize, Serialize};
+// #[cfg(not(feature = "std"))]
+// use sp_io::hashing::blake2_256;
+use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, One};
 use sp_std::prelude::*;
 
 /// A claim index.
@@ -175,7 +171,7 @@ decl_storage! {
         /// Claims associated with a DID
         /// Subject DID => (Claim ID => Claim)
         pub Claims get(fn claims):
-            double_map hasher(blake2_128_concat) Did, hasher(twox_64_concat) ClaimIndex => Claim<ClaimIndex, T::Moment>;
+            double_map hasher(blake2_128_concat) Did, hasher(twox_64_concat) ClaimIndex => Claim<T::Moment>;
 
         /// The next available catalog index
         pub NextCatalogId get(fn next_catalog_id) config(): T::CatalogId;
@@ -203,7 +199,7 @@ decl_module! {
         /// # <weight>
         /// - O(1).
         /// # </weight>
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn register_did(origin, properties: Option<Vec<DidProperty>>) {
             let sender = ensure_signed(origin)?;
 
@@ -215,7 +211,7 @@ decl_module! {
         /// # <weight>
         /// - O(1).
         /// # </weight>
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn register_did_for(origin, subject: T::AccountId, properties: Option<Vec<DidProperty>>) {
             let sender = ensure_signed(origin)?;
 
@@ -228,7 +224,7 @@ decl_module! {
         /// - `did` DID to which properties are to be added
         /// - `add_properties` DID properties to be added
         /// - `remove_keys` Keys of DID properties to be removed
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn update_did(
             origin,
             did: Did,
@@ -262,7 +258,7 @@ decl_module! {
         /// Arguments:
         /// - `did` DID to which properties are to be added
         /// - `properties` DID properties to be added
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn replace_did(origin, did: Did, properties: Vec<DidProperty>) {
             let sender = ensure_signed(origin)?;
 
@@ -284,6 +280,7 @@ decl_module! {
         /// - `did` subject
         /// - `add` DIDs to be added as controllers
         /// - `remove` DIDs to be removed as controllers
+        #[weight = 100_000]
         pub fn manage_controllers(
             origin,
             did: Did,
@@ -302,7 +299,7 @@ decl_module! {
                     );
                 })
             }
-             sp_runtime::print("C");
+
             if let Some(to_be_added) = add {
                 to_be_added.iter().for_each(|add_account|{
 
@@ -311,7 +308,6 @@ decl_module! {
                     );
                 })
             }
-             sp_runtime::print("D");
 
             Self::deposit_event(RawEvent::DidControllersUpdated(
                 sender,
@@ -325,7 +321,7 @@ decl_module! {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_consumers` DIDs of claim consumer
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn authorize_claim_consumers(
             origin,
             target_did: Did,
@@ -356,7 +352,7 @@ decl_module! {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_consumers` DIDs of claim consumers to be revoked
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn revoke_claim_consumers(origin, target_did: Did, claim_consumers: Vec<Did>) {
             let sender = ensure_signed(origin)?;
 
@@ -382,7 +378,7 @@ decl_module! {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_issuers` DIDs of claim issuer
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn authorize_claim_issuers(origin, target_did: Did, claim_issuers: Vec<ClaimIssuer<T::Moment>>) {
             let sender = ensure_signed(origin)?;
 
@@ -403,7 +399,7 @@ decl_module! {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_issuers` DIDs of claim issuers to be revoked
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn revoke_claim_issuers(origin, target_did: Did, claim_issuers: Vec<Did>) {
             let sender = ensure_signed(origin)?;
 
@@ -429,7 +425,7 @@ decl_module! {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_consumer` DID of claim consumer
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn make_claim(
             origin,
             claim_consumer: Did,
@@ -452,7 +448,6 @@ decl_module! {
             ClaimCount::put(claim_index + 1u64);
 
             let claim = Claim {
-                id: claim_index,
                 description,
                 statements,
                 created_by: claim_consumer,
@@ -478,7 +473,7 @@ decl_module! {
         /// - `claim_index` Claim to be attested
         /// - `statements` Claim issuer overwrites these statements
         /// - `valid_until` Attestation expires
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn attest_claim(
             origin,
             claim_issuer: Did,
@@ -508,7 +503,7 @@ decl_module! {
                     attested_by: claim_issuer,
                     valid_until,
                 });
-                <Claims<T>>::insert(&target_did, claim.id, claim);
+                <Claims<T>>::insert(&target_did, claim_index, claim);
 
 
                 Self::deposit_event(RawEvent::ClaimAttested(
@@ -526,7 +521,7 @@ decl_module! {
         /// - `claim_issuer` DID of claim issuer
         /// - `target_did` DID against which claims are to be attested
         /// - `claim_index` Claim to be attested
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn revoke_attestation(origin, claim_issuer: Did, target_did: Did, claim_index: ClaimIndex) {
             let sender = ensure_signed(origin)?;
 
@@ -553,7 +548,7 @@ decl_module! {
         ///
         /// Arguments:
         /// - `owner_did` DID of caller
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn create_catalog(origin, owner_did: Did) {
             let sender = ensure_signed(origin)?;
 
@@ -568,7 +563,7 @@ decl_module! {
                 .ok_or(Error::<T>::NoIdAvailable)?;
             <NextCatalogId<T>>::put(next_id);
 
-            <CatalogOwnership<T>>::append_or_insert(owner_did, &[&catalog_id][..]);
+            <CatalogOwnership<T>>::append(owner_did, &catalog_id);
 
 
             Self::deposit_event(RawEvent::CatalogCreated(owner_did, catalog_id));
@@ -579,7 +574,7 @@ decl_module! {
         /// Arguments:
         /// - `owner_did` DID of caller
         /// - `catalog_id` Catalog to be removed
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn remove_catalog(origin, owner_did: Did, catalog_id: T::CatalogId) {
             let sender = ensure_signed(origin)?;
 
@@ -603,7 +598,7 @@ decl_module! {
         /// - `owner_did` DID of caller
         /// - `catalog_id` Catalog to which DID are to be added
         /// - `dids` DIDs are to be added
-        #[weight = SimpleDispatchInfo::FixedNormal(100_000)]
+        #[weight = 100_000]
         pub fn add_dids_to_catalog(
             origin,
             owner_did: Did,
@@ -632,6 +627,7 @@ decl_module! {
         /// - `owner_did` DID of caller
         /// - `catalog_id` Catalog to which DID are to be removed
         /// - `dids` DIDs are to be removed
+        #[weight = 100_000]
         pub fn remove_dids_from_catalog(
             origin,
             owner_did: Did,
@@ -714,9 +710,9 @@ impl<T: Trait> Module<T> {
             }
         };
 
-        <DidRegistry<T>>::append_or_insert(&subject, &[did][..]);
+        <DidRegistry<T>>::append(&subject, &did);
         <DidInfo>::insert(&did, did_doc);
-        <DidController<T>>::append_or_insert(controller.clone(), &[did][..]);
+        <DidController<T>>::append(controller.clone(), &did);
 
         Self::deposit_event(RawEvent::Registered(subject, controller, did));
     }

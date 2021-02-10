@@ -1,5 +1,5 @@
 [package]
-name = "pallet-asset-registry"
+name = "pallet-audits"
 version = "0.1.0"
 authors = ["Borlaug Blockchain"]
 edition = "2018"
@@ -20,7 +20,6 @@ frame-system = { version = "2.0.0", default-features = false }
 frame-support = { version = "2.0.0", default-features = false }
 
 primitives = { package = "pallet-primitives", path = "../primitives", default-features = false }
-identity = { package = "pallet-identity", path = "../identity", default-features = false }
 
 [dev-dependencies]
 lazy_static = "1.4.0"
@@ -42,5 +41,4 @@ std = [
     'randomness/std',
     "timestamp/std",
     "primitives/std",
-    "identity/std",
 ]

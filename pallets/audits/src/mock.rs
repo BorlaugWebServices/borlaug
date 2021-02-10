@@ -68,20 +68,15 @@ impl timestamp::Trait for Test {
     type WeightInfo = ();
 }
 
-impl identity::Trait for Test {
-    type CatalogId = u32;
-    type Event = TestEvent;
-}
-
 impl Trait for Test {
-    type RegistryId = u32;
-    type AssetId = u32;
-    type LeaseId = u32;
-    type Balance = u64;
+    type AuditId = u32;
+    type ControlPointId = u32;
+    type ObservationId = u32;
+    type EvidenceId = u32;
     type Event = TestEvent;
 }
 
-mod asset_registry {
+mod audits {
     pub use crate::Event;
 }
 
@@ -89,14 +84,12 @@ use frame_system as system;
 impl_outer_event! {
     pub enum TestEvent for Test {
         system<T>,
-        identity<T>,
-        asset_registry<T>,
+        audits<T>,
     }
 }
 #[allow(dead_code)]
 pub type System = frame_system::Module<Test>;
-pub type Identity = identity::Module<Test>;
-pub type AssetRegistry = Module<Test>;
+pub type Audits = Module<Test>;
 
 pub struct ExtBuilder {
     #[allow(dead_code)]

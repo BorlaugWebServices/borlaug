@@ -4,8 +4,7 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Asset<AssetId, Timestamp, Balance> {
-    pub asset_id: Option<AssetId>,
+pub struct Asset<Timestamp, Balance> {    
     pub properties: Option<Vec<AssetProperty>>,
     pub name: Option<Vec<u8>>,
     pub asset_number: Option<Vec<u8>>,

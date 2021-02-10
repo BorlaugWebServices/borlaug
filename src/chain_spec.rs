@@ -1,13 +1,15 @@
-use grandpa_primitives::AuthorityId as GrandpaId;
 use runtime::{
     primitives::{AccountId, Signature},
-    AuraConfig, BalancesConfig, GeneralCouncilMembershipConfig, GenesisConfig, GrandpaConfig,
-    SudoConfig, SystemConfig, WASM_BINARY,
+    AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, SudoConfig, SystemConfig,
+    WASM_BINARY,
 };
+// GeneralCouncilMembershipConfig,
 use sc_service;
+use sc_service::ChainType;
 use serde_json::json;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
+use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 // Note this is the URL for the telemetry server
@@ -15,17 +17,6 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
-
-/// The chain specification option. This is expected to come in from the CLI and
-/// is little more than one of a number of alternatives which can easily be converted
-/// from a string (`--chain=...`) into a `ChainSpec`.
-#[derive(Clone, Debug)]
-pub enum Alternative {
-    /// Whatever the current runtime is, with just Alice as an auth.
-    Development,
-    /// Whatever the current runtime is, with simple Alice/Bob auths.
-    LocalTestnet,
-}
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -36,7 +27,7 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 
 type AccountPublic = <Signature as Verify>::Signer;
 
-/// Helper function to generate an account ID from seed
+/// Generate an account ID from seed.
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
 where
     AccountPublic: From<<TPublic::Pair as Pair>::Public>,
@@ -44,225 +35,329 @@ where
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-/// Helper function to generate an authority key for Aura
-pub fn get_authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
+/// Generate an Aura authority key.
+pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
     (get_from_seed::<AuraId>(s), get_from_seed::<GrandpaId>(s))
 }
 
-impl Alternative {
-    /// Get an actual chain config from one of the alternatives.
-    pub(crate) fn load(self) -> Result<ChainSpec, String> {
-        Ok(match self {
-            Alternative::Development => ChainSpec::from_genesis(
-                "Development",
-                "dev",
-                || {
-                    testnet_genesis(
-                        vec![get_authority_keys_from_seed("Alice")],
-                        get_account_id_from_seed::<sr25519::Public>("Alice"),
-                        vec![
-                            get_account_id_from_seed::<sr25519::Public>("Alice"),
-                            get_account_id_from_seed::<sr25519::Public>("Bob"),
-                            get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-                            get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-                            AccountPublic::from(
-                                sp_core::sr25519::Public::from_ss58check(
-                                    "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
-                                )
-                                .unwrap(),
-                            )
-                            .into_account(),
-                            AccountPublic::from(
-                                sp_core::sr25519::Public::from_ss58check(
-                                    "5DkytoJY83z31QNKdgDitEc4K1ttLyWVW3NJfjyXqKy8DQcg",
-                                )
-                                .unwrap(),
-                            )
-                            .into_account(),
-                            AccountPublic::from(
-                                sp_core::sr25519::Public::from_ss58check(
-                                    "5FX5WmY8WHXj7H9V7zSL3CSQ9JadBxEDsFuSGG7gUbgnm5EW",
-                                )
-                                .unwrap(),
-                            )
-                            .into_account(),
-                            AccountPublic::from(
-                                sp_core::sr25519::Public::from_ss58check(
-                                    "5H9X5JSJTBAeUYxtMNsVSVMAyiNxyMBKqSGvgvjV4PMGgpDM",
-                                )
-                                .unwrap(),
-                            )
-                            .into_account(),
-                        ],
-                        true,
-                    )
-                },
-                vec![],
-                None,
-                Some("borlaug"),
-                Some(
-                    json!({
-                        "tokenDecimals": 9,
-                        "tokenSymbol": "GRAM"
-                    })
-                    .as_object()
-                    .expect("Created an object")
-                    .clone(),
-                ),
-                None,
-            ),
-            Alternative::LocalTestnet => ChainSpec::from_genesis(
-                "Borlaug Testnet Inca",
-                "borlaug_testnet_inca",
-                || {
-                    testnet_genesis(
-                        vec![
-                            // get_authority_keys_from_seed("Alice"),
-                            // get_authority_keys_from_seed("Bob"),
-                            // get_authority_keys_from_seed("Charlie")
-                            (
-                                AuraId::from_ss58check(
-                                    "5G3WSp2yNJgRZxXvndY3qQ4VhM4mofpzpiVUuWQRVdFvDNzU",
-                                )
-                                .unwrap(),
-                                GrandpaId::from_ss58check(
-                                    "5GnYdMRexbUBoP1WpbmHgvsCw1fRSH5Em44xHMqQsYHk4cRK",
-                                )
-                                .unwrap(),
-                            ),
-                            (
-                                AuraId::from_ss58check(
-                                    "5Fej3rJdS3w2f7jkufxrNyhBMoy5zNvGVBCtRWGms7r4zsJU",
-                                )
-                                .unwrap(),
-                                GrandpaId::from_ss58check(
-                                    "5FwYgvMWN1oBF4tWcCQWYZxBda17d3GvxL596A7APXMwgSdb",
-                                )
-                                .unwrap(),
-                            ),
-                            (
-                                AuraId::from_ss58check(
-                                    "5Hive2LzHTqobHaDhJLs2PuDw6a1AV5eyyYX6fmu1RfwdQwT",
-                                )
-                                .unwrap(),
-                                GrandpaId::from_ss58check(
-                                    "5DkBNwcyqZufh68Rz6Vg3C5Uqw12HpuUmeoMwTpBGD64ntMg",
-                                )
-                                .unwrap(),
-                            ),
-                        ],
-                        AccountPublic::from(
-                            sp_core::sr25519::Public::from_ss58check(
-                                "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
-                            )
-                            .unwrap(),
-                        )
-                        .into_account(),
-                        vec![
-                            AccountPublic::from(
-                                sp_core::sr25519::Public::from_ss58check(
-                                    "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
-                                )
-                                .unwrap(),
-                            )
-                            .into_account(),
-                            AccountPublic::from(
-                                sp_core::sr25519::Public::from_ss58check(
-                                    "5DkytoJY83z31QNKdgDitEc4K1ttLyWVW3NJfjyXqKy8DQcg",
-                                )
-                                .unwrap(),
-                            )
-                            .into_account(),
-                            AccountPublic::from(
-                                sp_core::sr25519::Public::from_ss58check(
-                                    "5FX5WmY8WHXj7H9V7zSL3CSQ9JadBxEDsFuSGG7gUbgnm5EW",
-                                )
-                                .unwrap(),
-                            )
-                            .into_account(),
-                            AccountPublic::from(
-                                sp_core::sr25519::Public::from_ss58check(
-                                    "5H9X5JSJTBAeUYxtMNsVSVMAyiNxyMBKqSGvgvjV4PMGgpDM",
-                                )
-                                .unwrap(),
-                            )
-                            .into_account(),
-                        ],
-                        true,
-                    )
-                },
+pub fn development_config() -> Result<ChainSpec, String> {
+    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    Ok(ChainSpec::from_genesis(
+        "Development",
+        "dev",
+        ChainType::Development,
+        move || {
+            testnet_genesis(
+                wasm_binary,
+                vec![authority_keys_from_seed("Alice")],
+                get_account_id_from_seed::<sr25519::Public>("Alice"),
                 vec![
-                    String::from("/ip4/3.6.94.87/tcp/30333/p2p/QmPZHibpY11toY1nQcArpryGyJxYFXBWWotg3TKLpBT7ug"), //Mumbai
-                    String::from("/ip4/3.1.196.206/tcp/30333/p2p/QmPZrx6TXbMcrgMgMqYMd6rhjbLXEYFYW2rV6i5UF7DnTP"), //Singapore
-                    String::from("/ip4/3.124.8.22/tcp/30333/p2p/QmWDUmXLxynkSyBzGGDEwnbW6i3o7qnsupadRLCmMtbMNk"), //Frankfurt
+                    get_account_id_from_seed::<sr25519::Public>("Alice"),
+                    get_account_id_from_seed::<sr25519::Public>("Bob"),
+                    get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+                    get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5DkytoJY83z31QNKdgDitEc4K1ttLyWVW3NJfjyXqKy8DQcg",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5FX5WmY8WHXj7H9V7zSL3CSQ9JadBxEDsFuSGG7gUbgnm5EW",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5H9X5JSJTBAeUYxtMNsVSVMAyiNxyMBKqSGvgvjV4PMGgpDM",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
                 ],
-                None,
-                Some("borlaug"),
-                Some(
-                    json!({
-                        "tokenDecimals": 9,
-                        "tokenSymbol": "GRAM"
-                    })
-                    .as_object()
-                    .expect("Created an object")
-                    .clone(),
-                ),
-                None,
-            ),
-        })
-    }
-
-    pub(crate) fn from(s: &str) -> Option<Self> {
-        match s {
-            "dev" => Some(Alternative::Development),
-            "" | "local" => Some(Alternative::LocalTestnet),
-            _ => None,
-        }
-    }
+                true,
+            )
+        },
+        vec![],
+        None,
+        Some("borlaug"),
+        Some(
+            json!({
+                "tokenDecimals": 9,
+                "tokenSymbol": "GRAM"
+            })
+            .as_object()
+            .expect("Created an object")
+            .clone(),
+        ),
+        None,
+    ))
+}
+pub fn inca_config() -> Result<ChainSpec, String> {
+    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    Ok(ChainSpec::from_genesis(
+        "Borlaug Inca",
+        "borlaug_inca",
+        ChainType::Live,
+        move || {
+            testnet_genesis(
+                wasm_binary,
+                vec![
+                    // get_authority_keys_from_seed("Alice"),
+                    // get_authority_keys_from_seed("Bob"),
+                    // get_authority_keys_from_seed("Charlie")
+                    (
+                        AuraId::from_ss58check("5G3WSp2yNJgRZxXvndY3qQ4VhM4mofpzpiVUuWQRVdFvDNzU")
+                            .unwrap(),
+                        GrandpaId::from_ss58check(
+                            "5GnYdMRexbUBoP1WpbmHgvsCw1fRSH5Em44xHMqQsYHk4cRK",
+                        )
+                        .unwrap(),
+                    ),
+                    (
+                        AuraId::from_ss58check("5Fej3rJdS3w2f7jkufxrNyhBMoy5zNvGVBCtRWGms7r4zsJU")
+                            .unwrap(),
+                        GrandpaId::from_ss58check(
+                            "5FwYgvMWN1oBF4tWcCQWYZxBda17d3GvxL596A7APXMwgSdb",
+                        )
+                        .unwrap(),
+                    ),
+                    (
+                        AuraId::from_ss58check("5Hive2LzHTqobHaDhJLs2PuDw6a1AV5eyyYX6fmu1RfwdQwT")
+                            .unwrap(),
+                        GrandpaId::from_ss58check(
+                            "5DkBNwcyqZufh68Rz6Vg3C5Uqw12HpuUmeoMwTpBGD64ntMg",
+                        )
+                        .unwrap(),
+                    ),
+                ],
+                AccountPublic::from(
+                    sp_core::sr25519::Public::from_ss58check(
+                        "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
+                    )
+                    .unwrap(),
+                )
+                .into_account(),
+                vec![
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5DkytoJY83z31QNKdgDitEc4K1ttLyWVW3NJfjyXqKy8DQcg",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5FX5WmY8WHXj7H9V7zSL3CSQ9JadBxEDsFuSGG7gUbgnm5EW",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5H9X5JSJTBAeUYxtMNsVSVMAyiNxyMBKqSGvgvjV4PMGgpDM",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5CfMkF8xrakzXaA4dW4S5iEG9PgrSbs8BkE3ooHYn9fckrQS",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5EbzuvEYgSgcmDZNsEdCCMwCw4mrzCTNNUk7dAAog9WwotS7",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                ],
+                true,
+            )
+        },
+        vec![],
+        None,
+        Some("borlaug"),
+        Some(
+            json!({
+                "tokenDecimals": 9,
+                "tokenSymbol": "GRAM"
+            })
+            .as_object()
+            .expect("Created an object")
+            .clone(),
+        ),
+        None,
+    ))
+}
+pub fn maya_config() -> Result<ChainSpec, String> {
+    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    Ok(ChainSpec::from_genesis(
+        "Borlaug Maya",
+        "borlaug_maya",
+        ChainType::Live,
+        move || {
+            testnet_genesis(
+                wasm_binary,
+                vec![
+                    (
+                        AuraId::from_ss58check("5G3WSp2yNJgRZxXvndY3qQ4VhM4mofpzpiVUuWQRVdFvDNzU")
+                            .unwrap(),
+                        GrandpaId::from_ss58check(
+                            "5GnYdMRexbUBoP1WpbmHgvsCw1fRSH5Em44xHMqQsYHk4cRK",
+                        )
+                        .unwrap(),
+                    ),
+                    (
+                        AuraId::from_ss58check("5Fej3rJdS3w2f7jkufxrNyhBMoy5zNvGVBCtRWGms7r4zsJU")
+                            .unwrap(),
+                        GrandpaId::from_ss58check(
+                            "5FwYgvMWN1oBF4tWcCQWYZxBda17d3GvxL596A7APXMwgSdb",
+                        )
+                        .unwrap(),
+                    ),
+                    (
+                        AuraId::from_ss58check("5Hive2LzHTqobHaDhJLs2PuDw6a1AV5eyyYX6fmu1RfwdQwT")
+                            .unwrap(),
+                        GrandpaId::from_ss58check(
+                            "5DkBNwcyqZufh68Rz6Vg3C5Uqw12HpuUmeoMwTpBGD64ntMg",
+                        )
+                        .unwrap(),
+                    ),
+                ],
+                AccountPublic::from(
+                    sp_core::sr25519::Public::from_ss58check(
+                        "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
+                    )
+                    .unwrap(),
+                )
+                .into_account(),
+                vec![
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5DkytoJY83z31QNKdgDitEc4K1ttLyWVW3NJfjyXqKy8DQcg",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5FX5WmY8WHXj7H9V7zSL3CSQ9JadBxEDsFuSGG7gUbgnm5EW",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5H9X5JSJTBAeUYxtMNsVSVMAyiNxyMBKqSGvgvjV4PMGgpDM",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5CfMkF8xrakzXaA4dW4S5iEG9PgrSbs8BkE3ooHYn9fckrQS",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5EbzuvEYgSgcmDZNsEdCCMwCw4mrzCTNNUk7dAAog9WwotS7",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                    AccountPublic::from(
+                        sp_core::sr25519::Public::from_ss58check(
+                            "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
+                        )
+                        .unwrap(),
+                    )
+                    .into_account(),
+                ],
+                true,
+            )
+        },
+        vec![],
+        None,
+        Some("borlaug"),
+        Some(
+            json!({
+                "tokenDecimals": 9,
+                "tokenSymbol": "GRAM"
+            })
+            .as_object()
+            .expect("Created an object")
+            .clone(),
+        ),
+        None,
+    ))
 }
 
 fn testnet_genesis(
+    wasm_binary: &[u8],
     initial_authorities: Vec<(AuraId, GrandpaId)>,
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
     _enable_println: bool,
 ) -> GenesisConfig {
     GenesisConfig {
-        system: Some(SystemConfig {
-            code: WASM_BINARY.to_vec(),
+        frame_system: Some(SystemConfig {
+            code: wasm_binary.to_vec(),
             changes_trie_config: Default::default(),
         }),
         // indices: Some(IndicesConfig { indices: vec![] }),
-        balances: Some(BalancesConfig {
+        pallet_balances: Some(BalancesConfig {
             balances: endowed_accounts
                 .iter()
                 .cloned()
                 .map(|k| (k, 1 << 60))
                 .collect(),
         }),
-        sudo: Some(SudoConfig {
+        pallet_sudo: Some(SudoConfig {
             key: root_key.clone(),
         }),
-        aura: Some(AuraConfig {
+        pallet_aura: Some(AuraConfig {
             authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
         }),
-        grandpa: Some(GrandpaConfig {
+        pallet_grandpa: Some(GrandpaConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.1.clone(), 1))
                 .collect(),
         }),
-        collective_Instance1: Some(Default::default()),
-        membership_Instance1: Some(GeneralCouncilMembershipConfig {
-            members: vec![root_key],
-            phantom: Default::default(),
-        }),
+        // collective_Instance1: Some(Default::default()),
+        // membership_Instance1: Some(GeneralCouncilMembershipConfig {
+        //     members: vec![root_key],
+        //     phantom: Default::default(),
+        // }),
     }
-}
-
-pub fn load_spec(id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
-    Ok(match Alternative::from(id) {
-        Some(spec) => Box::new(spec.load()?),
-        None => Box::new(ChainSpec::from_json_file(std::path::PathBuf::from(id))?),
-    })
 }

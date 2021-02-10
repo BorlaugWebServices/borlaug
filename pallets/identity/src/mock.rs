@@ -34,6 +34,7 @@ parameter_types! {
 }
 
 impl frame_system::Trait for Test {
+    type BaseCallFilter = ();
     type Origin = Origin;
     type Index = u64;
     type BlockNumber = u64;
@@ -45,6 +46,9 @@ impl frame_system::Trait for Test {
     type Header = Header;
     type Event = TestEvent;
     type MaximumBlockWeight = MaximumBlockWeight;
+    type DbWeight = ();
+    type BlockExecutionWeight = ();
+    type ExtrinsicBaseWeight = ();
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
     type BlockHashCount = BlockHashCount;
@@ -53,12 +57,15 @@ impl frame_system::Trait for Test {
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
+    type MaximumExtrinsicWeight = MaximumBlockWeight;
+    type SystemWeightInfo = ();
 }
 
 impl timestamp::Trait for Test {
     type Moment = u64;
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
 impl Trait for Test {
@@ -79,11 +86,13 @@ impl_outer_event! {
 }
 
 pub type Identity = Module<Test>;
-
+#[allow(unused_imports)]
 pub type System = frame_system::Module<Test>;
 
 pub struct ExtBuilder {
+    #[allow(dead_code)]
     catalog_id: u32,
+    #[allow(dead_code)]
     next_catalog_id: u32,
 }
 
@@ -98,6 +107,7 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
+    #[allow(dead_code)]
     pub fn next_catalog_id(mut self, asset_id: u32) -> Self {
         self.catalog_id = asset_id;
         self
@@ -114,6 +124,7 @@ impl ExtBuilder {
 
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
+#[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
     frame_system::GenesisConfig::default()
         .build_storage::<Test>()

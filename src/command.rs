@@ -14,30 +14,145 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::chain_spec;
-use crate::cli::Cli;
-use crate::service;
-use sc_cli::VersionInfo;
-use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
+use crate::cli::{Cli, Subcommand};
+use crate::{chain_spec, service};
+use runtime::Block;
+use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
+use sc_service::PartialComponents;
+
+impl SubstrateCli for Cli {
+    fn impl_name() -> String {
+        "Borlaug".into()
+    }
+
+    fn impl_version() -> String {
+        env!("CARGO_PKG_VERSION").into()
+    }
+
+    fn description() -> String {
+        env!("CARGO_PKG_DESCRIPTION").into()
+    }
+
+    fn author() -> String {
+        env!("CARGO_PKG_AUTHORS").into()
+    }
+
+    fn support_url() -> String {
+        "https://gitlab.com/Borlaug/blockchain/bg/-/issues".into()
+    }
+
+    fn copyright_start_year() -> i32 {
+        2019
+    }
+
+    // fn executable_name() -> String {
+    //     env!("CARGO_PKG_NAME").into()
+    // }
+
+    fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+        Ok(match id {
+            "dev" => Box::new(chain_spec::development_config()?),
+            "borlaug_inca" => Box::new(chain_spec::inca_config()?),
+            "borlaug_maya" => Box::new(chain_spec::maya_config()?),
+            path => Box::new(chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
+        })
+    }
+
+    fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+        &runtime::VERSION
+    }
+}
 
 /// Parse and run command line arguments
-pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
-    let opt = sc_cli::from_args::<Cli>(&version);
+pub fn run() -> sc_cli::Result<()> {
+    let cli = Cli::from_args();
 
-    let mut config = sc_service::Configuration::from_version(&version);
+    match &cli.subcommand {
+        Some(Subcommand::BuildSpec(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
+        }
+        Some(Subcommand::CheckBlock(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.async_run(|config| {
+                let PartialComponents {
+                    client,
+                    task_manager,
+                    import_queue,
+                    ..
+                } = service::new_partial(&config)?;
+                Ok((cmd.run(client, import_queue), task_manager))
+            })
+        }
+        Some(Subcommand::ExportBlocks(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.async_run(|config| {
+                let PartialComponents {
+                    client,
+                    task_manager,
+                    ..
+                } = service::new_partial(&config)?;
+                Ok((cmd.run(client, config.database), task_manager))
+            })
+        }
+        Some(Subcommand::ExportState(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.async_run(|config| {
+                let PartialComponents {
+                    client,
+                    task_manager,
+                    ..
+                } = service::new_partial(&config)?;
+                Ok((cmd.run(client, config.chain_spec), task_manager))
+            })
+        }
+        Some(Subcommand::ImportBlocks(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.async_run(|config| {
+                let PartialComponents {
+                    client,
+                    task_manager,
+                    import_queue,
+                    ..
+                } = service::new_partial(&config)?;
+                Ok((cmd.run(client, import_queue), task_manager))
+            })
+        }
+        Some(Subcommand::PurgeChain(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|config| cmd.run(config.database))
+        }
+        Some(Subcommand::Revert(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.async_run(|config| {
+                let PartialComponents {
+                    client,
+                    task_manager,
+                    backend,
+                    ..
+                } = service::new_partial(&config)?;
+                Ok((cmd.run(client, backend), task_manager))
+            })
+        }
+        Some(Subcommand::Benchmark(cmd)) => {
+            if cfg!(feature = "runtime-benchmarks") {
+                let runner = cli.create_runner(cmd)?;
 
-    match opt.subcommand {
-        Some(subcommand) => {
-            subcommand.init(&version)?;
-            subcommand.update_config(&mut config, chain_spec::load_spec, &version)?;
-            subcommand.run(config, |config: _| Ok(new_full_start!(config).0))
+                runner.sync_run(|config| cmd.run::<Block, service::Executor>(config))
+            } else {
+                Err("Benchmarking wasn't enabled when building the node. \
+				You can enable it with `--features runtime-benchmarks`."
+                    .into())
+            }
         }
         None => {
-            opt.run.init(&version)?;
-            opt.run
-                .update_config(&mut config, chain_spec::load_spec, &version)?;
-            opt.run
-                .run(config, service::new_light, service::new_full, &version)
+            let runner = cli.create_runner(&cli.run)?;
+            runner.run_node_until_exit(|config| match config.role {
+                Role::Light => service::new_light(config),
+                _ => service::new_full(config),
+            })
         }
     }
 }
