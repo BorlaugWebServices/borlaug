@@ -17,13 +17,15 @@ mod mock;
 mod tests;
 
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
-#[allow(unused_imports)]
 use frame_system::{self as system, ensure_signed};
 use primitives::{Audit, AuditStatus, Evidence, Observation};
 use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One};
 use sp_std::prelude::*;
 
-pub trait Trait: frame_system::Trait + timestamp::Trait {
+pub trait Config: frame_system::Config {
+    /// Because this pallet emits events, it depends on the runtime's definition of an event.
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
     type AuditId: Parameter
         + Member
         + AtLeast32Bit
@@ -55,18 +57,16 @@ pub trait Trait: frame_system::Trait + timestamp::Trait {
         + Copy
         + MaybeSerializeDeserialize
         + PartialEq;
-
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
 decl_event!(
     pub enum Event<T>
         where
-        <T as frame_system::Trait>::AccountId,
-        <T as Trait>::AuditId,
-        <T as Trait>::ObservationId,
-        <T as Trait>::ControlPointId,
-        <T as Trait>::EvidenceId,
+        <T as frame_system::Config>::AccountId,
+        <T as Config>::AuditId,
+        <T as Config>::ObservationId,
+        <T as Config>::ControlPointId,
+        <T as Config>::EvidenceId,
 
     {
         /// New registry created (owner, audit id)
@@ -94,7 +94,7 @@ decl_event!(
 );
 
 decl_error! {
-    pub enum Error for Module<T: Trait> {
+    pub enum Error for Module<T: Config> {
         /// Value was None
         NoneValue,
         NoIdAvailable,
@@ -109,7 +109,7 @@ decl_error! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Audits {
+    trait Store for Module<T: Config> as Audits {
 
         /// Incrementing nonce
         pub Nonce get(fn nonce) build(|_| 1u64): u64;
@@ -143,7 +143,7 @@ decl_storage! {
 
 decl_module! {
     /// The module declaration.
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         type Error = Error<T>;
 
         fn deposit_event() = default;
@@ -449,7 +449,7 @@ decl_module! {
 }
 
 // private functions
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     fn is_audit_in_this_status(audit_id: T::AuditId, status: AuditStatus) -> bool {
         if <Audits<T>>::contains_key(audit_id) {
             let audit = <Audits<T>>::get(audit_id);

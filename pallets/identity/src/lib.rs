@@ -74,18 +74,19 @@ pub type ShortName = Vec<u8>;
 /// Key used for DidProperty.
 pub type DidPropertyName = Vec<u8>;
 
-pub trait Trait: frame_system::Trait + timestamp::Trait {
-    type CatalogId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+pub trait Config: frame_system::Config + timestamp::Config {
+    /// Because this pallet emits events, it depends on the runtime's definition of an event.
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type CatalogId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
 }
 
 decl_event!(
     pub enum Event<T>
     where
-        <T as frame_system::Trait>::AccountId,
-        <T as timestamp::Trait>::Moment,
-        <T as Trait>::CatalogId,
+        <T as frame_system::Config>::AccountId,
+        <T as timestamp::Config>::Moment,
+        <T as Config>::CatalogId,
     {
      /// A new DID was registered (Subject, Controller, DID)
      Registered(AccountId, AccountId, Did),
@@ -121,7 +122,7 @@ decl_event!(
 );
 
 decl_error! {
-    pub enum Error for Module<T: Trait> {
+    pub enum Error for Module<T: Config> {
         /// Value was None
         NoneValue,
         /// A non-controller account attempted to  modify a DID
@@ -134,7 +135,7 @@ decl_error! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Identity {
+    trait Store for Module<T: Config> as Identity {
 
         /// Incrementing nonce
         pub Nonce get(fn nonce) build(|_| 1u64): u64;
@@ -189,7 +190,7 @@ decl_storage! {
 
 decl_module! {
     /// The module declaration.
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         type Error = Error<T>;
 
         fn deposit_event() = default;
@@ -651,7 +652,7 @@ decl_module! {
     }
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     /// Returns true if a `account` can control `did`
     pub fn is_controller(account: T::AccountId, did: Did) -> bool {
         if <DidController<T>>::contains_key(account.clone()) {

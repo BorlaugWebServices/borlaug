@@ -22,7 +22,7 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure, IterableStorageDoubleMap, Parameter,
     StorageDoubleMap,
 };
-use frame_system::ensure_signed;
+use frame_system::{self as system, ensure_signed};
 use primitives::{
     attestor::Attestor,
     attribute::Attribute,
@@ -37,11 +37,13 @@ use primitives::{
 use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, One, UniqueSaturatedInto};
 use sp_std::prelude::*;
 
-pub trait Trait: frame_system::Trait + timestamp::Trait {
+pub trait Config: frame_system::Config {
+    /// Because this pallet emits events, it depends on the runtime's definition of an event.
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
     type RegistryId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
     type TemplateId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
     type SequenceId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
 pub type TemplateStepIndex = u8;
@@ -49,9 +51,9 @@ pub type TemplateStepIndex = u8;
 decl_event!(
     pub enum Event<T>
     where
-        <T as Trait>::RegistryId,
-        <T as Trait>::TemplateId,
-        <T as Trait>::SequenceId,
+        <T as Config>::RegistryId,
+        <T as Config>::TemplateId,
+        <T as Config>::SequenceId,
     {
      /// A new Registry was created (RegistryId)
      RegistryCreated(RegistryId),
@@ -76,7 +78,7 @@ decl_event!(
 );
 
 decl_error! {
-    pub enum Error for Module<T: Trait> {
+    pub enum Error for Module<T: Config> {
         /// Value was None
         NoneValue,
         /// Not authorized
@@ -94,7 +96,7 @@ decl_error! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Provenance {
+    trait Store for Module<T: Config> as Provenance {
 
         /// Incrementing nonce
         pub Nonce get(fn nonce) build(|_| 1u64): u64;
@@ -144,7 +146,7 @@ decl_storage! {
 
 decl_module! {
     /// The module declaration.
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         type Error = Error<T>;
 
         fn deposit_event() = default;
@@ -384,7 +386,7 @@ decl_module! {
     }
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     // -- private functions --
 
     fn is_registry_owner(account: &T::AccountId, registry_id: T::RegistryId) -> bool {

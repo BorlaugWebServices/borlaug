@@ -9,6 +9,8 @@
 //! ## Interface
 //!
 //! ### Dispatchable Functions
+#![cfg_attr(not(feature = "std"), no_std)]
+
 //!
 //! #### For general users
 //! * `create_registry` - Creates a new asset registry
@@ -18,13 +20,7 @@
 //! * `new_lease` - Creates a new lease agreement between lessor and lessee for a set of assets
 //! * `void_lease` - Void a lease and release assets from lease
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
-mod mock;
-mod tests;
-
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
-#[allow(unused_imports)]
 use frame_system::{self as system, ensure_signed};
 use primitives::{
     asset::Asset,
@@ -37,7 +33,17 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 
-pub trait Trait: frame_system::Trait + timestamp::Trait {
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
+/// Configure the pallet by specifying the parameters and types on which it depends.
+pub trait Config: frame_system::Config + timestamp::Config {
+    /// Because this pallet emits events, it depends on the runtime's definition of an event.
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
     type RegistryId: Parameter
         + Member
         + AtLeast32Bit
@@ -69,17 +75,15 @@ pub trait Trait: frame_system::Trait + timestamp::Trait {
         + Copy
         + MaybeSerializeDeserialize
         + PartialEq;
-
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
 decl_event!(
     pub enum Event<T>
         where
         // <T as frame_system::Trait>::AccountId,
-        <T as Trait>::RegistryId,
-        <T as Trait>::AssetId,
-        <T as Trait>::LeaseId,
+        <T as Config>::RegistryId,
+        <T as Config>::AssetId,
+        <T as Config>::LeaseId,
     {
         /// New registry created (owner, registry id)
         RegistryCreated(Did, RegistryId),
@@ -99,7 +103,7 @@ decl_event!(
 );
 
 decl_error! {
-    pub enum Error for Module<T: Trait> {
+    pub enum Error for Module<T: Config> {
         /// Value was None
         NoneValue,
         /// the calling account is not the subject of owner_did
@@ -112,7 +116,7 @@ decl_error! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as AssetRegistry {
+    trait Store for Module<T: Config> as AssetRegistry {
 
         /// Incrementing nonce
         pub Nonce get(fn nonce) build(|_| 1u64): u64;
@@ -150,7 +154,7 @@ decl_storage! {
 
 decl_module! {
     /// The module declaration.
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         type Error = Error<T>;
 
         fn deposit_event() = default;
@@ -331,7 +335,7 @@ decl_module! {
 }
 
 // public functions
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     pub fn get_asset(
         _registry_id: T::RegistryId,
         _asset_id: T::AssetId,
@@ -341,7 +345,7 @@ impl<T: Trait> Module<T> {
 }
 
 // private functions
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     /// Create an asset and store it in the given registry
     fn create_registry_asset(
         registry_id: T::RegistryId,
