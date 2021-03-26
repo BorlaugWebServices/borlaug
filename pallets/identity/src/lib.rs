@@ -45,13 +45,16 @@
 
 pub use pallet::*;
 
+#[cfg(test)]
 mod mock;
+#[cfg(test)]
 mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
 
     use codec::Encode;
+    use frame_support::traits::Randomness;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use primitives::{
@@ -61,9 +64,6 @@ pub mod pallet {
         did_document::DidDocument,
         did_property::DidProperty,
     };
-    // #[cfg(not(feature = "std"))]
-    // use sp_io::hashing::blake2_256;
-    use frame_support::traits::Randomness;
     use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, One};
     use sp_std::prelude::*;
 
@@ -145,6 +145,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
+    //TODO:initialize at 1
     /// Incrementing nonce
     pub type Nonce<T> = StorageValue<_, u64>;
 
@@ -168,6 +169,7 @@ pub mod pallet {
     pub type DidController<T: Config> =
         StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Did>, ValueQuery>;
 
+    //TODO:initialize at 1
     /// The next available claim index, aka the number of claims started so far.
     #[pallet::storage]
     #[pallet::getter(fn claim_count)]
