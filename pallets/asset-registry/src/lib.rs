@@ -21,7 +21,7 @@
 //! * `void_lease` - Void a lease and release assets from lease
 
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
-use frame_system::{self as system, ensure_signed};
+use frame_system::ensure_signed;
 use primitives::{
     asset::Asset,
     did::Did,

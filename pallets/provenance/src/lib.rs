@@ -22,7 +22,7 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure, IterableStorageDoubleMap, Parameter,
     StorageDoubleMap,
 };
-use frame_system::{self as system, ensure_signed};
+use frame_system::ensure_signed;
 use primitives::{
     attestor::Attestor,
     attribute::Attribute,
