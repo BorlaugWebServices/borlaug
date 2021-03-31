@@ -193,7 +193,10 @@ pub mod pallet {
         /// Arguments: None
 
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn create_audit(origin: OriginFor<T>, auditor: T::AccountId) -> DispatchResultWithPostInfo {
+        pub fn create_audit(
+            origin: OriginFor<T>,
+            auditor: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             let audit_id = Self::next_audit_id().unwrap();
@@ -205,7 +208,7 @@ pub mod pallet {
             let audit = Audit {
                 status: AuditStatus::Requested,
                 audit_creator: sender.clone(),
-                auditor: auditor,
+                auditor,
             };
 
             <Audits<T>>::insert(&audit_id, audit);
@@ -219,7 +222,10 @@ pub mod pallet {
         /// Arguments:
         /// - `audit_id`
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn delete_audit(origin: OriginFor<T>, audit_id: T::AuditId) -> DispatchResultWithPostInfo {
+        pub fn delete_audit(
+            origin: OriginFor<T>,
+            audit_id: T::AuditId,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             ensure!(
@@ -243,7 +249,10 @@ pub mod pallet {
         /// Arguments:
         /// - `audit_id`
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn accept_audit(origin: OriginFor<T>, audit_id: T::AuditId) -> DispatchResultWithPostInfo {
+        pub fn accept_audit(
+            origin: OriginFor<T>,
+            audit_id: T::AuditId,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             ensure!(
@@ -270,7 +279,10 @@ pub mod pallet {
         /// Arguments:
         /// - `audit_id`
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn reject_audit(origin: OriginFor<T>, audit_id: T::AuditId) -> DispatchResultWithPostInfo {
+        pub fn reject_audit(
+            origin: OriginFor<T>,
+            audit_id: T::AuditId,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             ensure!(
@@ -297,7 +309,7 @@ pub mod pallet {
         /// Arguments:
         /// - `audit_id`
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn complete_audit(
+        pub fn complete_audit(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
@@ -329,7 +341,7 @@ pub mod pallet {
         /// - `control_point_id` control point id of audit
         /// - `observation` (compliance, procedural notes)
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn create_observation(
+        pub fn create_observation(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
@@ -338,7 +350,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_auditor_valid(audit_id, sender.clone()),
+                Self::is_auditor_valid(audit_id, sender),
                 <Error<T>>::AuditorIsNotValid
             );
 
@@ -371,7 +383,7 @@ pub mod pallet {
         /// - `audit_id` id of audit created on chain
         /// - `evidence` Body of evidence
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn create_evidence(
+        pub fn create_evidence(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
             evidence: Evidence,
@@ -407,7 +419,7 @@ pub mod pallet {
         /// - `evidence_id` id of evidence created on chain
         /// - `observation_id` id of observation created on chain
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn link_evidence(
+        pub fn link_evidence(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
@@ -449,7 +461,7 @@ pub mod pallet {
         /// - `observation_id` id of observation created on chain
         /// - `evidence_id` id of evidence created on chain
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn unlink_evidence(
+        pub fn unlink_evidence(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
@@ -494,7 +506,7 @@ pub mod pallet {
         /// - `audit_id` id of audit created on chain
         /// - `evidence_id` id of evidence created on chain
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn delete_evidence(
+        pub fn delete_evidence(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
             evidence_id: T::EvidenceId,
@@ -546,7 +558,7 @@ pub mod pallet {
         }
 
         fn is_audit_creator(audit_id: T::AuditId, audit_creator: T::AccountId) -> bool {
-            if <Audits<T>>::contains_key(audit_id.clone()) {
+            if <Audits<T>>::contains_key(audit_id) {
                 let audit = <Audits<T>>::get(audit_id);
                 audit.audit_creator == audit_creator
             } else {
@@ -555,7 +567,7 @@ pub mod pallet {
         }
 
         fn is_auditor_valid(audit_id: T::AuditId, auditor: T::AccountId) -> bool {
-            if <Audits<T>>::contains_key(audit_id.clone()) {
+            if <Audits<T>>::contains_key(audit_id) {
                 let audit = <Audits<T>>::get(audit_id);
                 audit.auditor == auditor
             } else {
@@ -568,22 +580,11 @@ pub mod pallet {
             control_point_id: T::ControlPointId,
             observation_id: T::ObservationId,
         ) -> bool {
-            if <Observations<T>>::contains_key(
-                (audit_id.clone(), control_point_id.clone()),
-                observation_id,
-            ) {
-                true
-            } else {
-                false
-            }
+            <Observations<T>>::contains_key((audit_id, control_point_id), observation_id)
         }
 
         fn is_evidence_exist(audit_id: T::AuditId, evidence_id: T::EvidenceId) -> bool {
-            if <Evidences<T>>::contains_key(audit_id.clone(), evidence_id.clone()) {
-                true
-            } else {
-                false
-            }
+            <Evidences<T>>::contains_key(audit_id, evidence_id)
         }
     }
 }

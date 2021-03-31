@@ -1,25 +1,17 @@
 //! Tests for the module.
-
-#![cfg(test)]
-
-extern crate chrono;
-
-use super::*;
-#[allow(unused_imports)]
-use crate::mock::{new_test_ext, ExtBuilder, Identity, Origin, System, Test};
+use crate::mock::*;
 use chrono::Utc;
-#[allow(unused_imports)]
-use frame_support::{assert_noop, assert_ok};
-use primitives::claim::Statement;
-#[allow(unused_imports)]
-use primitives::claim::{Claim, ClaimConsumer, ClaimIssuer};
-#[allow(unused_imports)]
-use primitives::did::Did;
-use primitives::fact::Fact;
+use frame_support::assert_ok;
+use primitives::{
+    claim::{ClaimConsumer, ClaimIssuer, Statement},
+    did_document::DidDocument,
+    did_property::DidProperty,
+    fact::Fact,
+};
 
 #[test]
 fn registering_did_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(Origin::signed(1), None));
 
@@ -41,7 +33,7 @@ fn registering_did_should_work() {
 
 #[test]
 fn managing_controllers_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -71,7 +63,7 @@ fn managing_controllers_should_work() {
 
 #[test]
 fn update_did_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         assert_ok!(Identity::register_did(Origin::signed(1), None));
 
         let dids = Identity::dids(&1);
@@ -149,7 +141,7 @@ fn update_did_should_work() {
 
 #[test]
 fn replacing_properties_to_did_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         assert_ok!(Identity::register_did(Origin::signed(1), None));
 
         let dids = Identity::dids(&1);
@@ -222,7 +214,7 @@ fn replacing_properties_to_did_should_work() {
 
 #[test]
 fn catalogs_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         // Target
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -289,7 +281,7 @@ fn catalogs_work() {
 
 #[test]
 fn consumer_authorizations_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         // Target
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -340,7 +332,7 @@ fn consumer_authorizations_work() {
 
 #[test]
 fn issuer_authorizations_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         // Target
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -391,7 +383,7 @@ fn issuer_authorizations_work() {
 
 #[test]
 fn claims_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         // Target
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);

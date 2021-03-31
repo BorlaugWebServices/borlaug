@@ -40,7 +40,8 @@ pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 }
 
 pub fn development_config() -> Result<ChainSpec, String> {
-    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    let wasm_binary =
+        WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
     Ok(ChainSpec::from_genesis(
         "Development",
         "dev",
@@ -103,7 +104,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
     ))
 }
 pub fn inca_config() -> Result<ChainSpec, String> {
-    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    let wasm_binary =
+        WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
     Ok(ChainSpec::from_genesis(
         "Borlaug Inca",
         "borlaug_inca",
@@ -210,7 +212,8 @@ pub fn inca_config() -> Result<ChainSpec, String> {
     ))
 }
 pub fn maya_config() -> Result<ChainSpec, String> {
-    let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+    let wasm_binary =
+        WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
     Ok(ChainSpec::from_genesis(
         "Borlaug Maya",
         "borlaug_maya",
@@ -341,9 +344,7 @@ fn testnet_genesis(
                 .map(|k| (k, 1 << 60))
                 .collect(),
         }),
-        pallet_sudo: Some(SudoConfig {
-            key: root_key.clone(),
-        }),
+        pallet_sudo: Some(SudoConfig { key: root_key }),
         pallet_aura: Some(AuraConfig {
             authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
         }),

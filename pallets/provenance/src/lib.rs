@@ -368,17 +368,16 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            remove_attestors.and_then(|remove_attestors| {
+            if let Some(remove_attestors) = remove_attestors {
                 remove_attestors.iter().for_each(|attestor| {
                     <Attestors<T>>::remove(
                         (registry_id, template_id, template_step_index),
                         attestor.did,
                     );
                 });
-                Some(())
-            });
+            }
 
-            add_attestors.and_then(|add_attestors| {
+            if let Some(add_attestors) = add_attestors {
                 add_attestors.iter().for_each(|attestor| {
                     <Attestors<T>>::insert(
                         (registry_id, template_id, template_step_index),
@@ -386,8 +385,7 @@ pub mod pallet {
                         attestor,
                     );
                 });
-                Some(())
-            });
+            }
 
             Self::deposit_event(Event::TemplateStepUpdated(
                 registry_id,

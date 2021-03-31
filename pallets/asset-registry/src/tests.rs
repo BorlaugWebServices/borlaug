@@ -1,15 +1,13 @@
 //! Tests for the module.
 
-#![cfg(test)]
-
-extern crate chrono;
-
-use super::*;
-use crate::mock::{AssetRegistry, ExtBuilder, Identity, Origin};
+use crate::mock::*;
 use chrono::Utc;
 use frame_support::assert_ok;
-use primitives::asset::{Asset, AssetStatus};
-use primitives::did::Did;
+use primitives::{
+    asset::{Asset, AssetStatus},
+    did::Did,
+    lease_agreement::{AssetAllocation, LeaseAgreement},
+};
 
 fn create_did() -> Did {
     let _ = Identity::register_did(Origin::signed(1), None);
@@ -36,7 +34,7 @@ fn create_asset(did: Did, registry_id: u32) {
         purchase_value: Some(1_000_000),
         acquired_date: Some(now),
     };
-    let _ = AssetRegistry::create_asset(Origin::signed(1), did, registry_id, asset.clone());
+    let _ = AssetRegistry::create_asset(Origin::signed(1), did, registry_id, asset);
 }
 
 fn create_lease(did_lessor: Did, did_lessee: Did) {
@@ -62,7 +60,7 @@ fn create_lease(did_lessor: Did, did_lessee: Did) {
 
 #[test]
 fn creating_registry_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(Origin::signed(1), None));
 
@@ -80,7 +78,7 @@ fn deleting_registry_should_work() {}
 //TODO: add asset properties
 #[test]
 fn creating_assets_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         let did_1 = create_did();
 
         let registry_id = create_registry(did_1);
@@ -112,7 +110,7 @@ fn creating_assets_should_work() {
 
 #[test]
 fn updating_asset_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         let did_1 = create_did();
 
         let registry_id = create_registry(did_1);
@@ -149,7 +147,7 @@ fn updating_asset_should_work() {
 
 #[test]
 fn deleting_asset_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         let did_1 = create_did();
 
         let registry_id = create_registry(did_1);
@@ -171,7 +169,7 @@ fn deleting_asset_should_work() {
 
 #[test]
 fn creating_lease_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         // 1 creates a DID for itself (lessor)
         let did_lessor = create_did();
 
@@ -208,22 +206,22 @@ fn creating_lease_should_work() {
 
 #[test]
 fn lease_start_date_before_now() {
-    ExtBuilder::default().build().execute_with(|| {});
+    new_test_ext().execute_with(|| {});
 }
 
 #[test]
 fn lease_end_date_after_start_date() {
-    ExtBuilder::default().build().execute_with(|| {});
+    new_test_ext().execute_with(|| {});
 }
 
 #[test]
 fn lease_asset_over_allocation() {
-    ExtBuilder::default().build().execute_with(|| {});
+    new_test_ext().execute_with(|| {});
 }
 
 #[test]
 fn voiding_lease_should_work() {
-    ExtBuilder::default().build().execute_with(|| {
+    new_test_ext().execute_with(|| {
         let did_lessor = create_did();
         let did_lessee = create_did();
         create_lease(did_lessor, did_lessee);

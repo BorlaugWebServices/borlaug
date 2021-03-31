@@ -198,7 +198,7 @@ pub mod pallet {
     /// Claims associated with a DID
     /// Subject DID => (Claim ID => Claim)
     #[pallet::storage]
-    #[pallet::getter(fn blake2_128_concat)]
+    #[pallet::getter(fn claims)]
     pub type Claims<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
@@ -285,24 +285,22 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), did.clone()),
+                Self::is_controller(sender.clone(), did),
                 Error::<T>::NotController
             );
 
             //TODO: does this fail correctly if did does not exist?
 
             let mut did_doc = <DidInfo<T>>::take(&did);
-            remove_keys.and_then(|remove_keys| {
-                Some(
-                    did_doc
-                        .properties
-                        .retain(|p| !remove_keys.contains(&p.name)),
-                )
-            });
+            if let Some(remove_keys) = remove_keys {
+                did_doc
+                    .properties
+                    .retain(|p| !remove_keys.contains(&p.name));
+            }
 
-            add_properties.and_then(|mut add_properties| {
-                Some(did_doc.properties.append(&mut add_properties))
-            });
+            if let Some(mut add_properties) = add_properties {
+                did_doc.properties.append(&mut add_properties);
+            }
             <DidInfo<T>>::insert(&did, did_doc);
 
             Self::deposit_event(Event::DidUpdated(sender, did));
@@ -323,7 +321,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), did.clone()),
+                Self::is_controller(sender.clone(), did),
                 Error::<T>::NotController
             );
 
@@ -349,7 +347,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             ensure!(
-                Self::is_controller(sender.clone(), did.clone()),
+                Self::is_controller(sender.clone(), did),
                 Error::<T>::NotController
             );
             if let Some(to_be_removed) = remove {
@@ -386,7 +384,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), target_did.clone()),
+                Self::is_controller(sender, target_did),
                 Error::<T>::NotController
             );
 
@@ -413,7 +411,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), target_did.clone()),
+                Self::is_controller(sender, target_did),
                 Error::<T>::NotController
             );
 
@@ -439,7 +437,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), target_did.clone()),
+                Self::is_controller(sender, target_did),
                 Error::<T>::NotController
             );
 
@@ -464,7 +462,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), target_did.clone()),
+                Self::is_controller(sender, target_did),
                 Error::<T>::NotController
             );
 
@@ -492,11 +490,11 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), claim_consumer),
+                Self::is_controller(sender, claim_consumer),
                 Error::<T>::NotController
             );
             ensure!(
-                Self::can_make_claim(target_did.clone(), claim_consumer),
+                Self::can_make_claim(target_did, claim_consumer),
                 Error::<T>::NotAuthorized
             );
 
@@ -510,7 +508,7 @@ pub mod pallet {
                 attestation: None,
             };
             <ClaimsOf<T>>::mutate(&target_did, |indexes| indexes.push(claim_index));
-            <Claims<T>>::insert(&target_did, claim_index, claim.clone());
+            <Claims<T>>::insert(&target_did, claim_index, claim);
 
             Self::deposit_event(Event::ClaimMade(target_did, claim_index, claim_consumer));
             Ok(().into())
@@ -536,11 +534,11 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), claim_issuer.clone()),
+                Self::is_controller(sender, claim_issuer),
                 Error::<T>::NotController
             );
             ensure!(
-                Self::can_attest_claim(target_did.clone(), claim_issuer.clone()),
+                Self::can_attest_claim(target_did, claim_issuer),
                 Error::<T>::NotAuthorized
             );
 
@@ -577,11 +575,11 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), claim_issuer.clone()),
+                Self::is_controller(sender, claim_issuer),
                 Error::<T>::NotController
             );
             ensure!(
-                Self::can_attest_claim(target_did.clone(), claim_issuer.clone()),
+                Self::can_attest_claim(target_did, claim_issuer),
                 Error::<T>::NotAuthorized
             );
 
@@ -604,7 +602,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), owner_did.clone()),
+                Self::is_controller(sender, owner_did),
                 Error::<T>::NotController
             );
 
@@ -634,7 +632,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), owner_did.clone()),
+                Self::is_controller(sender, owner_did),
                 Error::<T>::NotController
             );
 
@@ -663,7 +661,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), owner_did.clone()),
+                Self::is_controller(sender, owner_did),
                 Error::<T>::NotController
             );
 
@@ -691,7 +689,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), owner_did.clone()),
+                Self::is_controller(sender, owner_did),
                 Error::<T>::NotController
             );
 
