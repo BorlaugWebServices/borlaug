@@ -13,74 +13,48 @@ name = "borlaug"
 path = "src/main.rs"
 
 [dependencies]
-# hex-literal = "0.2.1"
 serde_json = "1.0.41"
 futures = "0.3.5"
-# futures01 = { package = "futures", version = "0.1.29" }
-# ctrlc = { version = "3.1.3", features = ["termination"] }
 log = "0.4.11"
-# tokio = "0.1.22"
 parking_lot = "0.10.0"
-# codec = { package = "parity-scale-codec", version = "1.3.4" }
 structopt = "0.3.17"
-# trie-root = "0.16"
 jsonrpc-core = "15.0.0"
 
-sp-block-builder = "2.0.0"
-sc-rpc = "2.0.0"
-sp-api = "2.0.0"
-sc-rpc-api = "0.8.0"
-sp-blockchain = "2.0.0"
-substrate-frame-rpc-system = "2.0.0"
-pallet-transaction-payment-rpc = "2.0.0"
-sc-cli = "0.8.0"
-sp-core = "2.0.0"
-sc-executor = "0.8.0"
-sc-service = "0.8.0"
-sp-inherents = "2.0.0"
-sc-transaction-pool = "2.0.0"
-sp-transaction-pool = "2.0.0"
-sc-network = "0.8.0"
-sc-consensus-aura = "0.8.0"
-sp-consensus-aura = "0.8.0"
-sp-consensus = "0.8.0"
-sc-consensus = "0.8.0"
-sc-finality-grandpa = "0.8.0"
-sp-finality-grandpa = "2.0.0"
-sc-client-api = "2.0.0"
-sp-runtime = "2.0.0"
-sc-basic-authorship = "0.8.0"
+sp-block-builder = "3.0.0"
+sc-rpc = "3.0.0"
+sp-api = "3.0.0"
+sc-rpc-api = "0.9.0"
+sp-blockchain = "3.0.0"
+substrate-frame-rpc-system = "3.0.0"
+pallet-transaction-payment-rpc = "3.0.0"
+sc-cli = "0.9.0"
+sp-core = "3.0.0"
+sc-keystore = "3.0.0"
+sc-executor = "0.9.0"
+sc-service = "0.9.0"
+sp-inherents = "3.0.0"
+sc-transaction-pool = "3.0.0"
+sp-transaction-pool = "3.0.0"
+sc-network = "0.9.0"
+sc-consensus-aura = "0.9.0"
+sp-consensus-aura = "0.9.0"
+sp-consensus = "0.9.0"
+sc-consensus = "0.9.0"
+sc-finality-grandpa = "0.9.0"
+sp-finality-grandpa = "3.0.0"
+sc-client-api = "3.0.0"
+sp-runtime = "3.0.0"
+sc-basic-authorship = "0.9.0"
 
 # These dependencies are used for runtime benchmarking
-frame-benchmarking = "2.0.0"
-frame-benchmarking-cli = "2.0.0"
-
-# sp-io = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-cli = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sp-core = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-executor = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-service = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sp-inherents = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-transaction-pool = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sp-transaction-pool = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-network = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-consensus-aura = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sp-consensus-aura = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sp-consensus = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-consensus = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-finality-grandpa = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sp-finality-grandpa = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-client-api = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sp-runtime = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-# sc-basic-authorship = { git = "https://github.com/paritytech/substrate.git", rev = '45b9f0a9cbf901abaa9f1fca5fe8baeed029133d' }
-
+frame-benchmarking = "3.0.0"
+frame-benchmarking-cli = "3.0.0"
 
 runtime = { package = "borlaug-runtime", path = "runtime" }
 
 [build-dependencies]
 vergen = "3.0.4"
-# build-script-utils = { package = "substrate-build-script-utils", version = "2.0.0-alpha.8" }
-substrate-build-script-utils = "2.0.0"
+substrate-build-script-utils = "3.0.0"
 
 [workspace]
 members = ["runtime", "pallets/*"]

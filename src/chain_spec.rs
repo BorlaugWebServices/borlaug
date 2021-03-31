@@ -4,7 +4,6 @@ use runtime::{
     WASM_BINARY,
 };
 // GeneralCouncilMembershipConfig,
-use sc_service;
 use sc_service::ChainType;
 use serde_json::json;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
