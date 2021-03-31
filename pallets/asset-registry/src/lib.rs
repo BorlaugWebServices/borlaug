@@ -119,6 +119,24 @@ pub mod pallet {
         NoIdAvailable,
     }
 
+    #[pallet::type_value]
+    pub fn UnitDefault<T: Config>() -> u64 {
+        1u64
+    }
+
+    #[pallet::type_value]
+    pub fn RegistryIdDefault<T: Config>() -> T::RegistryId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn AssetIdDefault<T: Config>() -> T::AssetId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn LeaseIdDefault<T: Config>() -> T::LeaseId {
+        1u32.into()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -128,24 +146,24 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
-    //TODO:initialize at 1
     /// Incrementing nonce
-    pub type Nonce<T> = StorageValue<_, u64>;
+    pub type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_registry_id)]
     /// The next available registry index
-    pub type NextRegistryId<T: Config> = StorageValue<_, T::RegistryId>;
+    pub type NextRegistryId<T: Config> =
+        StorageValue<_, T::RegistryId, ValueQuery, RegistryIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_asset_id)]
     /// The next available asset index
-    pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId>;
+    pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery, AssetIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_lease_id)]
     /// The next available lease index
-    pub type NextLeaseId<T: Config> = StorageValue<_, T::LeaseId>;
+    pub type NextLeaseId<T: Config> = StorageValue<_, T::LeaseId, ValueQuery, LeaseIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn registries)]
@@ -207,7 +225,7 @@ pub mod pallet {
                 Error::<T>::NotDidSubject
             );
 
-            let registry_id = Self::next_registry_id().unwrap();
+            let registry_id = Self::next_registry_id();
             let next_id = registry_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -402,7 +420,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
             asset: Asset<T::Moment, T::Balance>,
         ) -> DispatchResult {
-            let asset_id = Self::next_asset_id().unwrap();
+            let asset_id = Self::next_asset_id();
             let next_id = asset_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -425,7 +443,7 @@ pub mod pallet {
 
             ensure!(can_allocate, "Cannot allocate some assets");
 
-            let lease_id = Self::next_lease_id().unwrap();
+            let lease_id = Self::next_lease_id();
             let next_id = lease_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;

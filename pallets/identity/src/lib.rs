@@ -136,6 +136,21 @@ pub mod pallet {
         NoIdAvailable,
     }
 
+    #[pallet::type_value]
+    pub fn UnitDefault<T: Config>() -> u64 {
+        1u64
+    }
+
+    #[pallet::type_value]
+    pub fn ZeroDefault<T: Config>() -> u64 {
+        1u64
+    }
+
+    #[pallet::type_value]
+    pub fn CatalogIdDefault<T: Config>() -> T::CatalogId {
+        1u32.into()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -145,9 +160,8 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
-    //TODO:initialize at 1
     /// Incrementing nonce
-    pub type Nonce<T> = StorageValue<_, u64>;
+    pub type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
     /// An account can have multiple DIDs
     /// AccountId => Vec<Did>
@@ -169,11 +183,10 @@ pub mod pallet {
     pub type DidController<T: Config> =
         StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Did>, ValueQuery>;
 
-    //TODO:initialize at 1
     /// The next available claim index, aka the number of claims started so far.
     #[pallet::storage]
     #[pallet::getter(fn claim_count)]
-    pub type ClaimCount<T> = StorageValue<_, ClaimIndex>;
+    pub type ClaimCount<T> = StorageValue<_, ClaimIndex, ValueQuery, ZeroDefault<T>>;
 
     /// Claim consumers request a claim to offer protected services    
     /// Subject DID => DIDs of claim consumers
@@ -212,7 +225,8 @@ pub mod pallet {
     /// The next available catalog index
     #[pallet::storage]
     #[pallet::getter(fn next_catalog_id)]
-    pub type NextCatalogId<T: Config> = StorageValue<_, T::CatalogId>;
+    pub type NextCatalogId<T: Config> =
+        StorageValue<_, T::CatalogId, ValueQuery, CatalogIdDefault<T>>;
 
     /// Catalog ownership
     #[pallet::storage]
@@ -498,7 +512,7 @@ pub mod pallet {
                 Error::<T>::NotAuthorized
             );
 
-            let claim_index = Self::claim_count().unwrap();
+            let claim_index = Self::claim_count();
             <ClaimCount<T>>::put(claim_index + 1u64);
 
             let claim = Claim {
@@ -606,7 +620,7 @@ pub mod pallet {
                 Error::<T>::NotController
             );
 
-            let catalog_id = Self::next_catalog_id().unwrap();
+            let catalog_id = Self::next_catalog_id();
             let next_id = catalog_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -736,7 +750,7 @@ pub mod pallet {
         // -- private functions --
 
         fn next_nonce() -> u64 {
-            let nonce = <Nonce<T>>::get().unwrap();
+            let nonce = <Nonce<T>>::get();
             <Nonce<T>>::put(nonce + 1u64);
             nonce
         }

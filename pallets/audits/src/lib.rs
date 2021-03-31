@@ -113,6 +113,24 @@ pub mod pallet {
         NoEvidenceAvailable,
     }
 
+    #[pallet::type_value]
+    pub fn UnitDefault<T: Config>() -> u64 {
+        1u64
+    }
+
+    #[pallet::type_value]
+    pub fn AuditIdDefault<T: Config>() -> T::AuditId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn ObservationIdDefault<T: Config>() -> T::ObservationId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn EvidenceIdDefault<T: Config>() -> T::EvidenceId {
+        1u32.into()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -124,22 +142,24 @@ pub mod pallet {
     #[pallet::getter(fn nonce)]
     //TODO:initialize at 1
     /// Incrementing nonce
-    pub type Nonce<T> = StorageValue<_, u64>;
+    pub type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_audit_id)]
     /// The next available audit index
-    pub type NextAuditId<T: Config> = StorageValue<_, T::AuditId>;
+    pub type NextAuditId<T: Config> = StorageValue<_, T::AuditId, ValueQuery, AuditIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_observation_id)]
     /// The next available  index
-    pub type NextObservationId<T: Config> = StorageValue<_, T::ObservationId>;
+    pub type NextObservationId<T: Config> =
+        StorageValue<_, T::ObservationId, ValueQuery, ObservationIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_evidence_id)]
     /// The next available  index
-    pub type NextEvidenceId<T: Config> = StorageValue<_, T::EvidenceId>;
+    pub type NextEvidenceId<T: Config> =
+        StorageValue<_, T::EvidenceId, ValueQuery, EvidenceIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn audits)]
@@ -199,7 +219,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            let audit_id = Self::next_audit_id().unwrap();
+            let audit_id = Self::next_audit_id();
             let next_id = audit_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -361,7 +381,7 @@ pub mod pallet {
                 <Audits<T>>::insert(&audit_id, audit);
             }
 
-            let observation_id = Self::next_observation_id().unwrap();
+            let observation_id = Self::next_observation_id();
             let next_id = observation_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -400,7 +420,7 @@ pub mod pallet {
                 <Error<T>>::AuditIsNotAcceptedOrInProgress
             );
 
-            let evidence_id = Self::next_evidence_id().unwrap();
+            let evidence_id = Self::next_evidence_id();
             let next_id = evidence_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;

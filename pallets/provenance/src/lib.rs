@@ -100,6 +100,24 @@ pub mod pallet {
         NoIdAvailable,
     }
 
+    #[pallet::type_value]
+    pub fn UnitDefault<T: Config>() -> u64 {
+        1u64
+    }
+
+    #[pallet::type_value]
+    pub fn RegistryIdDefault<T: Config>() -> T::RegistryId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn TemplateIdDefault<T: Config>() -> T::TemplateId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn SequenceIdDefault<T: Config>() -> T::SequenceId {
+        1u32.into()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -109,9 +127,8 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
-    //TODO:initialize at 1
     /// Incrementing nonce
-    pub type Nonce<T> = StorageValue<_, u64>;
+    pub type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn registries)]
@@ -200,17 +217,20 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn next_registry_id)]
     /// The next available registry index
-    pub type NextRegistryId<T: Config> = StorageValue<_, T::RegistryId>;
+    pub type NextRegistryId<T: Config> =
+        StorageValue<_, T::RegistryId, ValueQuery, RegistryIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_template_id)]
     /// The next available template index
-    pub type NextTemplateId<T: Config> = StorageValue<_, T::TemplateId>;
+    pub type NextTemplateId<T: Config> =
+        StorageValue<_, T::TemplateId, ValueQuery, TemplateIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_sequence_id)]
     /// The next available sequence index
-    pub type NextSequenceId<T: Config> = StorageValue<_, T::SequenceId>;
+    pub type NextSequenceId<T: Config> =
+        StorageValue<_, T::SequenceId, ValueQuery, SequenceIdDefault<T>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -221,7 +241,7 @@ pub mod pallet {
         pub fn create_registry(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            let registry_id = Self::next_registry_id().unwrap();
+            let registry_id = Self::next_registry_id();
             let next_id = registry_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -281,7 +301,7 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            let template_id = Self::next_template_id().unwrap();
+            let template_id = Self::next_template_id();
             let next_id = template_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -419,7 +439,7 @@ pub mod pallet {
                 Error::<T>::NotAttestor
             );
 
-            let sequence_id = Self::next_sequence_id().unwrap();
+            let sequence_id = Self::next_sequence_id();
             let next_id = sequence_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
