@@ -12,6 +12,9 @@ use primitives::{
 #[test]
 fn registering_did_should_work() {
     new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(Origin::signed(1), None));
 
@@ -34,6 +37,8 @@ fn registering_did_should_work() {
 #[test]
 fn managing_controllers_should_work() {
     new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -64,6 +69,9 @@ fn managing_controllers_should_work() {
 #[test]
 fn update_did_should_work() {
     new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
         assert_ok!(Identity::register_did(Origin::signed(1), None));
 
         let dids = Identity::dids(&1);
@@ -142,6 +150,9 @@ fn update_did_should_work() {
 #[test]
 fn replacing_properties_to_did_should_work() {
     new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
         assert_ok!(Identity::register_did(Origin::signed(1), None));
 
         let dids = Identity::dids(&1);
@@ -215,6 +226,9 @@ fn replacing_properties_to_did_should_work() {
 #[test]
 fn catalogs_work() {
     new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
         // Target
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -282,6 +296,9 @@ fn catalogs_work() {
 #[test]
 fn consumer_authorizations_work() {
     new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
         // Target
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -333,6 +350,9 @@ fn consumer_authorizations_work() {
 #[test]
 fn issuer_authorizations_work() {
     new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
         // Target
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -384,6 +404,9 @@ fn issuer_authorizations_work() {
 #[test]
 fn claims_work() {
     new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
         // Target
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
@@ -450,10 +473,11 @@ fn claims_work() {
             ]
         ));
 
-        let claims = Identity::claims_of(&did_1);
-        assert_eq!(claims[0], 0);
+        let claim_indexes = Identity::claims_of(&did_1);
+        let claim_index = claim_indexes[0];
+        assert_eq!(claim_index, 0);
 
-        let claim = Identity::claims(&did_1, claims[0]);
+        let claim = Identity::claims(&did_1, claim_index);
         assert_eq!(claim.description, b"No objection Letter".to_vec());
         assert_eq!(
             claim.statements,
@@ -488,7 +512,7 @@ fn claims_work() {
             Origin::signed(2000),
             did_2000,
             did_1,
-            claims[0],
+            claim_index,
             vec![
                 Statement {
                     name: b"TB Immunization Status".to_vec(),
@@ -505,7 +529,7 @@ fn claims_work() {
         ));
 
         // Verify attestation was successful
-        let claim = Identity::claims(&did_1, claims[0]);
+        let claim = Identity::claims(&did_1, claim_index);
         assert_eq!(
             claim.statements,
             vec![
@@ -536,10 +560,10 @@ fn claims_work() {
             Origin::signed(2000),
             did_2000,
             did_1,
-            claims[0]
+            claim_index
         ));
 
-        let claim = Identity::claims(&did_1, claims[0]);
+        let claim = Identity::claims(&did_1, claim_index);
         assert_eq!(claim.attestation, None);
     });
 }

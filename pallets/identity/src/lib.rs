@@ -54,8 +54,9 @@ mod tests;
 pub mod pallet {
 
     use codec::Encode;
-    use frame_support::traits::Randomness;
-    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use frame_support::{
+        dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Randomness,
+    };
     use frame_system::pallet_prelude::*;
     use primitives::{
         attestation::Attestation,
@@ -143,7 +144,7 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn ZeroDefault<T: Config>() -> u64 {
-        1u64
+        0u64
     }
 
     #[pallet::type_value]
@@ -762,8 +763,8 @@ pub mod pallet {
             properties: Option<Vec<DidProperty>>,
         ) {
             let nonce = Self::next_nonce();
-            let random_seed = <randomness::Module<T>>::random_seed();
-            let encoded = (random_seed, subject.clone(), nonce).encode();
+            let random = <randomness::Module<T>>::random(&b"mint_did context"[..]);
+            let encoded = (random, subject.clone(), nonce).encode();
             let id = sp_io::hashing::blake2_256(&encoded);
 
             let did = Did { id };
