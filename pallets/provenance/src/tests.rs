@@ -143,7 +143,7 @@ fn update_template_step_should_work() {
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
-        let attestor_did_2 = dids[0];
+        let attestor_did_2 = dids[1];
 
         // update template step
         assert_ok!(Provenance::update_template_step(
@@ -152,13 +152,13 @@ fn update_template_step_should_work() {
             1u32,
             0,
             Some(vec![Attestor {
-                did: attestor_did_1,
+                did: attestor_did_2,
                 short_name: b"Test".to_vec(),
             }]),
             Some(vec![Attestor {
-                did: attestor_did_2,
+                did: attestor_did_1,
                 short_name: b"Test".to_vec(),
-            }])
+            }]),
         ));
         // verify attestor removed
         assert_eq!(

@@ -175,7 +175,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn attestors)]
     /// A Template step may have multiple attestors
-    /// (T::RegistryId,T::TemplateId,TemplateStepIndex,Did)=> Attestor
+    /// ((T::RegistryId,T::TemplateId,TemplateStepIndex),Did)=> Attestor
     pub(super) type Attestors<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
