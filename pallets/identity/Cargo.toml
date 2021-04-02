@@ -1,42 +1,36 @@
 [package]
-name = "pallet-identity"
-version = "0.1.0"
 authors = ["Borlaug Blockchain"]
 edition = "2018"
+name = "pallet-identity"
+version = "0.1.0"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
+codec = {package = "parity-scale-codec", version = "2.0.0", default-features = false}
+frame-support = {version = "3.0.0", default-features = false}
+frame-system = {version = "3.0.0", default-features = false}
+randomness = {package = "pallet-randomness-collective-flip", version = "3.0.0", default-features = false}
+sp-io = {version = "3.0.0", default-features = false}
+sp-runtime = {version = "3.0.0", default-features = false}
+sp-std = {package = "sp-std", version = "3.0.0", default-features = false}
+timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
 
-sp-runtime = { version = "3.0.0", default-features = false }
-sp-core = { version = "3.0.0", default-features = false }
-sp-io = { version = "3.0.0", default-features = false }
-sp-std = { package = "sp-std", version = "3.0.0", default-features = false }
-randomness = { package = "pallet-randomness-collective-flip", version = "3.0.0", default-features = false }
-balances = { package = "pallet-balances", version = "3.0.0", default-features = false }
-timestamp = { package = "pallet-timestamp", version = "3.0.0", default-features = false }
-
-frame-system = { version = "3.0.0", default-features = false }
-frame-support = { version = "3.0.0", default-features = false }
-
-primitives = { package = "pallet-primitives", path = "../primitives", default-features = false }
+primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
 
 [dev-dependencies]
-serde = "1.0.101"
-lazy_static = "1.4.0"
-parking_lot = "0.10.0"
 chrono = "0.4"
+serde = "1.0"
+sp-core = {version = "3.0.0", default-features = false}
 
 [features]
 default = ['std']
 std = [
-    'codec/std',
-    "sp-io/std",
-    "sp-std/std",
-    "balances/std",
-    "frame-support/std",
-    'frame-system/std',
-    'sp-runtime/std',
-    'randomness/std',
-    "timestamp/std",
-    "primitives/std",
+  'codec/std',
+  "sp-std/std",
+  "sp-io/std",
+  "frame-support/std",
+  'frame-system/std',
+  'sp-runtime/std',
+  'randomness/std',
+  "timestamp/std",
+  "primitives/std",
 ]

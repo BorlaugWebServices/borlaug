@@ -20,6 +20,7 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        Identity: identity::{Module, Call, Storage, Event<T>},
         Provenance: pallet_provenance::{Module, Call, Storage, Event<T>},
     }
 );
@@ -65,6 +66,11 @@ impl timestamp::Config for Test {
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
     type WeightInfo = ();
+}
+
+impl identity::Config for Test {
+    type CatalogId = u32;
+    type Event = Event;
 }
 
 impl pallet_provenance::Config for Test {

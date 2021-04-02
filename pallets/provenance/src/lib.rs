@@ -128,13 +128,13 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
     /// Incrementing nonce
-    pub type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
+    pub(super) type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn registries)]
     /// An account can have multiple Regitries of process templates
     /// (T::AccountId,T::RegistryId) => T::RegistryId
-    pub type Registries<T: Config> = StorageDoubleMap<
+    pub(super) type Registries<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::AccountId,
@@ -148,7 +148,7 @@ pub mod pallet {
     #[pallet::getter(fn templates)]
     /// A Registry can have multiple process Templates
     /// (T::RegistryId,T::TemplateId) => Template
-    pub type Templates<T: Config> = StorageDoubleMap<
+    pub(super) type Templates<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::RegistryId,
@@ -162,7 +162,7 @@ pub mod pallet {
     #[pallet::getter(fn template_steps)]
     /// A Process has multiple steps
     /// (T::RegistryId,T::TemplateId), u8 => TemplateStep
-    pub type TemplateSteps<T: Config> = StorageDoubleMap<
+    pub(super) type TemplateSteps<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId),
@@ -176,7 +176,7 @@ pub mod pallet {
     #[pallet::getter(fn attestors)]
     /// A Template step may have multiple attestors
     /// (T::RegistryId,T::TemplateId,TemplateStepIndex,Did)=> Attestor
-    pub type Attestors<T: Config> = StorageDoubleMap<
+    pub(super) type Attestors<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId, TemplateStepIndex),
@@ -190,7 +190,7 @@ pub mod pallet {
     #[pallet::getter(fn sequences)]
     /// A process Template can have multiple process Sequences
     /// (T::RegistryId,T::TemplateId), T::SequenceId => T::SequenceId
-    pub type Sequences<T: Config> = StorageDoubleMap<
+    pub(super) type Sequences<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId),
@@ -204,7 +204,7 @@ pub mod pallet {
     #[pallet::getter(fn sequence_steps)]
     /// A Sequence can have multiple process Sequence Steps
     /// (T::RegistryId,T::TemplateId,T::SequenceId), TemplateStepIndex => SequenceStep
-    pub type SequenceSteps<T: Config> = StorageDoubleMap<
+    pub(super) type SequenceSteps<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId, T::SequenceId),
@@ -217,19 +217,19 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn next_registry_id)]
     /// The next available registry index
-    pub type NextRegistryId<T: Config> =
+    pub(super) type NextRegistryId<T: Config> =
         StorageValue<_, T::RegistryId, ValueQuery, RegistryIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_template_id)]
     /// The next available template index
-    pub type NextTemplateId<T: Config> =
+    pub(super) type NextTemplateId<T: Config> =
         StorageValue<_, T::TemplateId, ValueQuery, TemplateIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_sequence_id)]
     /// The next available sequence index
-    pub type NextSequenceId<T: Config> =
+    pub(super) type NextSequenceId<T: Config> =
         StorageValue<_, T::SequenceId, ValueQuery, SequenceIdDefault<T>>;
 
     #[pallet::call]

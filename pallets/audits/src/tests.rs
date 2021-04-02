@@ -29,7 +29,7 @@ fn creating_observation_should_work() {
 
         assert_ok!(Audits::create_observation(
             Origin::signed(1),
-            0,
+            1,
             1,
             observation,
         ));
@@ -41,9 +41,7 @@ fn creating_evidence_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Audits::create_audit(Origin::signed(1), 1));
 
-        //TODO: check why test is failing
-
-        assert_ok!(Audits::accept_audit(Origin::signed(1), 0));
+        assert_ok!(Audits::accept_audit(Origin::signed(1), 1));
 
         let evidence = Evidence {
             name: b"name".to_vec(),
@@ -52,6 +50,6 @@ fn creating_evidence_should_work() {
             hash: b"hash".to_vec(),
         };
 
-        assert_ok!(Audits::create_evidence(Origin::signed(1), 0, evidence,));
+        assert_ok!(Audits::create_evidence(Origin::signed(1), 1, evidence,));
     });
 }

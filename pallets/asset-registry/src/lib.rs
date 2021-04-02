@@ -174,7 +174,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn assets)]
     /// Registry of assets
-    pub type Assets<T: Config> = StorageDoubleMap<
+    pub(super) type Assets<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::RegistryId,
