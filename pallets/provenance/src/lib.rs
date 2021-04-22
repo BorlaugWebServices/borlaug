@@ -100,6 +100,24 @@ pub mod pallet {
         NoIdAvailable,
     }
 
+    #[pallet::type_value]
+    pub fn UnitDefault<T: Config>() -> u64 {
+        1u64
+    }
+
+    #[pallet::type_value]
+    pub fn RegistryIdDefault<T: Config>() -> T::RegistryId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn TemplateIdDefault<T: Config>() -> T::TemplateId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn SequenceIdDefault<T: Config>() -> T::SequenceId {
+        1u32.into()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -109,15 +127,14 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
-    //TODO:initialize at 1
     /// Incrementing nonce
-    pub type Nonce<T> = StorageValue<_, u64>;
+    pub(super) type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn registries)]
     /// An account can have multiple Regitries of process templates
     /// (T::AccountId,T::RegistryId) => T::RegistryId
-    pub type Registries<T: Config> = StorageDoubleMap<
+    pub(super) type Registries<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::AccountId,
@@ -131,7 +148,7 @@ pub mod pallet {
     #[pallet::getter(fn templates)]
     /// A Registry can have multiple process Templates
     /// (T::RegistryId,T::TemplateId) => Template
-    pub type Templates<T: Config> = StorageDoubleMap<
+    pub(super) type Templates<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::RegistryId,
@@ -145,7 +162,7 @@ pub mod pallet {
     #[pallet::getter(fn template_steps)]
     /// A Process has multiple steps
     /// (T::RegistryId,T::TemplateId), u8 => TemplateStep
-    pub type TemplateSteps<T: Config> = StorageDoubleMap<
+    pub(super) type TemplateSteps<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId),
@@ -158,8 +175,8 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn attestors)]
     /// A Template step may have multiple attestors
-    /// (T::RegistryId,T::TemplateId,TemplateStepIndex,Did)=> Attestor
-    pub type Attestors<T: Config> = StorageDoubleMap<
+    /// ((T::RegistryId,T::TemplateId,TemplateStepIndex),Did)=> Attestor
+    pub(super) type Attestors<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId, TemplateStepIndex),
@@ -173,7 +190,7 @@ pub mod pallet {
     #[pallet::getter(fn sequences)]
     /// A process Template can have multiple process Sequences
     /// (T::RegistryId,T::TemplateId), T::SequenceId => T::SequenceId
-    pub type Sequences<T: Config> = StorageDoubleMap<
+    pub(super) type Sequences<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId),
@@ -187,7 +204,7 @@ pub mod pallet {
     #[pallet::getter(fn sequence_steps)]
     /// A Sequence can have multiple process Sequence Steps
     /// (T::RegistryId,T::TemplateId,T::SequenceId), TemplateStepIndex => SequenceStep
-    pub type SequenceSteps<T: Config> = StorageDoubleMap<
+    pub(super) type SequenceSteps<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId, T::SequenceId),
@@ -200,17 +217,20 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn next_registry_id)]
     /// The next available registry index
-    pub type NextRegistryId<T: Config> = StorageValue<_, T::RegistryId>;
+    pub(super) type NextRegistryId<T: Config> =
+        StorageValue<_, T::RegistryId, ValueQuery, RegistryIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_template_id)]
     /// The next available template index
-    pub type NextTemplateId<T: Config> = StorageValue<_, T::TemplateId>;
+    pub(super) type NextTemplateId<T: Config> =
+        StorageValue<_, T::TemplateId, ValueQuery, TemplateIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_sequence_id)]
     /// The next available sequence index
-    pub type NextSequenceId<T: Config> = StorageValue<_, T::SequenceId>;
+    pub(super) type NextSequenceId<T: Config> =
+        StorageValue<_, T::SequenceId, ValueQuery, SequenceIdDefault<T>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -221,7 +241,7 @@ pub mod pallet {
         pub fn create_registry(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            let registry_id = Self::next_registry_id().unwrap();
+            let registry_id = Self::next_registry_id();
             let next_id = registry_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -281,7 +301,7 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            let template_id = Self::next_template_id().unwrap();
+            let template_id = Self::next_template_id();
             let next_id = template_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -368,17 +388,16 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            remove_attestors.and_then(|remove_attestors| {
+            if let Some(remove_attestors) = remove_attestors {
                 remove_attestors.iter().for_each(|attestor| {
                     <Attestors<T>>::remove(
                         (registry_id, template_id, template_step_index),
                         attestor.did,
                     );
                 });
-                Some(())
-            });
+            }
 
-            add_attestors.and_then(|add_attestors| {
+            if let Some(add_attestors) = add_attestors {
                 add_attestors.iter().for_each(|attestor| {
                     <Attestors<T>>::insert(
                         (registry_id, template_id, template_step_index),
@@ -386,8 +405,7 @@ pub mod pallet {
                         attestor,
                     );
                 });
-                Some(())
-            });
+            }
 
             Self::deposit_event(Event::TemplateStepUpdated(
                 registry_id,
@@ -421,7 +439,7 @@ pub mod pallet {
                 Error::<T>::NotAttestor
             );
 
-            let sequence_id = Self::next_sequence_id().unwrap();
+            let sequence_id = Self::next_sequence_id();
             let next_id = sequence_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;

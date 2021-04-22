@@ -1,128 +1,88 @@
 //! Mocks for the module.
 
-#![cfg(test)]
-
-use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
+use crate as pallet_provenance;
+use frame_support::parameter_types;
+use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
-    Perbill,
 };
 
-use super::*;
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-impl_outer_origin! {
-    pub enum Origin for Test  where system = frame_system {}
-}
-
-// For testing the module, we construct most of a mock runtime. This means
-// first constructing a configuration type (`Test`) which `impl`s each of the
-// configuration traits of modules we want to use.
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
-
+// Configure a mock runtime to test the pallet.
+frame_support::construct_runtime!(
+    pub enum Test where
+        Block = Block,
+        NodeBlock = Block,
+        UncheckedExtrinsic = UncheckedExtrinsic,
+    {
+        System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        Identity: identity::{Module, Call, Storage, Event<T>},
+        Provenance: pallet_provenance::{Module, Call, Storage, Event<T>},
+    }
+);
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
-    pub const MaximumBlockWeight: Weight = 1024;
-    pub const MaximumBlockLength: u32 = 2 * 1024;
-    pub const AvailableBlockRatio: Perbill = Perbill::one();
-    pub const MinimumPeriod: u64 = 1;
-    pub const EpochDuration: u64 = 3;
-    pub const ExpectedBlockTime: u64 = 1;
-    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(16);
+    pub const SS58Prefix: u8 = 42;
 }
 
-impl frame_system::Trait for Test {
+impl system::Config for Test {
     type BaseCallFilter = ();
+    type BlockWeights = ();
+    type BlockLength = ();
+    type DbWeight = ();
     type Origin = Origin;
+    type Call = Call;
     type Index = u64;
     type BlockNumber = u64;
-    type Call = ();
     type Hash = H256;
     type Hashing = BlakeTwo256;
     type AccountId = u64;
-    type Lookup = IdentityLookup<u64>;
+    type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
-    type Event = TestEvent;
-    type MaximumBlockWeight = MaximumBlockWeight;
-    type DbWeight = ();
-    type BlockExecutionWeight = ();
-    type ExtrinsicBaseWeight = ();
-    type MaximumBlockLength = MaximumBlockLength;
-    type AvailableBlockRatio = AvailableBlockRatio;
+    type Event = Event;
     type BlockHashCount = BlockHashCount;
     type Version = ();
-    type ModuleToIndex = ();
+    type PalletInfo = PalletInfo;
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
-    type MaximumExtrinsicWeight = MaximumBlockWeight;
+    type SystemWeightInfo = ();
+    type SS58Prefix = SS58Prefix;
 }
 
-impl timestamp::Trait for Test {
+pub const MILLISECS_PER_BLOCK: u64 = 5000;
+pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
+
+parameter_types! {
+    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+}
+
+impl timestamp::Config for Test {
     type Moment = u64;
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
-impl Trait for Test {
+impl identity::Config for Test {
+    type CatalogId = u32;
+    type Event = Event;
+}
+
+impl pallet_provenance::Config for Test {
     type RegistryId = u32;
     type TemplateId = u32;
     type SequenceId = u32;
-    type Event = TestEvent;
+    type Event = Event;
 }
 
-mod provenance {
-    pub use crate::Event;
-}
-
-use frame_system as system;
-impl_outer_event! {
-    pub enum TestEvent for Test {
-        system<T>,
-        provenance<T>,
-    }
-}
-
-pub type Provenance = Module<Test>;
-
-pub type System = frame_system::Module<Test>;
-
-pub struct ExtBuilder {
-    catalog_id: u32,
-    next_catalog_id: u32,
-}
-
-// Returns default values for genesis config
-impl Default for ExtBuilder {
-    fn default() -> Self {
-        Self {
-            catalog_id: 0,
-            next_catalog_id: 1000,
-        }
-    }
-}
-
-impl ExtBuilder {
-    pub fn next_catalog_id(mut self, asset_id: u32) -> Self {
-        self.catalog_id = asset_id;
-        self
-    }
-
-    // builds genesis config
-    pub fn build(self) -> sp_io::TestExternalities {
-        let t = frame_system::GenesisConfig::default()
-            .build_storage::<Test>()
-            .unwrap();
-        t.into()
-    }
-}
-
-// This function basically just builds a genesis storage key/value store according to
-// our desired mockup.
+// Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    frame_system::GenesisConfig::default()
+    system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap()
         .into()

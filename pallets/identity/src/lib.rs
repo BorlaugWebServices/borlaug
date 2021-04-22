@@ -54,8 +54,9 @@ mod tests;
 pub mod pallet {
 
     use codec::Encode;
-    use frame_support::traits::Randomness;
-    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use frame_support::{
+        dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Randomness,
+    };
     use frame_system::pallet_prelude::*;
     use primitives::{
         attestation::Attestation,
@@ -136,6 +137,21 @@ pub mod pallet {
         NoIdAvailable,
     }
 
+    #[pallet::type_value]
+    pub fn UnitDefault<T: Config>() -> u64 {
+        1u64
+    }
+
+    #[pallet::type_value]
+    pub fn ZeroDefault<T: Config>() -> u64 {
+        0u64
+    }
+
+    #[pallet::type_value]
+    pub fn CatalogIdDefault<T: Config>() -> T::CatalogId {
+        1u32.into()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -145,9 +161,8 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
-    //TODO:initialize at 1
     /// Incrementing nonce
-    pub type Nonce<T> = StorageValue<_, u64>;
+    pub type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
     /// An account can have multiple DIDs
     /// AccountId => Vec<Did>
@@ -169,11 +184,10 @@ pub mod pallet {
     pub type DidController<T: Config> =
         StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Did>, ValueQuery>;
 
-    //TODO:initialize at 1
     /// The next available claim index, aka the number of claims started so far.
     #[pallet::storage]
     #[pallet::getter(fn claim_count)]
-    pub type ClaimCount<T> = StorageValue<_, ClaimIndex>;
+    pub type ClaimCount<T> = StorageValue<_, ClaimIndex, ValueQuery, ZeroDefault<T>>;
 
     /// Claim consumers request a claim to offer protected services    
     /// Subject DID => DIDs of claim consumers
@@ -198,7 +212,7 @@ pub mod pallet {
     /// Claims associated with a DID
     /// Subject DID => (Claim ID => Claim)
     #[pallet::storage]
-    #[pallet::getter(fn blake2_128_concat)]
+    #[pallet::getter(fn claims)]
     pub type Claims<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
@@ -212,7 +226,8 @@ pub mod pallet {
     /// The next available catalog index
     #[pallet::storage]
     #[pallet::getter(fn next_catalog_id)]
-    pub type NextCatalogId<T: Config> = StorageValue<_, T::CatalogId>;
+    pub type NextCatalogId<T: Config> =
+        StorageValue<_, T::CatalogId, ValueQuery, CatalogIdDefault<T>>;
 
     /// Catalog ownership
     #[pallet::storage]
@@ -285,24 +300,22 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), did.clone()),
+                Self::is_controller(sender.clone(), did),
                 Error::<T>::NotController
             );
 
             //TODO: does this fail correctly if did does not exist?
 
             let mut did_doc = <DidInfo<T>>::take(&did);
-            remove_keys.and_then(|remove_keys| {
-                Some(
-                    did_doc
-                        .properties
-                        .retain(|p| !remove_keys.contains(&p.name)),
-                )
-            });
+            if let Some(remove_keys) = remove_keys {
+                did_doc
+                    .properties
+                    .retain(|p| !remove_keys.contains(&p.name));
+            }
 
-            add_properties.and_then(|mut add_properties| {
-                Some(did_doc.properties.append(&mut add_properties))
-            });
+            if let Some(mut add_properties) = add_properties {
+                did_doc.properties.append(&mut add_properties);
+            }
             <DidInfo<T>>::insert(&did, did_doc);
 
             Self::deposit_event(Event::DidUpdated(sender, did));
@@ -323,7 +336,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), did.clone()),
+                Self::is_controller(sender.clone(), did),
                 Error::<T>::NotController
             );
 
@@ -349,7 +362,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             ensure!(
-                Self::is_controller(sender.clone(), did.clone()),
+                Self::is_controller(sender.clone(), did),
                 Error::<T>::NotController
             );
             if let Some(to_be_removed) = remove {
@@ -386,7 +399,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), target_did.clone()),
+                Self::is_controller(sender, target_did),
                 Error::<T>::NotController
             );
 
@@ -413,7 +426,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), target_did.clone()),
+                Self::is_controller(sender, target_did),
                 Error::<T>::NotController
             );
 
@@ -439,7 +452,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), target_did.clone()),
+                Self::is_controller(sender, target_did),
                 Error::<T>::NotController
             );
 
@@ -464,7 +477,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), target_did.clone()),
+                Self::is_controller(sender, target_did),
                 Error::<T>::NotController
             );
 
@@ -492,15 +505,15 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), claim_consumer),
+                Self::is_controller(sender, claim_consumer),
                 Error::<T>::NotController
             );
             ensure!(
-                Self::can_make_claim(target_did.clone(), claim_consumer),
+                Self::can_make_claim(target_did, claim_consumer),
                 Error::<T>::NotAuthorized
             );
 
-            let claim_index = Self::claim_count().unwrap();
+            let claim_index = Self::claim_count();
             <ClaimCount<T>>::put(claim_index + 1u64);
 
             let claim = Claim {
@@ -510,7 +523,7 @@ pub mod pallet {
                 attestation: None,
             };
             <ClaimsOf<T>>::mutate(&target_did, |indexes| indexes.push(claim_index));
-            <Claims<T>>::insert(&target_did, claim_index, claim.clone());
+            <Claims<T>>::insert(&target_did, claim_index, claim);
 
             Self::deposit_event(Event::ClaimMade(target_did, claim_index, claim_consumer));
             Ok(().into())
@@ -536,11 +549,11 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), claim_issuer.clone()),
+                Self::is_controller(sender, claim_issuer),
                 Error::<T>::NotController
             );
             ensure!(
-                Self::can_attest_claim(target_did.clone(), claim_issuer.clone()),
+                Self::can_attest_claim(target_did, claim_issuer),
                 Error::<T>::NotAuthorized
             );
 
@@ -577,11 +590,11 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), claim_issuer.clone()),
+                Self::is_controller(sender, claim_issuer),
                 Error::<T>::NotController
             );
             ensure!(
-                Self::can_attest_claim(target_did.clone(), claim_issuer.clone()),
+                Self::can_attest_claim(target_did, claim_issuer),
                 Error::<T>::NotAuthorized
             );
 
@@ -604,11 +617,11 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), owner_did.clone()),
+                Self::is_controller(sender, owner_did),
                 Error::<T>::NotController
             );
 
-            let catalog_id = Self::next_catalog_id().unwrap();
+            let catalog_id = Self::next_catalog_id();
             let next_id = catalog_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -634,7 +647,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), owner_did.clone()),
+                Self::is_controller(sender, owner_did),
                 Error::<T>::NotController
             );
 
@@ -663,7 +676,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), owner_did.clone()),
+                Self::is_controller(sender, owner_did),
                 Error::<T>::NotController
             );
 
@@ -691,7 +704,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), owner_did.clone()),
+                Self::is_controller(sender, owner_did),
                 Error::<T>::NotController
             );
 
@@ -738,7 +751,7 @@ pub mod pallet {
         // -- private functions --
 
         fn next_nonce() -> u64 {
-            let nonce = <Nonce<T>>::get().unwrap();
+            let nonce = <Nonce<T>>::get();
             <Nonce<T>>::put(nonce + 1u64);
             nonce
         }
@@ -750,8 +763,8 @@ pub mod pallet {
             properties: Option<Vec<DidProperty>>,
         ) {
             let nonce = Self::next_nonce();
-            let random_seed = <randomness::Module<T>>::random_seed();
-            let encoded = (random_seed, subject.clone(), nonce).encode();
+            let random = <randomness::Module<T>>::random(&b"mint_did context"[..]);
+            let encoded = (random, subject.clone(), nonce).encode();
             let id = sp_io::hashing::blake2_256(&encoded);
 
             let did = Did { id };

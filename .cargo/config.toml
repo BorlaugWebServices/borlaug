@@ -1,0 +1,8 @@
+[alias]
+# Run commands as CI does
+ci-check = "check --all --all-targets --all-features"
+ci-clippy = "clippy --all --all-targets --all-features -- -Dwarnings -Drust-2018-idioms -Adeprecated -Aclippy::unused_unit -Aclippy::large_enum_variant"
+ci-fmt = "fmt --all -- --check"
+
+# Format Rust code with stable-compatible nightly features
+fmt-unstable = "fmt --all -- --config-path rustfmt-unstable.toml"

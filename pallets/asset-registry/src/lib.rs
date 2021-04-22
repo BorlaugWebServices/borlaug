@@ -119,6 +119,24 @@ pub mod pallet {
         NoIdAvailable,
     }
 
+    #[pallet::type_value]
+    pub fn UnitDefault<T: Config>() -> u64 {
+        1u64
+    }
+
+    #[pallet::type_value]
+    pub fn RegistryIdDefault<T: Config>() -> T::RegistryId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn AssetIdDefault<T: Config>() -> T::AssetId {
+        1u32.into()
+    }
+    #[pallet::type_value]
+    pub fn LeaseIdDefault<T: Config>() -> T::LeaseId {
+        1u32.into()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -128,24 +146,24 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
-    //TODO:initialize at 1
     /// Incrementing nonce
-    pub type Nonce<T> = StorageValue<_, u64>;
+    pub type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_registry_id)]
     /// The next available registry index
-    pub type NextRegistryId<T: Config> = StorageValue<_, T::RegistryId>;
+    pub type NextRegistryId<T: Config> =
+        StorageValue<_, T::RegistryId, ValueQuery, RegistryIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_asset_id)]
     /// The next available asset index
-    pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId>;
+    pub type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery, AssetIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_lease_id)]
     /// The next available lease index
-    pub type NextLeaseId<T: Config> = StorageValue<_, T::LeaseId>;
+    pub type NextLeaseId<T: Config> = StorageValue<_, T::LeaseId, ValueQuery, LeaseIdDefault<T>>;
 
     #[pallet::storage]
     #[pallet::getter(fn registries)]
@@ -156,7 +174,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn assets)]
     /// Registry of assets
-    pub type Assets<T: Config> = StorageDoubleMap<
+    pub(super) type Assets<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::RegistryId,
@@ -199,7 +217,7 @@ pub mod pallet {
         /// Arguments:
         /// - `owner_did` DID of caller
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn create_registry(origin: OriginFor<T>, owner_did: Did) -> DispatchResultWithPostInfo {
+        pub fn create_registry(origin: OriginFor<T>, owner_did: Did) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             ensure!(
@@ -207,7 +225,7 @@ pub mod pallet {
                 Error::<T>::NotDidSubject
             );
 
-            let registry_id = Self::next_registry_id().unwrap();
+            let registry_id = Self::next_registry_id();
             let next_id = registry_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -225,7 +243,7 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         /// - `registry_id` Registry to be removed
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn delete_registry(
+        pub fn delete_registry(
             origin: OriginFor<T>,
             owner_did: Did,
             registry_id: T::RegistryId,
@@ -254,7 +272,7 @@ pub mod pallet {
         /// - `registry_id` Asset is created in this registry
         /// - `asset` instance to be added
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn create_asset(
+        pub fn create_asset(
             origin: OriginFor<T>,
             owner_did: Did,
             registry_id: T::RegistryId,
@@ -284,7 +302,7 @@ pub mod pallet {
         /// - `asset_id` ID of Asset
         /// - `asset` instance to be updated
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn update_asset(
+        pub fn update_asset(
             origin: OriginFor<T>,
             owner_did: Did,
             registry_id: T::RegistryId,
@@ -316,7 +334,7 @@ pub mod pallet {
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn delete_asset(
+        pub fn delete_asset(
             origin: OriginFor<T>,
             owner_did: Did,
             registry_id: T::RegistryId,
@@ -342,7 +360,7 @@ pub mod pallet {
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn new_lease(
+        pub fn new_lease(
             origin: OriginFor<T>,
             lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment>,
         ) -> DispatchResultWithPostInfo {
@@ -364,7 +382,7 @@ pub mod pallet {
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        fn void_lease(
+        pub fn void_lease(
             origin: OriginFor<T>,
             lessor: Did,
             lease_id: T::LeaseId,
@@ -402,7 +420,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
             asset: Asset<T::Moment, T::Balance>,
         ) -> DispatchResult {
-            let asset_id = Self::next_asset_id().unwrap();
+            let asset_id = Self::next_asset_id();
             let next_id = asset_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -421,18 +439,18 @@ pub mod pallet {
                 .allocations
                 .clone()
                 .into_iter()
-                .any(|allocation| Self::check_allocation(allocation));
+                .any(Self::check_allocation);
 
             ensure!(can_allocate, "Cannot allocate some assets");
 
-            let lease_id = Self::next_lease_id().unwrap();
+            let lease_id = Self::next_lease_id();
             let next_id = lease_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
             <NextLeaseId<T>>::put(next_id);
 
-            let lessor = lease.lessor.clone();
-            let lessee = lease.lessee.clone();
+            let lessor = lease.lessor;
+            let lessee = lease.lessee;
 
             lease
                 .allocations
@@ -450,7 +468,7 @@ pub mod pallet {
         }
 
         fn is_registry_owner(owner_did: Did, registry_id: T::RegistryId) -> bool {
-            if <Registries<T>>::contains_key(owner_did.clone()) {
+            if <Registries<T>>::contains_key(owner_did) {
                 let registry_ids = <Registries<T>>::get(owner_did);
                 registry_ids.contains(&registry_id)
             } else {
