@@ -101,11 +101,11 @@ pub mod pallet {
         DidReplaced(T::AccountId, Did),
         /// Claim consumers added
         ClaimConsumersAdded(Did, Vec<ClaimConsumer<T::Moment>>),
-        /// Claim consumer removed
+        /// Claim consumers removed
         ClaimConsumersRemoved(Did, Vec<Did>),
-        /// Claim issuer added
+        /// Claim issuers added
         ClaimIssuersAdded(Did, Vec<ClaimIssuer<T::Moment>>),
-        /// Claim issuerz removed
+        /// Claim issuers removed
         ClaimIssuersRemoved(Did, Vec<Did>),
         /// Claim was made against a DID (target DID, index of claim, claim proposer DID)
         ClaimMade(Did, ClaimIndex, Did),
