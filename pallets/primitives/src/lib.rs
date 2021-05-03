@@ -13,6 +13,7 @@ pub mod evidence;
 pub mod fact;
 pub mod lease_agreement;
 pub mod observation;
+pub mod org;
 pub mod sequence;
 pub mod sequence_step;
 pub mod template;
@@ -21,6 +22,6 @@ pub mod template_step;
 pub use self::{
     asset::*, asset_property::*, attestation::*, attestor::*, attribute::*, audit::*, claim::*,
     did::*, did_document::*, did_property::*, evidence::*, fact::*, lease_agreement::*,
-    observation::*, sequence::*, sequence_step::*, template::*, template_step::*,
+    observation::*, org::*, sequence::*, sequence_step::*, template::*, template_step::*,
 };
 pub use codec::Encode;

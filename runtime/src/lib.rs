@@ -663,6 +663,10 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
     type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
+impl org::Config for Runtime {
+    type Event = Event;
+}
+
 impl identity::Config for Runtime {
     type CatalogId = u32;
     type Event = Event;
@@ -722,6 +726,8 @@ construct_runtime!(
         // GeneralCouncilMembership: membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>},
 
         // BWS Modules
+
+        Org: org::{Module, Call, Storage, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},
