@@ -167,7 +167,7 @@ pub mod pallet {
         Blake2_128Concat,
         (T::RegistryId, T::TemplateId),
         Blake2_128Concat,
-        u8,
+        TemplateStepIndex,
         TemplateStep,
         ValueQuery,
     >;

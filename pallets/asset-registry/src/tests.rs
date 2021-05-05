@@ -129,7 +129,7 @@ fn creating_assets_should_work() {
             asset.clone()
         ));
 
-        let created_asset = AssetRegistry::assets(registry_id, 0u32);
+        let created_asset = AssetRegistry::assets(registry_id, 1u32);
 
         assert_eq!(created_asset, asset);
     });

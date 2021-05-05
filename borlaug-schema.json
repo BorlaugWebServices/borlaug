@@ -103,12 +103,11 @@
       "InProgress",
       "Completed"
     ]
-  },
-  "AuditCreatorId": "AccountId",
+  }, 
   "AuditorId": "AccountId",
   "Audit": {
     "status": "AuditStatus",
-    "audit_creator": "AuditCreatorId",
+    "audit_creator": "AccountId",
     "auditor": "AuditorId"
   },
   "ControlPointId": "u32",
