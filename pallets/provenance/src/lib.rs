@@ -126,11 +126,6 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
-    #[pallet::getter(fn nonce)]
-    /// Incrementing nonce
-    pub(super) type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
-
-    #[pallet::storage]
     #[pallet::getter(fn registries)]
     /// An account can have multiple Regitries of process templates
     /// (T::AccountId,T::RegistryId) => T::RegistryId
@@ -241,6 +236,7 @@ pub mod pallet {
         pub fn create_registry(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
+            //TODO: make a helper function or macro
             let registry_id = Self::next_registry_id();
             let next_id = registry_id
                 .checked_add(&One::one())
@@ -301,6 +297,7 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
+            //TODO: make a helper function or macro
             let template_id = Self::next_template_id();
             let next_id = template_id
                 .checked_add(&One::one())
@@ -439,6 +436,7 @@ pub mod pallet {
                 Error::<T>::NotAttestor
             );
 
+            //TODO: make a helper function or macro
             let sequence_id = Self::next_sequence_id();
             let next_id = sequence_id
                 .checked_add(&One::one())

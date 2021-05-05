@@ -664,6 +664,9 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 impl org::Config for Runtime {
+    type Origin = Origin;
+    type Proposal = Call;
+    type OrgGroupId = u32;
     type Event = Event;
 }
 
