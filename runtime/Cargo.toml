@@ -52,8 +52,8 @@ pallet-treasury = {version = "3.0.0", default-features = false}
 # Borlaug Dependencies
 asset-registry = {package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false}
 audits = {package = "pallet-audits", path = "../pallets/audits", default-features = false}
+group = {package = "pallet-group", path = "../pallets/group", default-features = false}
 identity = {package = "pallet-identity", path = "../pallets/identity", default-features = false}
-org = {package = "pallet-org", path = "../pallets/org", default-features = false}
 provenance = {package = "pallet-provenance", path = "../pallets/provenance", default-features = false}
 
 [build-dependencies]

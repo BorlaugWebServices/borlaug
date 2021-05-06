@@ -4,11 +4,10 @@ use frame_system::Account;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct OrgGroup<OrgGroupId, AccountId> {
-    pub parent: Option<OrgGroupId>,
+pub struct Group<GroupId, AccountId, MemberCount> {
+    pub parent: Option<GroupId>,
     pub name: Vec<u8>,
     pub members: Vec<AccountId>,
-    pub required_votes: u8,
-    /// If fund_source is None, parent group pays for transactions   
-    pub fund_source: Option<AccountId>,
+    pub threshold: MemberCount,
+    pub funding_account: AccountId,
 }

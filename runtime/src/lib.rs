@@ -663,11 +663,19 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
     type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
-impl org::Config for Runtime {
+parameter_types! {
+    pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxMembers: u32 = 100;
+}
+
+impl group::Config for Runtime {
     type Origin = Origin;
     type Proposal = Call;
-    type OrgGroupId = u32;
+    type GroupId = u32;
     type Event = Event;
+    type MaxProposals = GroupMaxProposals;
+    type MaxMembers = GroupMaxMembers;
+    type WeightInfo = group::weights::SubstrateWeight<Runtime>;
 }
 
 impl identity::Config for Runtime {
@@ -730,7 +738,7 @@ construct_runtime!(
 
         // BWS Modules
 
-        Org: org::{Module, Call, Storage, Event<T>},
+        Group: group::{Module, Call, Storage, Origin<T>, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},

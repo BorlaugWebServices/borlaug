@@ -1,6 +1,6 @@
 //! Mocks for the module.
 
-use crate as pallet_org;
+use crate as pallet_group;
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -20,7 +20,7 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Org: pallet_org::{Module, Call, Storage, Event<T>},
+        Group: pallet_group::{Module, Call, Storage, Event<T>},
     }
 );
 
@@ -68,7 +68,7 @@ impl timestamp::Config for Test {
     type WeightInfo = ();
 }
 
-impl pallet_org::Config for Test {
+impl pallet_group::Config for Test {
     type Event = Event;
 }
 

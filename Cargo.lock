@@ -635,11 +635,11 @@ dependencies = [
  "pallet-balances",
  "pallet-collective",
  "pallet-grandpa",
+ "pallet-group",
  "pallet-identity",
  "pallet-im-online",
  "pallet-membership",
  "pallet-offences",
- "pallet-org",
  "pallet-provenance",
  "pallet-randomness-collective-flip",
  "pallet-session",
@@ -3628,6 +3628,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-group"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "frame-support",
+ "frame-system",
+ "pallet-primitives",
+ "pallet-randomness-collective-flip",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-identity"
 version = "0.1.0"
 dependencies = [
@@ -3692,24 +3710,6 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-staking",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-org"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "frame-support",
- "frame-system",
- "pallet-primitives",
- "pallet-randomness-collective-flip",
- "pallet-timestamp",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
  "sp-std",
 ]
 
