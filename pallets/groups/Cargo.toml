@@ -1,7 +1,7 @@
 [package]
 authors = ["Borlaug Blockchain"]
 edition = "2018"
-name = "pallet-group"
+name = "pallet-groups"
 version = "0.1.0"
 
 [dependencies]
@@ -19,6 +19,7 @@ primitives = {package = "pallet-primitives", path = "../primitives", default-fea
 
 [dev-dependencies]
 chrono = "0.4"
+hex-literal = "0.3.1"
 serde = "1.0"
 sp-core = {version = "3.0.0", default-features = false}
 

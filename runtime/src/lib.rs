@@ -668,14 +668,15 @@ parameter_types! {
     pub const GroupMaxMembers: u32 = 100;
 }
 
-impl group::Config for Runtime {
+impl groups::Config for Runtime {
     type Origin = Origin;
     type Proposal = Call;
     type GroupId = u32;
+    type ProposalId = u32;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
     type MaxMembers = GroupMaxMembers;
-    type WeightInfo = group::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = groups::weights::SubstrateWeight<Runtime>;
 }
 
 impl identity::Config for Runtime {
@@ -738,7 +739,7 @@ construct_runtime!(
 
         // BWS Modules
 
-        Group: group::{Module, Call, Storage, Origin<T>, Event<T>},
+        Groups: groups::{Module, Call, Storage, Origin<T>, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},

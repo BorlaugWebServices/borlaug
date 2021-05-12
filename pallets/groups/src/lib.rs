@@ -34,13 +34,10 @@ pub mod pallet {
         weights::{GetDispatchInfo, Weight},
     };
     use frame_system::pallet_prelude::*;
-    use primitives::group::Group;
+    use primitives::group::{Group, Votes};
     use sp_core::u32_trait::Value as U32;
     use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, Hash, One};
     use sp_std::{prelude::*, result, vec};
-
-    /// Simple index type for proposal counting.
-    pub type ProposalIndex = u32;
 
     /// A number of members.
     ///
@@ -54,6 +51,7 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        type ProposalId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
 
         /// The outer origin type.
         type Origin: From<RawOrigin<Self::AccountId>>;
@@ -64,7 +62,8 @@ pub mod pallet {
             + GetDispatchInfo;
 
         /// Maximum number of proposals allowed to be active in parallel.
-        type MaxProposals: Get<ProposalIndex>;
+        //TODO: choose correct type
+        type MaxProposals: Get<MemberCount>;
 
         /// The maximum number of members supported by the pallet. Used for weight estimation.
         ///
@@ -77,32 +76,23 @@ pub mod pallet {
         type WeightInfo: WeightInfo;
     }
 
-    /// Origin for the collective module.
+    /// Origin for the groups module.
     #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode)]
     pub enum RawOrigin<AccountId> {
-        /// It has been condoned by a given number of members of the collective from a given total.
+        /// It has been condoned by a given number of members of the groups from a given total.
         Members(MemberCount, MemberCount),
-        /// It has been condoned by a single member of the collective.
+        /// It has been condoned by a single member of the groups.
         Member(AccountId),
     }
 
-    /// Origin for the collective module.
+    /// Origin for the groups module.
     pub type Origin<T> = RawOrigin<<T as frame_system::Config>::AccountId>;
 
-    #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
-    /// Info for keeping track of a motion being voted on.
-    pub struct Votes<AccountId> {
-        /// The proposal's unique index within the group.
-        index: ProposalIndex,
-        /// The current set of voters that approved it.
-        ayes: Vec<AccountId>,
-        /// The current set of voters that rejected it.
-        nays: Vec<AccountId>,
-    }
     #[pallet::event]
     #[pallet::metadata(
         T::Moment = "Moment",
         T::GroupId = "GroupId",
+        T::ProposalId = "ProposalId",
         T::Hash = "Hash",
         T::AccountId = "AccountId"
     )]
@@ -111,24 +101,36 @@ pub mod pallet {
         /// A new Group was created (AccountId,GroupId)
         GroupCreated(T::AccountId, T::GroupId),
 
-        Proposed(T::AccountId, T::GroupId, ProposalIndex),
+        Proposed(T::AccountId, T::GroupId, T::ProposalId),
 
-        Voted(T::AccountId, T::GroupId, ProposalIndex, bool),
+        Voted(
+            T::AccountId,
+            T::GroupId,
+            T::ProposalId,
+            bool,
+            MemberCount,
+            MemberCount,
+        ),
 
-        Vetoed(T::AccountId, T::GroupId, ProposalIndex, bool),
+        Vetoed(T::AccountId, T::GroupId, T::ProposalId, bool),
 
         /// A motion was approved by the required threshold.
         /// \[proposal_hash\]
-        Approved(T::Hash),
+        Approved(T::GroupId, T::ProposalId),
+        /// A motion was disapproved by the required threshold.
+        /// \[proposal_hash\]
+        DisApproved(T::GroupId, T::ProposalId),
         /// A motion was executed; result will be `Ok` if it returned without error.
         /// \[proposal_hash, result\]
-        Executed(T::Hash, DispatchResult),
+        Executed(T::GroupId, T::ProposalId, DispatchResult),
     }
 
     #[pallet::error]
     pub enum Error<T> {
         /// Account is not a member
         NotMember,
+        /// Bad data provided in group
+        BadGroup,
         /// Duplicate proposals not allowed
         DuplicateProposal,
         /// Proposal must exist
@@ -156,6 +158,11 @@ pub mod pallet {
         1u32.into()
     }
 
+    #[pallet::type_value]
+    pub fn ProposalIdDefault<T: Config>() -> T::ProposalId {
+        1u32.into()
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -165,9 +172,15 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn next_group_id)]
-    /// The next available group index
+    /// The next available group id
     pub(super) type NextGroupId<T: Config> =
         StorageValue<_, T::GroupId, ValueQuery, GroupIdDefault<T>>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn next_proposal_id)]
+    /// The next available proposal id
+    pub(super) type NextProposalId<T: Config> =
+        StorageValue<_, T::ProposalId, ValueQuery, ProposalIdDefault<T>>;
 
     /// Groups have some properties
     /// GroupId => Group
@@ -175,34 +188,42 @@ pub mod pallet {
     #[pallet::getter(fn groups)]
     pub(super) type Groups<T: Config> = StorageMap<
         _,
-        Blake2_128Concat,
+        Identity,
         T::GroupId,
         Group<T::GroupId, T::AccountId, MemberCount>,
         ValueQuery,
     >;
 
     /// Groups may have child groups
-    /// T::GroupId => Vec<GroupId>
+    /// GroupId => Vec<GroupId>
     #[pallet::storage]
     #[pallet::getter(fn group_children)]
     pub(super) type GroupChildren<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::GroupId, Vec<T::GroupId>, ValueQuery>;
+        StorageMap<_, Identity, T::GroupId, Vec<T::GroupId>, ValueQuery>;
 
     /// Groups may have proposals awaiting approval
-    /// T::GroupId => Vec<T::Hash>
+    /// GroupId,ProposalId => Option<Proposal>
     #[pallet::storage]
     #[pallet::getter(fn proposals)]
-    pub(super) type Proposals<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::GroupId, Vec<T::Hash>, ValueQuery>;
+    pub(super) type Proposals<T: Config> = StorageDoubleMap<
+        _,
+        Identity,
+        T::GroupId,
+        Identity,
+        T::ProposalId,
+        Option<<T as Config>::Proposal>,
+        ValueQuery,
+    >;
 
-    /// Actual proposal for a given hash, if it's current.
-    /// T::GroupId => Vec<T::Hash>
+    /// Store vec of proposal hashes by group to ensure uniqueness ie a group may not have two identical proposals at any one time
+    /// GroupId => Vec<T::Hash>
     #[pallet::storage]
-    #[pallet::getter(fn proposal_of)]
-    pub(super) type ProposalOf<T: Config> =
-        StorageMap<_, Identity, T::Hash, Option<<T as Config>::Proposal>, ValueQuery>;
+    #[pallet::getter(fn proposal_hashes)]
+    pub(super) type ProposalHashes<T: Config> =
+        StorageMap<_, Identity, T::GroupId, Vec<T::Hash>, ValueQuery>;
 
     /// Votes on a given proposal, if it is ongoing.
+    /// GroupId,ProposalId => Option<Votes>
     #[pallet::storage]
     #[pallet::getter(fn voting)]
     pub(super) type Voting<T: Config> = StorageDoubleMap<
@@ -210,17 +231,10 @@ pub mod pallet {
         Identity,
         T::GroupId,
         Identity,
-        T::Hash,
-        Option<Votes<T::AccountId>>,
+        T::ProposalId,
+        Option<Votes<T::AccountId, T::ProposalId>>,
         ValueQuery,
     >;
-
-    /// Proposals so far.
-    /// T::GroupId => ProposalIndex
-    #[pallet::storage]
-    #[pallet::getter(fn proposal_count)]
-    pub(super) type ProposalCount<T: Config> =
-        StorageMap<_, Identity, T::GroupId, ProposalIndex, ValueQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -232,11 +246,31 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_group(
             origin: OriginFor<T>,
-            group: Group<T::GroupId, T::AccountId, MemberCount>,
+            name: Vec<u8>,
+            members: Vec<T::AccountId>,
+            threshold: MemberCount,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            //TODO:
+            ensure!(members.len() > 0, Error::<T>::BadGroup);
+            ensure!(
+                threshold > 0 && threshold as usize <= members.len(),
+                Error::<T>::BadGroup
+            );
+
+            let group_id = Self::get_next_group_id()?;
+
+            let group = Group {
+                parent: None,
+                name,
+                members,
+                threshold,
+                funding_account: sender.clone(),
+            };
+
+            <Groups<T>>::insert(group_id, group);
+
+            Self::deposit_event(Event::GroupCreated(sender, group_id));
 
             Ok(().into())
         }
@@ -281,7 +315,7 @@ pub mod pallet {
         ///
 
         #[pallet::weight(proposal.get_dispatch_info().weight)]
-        fn propose(
+        pub fn propose(
             origin: OriginFor<T>,
             group_id: T::GroupId,
             proposal: Box<<T as Config>::Proposal>,
@@ -292,56 +326,62 @@ pub mod pallet {
             let proposal_len = proposal.using_encoded(|x| x.len());
             let proposal_hash = T::Hashing::hash_of(&proposal);
             ensure!(
-                !<ProposalOf<T>>::contains_key(proposal_hash),
+                !Self::proposal_hashes(group_id).contains(&proposal_hash),
                 Error::<T>::DuplicateProposal
             );
+            let proposals_length = Self::proposal_hashes(group_id).len();
+
+            //TODO: fix
+            // ensure!(
+            //     proposals_length <= T::MaxProposals::get() as usize,
+            //     Error::<T>::TooManyProposals
+            // );
+
+            let proposal_id = Self::get_next_proposal_id()?;
 
             if group.threshold < 2 {
                 let seats = group.members.len() as MemberCount;
                 let result = proposal.dispatch(RawOrigin::Members(1, seats).into());
                 Self::deposit_event(Event::Executed(
-                    proposal_hash,
+                    group_id,
+                    proposal_id,
                     result.map(|_| ()).map_err(|e| e.error),
                 ));
 
                 Ok(Self::get_result_weight(result)
                     .map(|w| {
                         T::WeightInfo::propose_execute(
-                            proposal_len as u32,        // B
-                            group.members.len() as u32, // M
+                            proposal_len as u32,
+                            group.members.len() as u32,
                         )
                         .saturating_add(w) // P1
                     })
                     .into())
             } else {
-                let active_proposals = <Proposals<T>>::try_mutate(
+                <ProposalHashes<T>>::try_mutate(
                     group_id,
-                    |proposals| -> Result<usize, DispatchError> {
+                    |proposals| -> Result<(), DispatchError> {
                         proposals.push(proposal_hash);
-                        ensure!(
-                            proposals.len() <= T::MaxProposals::get() as usize,
-                            Error::<T>::TooManyProposals
-                        );
-                        Ok(proposals.len())
+                        Ok(())
                     },
                 )?;
-                let index = Self::proposal_count(group_id);
-                <ProposalCount<T>>::mutate(group_id, |i| *i += 1);
-                <ProposalOf<T>>::insert(proposal_hash, Some(proposal));
+                let active_proposals = proposals_length + 1;
+
+                <Proposals<T>>::insert(group_id, proposal_id, Some(proposal));
 
                 let votes = Votes {
-                    index,
+                    proposal_id,
                     ayes: vec![sender.clone()],
                     nays: vec![],
                 };
-                <Voting<T>>::insert(group_id, proposal_hash, Some(votes));
+                <Voting<T>>::insert(group_id, proposal_id, Some(votes));
 
-                Self::deposit_event(Event::Proposed(sender, group_id, index));
+                Self::deposit_event(Event::Proposed(sender, group_id, proposal_id));
 
                 Ok(Some(T::WeightInfo::propose_proposed(
-                    proposal_len as u32,        // B
-                    group.members.len() as u32, // M
-                    active_proposals as u32,    // P2
+                    proposal_len as u32,
+                    group.members.len() as u32,
+                    active_proposals as u32,
                 ))
                 .into())
             }
@@ -356,15 +396,78 @@ pub mod pallet {
         pub fn vote(
             origin: OriginFor<T>,
             group_id: T::GroupId,
-            index: ProposalIndex,
-            vote: bool,
+            proposal_id: T::ProposalId,
+            approve: bool,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            //TODO:
+            let group = Self::groups(group_id);
 
-            Self::deposit_event(Event::Voted(sender, group_id, index, vote));
-            Ok(().into())
+            ensure!(group.members.contains(&sender), Error::<T>::NotMember);
+
+            let proposal = Self::proposals(group_id, proposal_id);
+
+            ensure!(proposal.is_some(), Error::<T>::ProposalMissing);
+
+            let proposal = proposal.unwrap();
+
+            let mut voting =
+                Self::voting(group_id, proposal_id).ok_or(Error::<T>::ProposalMissing)?;
+
+            ensure!(voting.proposal_id == proposal_id, Error::<T>::WrongIndex);
+
+            let position_yes = voting.ayes.iter().position(|a| a == &sender);
+            let position_no = voting.nays.iter().position(|a| a == &sender);
+
+            // Detects first vote of the member in the motion
+            let is_account_voting_first_time = position_yes.is_none() && position_no.is_none();
+
+            if approve {
+                if position_yes.is_none() {
+                    voting.ayes.push(sender.clone());
+                } else {
+                    Err(Error::<T>::DuplicateVote)?
+                }
+                if let Some(pos) = position_no {
+                    voting.nays.swap_remove(pos);
+                }
+            } else {
+                if position_no.is_none() {
+                    voting.nays.push(sender.clone());
+                } else {
+                    Err(Error::<T>::DuplicateVote)?
+                }
+                if let Some(pos) = position_yes {
+                    voting.ayes.swap_remove(pos);
+                }
+            }
+
+            let yes_votes = voting.ayes.len() as MemberCount;
+            let no_votes = voting.nays.len() as MemberCount;
+            Self::deposit_event(Event::Voted(
+                sender,
+                group_id,
+                proposal_id,
+                approve,
+                yes_votes,
+                no_votes,
+            ));
+
+            Voting::<T>::insert(group_id, proposal_id, Some(voting));
+
+            if is_account_voting_first_time {
+                Ok((
+                    Some(T::WeightInfo::vote(group.members.len() as u32)),
+                    Pays::No,
+                )
+                    .into())
+            } else {
+                Ok((
+                    Some(T::WeightInfo::vote(group.members.len() as u32)),
+                    Pays::Yes,
+                )
+                    .into())
+            }
         }
 
         /// Veto a Proposal
@@ -376,7 +479,7 @@ pub mod pallet {
         pub fn veto(
             origin: OriginFor<T>,
             group_id: T::GroupId,
-            index: ProposalIndex,
+            index: T::ProposalId,
             vote: bool,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
@@ -394,6 +497,16 @@ pub mod pallet {
         fn get_next_group_id() -> Result<T::GroupId, Error<T>> {
             let group_id = <NextGroupId<T>>::get();
             <NextGroupId<T>>::put(
+                group_id
+                    .checked_add(&One::one())
+                    .ok_or(Error::<T>::NoIdAvailable)?,
+            );
+            Ok(group_id)
+        }
+
+        fn get_next_proposal_id() -> Result<T::ProposalId, Error<T>> {
+            let group_id = <NextProposalId<T>>::get();
+            <NextProposalId<T>>::put(
                 group_id
                     .checked_add(&One::one())
                     .ok_or(Error::<T>::NoIdAvailable)?,

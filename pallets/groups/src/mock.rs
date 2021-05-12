@@ -1,6 +1,6 @@
 //! Mocks for the module.
 
-use crate as pallet_group;
+use crate as pallet_groups;
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -13,16 +13,6 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
-frame_support::construct_runtime!(
-    pub enum Test where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic,
-    {
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Group: pallet_group::{Module, Call, Storage, Event<T>},
-    }
-);
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
@@ -68,9 +58,32 @@ impl timestamp::Config for Test {
     type WeightInfo = ();
 }
 
-impl pallet_group::Config for Test {
-    type Event = Event;
+parameter_types! {
+    pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxMembers: u32 = 100;
 }
+
+impl pallet_groups::Config for Test {
+    type Origin = Origin;
+    type Proposal = Call;
+    type GroupId = u32;
+    type ProposalId = u32;
+    type Event = Event;
+    type MaxProposals = GroupMaxProposals;
+    type MaxMembers = GroupMaxMembers;
+    type WeightInfo = ();
+}
+
+frame_support::construct_runtime!(
+    pub enum Test where
+        Block = Block,
+        NodeBlock = Block,
+        UncheckedExtrinsic = UncheckedExtrinsic,
+    {
+        System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        Groups: pallet_groups::{Module, Call, Storage, Origin<T>, Event<T>},
+    }
+);
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

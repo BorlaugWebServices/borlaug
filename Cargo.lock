@@ -635,7 +635,7 @@ dependencies = [
  "pallet-balances",
  "pallet-collective",
  "pallet-grandpa",
- "pallet-group",
+ "pallet-groups",
  "pallet-identity",
  "pallet-im-online",
  "pallet-membership",
@@ -3628,12 +3628,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-group"
+name = "pallet-groups"
 version = "0.1.0"
 dependencies = [
  "chrono",
  "frame-support",
  "frame-system",
+ "hex-literal",
  "pallet-primitives",
  "pallet-randomness-collective-flip",
  "pallet-timestamp",

@@ -1,6 +1,6 @@
 {
-  "Address": "AccountId",
-  "LookupSource": "AccountId",
+  "Address": "MultiAddress",
+  "LookupSource": "MultiAddress",
   "Balance": "u128",
   "Timestamp": "u64",
   "Moment": "u64",
@@ -103,7 +103,7 @@
       "InProgress",
       "Completed"
     ]
-  }, 
+  },
   "AuditorId": "AccountId",
   "Audit": {
     "status": "AuditStatus",
@@ -157,5 +157,7 @@
   },
   "TemplateStep": {
     "name": "Vec<u8>"
-  }
+  },
+  "GroupId": "u32",
+  "ProposalId": "u32"
 }
