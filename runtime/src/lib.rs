@@ -669,7 +669,7 @@ parameter_types! {
 }
 
 impl groups::Config for Runtime {
-    type Origin = Origin;
+    // type Origin = Origin;
     type Proposal = Call;
     type GroupId = u32;
     type ProposalId = u32;
@@ -739,7 +739,7 @@ construct_runtime!(
 
         // BWS Modules
 
-        Groups: groups::{Module, Call, Storage, Origin<T>, Event<T>},
+        Groups: groups::{Module, Call, Storage,  Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},

@@ -64,7 +64,6 @@ parameter_types! {
 }
 
 impl pallet_groups::Config for Test {
-    type Origin = Origin;
     type Proposal = Call;
     type GroupId = u32;
     type ProposalId = u32;
@@ -81,7 +80,7 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Groups: pallet_groups::{Module, Call, Storage, Origin<T>, Event<T>},
+        Groups: pallet_groups::{Module, Call, Storage, Event<T>},
     }
 );
 

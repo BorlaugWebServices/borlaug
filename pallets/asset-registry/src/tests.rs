@@ -3,7 +3,7 @@
 use super::*;
 use crate::mock::*;
 use chrono::Utc;
-use frame_support::{assert_err, assert_err_ignore_postinfo, assert_ok};
+use frame_support::assert_ok;
 use primitives::{
     asset::{Asset, AssetStatus},
     did::Did,

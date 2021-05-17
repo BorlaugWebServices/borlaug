@@ -24,6 +24,6 @@ pub enum Fact {
 
 impl Default for Fact {
     fn default() -> Self {
-        Fact::Text("".as_bytes().to_vec())
+        Fact::Text(b"".to_vec())
     }
 }
