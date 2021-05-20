@@ -159,5 +159,19 @@
     "name": "Vec<u8>"
   },
   "GroupId": "u32",
-  "ProposalId": "u32"
+  "ProposalId": "u32",
+  "MemberCount": "u32",
+  "Group": {
+    "name": "Vec<u8>",
+    "members": "Vec<AccountId>",
+    "threshold": "MemberCount",
+    "funding_account": "AccountId",
+    "anonymous_account": "AccountId",
+    "parent": "Option<GroupId>"
+  },
+  "Votes": {
+    "proposal_id": "ProposalId",
+    "ayes": "Vec<AccountId>",
+    "nays": "Vec<AccountId>"
+  }
 }

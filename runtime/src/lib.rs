@@ -313,7 +313,7 @@ where
         //TODO: is this correct?
         let address = sp_runtime::MultiAddress::Id(account);
         let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature.into(), extra)))
+        Some((call, (address, signature, extra)))
     }
 }
 

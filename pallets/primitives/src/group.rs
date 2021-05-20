@@ -4,12 +4,12 @@ use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct Group<GroupId, AccountId, MemberCount> {
-    pub parent: Option<GroupId>,
     pub name: Vec<u8>,
     pub members: Vec<AccountId>,
     pub threshold: MemberCount,
     pub funding_account: AccountId,
     pub anonymous_account: AccountId,
+    pub parent: Option<GroupId>,
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]

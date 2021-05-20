@@ -152,6 +152,20 @@ fn get_endowed_accounts() -> Vec<AccountId> {
         .into_account(),
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
+                "5HDfARwo5GGHTr7E7vDuwKkJKt31xoJUCUFWRdzkifDQW5HK",
+            )
+            .unwrap(),
+        )
+        .into_account(),
+        AccountPublic::from(
+            sp_core::sr25519::Public::from_ss58check(
+                "5GnGy76zKS2Yy77vvvwyhzBDxPku6yZ3Y8cBB9eiZKpQ7rUW",
+            )
+            .unwrap(),
+        )
+        .into_account(),
+        AccountPublic::from(
+            sp_core::sr25519::Public::from_ss58check(
                 "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
             )
             .unwrap(),

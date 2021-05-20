@@ -24,10 +24,7 @@ pub mod pallet {
 
     use frame_support::{
         codec::{Decode, Encode},
-        dispatch::{
-            DispatchResult, DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo,
-            Vec,
-        },
+        dispatch::{DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo, Vec},
         ensure,
         pallet_prelude::*,
         traits::Get,
@@ -86,11 +83,17 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A new Group was created (AccountId,GroupId)
+        /// A new Group was created (creator,group_id)
         GroupCreated(T::AccountId, T::GroupId),
-
+        /// A new SubGroup was created (creator,group_id,parent_group_id)
+        SubGroupCreated(T::AccountId, T::GroupId, T::GroupId),
+        /// A Group was updated (updater,group_id)
+        GroupUpdated(T::AccountId, T::GroupId),
+        /// A Group was removed (remover,group_id)
+        GroupRemoved(T::AccountId, T::GroupId),
+        /// A new SubGroup was created (proposer,group_id,proposal_id)
         Proposed(T::AccountId, T::GroupId, T::ProposalId),
-
+        /// A proposal was voted on (voter,group_id,proposal_id,approved,yes_votes,no_votes)
         Voted(
             T::AccountId,
             T::GroupId,
@@ -99,35 +102,27 @@ pub mod pallet {
             MemberCount,
             MemberCount,
         ),
-
+        /// A proposal was approved by veto (vetoer,group_id,proposal_id,approved,yes_votes,no_votes,success)
         ApprovedByVeto(
             T::AccountId,
             T::GroupId,
             T::ProposalId,
             MemberCount,
             MemberCount,
-            DispatchResult,
+            bool,
         ),
-
-        DisApprovedByVeto(
+        /// A proposal was disapproved by veto (vetoer,group_id,proposal_id,approved,yes_votes,no_votes)
+        DisapprovedByVeto(
             T::AccountId,
             T::GroupId,
             T::ProposalId,
             MemberCount,
             MemberCount,
         ),
-        /// A motion was approved by the required threshold and executed; result will be `Ok` if it returned without error.
-        /// \[proposal_hash\]
-        Approved(
-            T::GroupId,
-            T::ProposalId,
-            MemberCount,
-            MemberCount,
-            DispatchResult,
-        ),
-        /// A motion was disapproved by the required threshold.
-        /// \[proposal_hash\]
-        DisApproved(T::GroupId, T::ProposalId, MemberCount, MemberCount),
+        /// A motion was approved by the required threshold and executed; (group_id,proposal_id,yes_votes,no_votes,success)
+        Approved(T::GroupId, T::ProposalId, MemberCount, MemberCount, bool),
+        /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
+        Disapproved(T::GroupId, T::ProposalId, MemberCount, MemberCount),
     }
 
     #[pallet::error]
@@ -158,6 +153,8 @@ pub mod pallet {
         WrongProposalLength,
         /// Group is not a SubGroup
         NotSubGroup,
+        /// User is not admin for group
+        NotGroupAdmin,
 
         NoIdAvailable,
     }
@@ -256,12 +253,13 @@ pub mod pallet {
         pub fn create_group(
             origin: OriginFor<T>,
             name: Vec<u8>,
-            members: Vec<T::AccountId>,
+            mut members: Vec<T::AccountId>,
             threshold: MemberCount,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-
-            ensure!(members.len() > 0, Error::<T>::BadGroup);
+            if !members.contains(&sender) {
+                members.push(sender.clone());
+            }
             ensure!(
                 threshold > 0 && threshold as usize <= members.len(),
                 Error::<T>::BadGroup
@@ -281,8 +279,64 @@ pub mod pallet {
             };
 
             <Groups<T>>::insert(group_id, Some(group));
+            <GroupChildren<T>>::insert(group_id, Vec::<T::GroupId>::new());
 
             Self::deposit_event(Event::GroupCreated(sender, group_id));
+
+            Ok(().into())
+        }
+
+        /// Create a new SubGroup
+        ///
+        /// # <weight>
+        /// TODO:
+        /// # </weight>
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn create_sub_group(
+            origin: OriginFor<T>,
+            parent_group_id: T::GroupId,
+            name: Vec<u8>,
+            members: Vec<T::AccountId>,
+            threshold: MemberCount,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(members.len() > 0, Error::<T>::BadGroup);
+            ensure!(
+                threshold > 0 && threshold as usize <= members.len(),
+                Error::<T>::BadGroup
+            );
+
+            let mut admin_group = Self::groups(parent_group_id).ok_or(Error::<T>::GroupMissing)?;
+            let mut admin_group_id = parent_group_id;
+            while admin_group.parent.is_some() {
+                admin_group_id = admin_group.parent.unwrap();
+                admin_group = Self::groups(admin_group_id).ok_or(Error::<T>::GroupMissing)?;
+            }
+            ensure!(
+                admin_group.members.contains(&sender),
+                Error::<T>::NotGroupAdmin
+            );
+
+            let group_id = Self::get_next_group_id()?;
+
+            let anonymous_account = Self::anonymous_account(&sender, group_id);
+
+            let group = Group {
+                parent: Some(parent_group_id),
+                name,
+                members,
+                threshold,
+                funding_account: admin_group.funding_account,
+                anonymous_account,
+            };
+
+            <Groups<T>>::insert(group_id, Some(group));
+            <GroupChildren<T>>::mutate(parent_group_id, |group_children| {
+                group_children.push(group_id)
+            });
+
+            Self::deposit_event(Event::SubGroupCreated(sender, group_id, admin_group_id));
 
             Ok(().into())
         }
@@ -295,16 +349,43 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_group(
             origin: OriginFor<T>,
-            group: Group<T::GroupId, T::AccountId, MemberCount>,
+            group_id: T::GroupId,
+            name: Option<Vec<u8>>,
+            members: Option<Vec<T::AccountId>>,
+            threshold: Option<MemberCount>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
+            let mut admin_group = group;
+            while admin_group.parent.is_some() {
+                admin_group =
+                    Self::groups(admin_group.parent.unwrap()).ok_or(Error::<T>::GroupMissing)?;
+            }
+            ensure!(
+                admin_group.members.contains(&sender),
+                Error::<T>::NotGroupAdmin
+            );
 
-            //TODO:
+            <Groups<T>>::mutate(group_id, |group_option| {
+                if let Some(group) = group_option {
+                    if let Some(name) = name {
+                        group.name = name;
+                    }
+                    if let Some(members) = members {
+                        group.members = members;
+                    }
+                    if let Some(threshold) = threshold {
+                        group.threshold = threshold;
+                    }
+                }
+            });
+
+            Self::deposit_event(Event::GroupUpdated(sender, group_id));
 
             Ok(().into())
         }
 
-        /// Remove an Group. All child groups will also be removed.
+        /// Remove a Group. All child groups will also be removed.
         ///
         /// # <weight>
         ///TODO:
@@ -316,7 +397,29 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            //TODO:
+            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
+            let mut admin_group = group.clone();
+            while admin_group.parent.is_some() {
+                admin_group =
+                    Self::groups(admin_group.parent.unwrap()).ok_or(Error::<T>::GroupMissing)?;
+            }
+            ensure!(
+                admin_group.members.contains(&sender),
+                Error::<T>::NotGroupAdmin
+            );
+
+            Self::remove_children(group_id);
+
+            if let Some(parent_group_id) = group.parent {
+                <GroupChildren<T>>::mutate(parent_group_id, |group_children| {
+                    group_children.retain(|gid| *gid != group_id)
+                });
+            }
+
+            <Groups<T>>::remove(&group_id);
+            <GroupChildren<T>>::remove(&group_id);
+
+            Self::deposit_event(Event::GroupRemoved(sender, group_id));
 
             Ok(().into())
         }
@@ -355,13 +458,7 @@ pub mod pallet {
                 let result = proposal.dispatch(
                     frame_system::RawOrigin::Signed(group.anonymous_account.clone()).into(),
                 );
-                Self::deposit_event(Event::Approved(
-                    group_id,
-                    proposal_id,
-                    1,
-                    0,
-                    result.map(|_| ()).map_err(|e| e.error),
-                ));
+                Self::deposit_event(Event::Approved(group_id, proposal_id, 1, 0, result.is_ok()));
 
                 Ok(Self::get_result_weight(result)
                     .map(|w| {
@@ -473,14 +570,14 @@ pub mod pallet {
                     proposal_id,
                     yes_votes,
                     no_votes,
-                    result.map(|_| ()).map_err(|e| e.error),
+                    result.is_ok(),
                 ));
                 <Proposals<T>>::remove(group_id, proposal_id);
                 ProposalHashes::<T>::mutate(group_id, |proposals| {
                     proposals.retain(|h| h != &proposal_hash)
                 });
             } else if disapproved {
-                Self::deposit_event(Event::DisApproved(
+                Self::deposit_event(Event::Disapproved(
                     group_id,
                     proposal_id,
                     yes_votes,
@@ -526,7 +623,7 @@ pub mod pallet {
             let mut parent_group =
                 Self::groups(group.parent.unwrap()).ok_or(Error::<T>::GroupMissing)?;
             while !parent_group.members.contains(&sender) {
-                ensure!(group.parent.is_some(), Error::<T>::NotSubGroup);
+                ensure!(parent_group.parent.is_some(), Error::<T>::NotGroupAdmin);
                 parent_group =
                     Self::groups(parent_group.parent.unwrap()).ok_or(Error::<T>::GroupMissing)?;
             }
@@ -547,14 +644,14 @@ pub mod pallet {
                     proposal_id,
                     yes_votes,
                     no_votes,
-                    result.map(|_| ()).map_err(|e| e.error),
+                    result.is_ok(),
                 ));
                 <Proposals<T>>::remove(group_id, proposal_id);
                 ProposalHashes::<T>::mutate(group_id, |proposals| {
                     proposals.retain(|h| h != &proposal_hash)
                 });
             } else {
-                Self::deposit_event(Event::DisApprovedByVeto(
+                Self::deposit_event(Event::DisapprovedByVeto(
                     sender,
                     group_id,
                     proposal_id,
@@ -611,7 +708,7 @@ pub mod pallet {
         /// transaction (e.g. with `utility::batch`). Unless you're using `batch` you probably just
         /// want to use `0`.
 
-        pub fn anonymous_account(who: &T::AccountId, index: T::GroupId) -> T::AccountId {
+        fn anonymous_account(who: &T::AccountId, index: T::GroupId) -> T::AccountId {
             let (height, ext_index) = (
                 system::Module::<T>::block_number(),
                 system::Module::<T>::extrinsic_index().unwrap_or_default(),
@@ -619,6 +716,17 @@ pub mod pallet {
             let entropy =
                 (b"modlpy/proxy____", who, height, ext_index, index).using_encoded(blake2_256);
             T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()
+        }
+
+        fn remove_children(group_id: T::GroupId) {
+            <GroupChildren<T>>::get(group_id)
+                .into_iter()
+                .for_each(|child_group_id| {
+                    //TODO: should we emit event for every child group?
+                    Self::remove_children(child_group_id);
+                    <Groups<T>>::remove(&child_group_id);
+                    <GroupChildren<T>>::remove(&child_group_id);
+                });
         }
     }
 }

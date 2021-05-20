@@ -25,7 +25,6 @@ use futures::prelude::*;
 use runtime::primitives::Block;
 use runtime::RuntimeApi;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use sc_consensus_babe;
 use sc_executor::native_executor_instance;
 use sc_network::{Event, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
