@@ -123,6 +123,8 @@ pub mod pallet {
         Approved(T::GroupId, T::ProposalId, MemberCount, MemberCount, bool),
         /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
         Disapproved(T::GroupId, T::ProposalId, MemberCount, MemberCount),
+        /// A member of an admin group submitted an extrinsic as the group account  (member_account,group_id,success)
+        DepositedAsGroup(T::AccountId, T::GroupId, bool),
     }
 
     #[pallet::error]
@@ -424,6 +426,29 @@ pub mod pallet {
             Ok(().into())
         }
 
+        /// Executes an extrinsic using the group account
+        ///
+        /// Requires the sender to be member.
+        ///
+
+        #[pallet::weight(proposal.get_dispatch_info().weight)]
+        pub fn as_group(
+            origin: OriginFor<T>,
+            group_id: T::GroupId,
+            proposal: Box<<T as Config>::Proposal>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(group.members.contains(&sender), Error::<T>::NotMember);
+            let proposal_len = proposal.using_encoded(|x| x.len());
+
+            let result = proposal
+                .dispatch(frame_system::RawOrigin::Signed(group.anonymous_account.clone()).into());
+            Self::deposit_event(Event::DepositedAsGroup(sender, group_id, result.is_ok()));
+
+            Ok(Some(T::WeightInfo::as_group(proposal_len as u32)).into())
+        }
+
         /// Add a new proposal to either be voted on or executed directly.
         ///
         /// Requires the sender to be member.
@@ -572,6 +597,7 @@ pub mod pallet {
                     no_votes,
                     result.is_ok(),
                 ));
+
                 <Proposals<T>>::remove(group_id, proposal_id);
                 ProposalHashes::<T>::mutate(group_id, |proposals| {
                     proposals.retain(|h| h != &proposal_hash)
