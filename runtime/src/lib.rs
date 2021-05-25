@@ -671,7 +671,7 @@ parameter_types! {
 impl groups::Config for Runtime {
     // type Origin = Origin;
     type Proposal = Call;
-    type GroupId = u32;
+    type GroupId = primitives::GroupId;
     type ProposalId = u32;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
@@ -968,6 +968,17 @@ impl_runtime_apis! {
 //         Contracts::rent_projection(address)
 //     }
 // }
+
+    // Here we implement our custom runtime API.
+    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId> for Runtime {
+        fn member_of(account:AccountId) -> Vec<GroupId>  {
+            // This Runtime API calls into a specific pallet. Calling a pallet is a common
+            // design pattern. You can see most other APIs in this file do the same.
+            // It is also possible to write your logic right here in the runtime
+            // amalgamator file
+            Groups::member_of(account)
+        }
+    }
 
 
 

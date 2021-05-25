@@ -695,6 +695,19 @@ pub mod pallet {
     }
 
     impl<T: Config> Module<T> {
+        // -- rpc api functions --
+        pub fn member_of(account: T::AccountId) -> Vec<T::GroupId> {
+            let mut groups_ids = Vec::new();
+
+            <Groups<T>>::iter().for_each(|(group_id, group)| {
+                if group.unwrap().members.contains(&account) {
+                    groups_ids.push(group_id)
+                }
+            });
+
+            groups_ids
+        }
+
         // -- private functions --
 
         fn get_next_group_id() -> Result<T::GroupId, Error<T>> {

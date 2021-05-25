@@ -35,7 +35,7 @@ use std::sync::Arc;
 use grandpa::{
     FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
-use runtime::primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use runtime::primitives::{AccountId, Balance, Block, BlockNumber, GroupId, Hash, Index};
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
@@ -124,6 +124,7 @@ where
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BabeApi<Block>,
     C::Api: BlockBuilder<Block>,
+    C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId>,
     P: TransactionPool + 'static,
     SC: SelectChain<Block> + 'static,
     B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -133,6 +134,7 @@ where
     use substrate_frame_rpc_system::{FullSystem, SystemApi};
 
     let mut io = jsonrpc_core::IoHandler::default();
+
     let FullDeps {
         client,
         pool,
@@ -142,6 +144,11 @@ where
         babe,
         grandpa,
     } = deps;
+
+    // Add a silly RPC that returns constant values
+    io.extend_with(crate::groups_rpc::GroupsApi::to_delegate(
+        crate::groups_rpc::Groups::new(client.clone()),
+    ));
 
     let BabeDeps {
         keystore,

@@ -56,6 +56,8 @@ groups = {package = "pallet-groups", path = "../pallets/groups", default-feature
 identity = {package = "pallet-identity", path = "../pallets/identity", default-features = false}
 provenance = {package = "pallet-provenance", path = "../pallets/provenance", default-features = false}
 
+groups-runtime-api = {path = "../pallets/groups-runtime-api", default-features = false}
+
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"
 
@@ -104,5 +106,6 @@ std = [
   "asset-registry/std",
   "audits/std",
   "groups/std",
+  "groups-runtime-api/std",
   "provenance/std",
 ] # "indices/std",

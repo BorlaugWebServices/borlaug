@@ -184,6 +184,7 @@ pub struct NewFullBase {
 }
 
 /// Creates a full service from the configuration.
+
 pub fn new_full_base(
     mut config: Configuration,
     with_startup_data: impl FnOnce(
@@ -380,6 +381,7 @@ pub fn new_full_base(
 }
 
 /// Builds a new service for a full client.
+
 pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
     new_full_base(config, |_, _| ()).map(|NewFullBase { task_manager, .. }| task_manager)
 }
@@ -502,6 +504,7 @@ pub fn new_light_base(
 }
 
 /// Builds a new service for a light client.
+
 pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
     new_light_base(config).map(|(task_manager, _, _, _, _, _)| task_manager)
 }
