@@ -61,6 +61,7 @@ impl SubstrateCli for Cli {
                 )
             }
             "dev" => Box::new(chain_spec::development_config()),
+            "borlaug_aztec" => Box::new(chain_spec::aztec_config()),
             path => Box::new(chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),

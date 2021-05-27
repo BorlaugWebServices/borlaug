@@ -20,7 +20,6 @@ sp-inherents = {version = "3.0.0", default-features = false}
 sp-offchain = {version = "3.0.0", default-features = false}
 sp-runtime = {version = "3.0.0", default-features = false}
 sp-session = {version = "3.0.0", default-features = false}
-sp-staking = {version = "3.0.0", default-features = false}
 sp-std = {version = "3.0.0", default-features = false}
 sp-transaction-pool = {version = "3.0.0", default-features = false}
 sp-version = {version = "3.0.0", default-features = false}
@@ -29,25 +28,30 @@ frame-executive = {version = "3.0.0", default-features = false}
 frame-support = {version = "3.0.0", default-features = false}
 frame-system = {version = "3.0.0", default-features = false}
 frame-system-rpc-runtime-api = {version = "3.0.0", default-features = false}
+
 pallet-authorship = {version = "3.0.0", default-features = false}
-pallet-babe = {version = "3.0.0", default-features = false}
 pallet-balances = {version = "3.0.0", default-features = false}
 pallet-collective = {version = "3.0.0", default-features = false}
-# pallet-contracts = {version = "3.0.0", default-features = false}
-pallet-authority-discovery = {version = "3.0.0", default-features = false}
-pallet-grandpa = {version = "3.0.0", default-features = false}
-pallet-im-online = {version = "3.0.0", default-features = false}
 pallet-membership = {version = "3.0.0", default-features = false}
-pallet-offences = {version = "3.0.0", default-features = false}
 pallet-randomness-collective-flip = {version = "3.0.0", default-features = false}
-pallet-session = {version = "3.0.0", default-features = false}
-pallet-staking = {version = "3.0.0", default-features = false}
-pallet-staking-reward-curve = {version = "3.0.0", default-features = false}
 pallet-sudo = {version = "3.0.0", default-features = false}
 pallet-timestamp = {version = "3.0.0", default-features = false}
 pallet-transaction-payment = {version = "3.0.0", default-features = false}
 pallet-transaction-payment-rpc-runtime-api = {version = "3.0.0", default-features = false}
 pallet-treasury = {version = "3.0.0", default-features = false}
+
+# grandpa/babe dependencies
+
+sp-staking = {version = "3.0.0", default-features = false, optional = true}
+
+pallet-authority-discovery = {version = "3.0.0", default-features = false, optional = true}
+pallet-babe = {version = "3.0.0", default-features = false, optional = true}
+pallet-grandpa = {version = "3.0.0", default-features = false, optional = true}
+pallet-im-online = {version = "3.0.0", default-features = false, optional = true}
+pallet-offences = {version = "3.0.0", default-features = false, optional = true}
+pallet-session = {version = "3.0.0", default-features = false, optional = true}
+pallet-staking = {version = "3.0.0", default-features = false, optional = true}
+pallet-staking-reward-curve = {version = "3.0.0", default-features = false, optional = true}
 
 # Borlaug Dependencies
 asset-registry = {package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false}
@@ -87,8 +91,6 @@ std = [
   "frame-executive/std",
   "pallet-balances/std",
   "pallet-authorship/std",
-  "pallet-babe/std",
-  "pallet-grandpa/std",
   "pallet-im-online/std",
   "pallet-collective/std",
   "pallet-membership/std",
@@ -99,7 +101,7 @@ std = [
   "pallet-session/std",
   "pallet-staking/std",
   "pallet-transaction-payment-rpc-runtime-api/std",
-  "pallet-treasury/std", # "pallet-contracts/std",
+  "pallet-treasury/std",
   "pallet-offences/std",
   "frame-system-rpc-runtime-api/std",
   "identity/std",
@@ -108,4 +110,19 @@ std = [
   "groups/std",
   "groups-runtime-api/std",
   "provenance/std",
-] # "indices/std",
+  "pallet-babe/std",
+  "pallet-grandpa/std",
+]
+
+grandpa_babe = [
+  "pallet-babe",
+  "pallet-grandpa",
+  "pallet-session",
+  "pallet-offences",
+  "sp-staking",
+  "pallet-staking",
+  "pallet-staking-reward-curve",
+  "pallet-im-online",
+  "pallet-authority-discovery",
+]
+instant_seal = []

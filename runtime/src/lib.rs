@@ -20,7 +20,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 
 pub mod constants;
 pub mod primitives;
-
+#[cfg(feature = "grandpa_babe")]
 use codec::Encode;
 pub use frame_support::{
     construct_runtime, debug, parameter_types,
@@ -38,34 +38,45 @@ use frame_system::{
     EnsureOneOf, EnsureRoot,
 };
 pub use pallet_balances::Call as BalancesCall;
-use pallet_grandpa::fg_primitives;
-use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+#[cfg(feature = "grandpa_babe")]
+use pallet_grandpa::{
+    fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
+};
+#[cfg(feature = "grandpa_babe")]
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+#[cfg(feature = "grandpa_babe")]
 use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+#[cfg(feature = "grandpa_babe")]
+use primitives::Moment;
 pub use primitives::*;
 pub use primitives::{AccountId, Signature};
-use primitives::{Balance, BlockNumber, Hash, Index, Moment};
+use primitives::{Balance, BlockNumber, Hash, Index};
 use sp_api::impl_runtime_apis;
+#[cfg(feature = "grandpa_babe")]
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+#[cfg(feature = "grandpa_babe")]
+use sp_core::u32_trait::_4;
 use sp_core::{
     crypto::KeyTypeId,
-    u32_trait::{_1, _2, _3, _4, _5},
+    u32_trait::{_1, _2, _3, _5},
     OpaqueMetadata,
 };
 use sp_inherents::{CheckInherentsResult, InherentData};
+#[cfg(feature = "grandpa_babe")]
+use sp_runtime::traits::{self, OpaqueKeys, SaturatedConversion};
 use sp_runtime::{
-    create_runtime_str,
-    curve::PiecewiseLinear,
-    generic, impl_opaque_keys,
-    traits::{
-        self, AccountIdLookup, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys,
-        SaturatedConversion,
-    },
-    transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
+    create_runtime_str, generic,
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
+    transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, ModuleId, Perbill, Percent, Permill,
+};
+#[cfg(feature = "grandpa_babe")]
+use sp_runtime::{
+    curve::PiecewiseLinear, impl_opaque_keys, traits::NumberFor,
+    transaction_validity::TransactionPriority,
 };
 use sp_std::prelude::*;
 use sp_version::RuntimeVersion;
@@ -79,6 +90,7 @@ use sp_version::NativeVersion;
 
 /// Constant values used within the runtime.
 use constants::{currency::*, time::*};
+#[cfg(feature = "grandpa_babe")]
 use sp_runtime::generic::Era;
 
 /// Digest item type.
@@ -98,6 +110,7 @@ pub mod opaque {
     /// Opaque block identifier type.
     pub type BlockId = generic::BlockId<Block>;
 
+    #[cfg(feature = "grandpa_babe")]
     impl_opaque_keys! {
         pub struct SessionKeys {
             pub babe: Babe,
@@ -232,14 +245,14 @@ impl frame_system::Config for Runtime {
     /// This is used as an identifier of the chain. 42 is the generic substrate prefix.
     type SS58Prefix = SS58Prefix;
 }
-
+#[cfg(feature = "grandpa_babe")]
 parameter_types! {
     pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
     pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
     pub const ReportLongevity: u64 =
         BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl pallet_babe::Config for Runtime {
     type EpochDuration = EpochDuration;
     type ExpectedBlockTime = ExpectedBlockTime;
@@ -262,14 +275,14 @@ impl pallet_babe::Config for Runtime {
 
     type WeightInfo = ();
 }
-
+#[cfg(feature = "grandpa_babe")]
 parameter_types! {
     pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
     pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
     /// We prioritize im-online heartbeats over election solution submission.
     pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
     Call: From<LocalCall>,
@@ -316,12 +329,12 @@ where
         Some((call, (address, signature, extra)))
     }
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl frame_system::offchain::SigningTypes for Runtime {
     type Public = <Signature as traits::Verify>::Signer;
     type Signature = Signature;
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
 where
     Call: From<C>,
@@ -329,7 +342,7 @@ where
     type Extrinsic = UncheckedExtrinsic;
     type OverarchingCall = Call;
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl pallet_grandpa::Config for Runtime {
     type Event = Event;
     type Call = Call;
@@ -360,7 +373,10 @@ parameter_types! {
 impl pallet_timestamp::Config for Runtime {
     /// A timestamp: milliseconds since the unix epoch.
     type Moment = u64;
+    #[cfg(feature = "grandpa_babe")]
     type OnTimestampSet = Babe;
+    #[cfg(feature = "instant_seal")]
+    type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
     type WeightInfo = ();
 }
@@ -370,10 +386,16 @@ parameter_types! {
 }
 
 impl pallet_authorship::Config for Runtime {
+    #[cfg(feature = "grandpa_babe")]
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
+    #[cfg(feature = "instant_seal")]
+    type FindAuthor = ();
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
+    #[cfg(feature = "grandpa_babe")]
     type EventHandler = (Staking, ImOnline);
+    #[cfg(feature = "instant_seal")]
+    type EventHandler = ();
 }
 
 parameter_types! {
@@ -441,7 +463,7 @@ impl pallet_sudo::Config for Runtime {
 //     type MembershipInitialized = GeneralCouncil;
 //     type MembershipChanged = GeneralCouncil;
 // }
-
+#[cfg(feature = "grandpa_babe")]
 impl_opaque_keys! {
     pub struct SessionKeys {
         pub grandpa: Grandpa,
@@ -450,11 +472,11 @@ impl_opaque_keys! {
         pub authority_discovery: AuthorityDiscovery,
     }
 }
-
+#[cfg(feature = "grandpa_babe")]
 parameter_types! {
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl pallet_session::Config for Runtime {
     type Event = Event;
     type ValidatorId = <Self as frame_system::Config>::AccountId;
@@ -467,12 +489,12 @@ impl pallet_session::Config for Runtime {
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl pallet_session::historical::Config for Runtime {
     type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
     type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
 }
-
+#[cfg(feature = "grandpa_babe")]
 pallet_staking_reward_curve::build! {
     const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
         min_inflation: 0_025_000,
@@ -483,7 +505,7 @@ pallet_staking_reward_curve::build! {
         test_precision: 0_005_000,
     );
 }
-
+#[cfg(feature = "grandpa_babe")]
 parameter_types! {
     pub const SessionsPerEra: sp_staking::SessionIndex = 6;
     pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
@@ -499,7 +521,7 @@ parameter_types! {
         .max_extrinsic.expect("Normal extrinsics have a weight limit configured; qed")
         .saturating_sub(BlockExecutionWeight::get());
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl pallet_staking::Config for Runtime {
     type Currency = Balances;
     type UnixTime = Timestamp;
@@ -620,13 +642,16 @@ impl pallet_treasury::Config for Runtime {
 //     type DeletionQueueDepth = DeletionQueueDepth;
 //     type DeletionWeightLimit = DeletionWeightLimit;
 // }
-
+#[cfg(feature = "grandpa_babe")]
 impl pallet_im_online::Config for Runtime {
     type AuthorityId = ImOnlineId;
     type Event = Event;
     type ValidatorSet = Historical;
     type SessionDuration = SessionDuration;
+    #[cfg(feature = "grandpa_babe")]
     type ReportUnresponsiveness = Offences;
+    #[cfg(feature = "instant_seal")]
+    type ReportUnresponsiveness = ();
     type UnsignedPriority = ImOnlineUnsignedPriority;
     type WeightInfo = pallet_im_online::weights::SubstrateWeight<Runtime>;
 }
@@ -635,14 +660,14 @@ parameter_types! {
     pub OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) *
         RuntimeBlockWeights::get().max_block;
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl pallet_offences::Config for Runtime {
     type Event = Event;
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
     type OnOffenceHandler = Staking;
     type WeightSoftLimit = OffencesWeightSoftLimit;
 }
-
+#[cfg(feature = "grandpa_babe")]
 impl pallet_authority_discovery::Config for Runtime {}
 
 parameter_types! {
@@ -706,7 +731,7 @@ impl provenance::Config for Runtime {
     type SequenceId = u32;
     type Event = Event;
 }
-
+#[cfg(feature = "grandpa_babe")]
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
@@ -716,12 +741,15 @@ construct_runtime!(
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+
         Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
         Historical: pallet_session_historical::{Module},
         Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
+
         Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned},
+
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
@@ -730,6 +758,45 @@ construct_runtime!(
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
         ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
         AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
+
+        // Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>},
+
+        // // Governance
+        // GeneralCouncil: collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        // GeneralCouncilMembership: membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>},
+
+        // BWS Modules
+
+        Groups: groups::{Module, Call, Storage,  Event<T>},
+        Identity: identity::{Module, Call, Storage, Event<T>},
+        AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
+        Audits: audits::{Module, Call, Storage, Event<T>},
+        Provenance: provenance::{Module, Call, Storage, Event<T>},
+    }
+);
+#[cfg(feature = "instant_seal")]
+construct_runtime!(
+    pub enum Runtime where
+        Block = Block,
+        NodeBlock = primitives::Block,
+        UncheckedExtrinsic = UncheckedExtrinsic
+    {
+        System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+
+
+
+        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+        Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
+
+        TransactionPayment: pallet_transaction_payment::{Module, Storage},
+        Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+        Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+
+        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
+
+
 
         // Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>},
 
@@ -834,13 +901,14 @@ impl_runtime_apis! {
         }
     }
 
+
     impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
         fn offchain_worker(header: &<Block as BlockT>::Header) {
             Executive::offchain_worker(header)
         }
     }
 
-
+    #[cfg(feature = "grandpa_babe")]
     impl fg_primitives::GrandpaApi<Block> for Runtime {
         fn grandpa_authorities() -> GrandpaAuthorityList {
             Grandpa::grandpa_authorities()
@@ -872,7 +940,7 @@ impl_runtime_apis! {
                 .map(fg_primitives::OpaqueKeyOwnershipProof::new)
         }
     }
-
+    #[cfg(feature = "grandpa_babe")]
     impl sp_consensus_babe::BabeApi<Block> for Runtime {
         fn configuration() -> sp_consensus_babe::BabeGenesisConfiguration {
             // The choice of `c` parameter (where `1 - c` represents the
@@ -925,7 +993,7 @@ impl_runtime_apis! {
             )
         }
     }
-
+    #[cfg(feature = "grandpa_babe")]
     impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
         fn authorities() -> Vec<AuthorityDiscoveryId> {
             AuthorityDiscovery::authorities()
@@ -991,16 +1059,34 @@ impl_runtime_apis! {
         }
     }
 
-    impl sp_session::SessionKeys<Block> for Runtime {
-        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-            opaque::SessionKeys::generate(seed)
-        }
 
+    impl sp_session::SessionKeys<Block> for Runtime {
+        #[allow(unused_variables)]
+        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
+            #[cfg(feature = "grandpa_babe")]
+            {
+                opaque::SessionKeys::generate(seed)
+            }
+            #[cfg(feature = "instant_seal")]
+            {
+            Vec::new()
+            }
+        }
+        #[allow(unused_variables)]
         fn decode_session_keys(
             encoded: Vec<u8>,
         ) -> Option<Vec<(Vec<u8>, KeyTypeId)>> {
+            #[cfg(feature = "grandpa_babe")]
+            {
             opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
-        }
+            }
+            #[cfg(feature = "instant_seal")]
+            {
+            None
+            }
+    }
+
+
     }
 
 

@@ -62,6 +62,7 @@ sp-finality-grandpa = {version = "3.0.0", optional = true}
 sp-inherents = "3.0.0"
 sp-keystore = "0.9.0"
 sp-runtime = "3.0.0"
+sp-timestamp = {version = "3.0.0", optional = true}
 sp-transaction-pool = "3.0.0"
 structopt = "0.3.17"
 substrate-frame-rpc-system = "3.0.0"
@@ -73,7 +74,7 @@ pallet-im-online = {version = "3.0.0", default-features = false}
 frame-benchmarking = "3.0.0"
 frame-benchmarking-cli = "3.0.0"
 
-runtime = {package = "borlaug-runtime", path = "runtime"}
+runtime = {package = "borlaug-runtime", path = "runtime", optional = true}
 
 groups-runtime-api = {path = "pallets/groups-runtime-api"}
 
@@ -86,8 +87,19 @@ exclude = ["runtime/wasm"]
 members = ["runtime", "pallets/*"]
 
 [features]
-default = ["grandpa_babe"]
+default = []
 # use grandpa / babe consensus (chain must not be stopped)
-grandpa_babe = ["sp-consensus-babe", "sp-finality-grandpa", "sc-consensus-babe-rpc", "sc-consensus-babe", "sc-finality-grandpa-rpc"]
+grandpa_babe = [
+  "sp-consensus-babe",
+  "sp-finality-grandpa",
+  "sc-consensus-babe-rpc",
+  "sc-consensus-babe",
+  "sc-finality-grandpa-rpc",
+  "runtime/grandpa_babe",
+]
 # use instant seal consensus - useful for development, but not to be used in production
-instant_seal = ["sc-consensus-manual-seal"]
+instant_seal = [
+  "sc-consensus-manual-seal",
+  "sp-timestamp",
+  "runtime/instant_seal",
+]
