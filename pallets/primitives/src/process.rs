@@ -3,19 +3,19 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Sequence {
+pub struct Process {
     pub name: Vec<u8>,
-    pub status: SequenceStatus,
+    pub status: ProcessStatus,
 }
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub enum SequenceStatus {
+pub enum ProcessStatus {
     InProgress,
     Completed,
 }
 
-impl Default for SequenceStatus {
+impl Default for ProcessStatus {
     fn default() -> Self {
-        SequenceStatus::InProgress
+        ProcessStatus::InProgress
     }
 }

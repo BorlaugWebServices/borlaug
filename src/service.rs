@@ -116,7 +116,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
     let prometheus_registry = config.prometheus_registry().cloned();
 
     // Channel for the rpc handler to communicate with the authorship task.
-    let (command_sink, commands_stream) = futures::channel::mpsc::channel(1000);
+    let (command_sink, _commands_stream) = futures::channel::mpsc::channel(1000);
 
     let rpc_extensions_builder = {
         let client = client.clone();

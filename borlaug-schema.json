@@ -8,9 +8,9 @@
   "RegistryId": "u32",
   "AssetId": "u32",
   "LeaseId": "u32",
-  "TemplateId": "u32",
-  "TemplateStepIndex": "u8",
-  "SequenceId": "u32",
+  "DefinitionId": "u32",
+  "DefinitionStepIndex": "u8",
+  "ProcessId": "u32",
   "Did": {
     "id": "[u8; 32]"
   },
@@ -138,24 +138,24 @@
     "name": "Vec<u8>",
     "fact": "Fact"
   },
-  "Sequence": {
+  "Process": {
     "name": "Vec<u8>",
-    "status": "SequenceStatus"
+    "status": "ProcessStatus"
   },
-  "SequenceStatus": {
+  "ProcessStatus": {
     "_enum": [
       "InProgress",
       "Completed"
     ]
   },
-  "SequenceStep": {
+  "ProcessStep": {
     "attested_by": "Did",
     "attributes": "Vec<Attribute>"
   },
-  "Template": {
+  "Definition": {
     "name": "Vec<u8>"
   },
-  "TemplateStep": {
+  "DefinitionStep": {
     "name": "Vec<u8>"
   },
   "GroupId": "u32",

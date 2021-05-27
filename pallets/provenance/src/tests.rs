@@ -3,7 +3,7 @@ use super::*;
 use crate::mock::*;
 use frame_support::assert_ok;
 use primitives::{
-    attestor::Attestor, attribute::Attribute, fact::Fact, template_step::TemplateStep,
+    attestor::Attestor, attribute::Attribute, definition_step::DefinitionStep, fact::Fact,
 };
 
 #[test]
@@ -31,7 +31,7 @@ fn remove_registry_should_work() {
 }
 
 #[test]
-fn create_template_should_work() {
+fn create_definition_should_work() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -46,13 +46,13 @@ fn create_template_should_work() {
         let dids = Identity::dids(&1);
         let attestor_did_1 = dids[0];
 
-        // 1 creates a template in the registry
-        assert_ok!(Provenance::create_template(
+        // 1 creates a definition in the registry
+        assert_ok!(Provenance::create_definition(
             Origin::signed(1),
             1u32,
             b"Test".to_vec(),
             vec![(
-                TemplateStep {
+                DefinitionStep {
                     name: b"Test".to_vec(),
                 },
                 vec![Attestor {
@@ -61,13 +61,13 @@ fn create_template_should_work() {
                 }]
             )]
         ));
-        // verify template was created
-        assert_eq!(Templates::<Test>::contains_key(1u32, 1u32), true);
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
     });
 }
 
 #[test]
-fn remove_template_should_work() {
+fn remove_definition_should_work() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -82,13 +82,13 @@ fn remove_template_should_work() {
         let dids = Identity::dids(&1);
         let attestor_did_1 = dids[0];
 
-        // 1 creates a template in the registry
-        assert_ok!(Provenance::create_template(
+        // 1 creates a definition in the registry
+        assert_ok!(Provenance::create_definition(
             Origin::signed(1),
             1u32,
             b"Test".to_vec(),
             vec![(
-                TemplateStep {
+                DefinitionStep {
                     name: b"Test".to_vec(),
                 },
                 vec![Attestor {
@@ -97,17 +97,17 @@ fn remove_template_should_work() {
                 }]
             )]
         ));
-        // verify template was created
-        assert_eq!(Templates::<Test>::contains_key(1u32, 1u32), true);
-        // remove template
-        assert_ok!(Provenance::remove_template(Origin::signed(1), 1u32, 1u32));
-        // verify template was removed
-        assert_eq!(Templates::<Test>::contains_key(1u32, 1u32), false);
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
+        // remove definition
+        assert_ok!(Provenance::remove_definition(Origin::signed(1), 1u32, 1u32));
+        // verify definition was removed
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), false);
     });
 }
 
 #[test]
-fn update_template_step_should_work() {
+fn update_definition_step_should_work() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -122,13 +122,13 @@ fn update_template_step_should_work() {
         let dids = Identity::dids(&1);
         let attestor_did_1 = dids[0];
 
-        // 1 creates a template in the registry
-        assert_ok!(Provenance::create_template(
+        // 1 creates a definition in the registry
+        assert_ok!(Provenance::create_definition(
             Origin::signed(1),
             1u32,
             b"Test".to_vec(),
             vec![(
-                TemplateStep {
+                DefinitionStep {
                     name: b"Test".to_vec(),
                 },
                 vec![Attestor {
@@ -137,16 +137,16 @@ fn update_template_step_should_work() {
                 }]
             )]
         ));
-        // verify template was created
-        assert_eq!(Templates::<Test>::contains_key(1u32, 1u32), true);
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(Origin::signed(1), None));
         let dids = Identity::dids(&1);
         let attestor_did_2 = dids[1];
 
-        // update template step
-        assert_ok!(Provenance::update_template_step(
+        // update definition step
+        assert_ok!(Provenance::update_definition_step(
             Origin::signed(1),
             1u32,
             1u32,
@@ -174,7 +174,7 @@ fn update_template_step_should_work() {
 }
 
 #[test]
-fn create_sequence_should_work() {
+fn create_process_should_work() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -189,13 +189,13 @@ fn create_sequence_should_work() {
         let dids = Identity::dids(&1);
         let attestor_did_1 = dids[0];
 
-        // 1 creates a template in the registry
-        assert_ok!(Provenance::create_template(
+        // 1 creates a definition in the registry
+        assert_ok!(Provenance::create_definition(
             Origin::signed(1),
             1u32,
             b"Test".to_vec(),
             vec![(
-                TemplateStep {
+                DefinitionStep {
                     name: b"Test".to_vec(),
                 },
                 vec![Attestor {
@@ -204,24 +204,24 @@ fn create_sequence_should_work() {
                 }]
             )]
         ));
-        // verify template was created
-        assert_eq!(Templates::<Test>::contains_key(1u32, 1u32), true);
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
-        // 1 creates a sequence
-        assert_ok!(Provenance::create_sequence(
+        // 1 creates a process
+        assert_ok!(Provenance::create_process(
             Origin::signed(1),
             attestor_did_1,
             1u32,
             1u32,
             b"Test".to_vec()
         ));
-        // verify sequence was created
-        assert_eq!(Sequences::<Test>::contains_key((1u32, 1u32), 1u32), true);
+        // verify process was created
+        assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1u32), true);
     });
 }
 
 #[test]
-fn remove_sequence_should_work() {
+fn remove_process_should_work() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -236,13 +236,13 @@ fn remove_sequence_should_work() {
         let dids = Identity::dids(&1);
         let attestor_did_1 = dids[0];
 
-        // 1 creates a template in the registry
-        assert_ok!(Provenance::create_template(
+        // 1 creates a definition in the registry
+        assert_ok!(Provenance::create_definition(
             Origin::signed(1),
             1u32,
             b"Test".to_vec(),
             vec![(
-                TemplateStep {
+                DefinitionStep {
                     name: b"Test".to_vec(),
                 },
                 vec![Attestor {
@@ -251,33 +251,33 @@ fn remove_sequence_should_work() {
                 }]
             )]
         ));
-        // verify template was created
-        assert_eq!(Templates::<Test>::contains_key(1u32, 1u32), true);
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
-        // 1 creates a sequence
-        assert_ok!(Provenance::create_sequence(
+        // 1 creates a process
+        assert_ok!(Provenance::create_process(
             Origin::signed(1),
             attestor_did_1,
             1u32,
             1u32,
             b"Test".to_vec()
         ));
-        // verify sequence was created
-        assert_eq!(Sequences::<Test>::contains_key((1u32, 1u32), 1u32), true);
-        // 1 creates a sequence
-        assert_ok!(Provenance::remove_sequence(
+        // verify process was created
+        assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1u32), true);
+        // 1 creates a process
+        assert_ok!(Provenance::remove_process(
             Origin::signed(1),
             1u32,
             1u32,
             1u32
         ));
-        // verify sequence was removed
-        assert_eq!(Sequences::<Test>::contains_key((1u32, 1u32), 1u32), false);
+        // verify process was removed
+        assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1u32), false);
     });
 }
 
 #[test]
-fn create_sequence_step_should_work() {
+fn create_process_step_should_work() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -292,13 +292,13 @@ fn create_sequence_step_should_work() {
         let dids = Identity::dids(&1);
         let attestor_did_1 = dids[0];
 
-        // 1 creates a template in the registry
-        assert_ok!(Provenance::create_template(
+        // 1 creates a definition in the registry
+        assert_ok!(Provenance::create_definition(
             Origin::signed(1),
             1u32,
             b"Test".to_vec(),
             vec![(
-                TemplateStep {
+                DefinitionStep {
                     name: b"Test".to_vec(),
                 },
                 vec![Attestor {
@@ -307,22 +307,22 @@ fn create_sequence_step_should_work() {
                 }]
             )]
         ));
-        // verify template was created
-        assert_eq!(Templates::<Test>::contains_key(1u32, 1u32), true);
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
-        // 1 creates a sequence
-        assert_ok!(Provenance::create_sequence(
+        // 1 creates a process
+        assert_ok!(Provenance::create_process(
             Origin::signed(1),
             attestor_did_1,
             1u32,
             1u32,
             b"Test".to_vec()
         ));
-        // verify sequence was created
-        assert_eq!(Sequences::<Test>::contains_key((1u32, 1u32), 1u32), true);
+        // verify process was created
+        assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1u32), true);
 
-        // 1 creates a sequence step
-        assert_ok!(Provenance::create_sequence_step(
+        // 1 creates a process step
+        assert_ok!(Provenance::create_process_step(
             Origin::signed(1),
             attestor_did_1,
             1u32,
@@ -335,9 +335,9 @@ fn create_sequence_step_should_work() {
             }]
         ));
 
-        // verify sequence step was created
+        // verify process step was created
         assert_eq!(
-            SequenceSteps::<Test>::contains_key((1u32, 1u32, 1u32), 0),
+            ProcessSteps::<Test>::contains_key((1u32, 1u32, 1u32), 0),
             true
         );
     });

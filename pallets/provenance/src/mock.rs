@@ -75,8 +75,8 @@ impl identity::Config for Test {
 
 impl pallet_provenance::Config for Test {
     type RegistryId = u32;
-    type TemplateId = u32;
-    type SequenceId = u32;
+    type DefinitionId = u32;
+    type ProcessId = u32;
     type Event = Event;
 }
 

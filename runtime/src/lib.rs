@@ -727,8 +727,8 @@ impl audits::Config for Runtime {
 
 impl provenance::Config for Runtime {
     type RegistryId = u32;
-    type TemplateId = u32;
-    type SequenceId = u32;
+    type DefinitionId = u32;
+    type ProcessId = u32;
     type Event = Event;
 }
 #[cfg(feature = "grandpa_babe")]

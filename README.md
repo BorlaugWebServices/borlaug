@@ -15,9 +15,15 @@ Build project
 ```bash
 git clone git@github.com:BorlaugWebServices/borlaug.git
 cd borlaug
-cargo build --release
 ```
-
+Use instant seal (for development)
+```bash
+cargo build --release --features instant_seal
+```
+Use grandpa/babe (for production). Note that with babe, stopping the chain for any length of time will cause errors.
+```bash
+cargo build --release --features grandpa_babe
+```
 #### Run
 Run node in "development" mode
 ```bash

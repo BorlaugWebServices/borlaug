@@ -28,11 +28,11 @@ pub mod pallet {
     use primitives::{
         attestor::Attestor,
         attribute::Attribute,
+        definition::Definition,
+        definition_step::DefinitionStep,
         did::Did,
-        sequence::{Sequence, SequenceStatus},
-        sequence_step::SequenceStep,
-        template::Template,
-        template_step::TemplateStep,
+        process::{Process, ProcessStatus},
+        process_step::ProcessStep,
     };
     // #[cfg(not(feature = "std"))]
     // use sp_io::hashing::blake2_256;
@@ -45,17 +45,17 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         type RegistryId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
-        type TemplateId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
-        type SequenceId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        type DefinitionId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        type ProcessId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
     }
 
-    pub type TemplateStepIndex = u8;
+    pub type DefinitionStepIndex = u8;
 
     #[pallet::event]
     #[pallet::metadata(
         T::RegistryId = "RegistryId",
-        T::TemplateId = "TemplateId",
-        T::SequenceId = "SequenceId"
+        T::DefinitionId = "DefinitionId",
+        T::ProcessId = "ProcessId"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -63,24 +63,24 @@ pub mod pallet {
         RegistryCreated(T::RegistryId),
         /// A Registry was Removed (RegistryId)
         RegistryRemoved(T::RegistryId),
-        /// A new Template was created (RegistryId)
-        TemplateCreated(T::RegistryId, T::TemplateId),
-        /// A Template was Removed (RegistryId,TemplateId)
-        TemplateRemoved(T::RegistryId, T::TemplateId),
-        /// A TemplateStep was Removed (RegistryId,TemplateId,TemplateStepIndex)
-        TemplateStepUpdated(T::RegistryId, T::TemplateId, TemplateStepIndex),
-        /// A new Sequence was created (RegistryId,TemplateId,SequenceId)
-        SequenceCreated(T::RegistryId, T::TemplateId, T::SequenceId),
-        /// A Sequence was Removed (RegistryId,TemplateId,SequenceId)
-        SequenceUpdated(T::RegistryId, T::TemplateId, T::SequenceId),
-        /// A Sequence was Removed (RegistryId,TemplateId,SequenceId)
-        SequenceRemoved(T::RegistryId, T::TemplateId, T::SequenceId),
-        /// A new SequenceStep was created (RegistryId,TemplateId,SequenceId,TemplateStepIndex)
-        SequenceStepCreated(
+        /// A new Definition was created (RegistryId)
+        DefinitionCreated(T::RegistryId, T::DefinitionId),
+        /// A Definition was Removed (RegistryId,DefinitionId)
+        DefinitionRemoved(T::RegistryId, T::DefinitionId),
+        /// A DefinitionStep was Removed (RegistryId,DefinitionId,DefinitionStepIndex)
+        DefinitionStepUpdated(T::RegistryId, T::DefinitionId, DefinitionStepIndex),
+        /// A new Process was created (RegistryId,DefinitionId,ProcessId)
+        ProcessCreated(T::RegistryId, T::DefinitionId, T::ProcessId),
+        /// A Process was Removed (RegistryId,DefinitionId,ProcessId)
+        ProcessUpdated(T::RegistryId, T::DefinitionId, T::ProcessId),
+        /// A Process was Removed (RegistryId,DefinitionId,ProcessId)
+        ProcessRemoved(T::RegistryId, T::DefinitionId, T::ProcessId),
+        /// A new ProcessStep was created (RegistryId,DefinitionId,ProcessId,DefinitionStepIndex)
+        ProcessStepCreated(
             T::RegistryId,
-            T::TemplateId,
-            T::SequenceId,
-            TemplateStepIndex,
+            T::DefinitionId,
+            T::ProcessId,
+            DefinitionStepIndex,
         ),
     }
 
@@ -94,7 +94,7 @@ pub mod pallet {
         NotFound,
         /// Cannot delete non-empty registry
         NotEmpty,
-        /// Is not an attestor for the necessary template step
+        /// Is not an attestor for the necessary definition step
         NotAttestor,
         /// Id out of bounds
         NoIdAvailable,
@@ -110,11 +110,11 @@ pub mod pallet {
         1u32.into()
     }
     #[pallet::type_value]
-    pub fn TemplateIdDefault<T: Config>() -> T::TemplateId {
+    pub fn DefinitionIdDefault<T: Config>() -> T::DefinitionId {
         1u32.into()
     }
     #[pallet::type_value]
-    pub fn SequenceIdDefault<T: Config>() -> T::SequenceId {
+    pub fn ProcessIdDefault<T: Config>() -> T::ProcessId {
         1u32.into()
     }
 
@@ -127,7 +127,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn registries)]
-    /// An account can have multiple Regitries of process templates
+    /// An account can have multiple Regitries of process definitions
     /// (T::AccountId,T::RegistryId) => T::RegistryId
     pub(super) type Registries<T: Config> = StorageDoubleMap<
         _,
@@ -140,41 +140,41 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
-    #[pallet::getter(fn templates)]
-    /// A Registry can have multiple process Templates
-    /// (T::RegistryId,T::TemplateId) => Template
-    pub(super) type Templates<T: Config> = StorageDoubleMap<
+    #[pallet::getter(fn definitions)]
+    /// A Registry can have multiple process Definitions
+    /// (T::RegistryId,T::DefinitionId) => Definition
+    pub(super) type Definitions<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::RegistryId,
         Blake2_128Concat,
-        T::TemplateId,
-        Template,
+        T::DefinitionId,
+        Definition,
         ValueQuery,
     >;
 
     #[pallet::storage]
-    #[pallet::getter(fn template_steps)]
+    #[pallet::getter(fn definition_steps)]
     /// A Process has multiple steps
-    /// (T::RegistryId,T::TemplateId), u8 => TemplateStep
-    pub(super) type TemplateSteps<T: Config> = StorageDoubleMap<
+    /// (T::RegistryId,T::DefinitionId), u8 => DefinitionStep
+    pub(super) type DefinitionSteps<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
-        (T::RegistryId, T::TemplateId),
+        (T::RegistryId, T::DefinitionId),
         Blake2_128Concat,
-        TemplateStepIndex,
-        TemplateStep,
+        DefinitionStepIndex,
+        DefinitionStep,
         ValueQuery,
     >;
 
     #[pallet::storage]
     #[pallet::getter(fn attestors)]
-    /// A Template step may have multiple attestors
-    /// ((T::RegistryId,T::TemplateId,TemplateStepIndex),Did)=> Attestor
+    /// A Definition step may have multiple attestors
+    /// ((T::RegistryId,T::DefinitionId,DefinitionStepIndex),Did)=> Attestor
     pub(super) type Attestors<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
-        (T::RegistryId, T::TemplateId, TemplateStepIndex),
+        (T::RegistryId, T::DefinitionId, DefinitionStepIndex),
         Blake2_128Concat,
         Did,
         Attestor,
@@ -182,30 +182,30 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
-    #[pallet::getter(fn sequences)]
-    /// A process Template can have multiple process Sequences
-    /// (T::RegistryId,T::TemplateId), T::SequenceId => T::SequenceId
-    pub(super) type Sequences<T: Config> = StorageDoubleMap<
+    #[pallet::getter(fn processes)]
+    /// A process Definition can have multiple process Processes
+    /// (T::RegistryId,T::DefinitionId), T::ProcessId => T::ProcessId
+    pub(super) type Processes<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
-        (T::RegistryId, T::TemplateId),
+        (T::RegistryId, T::DefinitionId),
         Blake2_128Concat,
-        T::SequenceId,
-        Sequence,
+        T::ProcessId,
+        Process,
         ValueQuery,
     >;
 
     #[pallet::storage]
-    #[pallet::getter(fn sequence_steps)]
-    /// A Sequence can have multiple process Sequence Steps
-    /// (T::RegistryId,T::TemplateId,T::SequenceId), TemplateStepIndex => SequenceStep
-    pub(super) type SequenceSteps<T: Config> = StorageDoubleMap<
+    #[pallet::getter(fn process_steps)]
+    /// A Process can have multiple process Process Steps
+    /// (T::RegistryId,T::DefinitionId,T::ProcessId), DefinitionStepIndex => ProcessStep
+    pub(super) type ProcessSteps<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
-        (T::RegistryId, T::TemplateId, T::SequenceId),
+        (T::RegistryId, T::DefinitionId, T::ProcessId),
         Blake2_128Concat,
-        TemplateStepIndex,
-        SequenceStep,
+        DefinitionStepIndex,
+        ProcessStep,
         ValueQuery,
     >;
 
@@ -216,16 +216,16 @@ pub mod pallet {
         StorageValue<_, T::RegistryId, ValueQuery, RegistryIdDefault<T>>;
 
     #[pallet::storage]
-    #[pallet::getter(fn next_template_id)]
-    /// The next available template index
-    pub(super) type NextTemplateId<T: Config> =
-        StorageValue<_, T::TemplateId, ValueQuery, TemplateIdDefault<T>>;
+    #[pallet::getter(fn next_definition_id)]
+    /// The next available definition index
+    pub(super) type NextDefinitionId<T: Config> =
+        StorageValue<_, T::DefinitionId, ValueQuery, DefinitionIdDefault<T>>;
 
     #[pallet::storage]
-    #[pallet::getter(fn next_sequence_id)]
-    /// The next available sequence index
-    pub(super) type NextSequenceId<T: Config> =
-        StorageValue<_, T::SequenceId, ValueQuery, SequenceIdDefault<T>>;
+    #[pallet::getter(fn next_process_id)]
+    /// The next available process index
+    pub(super) type NextProcessId<T: Config> =
+        StorageValue<_, T::ProcessId, ValueQuery, ProcessIdDefault<T>>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -265,11 +265,11 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            <Templates<T>>::drain_prefix(registry_id).for_each(|(template_id, _template)| {
-                <TemplateSteps<T>>::remove_prefix((registry_id, template_id));
-                <Sequences<T>>::drain_prefix((registry_id, template_id)).for_each(
-                    |(sequence_id, _sequence)| {
-                        <SequenceSteps<T>>::remove_prefix((registry_id, template_id, sequence_id));
+            <Definitions<T>>::drain_prefix(registry_id).for_each(|(definition_id, _definition)| {
+                <DefinitionSteps<T>>::remove_prefix((registry_id, definition_id));
+                <Processes<T>>::drain_prefix((registry_id, definition_id)).for_each(
+                    |(process_id, _process)| {
+                        <ProcessSteps<T>>::remove_prefix((registry_id, definition_id, process_id));
                     },
                 );
             });
@@ -280,15 +280,15 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Add a new template
+        /// Add a new definition
         ///
         /// Arguments: none
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn create_template(
+        pub fn create_definition(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
             name: Vec<u8>,
-            template_steps: Vec<(TemplateStep, Vec<Attestor>)>,
+            definition_steps: Vec<(DefinitionStep, Vec<Attestor>)>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -298,45 +298,45 @@ pub mod pallet {
             );
 
             //TODO: make a helper function or macro
-            let template_id = Self::next_template_id();
-            let next_id = template_id
+            let definition_id = Self::next_definition_id();
+            let next_id = definition_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
-            <NextTemplateId<T>>::put(next_id);
+            <NextDefinitionId<T>>::put(next_id);
 
-            let template = Template { name };
+            let definition = Definition { name };
 
-            <Templates<T>>::insert(registry_id, template_id, template);
+            <Definitions<T>>::insert(registry_id, definition_id, definition);
 
-            template_steps.into_iter().enumerate().for_each(
-                |(template_step_index, (template_step, attestors))| {
-                    let template_step_index =
-                        UniqueSaturatedInto::<TemplateStepIndex>::unique_saturated_into(
-                            template_step_index,
+            definition_steps.into_iter().enumerate().for_each(
+                |(definition_step_index, (definition_step, attestors))| {
+                    let definition_step_index =
+                        UniqueSaturatedInto::<DefinitionStepIndex>::unique_saturated_into(
+                            definition_step_index,
                         );
-                    Self::create_template_step(
+                    Self::create_definition_step(
                         registry_id,
-                        template_id,
-                        template_step_index,
-                        template_step,
+                        definition_id,
+                        definition_step_index,
+                        definition_step,
                         attestors,
                     );
                 },
             );
 
-            Self::deposit_event(Event::TemplateCreated(registry_id, template_id));
+            Self::deposit_event(Event::DefinitionCreated(registry_id, definition_id));
             Ok(().into())
         }
 
-        /// Remove a template
+        /// Remove a definition
         ///
         /// Arguments:
-        /// - `template_id` Template to be removed
+        /// - `definition_id` Definition to be removed
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn remove_template(
+        pub fn remove_definition(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
+            definition_id: T::DefinitionId,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -345,32 +345,32 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
             ensure!(
-                Self::is_template_in_registry(registry_id, template_id),
+                Self::is_definition_in_registry(registry_id, definition_id),
                 Error::<T>::NotFound
             );
 
-            <TemplateSteps<T>>::remove_prefix((registry_id, template_id));
-            <Sequences<T>>::drain_prefix((registry_id, template_id)).for_each(
-                |(sequence_id, _sequence)| {
-                    <SequenceSteps<T>>::remove_prefix((registry_id, template_id, sequence_id));
+            <DefinitionSteps<T>>::remove_prefix((registry_id, definition_id));
+            <Processes<T>>::drain_prefix((registry_id, definition_id)).for_each(
+                |(process_id, _process)| {
+                    <ProcessSteps<T>>::remove_prefix((registry_id, definition_id, process_id));
                 },
             );
 
-            <Templates<T>>::remove(registry_id, template_id);
+            <Definitions<T>>::remove(registry_id, definition_id);
 
-            Self::deposit_event(Event::TemplateRemoved(registry_id, template_id));
+            Self::deposit_event(Event::DefinitionRemoved(registry_id, definition_id));
             Ok(().into())
         }
 
-        /// Update a new template_step
+        /// Update a new definition_step
         ///
         /// Arguments: none
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn update_template_step(
+        pub fn update_definition_step(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
-            template_step_index: TemplateStepIndex,
+            definition_id: T::DefinitionId,
+            definition_step_index: DefinitionStepIndex,
             add_attestors: Option<Vec<Attestor>>,
             remove_attestors: Option<Vec<Attestor>>,
         ) -> DispatchResultWithPostInfo {
@@ -381,14 +381,18 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
             ensure!(
-                Self::is_template_step_in_template(registry_id, template_id, template_step_index),
+                Self::is_definition_step_in_definition(
+                    registry_id,
+                    definition_id,
+                    definition_step_index
+                ),
                 Error::<T>::NotFound
             );
 
             if let Some(remove_attestors) = remove_attestors {
                 remove_attestors.iter().for_each(|attestor| {
                     <Attestors<T>>::remove(
-                        (registry_id, template_id, template_step_index),
+                        (registry_id, definition_id, definition_step_index),
                         attestor.did,
                     );
                 });
@@ -397,30 +401,30 @@ pub mod pallet {
             if let Some(add_attestors) = add_attestors {
                 add_attestors.iter().for_each(|attestor| {
                     <Attestors<T>>::insert(
-                        (registry_id, template_id, template_step_index),
+                        (registry_id, definition_id, definition_step_index),
                         attestor.did,
                         attestor,
                     );
                 });
             }
 
-            Self::deposit_event(Event::TemplateStepUpdated(
+            Self::deposit_event(Event::DefinitionStepUpdated(
                 registry_id,
-                template_id,
-                template_step_index,
+                definition_id,
+                definition_step_index,
             ));
             Ok(().into())
         }
 
-        /// Add a new sequence
+        /// Add a new process
         ///
         /// Arguments: none
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn create_sequence(
+        pub fn create_process(
             origin: OriginFor<T>,
             did: Did,
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
+            definition_id: T::DefinitionId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let _sender = ensure_signed(origin)?;
@@ -428,62 +432,62 @@ pub mod pallet {
             //TODO: verify sender owns DID
 
             ensure!(
-                Self::is_template_in_registry(registry_id, template_id),
+                Self::is_definition_in_registry(registry_id, definition_id),
                 Error::<T>::NotFound
             );
             ensure!(
-                Self::is_attestor_template_step(registry_id, template_id, 0, did),
+                Self::is_attestor_definition_step(registry_id, definition_id, 0, did),
                 Error::<T>::NotAttestor
             );
 
             //TODO: make a helper function or macro
-            let sequence_id = Self::next_sequence_id();
-            let next_id = sequence_id
+            let process_id = Self::next_process_id();
+            let next_id = process_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
-            <NextSequenceId<T>>::put(next_id);
+            <NextProcessId<T>>::put(next_id);
 
-            let sequence = Sequence {
+            let process = Process {
                 name,
-                status: SequenceStatus::InProgress,
+                status: ProcessStatus::InProgress,
             };
 
-            <Sequences<T>>::insert((registry_id, template_id), sequence_id, sequence);
+            <Processes<T>>::insert((registry_id, definition_id), process_id, process);
 
-            Self::deposit_event(Event::SequenceCreated(
+            Self::deposit_event(Event::ProcessCreated(
                 registry_id,
-                template_id,
-                sequence_id,
+                definition_id,
+                process_id,
             ));
             Ok(().into())
         }
 
-        /// Update a sequence
+        /// Update a process
         ///
         /// Arguments: none
         // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        // pub fn update_sequence(origin,registry_id: T::RegistryId,template_id: T::TemplateId,sequence_id: T::SequenceId) {
+        // pub fn update_process(origin,registry_id: T::RegistryId,definition_id: T::DefinitionId,process_id: T::ProcessId) {
         //     let sender = ensure_signed(origin)?;
 
         //     //TODO:is attestor
-        //     ensure!(Self::is_sequence_in_template(registry_id,template_id,sequence_id), Error::<T>::NotFound);
+        //     ensure!(Self::is_process_in_definition(registry_id,definition_id,process_id), Error::<T>::NotFound);
 
         //     //TODO:update
 
-        //     Self::deposit_event(Event::SequenceUpdated(registry_id,template_id,sequence_id));
+        //     Self::deposit_event(Event::ProcessUpdated(registry_id,definition_id,process_id));
         //    Ok(().into())
         // }
 
-        /// Remove a sequence
+        /// Remove a process
         ///
         /// Arguments:
-        /// - `sequence_id` Sequence to be removed
+        /// - `process_id` Process to be removed
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn remove_sequence(
+        pub fn remove_process(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
-            sequence_id: T::SequenceId,
+            definition_id: T::DefinitionId,
+            process_id: T::ProcessId,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -492,32 +496,32 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
             ensure!(
-                Self::is_sequence_in_template(registry_id, template_id, sequence_id),
+                Self::is_process_in_definition(registry_id, definition_id, process_id),
                 Error::<T>::NotFound
             );
 
-            <Sequences<T>>::remove((registry_id, template_id), sequence_id);
-            <SequenceSteps<T>>::remove_prefix((registry_id, template_id, sequence_id));
+            <Processes<T>>::remove((registry_id, definition_id), process_id);
+            <ProcessSteps<T>>::remove_prefix((registry_id, definition_id, process_id));
 
-            Self::deposit_event(Event::SequenceRemoved(
+            Self::deposit_event(Event::ProcessRemoved(
                 registry_id,
-                template_id,
-                sequence_id,
+                definition_id,
+                process_id,
             ));
             Ok(().into())
         }
 
-        /// Add a new sequence_step
+        /// Add a new process_step
         ///
         /// Arguments: none
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn create_sequence_step(
+        pub fn create_process_step(
             origin: OriginFor<T>,
             did: Did,
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
-            template_step_index: TemplateStepIndex,
-            sequence_id: T::SequenceId,
+            definition_id: T::DefinitionId,
+            definition_step_index: DefinitionStepIndex,
+            process_id: T::ProcessId,
             attributes: Vec<Attribute>,
         ) -> DispatchResultWithPostInfo {
             let _sender = ensure_signed(origin)?;
@@ -525,73 +529,78 @@ pub mod pallet {
             //TODO: verify sender owns DID
 
             ensure!(
-                Self::is_sequence_in_template(registry_id, template_id, sequence_id),
+                Self::is_process_in_definition(registry_id, definition_id, process_id),
                 Error::<T>::NotFound
             );
-            //this also ensures template step exists
+            //this also ensures definition step exists
             ensure!(
-                Self::is_attestor_template_step(registry_id, template_id, template_step_index, did),
+                Self::is_attestor_definition_step(
+                    registry_id,
+                    definition_id,
+                    definition_step_index,
+                    did
+                ),
                 Error::<T>::NotAttestor
             );
             ensure!(
-                Self::is_valid_template_step(
+                Self::is_valid_definition_step(
                     registry_id,
-                    template_id,
-                    template_step_index,
-                    sequence_id
+                    definition_id,
+                    definition_step_index,
+                    process_id
                 ),
                 Error::<T>::NotAttestor
             );
 
-            let sequence_step = SequenceStep {
+            let process_step = ProcessStep {
                 attested_by: did,
                 attributes,
             };
 
-            <SequenceSteps<T>>::insert(
-                (registry_id, template_id, sequence_id),
-                template_step_index,
-                sequence_step,
+            <ProcessSteps<T>>::insert(
+                (registry_id, definition_id, process_id),
+                definition_step_index,
+                process_step,
             );
 
-            Self::deposit_event(Event::SequenceStepCreated(
+            Self::deposit_event(Event::ProcessStepCreated(
                 registry_id,
-                template_id,
-                sequence_id,
-                template_step_index,
+                definition_id,
+                process_id,
+                definition_step_index,
             ));
             Ok(().into())
         }
 
-        // /// Update a new sequence_step
+        // /// Update a new process_step
         // ///
         // /// Arguments: none
         // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        // pub fn update_sequence_step(origin,registry_id: T::RegistryId,template_id: T::TemplateId,sequence_id:T::SequenceId,sequence_step_id: T::SequenceStepId) {
+        // pub fn update_process_step(origin,registry_id: T::RegistryId,definition_id: T::DefinitionId,process_id:T::ProcessId,process_step_id: T::ProcessStepId) {
         //     let sender = ensure_signed(origin)?;
 
         //     //TODO:is attestor
-        //     ensure!(Self::is_sequence_step_in_sequence(registry_id,template_id,sequence_id,sequence_step_id), Error::<T>::NotFound);
+        //     ensure!(Self::is_process_step_in_process(registry_id,definition_id,process_id,process_step_id), Error::<T>::NotFound);
 
         //     //TODO:update
 
-        //     Self::deposit_event(Event::SequenceStepUpdated(registry_id,template_id,sequence_id,sequence_step_id));
+        //     Self::deposit_event(Event::ProcessStepUpdated(registry_id,definition_id,process_id,process_step_id));
         // }
 
-        // /// Remove a sequence_step
+        // /// Remove a process_step
         // ///
         // /// Arguments:
-        // /// - `sequence_step_id` SequenceStep to be removed
+        // /// - `process_step_id` ProcessStep to be removed
         // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        // pub fn remove_sequence_step(origin, registry_id: T::RegistryId,template_id: T::TemplateId,sequence_id:T::SequenceId,sequence_step_id: T::SequenceStepId) {
+        // pub fn remove_process_step(origin, registry_id: T::RegistryId,definition_id: T::DefinitionId,process_id:T::ProcessId,process_step_id: T::ProcessStepId) {
         //     let sender = ensure_signed(origin)?;
 
         //    //TODO:is attestor
-        //     ensure!(Self::is_sequence_step_in_sequence(registry_id,template_id,sequence_id,sequence_step_id), Error::<T>::NotFound);
+        //     ensure!(Self::is_process_step_in_process(registry_id,definition_id,process_id,process_step_id), Error::<T>::NotFound);
 
-        //     <SequenceSteps<T>>::remove((registry_id, template_id,sequence_id),sequence_step_id);
+        //     <ProcessSteps<T>>::remove((registry_id, definition_id,process_id),process_step_id);
 
-        //     Self::deposit_event(Event::SequenceStepRemoved(registry_id,template_id,sequence_id,sequence_step_id));
+        //     Self::deposit_event(Event::ProcessStepRemoved(registry_id,definition_id,process_id,process_step_id));
         // }
     }
 
@@ -602,82 +611,85 @@ pub mod pallet {
             <Registries<T>>::contains_key(account, registry_id)
         }
 
-        fn is_template_in_registry(registry_id: T::RegistryId, template_id: T::TemplateId) -> bool {
-            <Templates<T>>::contains_key(registry_id, template_id)
+        fn is_definition_in_registry(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+        ) -> bool {
+            <Definitions<T>>::contains_key(registry_id, definition_id)
         }
 
-        fn is_template_step_in_template(
+        fn is_definition_step_in_definition(
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
-            template_step_index: TemplateStepIndex,
+            definition_id: T::DefinitionId,
+            definition_step_index: DefinitionStepIndex,
         ) -> bool {
-            <TemplateSteps<T>>::contains_key((registry_id, template_id), template_step_index)
+            <DefinitionSteps<T>>::contains_key((registry_id, definition_id), definition_step_index)
         }
-        fn is_sequence_in_template(
+        fn is_process_in_definition(
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
-            sequence_id: T::SequenceId,
+            definition_id: T::DefinitionId,
+            process_id: T::ProcessId,
         ) -> bool {
-            <Sequences<T>>::contains_key((registry_id, template_id), sequence_id)
+            <Processes<T>>::contains_key((registry_id, definition_id), process_id)
         }
 
-        // fn is_sequence_step_in_sequence(
+        // fn is_process_step_in_process(
         //     registry_id: T::RegistryId,
-        //     template_id: T::TemplateId,
-        //     sequence_id: T::SequenceId,
-        //     sequence_step_id: TemplateStepIndex,
+        //     definition_id: T::DefinitionId,
+        //     process_id: T::ProcessId,
+        //     process_step_id: DefinitionStepIndex,
         // ) -> bool {
-        //     <SequenceSteps<T>>::contains_key((registry_id, template_id, sequence_id), sequence_step_id)
+        //     <ProcessSteps<T>>::contains_key((registry_id, definition_id, process_id), process_step_id)
         // }
 
-        fn is_attestor_template_step(
+        fn is_attestor_definition_step(
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
-            template_step_index: TemplateStepIndex,
+            definition_id: T::DefinitionId,
+            definition_step_index: DefinitionStepIndex,
             did: Did,
         ) -> bool {
-            <Attestors<T>>::contains_key((registry_id, template_id, template_step_index), did)
+            <Attestors<T>>::contains_key((registry_id, definition_id, definition_step_index), did)
         }
 
-        pub fn create_template_step(
+        pub fn create_definition_step(
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
-            template_step_index: TemplateStepIndex,
-            template_step: TemplateStep,
+            definition_id: T::DefinitionId,
+            definition_step_index: DefinitionStepIndex,
+            definition_step: DefinitionStep,
             attestors: Vec<Attestor>,
         ) {
-            <TemplateSteps<T>>::insert(
-                (registry_id, template_id),
-                template_step_index,
-                template_step,
+            <DefinitionSteps<T>>::insert(
+                (registry_id, definition_id),
+                definition_step_index,
+                definition_step,
             );
 
             attestors.iter().for_each(|attestor| {
                 <Attestors<T>>::insert(
-                    (registry_id, template_id, template_step_index),
+                    (registry_id, definition_id, definition_step_index),
                     attestor.did,
                     attestor,
                 )
             });
         }
-        pub fn is_valid_template_step(
+        pub fn is_valid_definition_step(
             registry_id: T::RegistryId,
-            template_id: T::TemplateId,
-            template_step_index: TemplateStepIndex,
-            sequence_id: T::SequenceId,
+            definition_id: T::DefinitionId,
+            definition_step_index: DefinitionStepIndex,
+            process_id: T::ProcessId,
         ) -> bool {
             //must not already exist
-            if <SequenceSteps<T>>::contains_key(
-                (registry_id, template_id, sequence_id),
-                template_step_index,
+            if <ProcessSteps<T>>::contains_key(
+                (registry_id, definition_id, process_id),
+                definition_step_index,
             ) {
                 return false;
             }
-            template_step_index==0 ||
+            definition_step_index==0 ||
         //previous step must exist
-        <SequenceSteps<T>>::contains_key(
-            (registry_id, template_id, sequence_id),
-            template_step_index - 1,
+        <ProcessSteps<T>>::contains_key(
+            (registry_id, definition_id, process_id),
+            definition_step_index - 1,
         )
         }
     }

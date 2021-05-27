@@ -115,7 +115,7 @@ fn get_endowed_accounts() -> Vec<AccountId> {
     ]
 }
 
-fn create_genesis(root_key: AccountId, mut endowed_accounts: Vec<AccountId>) -> GenesisConfig {
+fn create_genesis(root_key: AccountId, endowed_accounts: Vec<AccountId>) -> GenesisConfig {
     const ENDOWMENT: Balance = 10_000_000 * GRAM;
     GenesisConfig {
         frame_system: Some(SystemConfig {
