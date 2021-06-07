@@ -149,6 +149,10 @@ where
     io.extend_with(crate::groups_rpc::GroupsApi::to_delegate(
         crate::groups_rpc::Groups::new(client.clone()),
     ));
+    // Add the provenance api
+    io.extend_with(crate::provenance_rpc::ProvenanceApi::to_delegate(
+        crate::provenance_rpc::Provenance::new(client.clone()),
+    ));
 
     let BabeDeps {
         keystore,

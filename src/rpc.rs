@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
-use runtime::primitives::{AccountId, Block, GroupId, Hash};
+use runtime::primitives::{AccountId, Block, GroupId, Hash, RegistryId};
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
     EngineCommand,
@@ -34,6 +34,7 @@ where
     C: Send + Sync + 'static,
     C::Api: BlockBuilder<Block>,
     C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId>,
+    C::Api: provenance_runtime_api::ProvenanceApi<Block, AccountId, RegistryId>,
     P: TransactionPool + 'static,
 {
     let mut io = jsonrpc_core::IoHandler::default();
@@ -46,6 +47,10 @@ where
     // Add the groups api
     io.extend_with(crate::groups_rpc::GroupsApi::to_delegate(
         crate::groups_rpc::Groups::new(client.clone()),
+    ));
+    // Add the provenance api
+    io.extend_with(crate::provenance_rpc::ProvenanceApi::to_delegate(
+        crate::provenance_rpc::Provenance::new(client.clone()),
     ));
 
     // The final RPC extension receives commands for the manual seal consensus engine.

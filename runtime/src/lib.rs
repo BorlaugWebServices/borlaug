@@ -694,10 +694,10 @@ parameter_types! {
 }
 
 impl groups::Config for Runtime {
-    // type Origin = Origin;
     type Proposal = Call;
     type GroupId = primitives::GroupId;
     type ProposalId = u32;
+    type Currency = Balances;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
     type MaxMembers = GroupMaxMembers;
@@ -710,7 +710,7 @@ impl identity::Config for Runtime {
 }
 
 impl asset_registry::Config for Runtime {
-    type RegistryId = u32;
+    type RegistryId = primitives::RegistryId;
     type AssetId = u32;
     type LeaseId = u32;
     type Balance = Balance;
@@ -730,6 +730,8 @@ impl provenance::Config for Runtime {
     type DefinitionId = u32;
     type ProcessId = u32;
     type Event = Event;
+    type GroupId = primitives::GroupId;
+    type MembershipSource = Groups;
 }
 #[cfg(feature = "grandpa_babe")]
 construct_runtime!(
@@ -767,7 +769,7 @@ construct_runtime!(
 
         // BWS Modules
 
-        Groups: groups::{Module, Call, Storage,  Event<T>},
+        Groups: groups::{Module, Call, Storage, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},
@@ -1037,17 +1039,21 @@ impl_runtime_apis! {
 //     }
 // }
 
-    // Here we implement our custom runtime API.
+
     impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId> for Runtime {
         fn member_of(account:AccountId) -> Vec<GroupId>  {
-            // This Runtime API calls into a specific pallet. Calling a pallet is a common
-            // design pattern. You can see most other APIs in this file do the same.
-            // It is also possible to write your logic right here in the runtime
-            // amalgamator file
             Groups::member_of(account)
         }
     }
 
+    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId> for Runtime {
+        fn get_registries(account:AccountId) -> Vec<(RegistryId,pallet_primitives::registry::Registry)>  {
+            Provenance::get_registries(account)
+        }
+        fn get_registry(account:AccountId,registry_id:RegistryId) -> pallet_primitives::registry::Registry  {
+            Provenance::get_registry(account,registry_id)
+        }
+    }
 
 
     impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {

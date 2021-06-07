@@ -77,6 +77,9 @@ frame-benchmarking-cli = "3.0.0"
 runtime = {package = "borlaug-runtime", path = "runtime", optional = true}
 
 groups-runtime-api = {path = "pallets/groups-runtime-api"}
+provenance-runtime-api = {path = "pallets/provenance-runtime-api"}
+
+pallet-primitives = {path = "pallets/primitives", default-features = false}
 
 [build-dependencies]
 substrate-build-script-utils = "3.0.0"

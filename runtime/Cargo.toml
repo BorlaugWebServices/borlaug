@@ -57,10 +57,11 @@ pallet-staking-reward-curve = {version = "3.0.0", default-features = false, opti
 asset-registry = {package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false}
 audits = {package = "pallet-audits", path = "../pallets/audits", default-features = false}
 groups = {package = "pallet-groups", path = "../pallets/groups", default-features = false}
-identity = {package = "pallet-identity", path = "../pallets/identity", default-features = false}
-provenance = {package = "pallet-provenance", path = "../pallets/provenance", default-features = false}
-
 groups-runtime-api = {path = "../pallets/groups-runtime-api", default-features = false}
+identity = {package = "pallet-identity", path = "../pallets/identity", default-features = false}
+pallet-primitives = {package = "pallet-primitives", path = "../pallets/primitives", default-features = false}
+provenance = {package = "pallet-provenance", path = "../pallets/provenance", default-features = false}
+provenance-runtime-api = {path = "../pallets/provenance-runtime-api", default-features = false}
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"
@@ -109,6 +110,7 @@ std = [
   "audits/std",
   "groups/std",
   "groups-runtime-api/std",
+  "provenance-runtime-api/std",
   "provenance/std",
   "pallet-babe/std",
   "pallet-grandpa/std",

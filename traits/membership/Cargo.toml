@@ -1,0 +1,13 @@
+[package]
+authors = ["Borlaug Blockchain"]
+description = "A trait that supplies membership for groups of accounts for use in a Substrate runtime"
+edition = "2018"
+name = "membership"
+version = "0.1.0"
+
+[features]
+default = ['std']
+std = []
+
+[dependencies]
+# Substrate packages

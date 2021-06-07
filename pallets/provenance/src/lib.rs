@@ -25,14 +25,15 @@ mod tests;
 pub mod pallet {
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
+    use membership::Membership;
     use primitives::{
-        attestor::Attestor,
         attribute::Attribute,
         definition::Definition,
         definition_step::DefinitionStep,
         did::Did,
         process::{Process, ProcessStatus},
         process_step::ProcessStep,
+        registry::Registry,
     };
     // #[cfg(not(feature = "std"))]
     // use sp_io::hashing::blake2_256;
@@ -47,6 +48,9 @@ pub mod pallet {
         type RegistryId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
         type DefinitionId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
         type ProcessId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+
+        type MembershipSource: Membership<GroupId = Self::GroupId, AccountId = Self::AccountId>;
     }
 
     pub type DefinitionStepIndex = u8;
@@ -55,12 +59,15 @@ pub mod pallet {
     #[pallet::metadata(
         T::RegistryId = "RegistryId",
         T::DefinitionId = "DefinitionId",
-        T::ProcessId = "ProcessId"
+        T::ProcessId = "ProcessId",
+        T::GroupId = "GroupId"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new Registry was created (RegistryId)
         RegistryCreated(T::RegistryId),
+        /// A Registry was Updated (RegistryId)
+        RegistryUpdated(T::RegistryId),
         /// A Registry was Removed (RegistryId)
         RegistryRemoved(T::RegistryId),
         /// A new Definition was created (RegistryId)
@@ -135,7 +142,7 @@ pub mod pallet {
         T::AccountId,
         Blake2_128Concat,
         T::RegistryId,
-        T::RegistryId,
+        Registry,
         ValueQuery,
     >;
 
@@ -163,21 +170,7 @@ pub mod pallet {
         (T::RegistryId, T::DefinitionId),
         Blake2_128Concat,
         DefinitionStepIndex,
-        DefinitionStep,
-        ValueQuery,
-    >;
-
-    #[pallet::storage]
-    #[pallet::getter(fn attestors)]
-    /// A Definition step may have multiple attestors
-    /// ((T::RegistryId,T::DefinitionId,DefinitionStepIndex),Did)=> Attestor
-    pub(super) type Attestors<T: Config> = StorageDoubleMap<
-        _,
-        Blake2_128Concat,
-        (T::RegistryId, T::DefinitionId, DefinitionStepIndex),
-        Blake2_128Concat,
-        Did,
-        Attestor,
+        DefinitionStep<T::GroupId>,
         ValueQuery,
     >;
 
@@ -233,7 +226,7 @@ pub mod pallet {
         ///
         /// Arguments: none
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn create_registry(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn create_registry(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             //TODO: make a helper function or macro
@@ -243,7 +236,29 @@ pub mod pallet {
                 .ok_or(Error::<T>::NoIdAvailable)?;
             <NextRegistryId<T>>::put(next_id);
 
-            <Registries<T>>::insert(&sender, &registry_id, registry_id);
+            <Registries<T>>::insert(&sender, &registry_id, Registry { name });
+
+            Self::deposit_event(Event::RegistryCreated(registry_id));
+            Ok(().into())
+        }
+
+        /// Update the registry
+        ///
+        /// Arguments: none
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn update_registry(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            name: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(
+                Self::is_registry_owner(&sender, registry_id),
+                Error::<T>::NotFound
+            );
+
+            <Registries<T>>::mutate(&sender, &registry_id, |mut registry| registry.name = name);
 
             Self::deposit_event(Event::RegistryCreated(registry_id));
             Ok(().into())
@@ -288,7 +303,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
             name: Vec<u8>,
-            definition_steps: Vec<(DefinitionStep, Vec<Attestor>)>,
+            definition_steps: Vec<DefinitionStep<T::GroupId>>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -297,8 +312,10 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
+            // let definition_id = next_id!(NextDefinitionId);
+
             //TODO: make a helper function or macro
-            let definition_id = Self::next_definition_id();
+            let definition_id = <NextDefinitionId<T>>::get();
             let next_id = definition_id
                 .checked_add(&One::one())
                 .ok_or(Error::<T>::NoIdAvailable)?;
@@ -309,17 +326,15 @@ pub mod pallet {
             <Definitions<T>>::insert(registry_id, definition_id, definition);
 
             definition_steps.into_iter().enumerate().for_each(
-                |(definition_step_index, (definition_step, attestors))| {
+                |(definition_step_index, definition_step)| {
                     let definition_step_index =
                         UniqueSaturatedInto::<DefinitionStepIndex>::unique_saturated_into(
                             definition_step_index,
                         );
-                    Self::create_definition_step(
-                        registry_id,
-                        definition_id,
+                    <DefinitionSteps<T>>::insert(
+                        (registry_id, definition_id),
                         definition_step_index,
                         definition_step,
-                        attestors,
                     );
                 },
             );
@@ -371,8 +386,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             definition_step_index: DefinitionStepIndex,
-            add_attestors: Option<Vec<Attestor>>,
-            remove_attestors: Option<Vec<Attestor>>,
+            name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -389,24 +403,9 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            if let Some(remove_attestors) = remove_attestors {
-                remove_attestors.iter().for_each(|attestor| {
-                    <Attestors<T>>::remove(
-                        (registry_id, definition_id, definition_step_index),
-                        attestor.did,
-                    );
-                });
-            }
+            //TODO: will we allow updating name?
 
-            if let Some(add_attestors) = add_attestors {
-                add_attestors.iter().for_each(|attestor| {
-                    <Attestors<T>>::insert(
-                        (registry_id, definition_id, definition_step_index),
-                        attestor.did,
-                        attestor,
-                    );
-                });
-            }
+            //TODO: can the attestor group be changed?
 
             Self::deposit_event(Event::DefinitionStepUpdated(
                 registry_id,
@@ -422,21 +421,16 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_process(
             origin: OriginFor<T>,
-            did: Did,
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let _sender = ensure_signed(origin)?;
+            let sender = ensure_signed(origin)?;
 
-            //TODO: verify sender owns DID
+            let definition_step = <DefinitionSteps<T>>::get((registry_id, definition_id), 0);
 
             ensure!(
-                Self::is_definition_in_registry(registry_id, definition_id),
-                Error::<T>::NotFound
-            );
-            ensure!(
-                Self::is_attestor_definition_step(registry_id, definition_id, 0, did),
+                T::MembershipSource::is_member(definition_step.group_id, sender),
                 Error::<T>::NotAttestor
             );
 
@@ -524,22 +518,26 @@ pub mod pallet {
             process_id: T::ProcessId,
             attributes: Vec<Attribute>,
         ) -> DispatchResultWithPostInfo {
-            let _sender = ensure_signed(origin)?;
-
-            //TODO: verify sender owns DID
+            let sender = ensure_signed(origin)?;
 
             ensure!(
                 Self::is_process_in_definition(registry_id, definition_id, process_id),
                 Error::<T>::NotFound
             );
-            //this also ensures definition step exists
+
             ensure!(
-                Self::is_attestor_definition_step(
-                    registry_id,
-                    definition_id,
-                    definition_step_index,
-                    did
+                <DefinitionSteps<T>>::contains_key(
+                    (registry_id, definition_id),
+                    definition_step_index
                 ),
+                Error::<T>::NotFound
+            );
+
+            let definition_step =
+                <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index);
+
+            ensure!(
+                T::MembershipSource::is_member(definition_step.group_id, sender),
                 Error::<T>::NotAttestor
             );
             ensure!(
@@ -605,6 +603,19 @@ pub mod pallet {
     }
 
     impl<T: Config> Module<T> {
+        // -- rpc api functions --
+        pub fn get_registries(account: T::AccountId) -> Vec<(T::RegistryId, Registry)> {
+            let mut registries = Vec::new();
+
+            <Registries<T>>::iter_prefix(account)
+                .for_each(|(registry_id, registry)| registries.push((registry_id, registry)));
+
+            registries
+        }
+        pub fn get_registry(account: T::AccountId, registry_id: T::RegistryId) -> Registry {
+            <Registries<T>>::get(account, registry_id)
+        }
+
         // -- private functions --
 
         fn is_registry_owner(account: &T::AccountId, registry_id: T::RegistryId) -> bool {
@@ -642,36 +653,15 @@ pub mod pallet {
         //     <ProcessSteps<T>>::contains_key((registry_id, definition_id, process_id), process_step_id)
         // }
 
-        fn is_attestor_definition_step(
-            registry_id: T::RegistryId,
-            definition_id: T::DefinitionId,
-            definition_step_index: DefinitionStepIndex,
-            did: Did,
-        ) -> bool {
-            <Attestors<T>>::contains_key((registry_id, definition_id, definition_step_index), did)
-        }
+        // fn is_attestor_definition_step(
+        //     registry_id: T::RegistryId,
+        //     definition_id: T::DefinitionId,
+        //     definition_step_index: DefinitionStepIndex,
+        //     did: Did,
+        // ) -> bool {
+        //     <Attestors<T>>::contains_key((registry_id, definition_id, definition_step_index), did)
+        // }
 
-        pub fn create_definition_step(
-            registry_id: T::RegistryId,
-            definition_id: T::DefinitionId,
-            definition_step_index: DefinitionStepIndex,
-            definition_step: DefinitionStep,
-            attestors: Vec<Attestor>,
-        ) {
-            <DefinitionSteps<T>>::insert(
-                (registry_id, definition_id),
-                definition_step_index,
-                definition_step,
-            );
-
-            attestors.iter().for_each(|attestor| {
-                <Attestors<T>>::insert(
-                    (registry_id, definition_id, definition_step_index),
-                    attestor.did,
-                    attestor,
-                )
-            });
-        }
         pub fn is_valid_definition_step(
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
@@ -692,5 +682,15 @@ pub mod pallet {
             definition_step_index - 1,
         )
         }
+    }
+    macro_rules! next_id {
+        ($id:ty) => {{
+            let current_id = <$id<T>>::get();
+            let next_id = current_id
+                .checked_add(&One::one())
+                .ok_or(Error::<T>::NoIdAvailable)?;
+            <$id<T>>::put(next_id);
+            current_id
+        }};
     }
 }

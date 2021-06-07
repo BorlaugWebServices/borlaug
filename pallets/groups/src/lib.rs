@@ -27,10 +27,11 @@ pub mod pallet {
         dispatch::{DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo, Vec},
         ensure,
         pallet_prelude::*,
-        traits::Get,
+        traits::{Currency, ExistenceRequirement::AllowDeath, Get},
         weights::{GetDispatchInfo, Weight},
     };
     use frame_system::{self as system, pallet_prelude::*};
+    use membership::Membership;
     use primitives::group::{Group, Votes};
     use sp_io::hashing::blake2_256;
     use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, Hash, One};
@@ -49,6 +50,8 @@ pub mod pallet {
 
         type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
         type ProposalId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+
+        type Currency: Currency<Self::AccountId>;
 
         /// The outer origin type.
         // type Origin: From<RawOrigin<Self::AccountId>>;
@@ -83,10 +86,10 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A new Group was created (creator,group_id)
-        GroupCreated(T::AccountId, T::GroupId),
-        /// A new SubGroup was created (creator,group_id,parent_group_id)
-        SubGroupCreated(T::AccountId, T::GroupId, T::GroupId),
+        /// A new Group was created (creator,group_id,annonymous_account)
+        GroupCreated(T::AccountId, T::GroupId, T::AccountId),
+        /// A new SubGroup was created (creator,group_id,parent_group_id,annonymous_account)
+        SubGroupCreated(T::AccountId, T::GroupId, T::GroupId, T::AccountId),
         /// A Group was updated (updater,group_id)
         GroupUpdated(T::AccountId, T::GroupId),
         /// A Group was removed (remover,group_id)
@@ -135,6 +138,7 @@ pub mod pallet {
         BadGroup,
         /// Duplicate proposals not allowed
         DuplicateProposal,
+
         /// Group must exist
         GroupMissing,
         /// Proposal must exist
@@ -153,13 +157,22 @@ pub mod pallet {
         WrongProposalWeight,
         /// The given length bound for the proposal was too low.
         WrongProposalLength,
+        /// Group is a SubGroup but should be a Group
+        NotGroup,
         /// Group is not a SubGroup
         NotSubGroup,
         /// User is not admin for group
         NotGroupAdmin,
+        /// User is not the group account (was not correctly called via proposal)
+        NotGroupAccount,
 
         NoIdAvailable,
     }
+
+    // #[pallet::type_value]
+    // pub fn ExistentialDepositRequirement<T: Config>() -> T::Balance {
+    //     1u32.into()
+    // }
 
     #[pallet::type_value]
     pub fn GroupIdDefault<T: Config>() -> T::GroupId {
@@ -271,19 +284,23 @@ pub mod pallet {
 
             let anonymous_account = Self::anonymous_account(&sender, group_id);
 
+            let min = T::Currency::minimum_balance();
+
+            let _ = T::Currency::transfer(&anonymous_account, &sender, min, AllowDeath);
+
             let group = Group {
                 parent: None,
                 name,
                 members,
                 threshold,
                 funding_account: sender.clone(),
-                anonymous_account,
+                anonymous_account: anonymous_account.clone(),
             };
 
             <Groups<T>>::insert(group_id, Some(group));
             <GroupChildren<T>>::insert(group_id, Vec::<T::GroupId>::new());
 
-            Self::deposit_event(Event::GroupCreated(sender, group_id));
+            Self::deposit_event(Event::GroupCreated(sender, group_id, anonymous_account));
 
             Ok(().into())
         }
@@ -324,13 +341,17 @@ pub mod pallet {
 
             let anonymous_account = Self::anonymous_account(&sender, group_id);
 
+            let min = T::Currency::minimum_balance();
+
+            let _ = T::Currency::transfer(&anonymous_account, &sender, min, AllowDeath);
+
             let group = Group {
                 parent: Some(parent_group_id),
                 name,
                 members,
                 threshold,
                 funding_account: admin_group.funding_account,
-                anonymous_account,
+                anonymous_account: anonymous_account.clone(),
             };
 
             <Groups<T>>::insert(group_id, Some(group));
@@ -338,12 +359,17 @@ pub mod pallet {
                 group_children.push(group_id)
             });
 
-            Self::deposit_event(Event::SubGroupCreated(sender, group_id, admin_group_id));
+            Self::deposit_event(Event::SubGroupCreated(
+                sender,
+                group_id,
+                admin_group_id,
+                anonymous_account,
+            ));
 
             Ok(().into())
         }
 
-        /// Update an Group. Parent cannot be changed
+        /// Update an Group. This is for admin groups only. Can only be called via proposal.
         ///
         /// # <weight>
         /// TODO:
@@ -364,7 +390,7 @@ pub mod pallet {
                     Self::groups(admin_group.parent.unwrap()).ok_or(Error::<T>::GroupMissing)?;
             }
             ensure!(
-                admin_group.members.contains(&sender),
+                admin_group.anonymous_account == sender,
                 Error::<T>::NotGroupAdmin
             );
 
@@ -387,7 +413,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Remove a Group. All child groups will also be removed.
+        /// Remove a Group. All child groups will also be removed. Can only be called via proposal.
         ///
         /// # <weight>
         ///TODO:
@@ -398,7 +424,6 @@ pub mod pallet {
             group_id: T::GroupId,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             let mut admin_group = group.clone();
             while admin_group.parent.is_some() {
@@ -406,7 +431,7 @@ pub mod pallet {
                     Self::groups(admin_group.parent.unwrap()).ok_or(Error::<T>::GroupMissing)?;
             }
             ensure!(
-                admin_group.members.contains(&sender),
+                admin_group.anonymous_account == sender,
                 Error::<T>::NotGroupAdmin
             );
 
@@ -710,6 +735,14 @@ pub mod pallet {
 
         // -- private functions --
 
+        pub fn is_member(groupd_id: T::GroupId, account_id: T::AccountId) -> bool {
+            let group = <Groups<T>>::get(groupd_id);
+            if group.is_none() {
+                return false;
+            }
+            group.unwrap().members.contains(&account_id)
+        }
+
         fn get_next_group_id() -> Result<T::GroupId, Error<T>> {
             let group_id = <NextGroupId<T>>::get();
             <NextGroupId<T>>::put(
@@ -766,6 +799,15 @@ pub mod pallet {
                     <Groups<T>>::remove(&child_group_id);
                     <GroupChildren<T>>::remove(&child_group_id);
                 });
+        }
+    }
+
+    impl<T: Config> Membership for Module<T> {
+        type AccountId = T::AccountId;
+        type GroupId = T::GroupId;
+
+        fn is_member(groupd_id: Self::GroupId, account_id: Self::AccountId) -> bool {
+            Self::is_member(groupd_id, account_id)
         }
     }
 }

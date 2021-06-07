@@ -15,9 +15,11 @@ dependencies = [
  "jsonrpc-derive",
  "log",
  "pallet-im-online",
+ "pallet-primitives",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "parking_lot 0.10.2",
+ "provenance-runtime-api",
  "sc-authority-discovery",
  "sc-basic-authorship",
  "sc-chain-spec",
@@ -652,6 +654,7 @@ dependencies = [
  "pallet-im-online",
  "pallet-membership",
  "pallet-offences",
+ "pallet-primitives",
  "pallet-provenance",
  "pallet-randomness-collective-flip",
  "pallet-session",
@@ -663,6 +666,7 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
  "parity-scale-codec",
+ "provenance-runtime-api",
  "serde",
  "sp-api",
  "sp-application-crypto",
@@ -3105,6 +3109,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
+name = "membership"
+version = "0.1.0"
+
+[[package]]
 name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3657,6 +3665,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex-literal",
+ "membership",
+ "pallet-balances",
  "pallet-primitives",
  "pallet-randomness-collective-flip",
  "pallet-timestamp",
@@ -3757,6 +3767,7 @@ dependencies = [
  "chrono",
  "frame-support",
  "frame-system",
+ "membership",
  "pallet-identity",
  "pallet-primitives",
  "pallet-randomness-collective-flip",
@@ -4519,6 +4530,17 @@ checksum = "b518d7cdd93dab1d1122cf07fa9a60771836c668dde9d9e2a139f957f0d9f1bb"
 dependencies = [
  "bytes 1.0.1",
  "prost",
+]
+
+[[package]]
+name = "provenance-runtime-api"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "pallet-primitives",
+ "parity-scale-codec",
+ "serde_json",
+ "sp-api",
 ]
 
 [[package]]

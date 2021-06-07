@@ -2,7 +2,6 @@
 pub mod asset;
 pub mod asset_property;
 pub mod attestation;
-pub mod attestor;
 pub mod attribute;
 pub mod audit;
 pub mod claim;
@@ -18,10 +17,11 @@ pub mod lease_agreement;
 pub mod observation;
 pub mod process;
 pub mod process_step;
+pub mod registry;
 
 pub use self::{
-    asset::*, asset_property::*, attestation::*, attestor::*, attribute::*, audit::*, claim::*,
-    definition::*, definition_step::*, did::*, did_document::*, did_property::*, evidence::*,
-    fact::*, group::*, lease_agreement::*, observation::*, process::*, process_step::*,
+    asset::*, asset_property::*, attestation::*, attribute::*, audit::*, claim::*, definition::*,
+    definition_step::*, did::*, did_document::*, did_property::*, evidence::*, fact::*, group::*,
+    lease_agreement::*, observation::*, process::*, process_step::*, registry::*,
 };
 pub use codec::Encode;
