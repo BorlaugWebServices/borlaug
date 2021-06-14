@@ -130,17 +130,15 @@
     "url": "Option<Vec<u8>>",
     "hash": "Vec<u8>"
   },
-  "Attestor": {
-    "short_name": "Vec<u8>",
-    "did": "Did"
-  },
-  "Attribute": {
-    "name": "Vec<u8>",
-    "fact": "Fact"
-  },
   "Process": {
     "name": "Vec<u8>",
     "status": "ProcessStatus"
+  },
+  "Definition": {
+    "name": "Vec<u8>"
+  },
+  "DefinitionStep": {
+    "name": "Vec<u8>"
   },
   "ProcessStatus": {
     "_enum": [
@@ -149,14 +147,12 @@
     ]
   },
   "ProcessStep": {
-    "attested_by": "Did",
+    "attested_by": "Account",
     "attributes": "Vec<Attribute>"
   },
-  "Definition": {
-    "name": "Vec<u8>"
-  },
-  "DefinitionStep": {
-    "name": "Vec<u8>"
+  "Attribute": {
+    "name": "Vec<u8>",
+    "fact": "Fact"
   },
   "GroupId": "u32",
   "ProposalId": "u32",

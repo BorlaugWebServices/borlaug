@@ -19,7 +19,7 @@ pub enum Fact {
     /// (Year, Month, Day)
     Date(u16, u8, u8),
     /// (Year, Month, Day, Hour, Minute, Second, Time Zone Offset)
-    Iso8601(u8, u8, u8, u8, u8, u8, Vec<u8>),
+    Iso8601(u16, u8, u8, u8, u8, u8, Vec<u8>),
 }
 
 impl Default for Fact {

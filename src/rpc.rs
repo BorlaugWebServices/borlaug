@@ -3,7 +3,10 @@
 use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
-use runtime::primitives::{AccountId, Block, GroupId, Hash, RegistryId};
+use runtime::primitives::{
+    AccountId, Block, DefinitionId, DefinitionStepIndex, GroupId, Hash, MemberCount, ProcessId,
+    RegistryId,
+};
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
     EngineCommand,
@@ -33,8 +36,16 @@ where
     C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
     C: Send + Sync + 'static,
     C::Api: BlockBuilder<Block>,
-    C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId>,
-    C::Api: provenance_runtime_api::ProvenanceApi<Block, AccountId, RegistryId>,
+    C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId, MemberCount>,
+    C::Api: provenance_runtime_api::ProvenanceApi<
+        Block,
+        AccountId,
+        RegistryId,
+        DefinitionId,
+        ProcessId,
+        GroupId,
+        DefinitionStepIndex,
+    >,
     P: TransactionPool + 'static,
 {
     let mut io = jsonrpc_core::IoHandler::default();

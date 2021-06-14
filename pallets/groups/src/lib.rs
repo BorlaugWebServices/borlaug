@@ -24,17 +24,23 @@ pub mod pallet {
 
     use frame_support::{
         codec::{Decode, Encode},
-        dispatch::{DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo, Vec},
+        dispatch::{
+            DispatchError, DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo,
+            Vec,
+        },
         ensure,
         pallet_prelude::*,
         traits::{Currency, ExistenceRequirement::AllowDeath, Get},
         weights::{GetDispatchInfo, Weight},
     };
     use frame_system::{self as system, pallet_prelude::*};
-    use membership::Membership;
+    use group_info::GroupInfo;
     use primitives::group::{Group, Votes};
     use sp_io::hashing::blake2_256;
-    use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, Hash, One};
+    use sp_runtime::{
+        traits::{AtLeast32Bit, CheckedAdd, Hash, One},
+        DispatchResult,
+    };
     use sp_std::{prelude::*, vec};
 
     /// A number of members.
@@ -126,8 +132,8 @@ pub mod pallet {
         Approved(T::GroupId, T::ProposalId, MemberCount, MemberCount, bool),
         /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
         Disapproved(T::GroupId, T::ProposalId, MemberCount, MemberCount),
-        /// A member of an admin group submitted an extrinsic as the group account  (member_account,group_id,success)
-        DepositedAsGroup(T::AccountId, T::GroupId, bool),
+        /// A member of an admin group submitted an extrinsic as the group account  (member_account,group_id,error)
+        DepositedAsGroup(T::AccountId, T::GroupId, Option<DispatchError>),
     }
 
     #[pallet::error]
@@ -203,6 +209,17 @@ pub mod pallet {
     pub(super) type NextProposalId<T: Config> =
         StorageValue<_, T::ProposalId, ValueQuery, ProposalIdDefault<T>>;
 
+    macro_rules! next_id {
+        ($id:ty,$t:ty) => {{
+            let current_id = <$id>::get();
+            let next_id = current_id
+                .checked_add(&One::one())
+                .ok_or(Error::<$t>::NoIdAvailable)?;
+            <$id>::put(next_id);
+            current_id
+        }};
+    }
+
     /// Groups have some properties
     /// GroupId => Group
     #[pallet::storage]
@@ -211,8 +228,8 @@ pub mod pallet {
         _,
         Identity,
         T::GroupId,
-        Option<Group<T::GroupId, T::AccountId, MemberCount>>,
-        ValueQuery,
+        Group<T::GroupId, T::AccountId, MemberCount>,
+        OptionQuery,
     >;
 
     /// Groups may have child groups
@@ -220,7 +237,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn group_children)]
     pub(super) type GroupChildren<T: Config> =
-        StorageMap<_, Identity, T::GroupId, Vec<T::GroupId>, ValueQuery>;
+        StorageMap<_, Identity, T::GroupId, Vec<T::GroupId>, OptionQuery>;
 
     /// Groups may have proposals awaiting approval
     /// GroupId,ProposalId => Option<Proposal>
@@ -232,8 +249,8 @@ pub mod pallet {
         T::GroupId,
         Identity,
         T::ProposalId,
-        Option<<T as Config>::Proposal>,
-        ValueQuery,
+        <T as Config>::Proposal,
+        OptionQuery,
     >;
 
     /// Store vec of proposal hashes by group to ensure uniqueness ie a group may not have two identical proposals at any one time
@@ -241,7 +258,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn proposal_hashes)]
     pub(super) type ProposalHashes<T: Config> =
-        StorageMap<_, Identity, T::GroupId, Vec<T::Hash>, ValueQuery>;
+        StorageMap<_, Identity, T::GroupId, Vec<T::Hash>, OptionQuery>;
 
     /// Votes on a given proposal, if it is ongoing.
     /// GroupId,ProposalId => Option<Votes>
@@ -253,8 +270,8 @@ pub mod pallet {
         T::GroupId,
         Identity,
         T::ProposalId,
-        Option<Votes<T::AccountId, T::ProposalId>>,
-        ValueQuery,
+        Votes<T::AccountId, T::ProposalId>,
+        OptionQuery,
     >;
 
     #[pallet::call]
@@ -280,7 +297,7 @@ pub mod pallet {
                 Error::<T>::BadGroup
             );
 
-            let group_id = Self::get_next_group_id()?;
+            let group_id = next_id!(NextGroupId<T>, T);
 
             let anonymous_account = Self::anonymous_account(&sender, group_id);
 
@@ -297,7 +314,7 @@ pub mod pallet {
                 anonymous_account: anonymous_account.clone(),
             };
 
-            <Groups<T>>::insert(group_id, Some(group));
+            <Groups<T>>::insert(group_id, group);
             <GroupChildren<T>>::insert(group_id, Vec::<T::GroupId>::new());
 
             Self::deposit_event(Event::GroupCreated(sender, group_id, anonymous_account));
@@ -333,11 +350,11 @@ pub mod pallet {
                 admin_group = Self::groups(admin_group_id).ok_or(Error::<T>::GroupMissing)?;
             }
             ensure!(
-                admin_group.members.contains(&sender),
+                admin_group.anonymous_account == sender,
                 Error::<T>::NotGroupAdmin
             );
 
-            let group_id = Self::get_next_group_id()?;
+            let group_id = next_id!(NextGroupId<T>, T);
 
             let anonymous_account = Self::anonymous_account(&sender, group_id);
 
@@ -354,10 +371,17 @@ pub mod pallet {
                 anonymous_account: anonymous_account.clone(),
             };
 
-            <Groups<T>>::insert(group_id, Some(group));
-            <GroupChildren<T>>::mutate(parent_group_id, |group_children| {
-                group_children.push(group_id)
-            });
+            <Groups<T>>::insert(group_id, group);
+            <GroupChildren<T>>::try_mutate_exists(
+                parent_group_id,
+                |maybe_group_children| -> DispatchResult {
+                    let group_children = maybe_group_children
+                        .as_mut()
+                        .ok_or(Error::<T>::GroupMissing)?;
+                    group_children.push(group_id);
+                    Ok(())
+                },
+            )?;
 
             Self::deposit_event(Event::SubGroupCreated(
                 sender,
@@ -438,9 +462,16 @@ pub mod pallet {
             Self::remove_children(group_id);
 
             if let Some(parent_group_id) = group.parent {
-                <GroupChildren<T>>::mutate(parent_group_id, |group_children| {
-                    group_children.retain(|gid| *gid != group_id)
-                });
+                <GroupChildren<T>>::try_mutate_exists(
+                    parent_group_id,
+                    |maybe_group_children| -> DispatchResult {
+                        let group_children = maybe_group_children
+                            .as_mut()
+                            .ok_or(Error::<T>::GroupMissing)?;
+                        group_children.retain(|gid| *gid != group_id);
+                        Ok(())
+                    },
+                )?;
             }
 
             <Groups<T>>::remove(&group_id);
@@ -469,7 +500,13 @@ pub mod pallet {
 
             let result = proposal
                 .dispatch(frame_system::RawOrigin::Signed(group.anonymous_account.clone()).into());
-            Self::deposit_event(Event::DepositedAsGroup(sender, group_id, result.is_ok()));
+
+            let error = match result {
+                Ok(_) => None,
+                Err(err) => Some(err.error),
+            };
+
+            Self::deposit_event(Event::DepositedAsGroup(sender, group_id, error));
 
             Ok(Some(T::WeightInfo::as_group(proposal_len as u32)).into())
         }
@@ -491,18 +528,17 @@ pub mod pallet {
             let proposal_len = proposal.using_encoded(|x| x.len());
             let proposal_hash = T::Hashing::hash_of(&proposal);
             ensure!(
-                !Self::proposal_hashes(group_id).contains(&proposal_hash),
+                <ProposalHashes<T>>::contains_key(group_id),
+                Error::<T>::ProposalMissing
+            );
+            let proposal_hashes = <ProposalHashes<T>>::get(group_id).unwrap();
+            ensure!(
+                !proposal_hashes.contains(&proposal_hash),
                 Error::<T>::DuplicateProposal
             );
-            let proposals_length = Self::proposal_hashes(group_id).len();
+            let proposals_length = proposal_hashes.len();
 
-            //TODO: fix
-            // ensure!(
-            //     proposals_length <= T::MaxProposals::get() as usize,
-            //     Error::<T>::TooManyProposals
-            // );
-
-            let proposal_id = Self::get_next_proposal_id()?;
+            let proposal_id = next_id!(NextProposalId<T>, T);
 
             if group.threshold < 2 {
                 let result = proposal.dispatch(
@@ -520,23 +556,26 @@ pub mod pallet {
                     })
                     .into())
             } else {
-                <ProposalHashes<T>>::try_mutate(
+                <ProposalHashes<T>>::try_mutate_exists(
                     group_id,
-                    |proposals| -> Result<(), DispatchError> {
+                    |maybe_proposals| -> DispatchResult {
+                        let proposals = maybe_proposals
+                            .as_mut()
+                            .ok_or(Error::<T>::ProposalMissing)?;
                         proposals.push(proposal_hash);
                         Ok(())
                     },
                 )?;
                 let active_proposals = proposals_length + 1;
 
-                <Proposals<T>>::insert(group_id, proposal_id, Some(proposal));
+                <Proposals<T>>::insert(group_id, proposal_id, proposal);
 
                 let votes = Votes {
                     proposal_id,
                     ayes: vec![sender.clone()],
                     nays: vec![],
                 };
-                <Voting<T>>::insert(group_id, proposal_id, Some(votes));
+                <Voting<T>>::insert(group_id, proposal_id, votes);
 
                 Self::deposit_event(Event::Proposed(sender, group_id, proposal_id));
 
@@ -606,7 +645,7 @@ pub mod pallet {
                 no_votes,
             ));
 
-            Voting::<T>::insert(group_id, proposal_id, Some(voting));
+            Voting::<T>::insert(group_id, proposal_id, voting);
 
             let seats = group.members.len() as MemberCount;
             let approved = yes_votes >= group.threshold;
@@ -622,11 +661,7 @@ pub mod pallet {
                     no_votes,
                     result.is_ok(),
                 ));
-
-                <Proposals<T>>::remove(group_id, proposal_id);
-                ProposalHashes::<T>::mutate(group_id, |proposals| {
-                    proposals.retain(|h| h != &proposal_hash)
-                });
+                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
             } else if disapproved {
                 Self::deposit_event(Event::Disapproved(
                     group_id,
@@ -634,10 +669,7 @@ pub mod pallet {
                     yes_votes,
                     no_votes,
                 ));
-                <Proposals<T>>::remove(group_id, proposal_id);
-                ProposalHashes::<T>::mutate(group_id, |proposals| {
-                    proposals.retain(|h| h != &proposal_hash)
-                });
+                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
             };
 
             if is_account_voting_first_time {
@@ -697,10 +729,7 @@ pub mod pallet {
                     no_votes,
                     result.is_ok(),
                 ));
-                <Proposals<T>>::remove(group_id, proposal_id);
-                ProposalHashes::<T>::mutate(group_id, |proposals| {
-                    proposals.retain(|h| h != &proposal_hash)
-                });
+                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
             } else {
                 Self::deposit_event(Event::DisapprovedByVeto(
                     sender,
@@ -709,10 +738,7 @@ pub mod pallet {
                     yes_votes,
                     no_votes,
                 ));
-                <Proposals<T>>::remove(group_id, proposal_id);
-                ProposalHashes::<T>::mutate(group_id, |proposals| {
-                    proposals.retain(|h| h != &proposal_hash)
-                });
+                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
             };
 
             Ok(().into())
@@ -725,7 +751,7 @@ pub mod pallet {
             let mut groups_ids = Vec::new();
 
             <Groups<T>>::iter().for_each(|(group_id, group)| {
-                if group.unwrap().members.contains(&account) {
+                if group.members.contains(&account) {
                     groups_ids.push(group_id)
                 }
             });
@@ -733,34 +759,41 @@ pub mod pallet {
             groups_ids
         }
 
+        pub fn get_group(
+            group_id: T::GroupId,
+        ) -> Option<Group<T::GroupId, T::AccountId, MemberCount>> {
+            <Groups<T>>::get(group_id)
+        }
+        pub fn get_sub_groups(
+            group_id: T::GroupId,
+        ) -> Option<Vec<(T::GroupId, Group<T::GroupId, T::AccountId, MemberCount>)>> {
+            let maybe_group_ids = <GroupChildren<T>>::get(group_id);
+            maybe_group_ids.map(|group_ids| {
+                group_ids
+                    .into_iter()
+                    .filter_map(|group_id| {
+                        <Groups<T>>::get(group_id).map(|group| (group_id, group))
+                    })
+                    .collect()
+            })
+        }
+
         // -- private functions --
 
-        pub fn is_member(groupd_id: T::GroupId, account_id: T::AccountId) -> bool {
+        fn is_member(groupd_id: T::GroupId, account_id: &T::AccountId) -> bool {
             let group = <Groups<T>>::get(groupd_id);
             if group.is_none() {
                 return false;
             }
-            group.unwrap().members.contains(&account_id)
+            group.unwrap().members.contains(account_id)
         }
 
-        fn get_next_group_id() -> Result<T::GroupId, Error<T>> {
-            let group_id = <NextGroupId<T>>::get();
-            <NextGroupId<T>>::put(
-                group_id
-                    .checked_add(&One::one())
-                    .ok_or(Error::<T>::NoIdAvailable)?,
-            );
-            Ok(group_id)
-        }
-
-        fn get_next_proposal_id() -> Result<T::ProposalId, Error<T>> {
-            let group_id = <NextProposalId<T>>::get();
-            <NextProposalId<T>>::put(
-                group_id
-                    .checked_add(&One::one())
-                    .ok_or(Error::<T>::NoIdAvailable)?,
-            );
-            Ok(group_id)
+        fn is_group_account(groupd_id: T::GroupId, account_id: &T::AccountId) -> bool {
+            let group = <Groups<T>>::get(groupd_id);
+            if group.is_none() {
+                return false;
+            }
+            group.unwrap().anonymous_account == *account_id
         }
 
         /// Return the weight of a dispatch call result as an `Option`.
@@ -791,23 +824,44 @@ pub mod pallet {
         }
 
         fn remove_children(group_id: T::GroupId) {
-            <GroupChildren<T>>::get(group_id)
-                .into_iter()
-                .for_each(|child_group_id| {
+            <GroupChildren<T>>::get(group_id).map(|group_ids| {
+                group_ids.into_iter().for_each(|child_group_id| {
                     //TODO: should we emit event for every child group?
                     Self::remove_children(child_group_id);
                     <Groups<T>>::remove(&child_group_id);
                     <GroupChildren<T>>::remove(&child_group_id);
-                });
+                })
+            });
+        }
+        fn remove_proposal(
+            group_id: T::GroupId,
+            proposal_id: T::ProposalId,
+            proposal_hash: T::Hash,
+        ) -> DispatchResult {
+            <Proposals<T>>::remove(group_id, proposal_id);
+            <ProposalHashes<T>>::try_mutate_exists(
+                group_id,
+                |maybe_proposals| -> DispatchResult {
+                    let proposals = maybe_proposals
+                        .as_mut()
+                        .ok_or(Error::<T>::ProposalMissing)?;
+                    proposals.retain(|h| h != &proposal_hash);
+                    Ok(())
+                },
+            )?;
+            Ok(())
         }
     }
 
-    impl<T: Config> Membership for Module<T> {
+    impl<T: Config> GroupInfo for Module<T> {
         type AccountId = T::AccountId;
         type GroupId = T::GroupId;
 
-        fn is_member(groupd_id: Self::GroupId, account_id: Self::AccountId) -> bool {
+        fn is_member(groupd_id: Self::GroupId, account_id: &Self::AccountId) -> bool {
             Self::is_member(groupd_id, account_id)
+        }
+        fn is_group_account(groupd_id: Self::GroupId, account_id: &Self::AccountId) -> bool {
+            Self::is_group_account(groupd_id, account_id)
         }
     }
 }

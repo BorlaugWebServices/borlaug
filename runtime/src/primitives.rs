@@ -39,7 +39,12 @@ pub type Hash = sp_core::H256;
 pub type Timestamp = u64;
 
 pub type GroupId = u32;
+pub type ProposalId = u32;
+pub type MemberCount = u32;
 pub type RegistryId = u32;
+pub type DefinitionId = u32;
+pub type DefinitionStepIndex = u8;
+pub type ProcessId = u32;
 
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;

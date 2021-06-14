@@ -25,19 +25,21 @@ mod tests;
 pub mod pallet {
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use membership::Membership;
+    use group_info::GroupInfo;
     use primitives::{
         attribute::Attribute,
-        definition::Definition,
+        definition::{Definition, DefinitionStatus},
         definition_step::DefinitionStep,
-        did::Did,
         process::{Process, ProcessStatus},
         process_step::ProcessStep,
         registry::Registry,
     };
     // #[cfg(not(feature = "std"))]
     // use sp_io::hashing::blake2_256;
-    use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, One, UniqueSaturatedInto};
+    use sp_runtime::{
+        traits::{AtLeast32Bit, CheckedAdd, One, UniqueSaturatedInto},
+        DispatchResult,
+    };
     use sp_std::prelude::*;
 
     #[pallet::config]
@@ -50,7 +52,7 @@ pub mod pallet {
         type ProcessId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
         type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
 
-        type MembershipSource: Membership<GroupId = Self::GroupId, AccountId = Self::AccountId>;
+        type GroupInfoSource: GroupInfo<GroupId = Self::GroupId, AccountId = Self::AccountId>;
     }
 
     pub type DefinitionStepIndex = u8;
@@ -64,26 +66,46 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A new Registry was created (RegistryId)
+        /// A new Registry was created (registry_id)
         RegistryCreated(T::RegistryId),
-        /// A Registry was Updated (RegistryId)
+        /// A Registry was Updated (registry_id)
         RegistryUpdated(T::RegistryId),
-        /// A Registry was Removed (RegistryId)
+        /// A Registry was Removed (registry_id)
         RegistryRemoved(T::RegistryId),
-        /// A new Definition was created (RegistryId)
+        /// A new Definition was created (registry_id, definition_id)
         DefinitionCreated(T::RegistryId, T::DefinitionId),
-        /// A Definition was Removed (RegistryId,DefinitionId)
+        /// A new Definition was updated (registry_id, definition_id)
+        DefinitionUpdated(T::RegistryId, T::DefinitionId),
+        /// A Definition was updated to 'active' state (registry_id, definition_id)
+        DefinitionSetActive(T::RegistryId, T::DefinitionId),
+        /// A Definition was updated to 'inactive' state (registry_id, definition_id)
+        DefinitionSetInactive(T::RegistryId, T::DefinitionId),
+        /// A Definition was Removed (registry_id, definition_id)
         DefinitionRemoved(T::RegistryId, T::DefinitionId),
-        /// A DefinitionStep was Removed (RegistryId,DefinitionId,DefinitionStepIndex)
+        /// A DefinitionStep was Removed (registry_id, definition_id, definition_step_index)
         DefinitionStepUpdated(T::RegistryId, T::DefinitionId, DefinitionStepIndex),
-        /// A new Process was created (RegistryId,DefinitionId,ProcessId)
+        /// A new Process was created (registry_id, definition_id, process_id)
         ProcessCreated(T::RegistryId, T::DefinitionId, T::ProcessId),
-        /// A Process was Removed (RegistryId,DefinitionId,ProcessId)
+        /// A Process was Removed (registry_id, definition_id, process_id)
         ProcessUpdated(T::RegistryId, T::DefinitionId, T::ProcessId),
-        /// A Process was Removed (RegistryId,DefinitionId,ProcessId)
+        /// A Process was Removed (registry_id, definition_id, process_id)
         ProcessRemoved(T::RegistryId, T::DefinitionId, T::ProcessId),
-        /// A new ProcessStep was created (RegistryId,DefinitionId,ProcessId,DefinitionStepIndex)
+        /// A new ProcessStep was created (registry_id, definition_id, process_id, definition_step_index)
         ProcessStepCreated(
+            T::RegistryId,
+            T::DefinitionId,
+            T::ProcessId,
+            DefinitionStepIndex,
+        ),
+        /// A  ProcessStep was updated (registry_id, definition_id, process_id, definition_step_index)
+        ProcessStepUpdated(
+            T::RegistryId,
+            T::DefinitionId,
+            T::ProcessId,
+            DefinitionStepIndex,
+        ),
+        /// A new ProcessStep was attested (registry_id, definition_id, process_id, definition_step_index)
+        ProcessStepAttested(
             T::RegistryId,
             T::DefinitionId,
             T::ProcessId,
@@ -97,6 +119,8 @@ pub mod pallet {
         NoneValue,
         /// Not authorized
         NotAuthorized,
+        /// IncorrectStatus
+        IncorrectStatus,
         /// No id was found (either user is not owner, or entity does not exist)
         NotFound,
         /// Cannot delete non-empty registry
@@ -143,7 +167,7 @@ pub mod pallet {
         Blake2_128Concat,
         T::RegistryId,
         Registry,
-        ValueQuery,
+        OptionQuery,
     >;
 
     #[pallet::storage]
@@ -157,7 +181,7 @@ pub mod pallet {
         Blake2_128Concat,
         T::DefinitionId,
         Definition,
-        ValueQuery,
+        OptionQuery,
     >;
 
     #[pallet::storage]
@@ -171,7 +195,7 @@ pub mod pallet {
         Blake2_128Concat,
         DefinitionStepIndex,
         DefinitionStep<T::GroupId>,
-        ValueQuery,
+        OptionQuery,
     >;
 
     #[pallet::storage]
@@ -185,7 +209,7 @@ pub mod pallet {
         Blake2_128Concat,
         T::ProcessId,
         Process,
-        ValueQuery,
+        OptionQuery,
     >;
 
     #[pallet::storage]
@@ -198,8 +222,8 @@ pub mod pallet {
         (T::RegistryId, T::DefinitionId, T::ProcessId),
         Blake2_128Concat,
         DefinitionStepIndex,
-        ProcessStep,
-        ValueQuery,
+        ProcessStep<T::AccountId>,
+        OptionQuery,
     >;
 
     #[pallet::storage]
@@ -220,6 +244,17 @@ pub mod pallet {
     pub(super) type NextProcessId<T: Config> =
         StorageValue<_, T::ProcessId, ValueQuery, ProcessIdDefault<T>>;
 
+    macro_rules! next_id {
+        ($id:ty,$t:ty) => {{
+            let current_id = <$id>::get();
+            let next_id = current_id
+                .checked_add(&One::one())
+                .ok_or(Error::<$t>::NoIdAvailable)?;
+            <$id>::put(next_id);
+            current_id
+        }};
+    }
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Add a new registry
@@ -229,12 +264,7 @@ pub mod pallet {
         pub fn create_registry(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            //TODO: make a helper function or macro
-            let registry_id = Self::next_registry_id();
-            let next_id = registry_id
-                .checked_add(&One::one())
-                .ok_or(Error::<T>::NoIdAvailable)?;
-            <NextRegistryId<T>>::put(next_id);
+            let registry_id = next_id!(NextRegistryId<T>, T);
 
             <Registries<T>>::insert(&sender, &registry_id, Registry { name });
 
@@ -244,7 +274,7 @@ pub mod pallet {
 
         /// Update the registry
         ///
-        /// Arguments: none
+        /// Arguments:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_registry(
             origin: OriginFor<T>,
@@ -255,10 +285,18 @@ pub mod pallet {
 
             ensure!(
                 Self::is_registry_owner(&sender, registry_id),
-                Error::<T>::NotFound
+                Error::<T>::NotAuthorized
             );
 
-            <Registries<T>>::mutate(&sender, &registry_id, |mut registry| registry.name = name);
+            <Registries<T>>::try_mutate_exists(
+                &sender,
+                &registry_id,
+                |maybe_registry| -> DispatchResult {
+                    let mut registry = maybe_registry.as_mut().ok_or(Error::<T>::NotFound)?;
+                    registry.name = name;
+                    Ok(())
+                },
+            )?;
 
             Self::deposit_event(Event::RegistryCreated(registry_id));
             Ok(().into())
@@ -277,7 +315,7 @@ pub mod pallet {
 
             ensure!(
                 Self::is_registry_owner(&sender, registry_id),
-                Error::<T>::NotFound
+                Error::<T>::NotAuthorized
             );
 
             <Definitions<T>>::drain_prefix(registry_id).for_each(|(definition_id, _definition)| {
@@ -297,7 +335,7 @@ pub mod pallet {
 
         /// Add a new definition
         ///
-        /// Arguments: none
+        /// Arguments:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_definition(
             origin: OriginFor<T>,
@@ -309,19 +347,15 @@ pub mod pallet {
 
             ensure!(
                 Self::is_registry_owner(&sender, registry_id),
-                Error::<T>::NotFound
+                Error::<T>::NotAuthorized
             );
 
-            // let definition_id = next_id!(NextDefinitionId);
+            let definition_id = next_id!(NextDefinitionId<T>, T);
 
-            //TODO: make a helper function or macro
-            let definition_id = <NextDefinitionId<T>>::get();
-            let next_id = definition_id
-                .checked_add(&One::one())
-                .ok_or(Error::<T>::NoIdAvailable)?;
-            <NextDefinitionId<T>>::put(next_id);
-
-            let definition = Definition { name };
+            let definition = Definition {
+                name,
+                status: DefinitionStatus::Creating,
+            };
 
             <Definitions<T>>::insert(registry_id, definition_id, definition);
 
@@ -343,9 +377,130 @@ pub mod pallet {
             Ok(().into())
         }
 
+        /// Update definition - replace name and / or steps. Status must be 'Creating'
+        ///
+        /// Arguments:
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn update_definition(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            name: Option<Vec<u8>>,
+            definition_steps: Option<Vec<DefinitionStep<T::GroupId>>>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(
+                Self::is_registry_owner(&sender, registry_id),
+                Error::<T>::NotAuthorized
+            );
+
+            let definition = <Definitions<T>>::get(registry_id, definition_id);
+            ensure!(definition.is_some(), Error::<T>::NotFound);
+
+            ensure!(
+                definition.unwrap().status == DefinitionStatus::Creating,
+                Error::<T>::IncorrectStatus
+            );
+
+            if let Some(name) = name {
+                <Definitions<T>>::try_mutate_exists(
+                    registry_id,
+                    definition_id,
+                    |maybe_definition| -> DispatchResult {
+                        let mut definition =
+                            maybe_definition.as_mut().ok_or(Error::<T>::NotFound)?;
+                        definition.name = name;
+                        Ok(())
+                    },
+                )?;
+            }
+
+            if let Some(definition_steps) = definition_steps {
+                <DefinitionSteps<T>>::remove_prefix((registry_id, definition_id));
+
+                definition_steps.into_iter().enumerate().for_each(
+                    |(definition_step_index, definition_step)| {
+                        let definition_step_index =
+                            UniqueSaturatedInto::<DefinitionStepIndex>::unique_saturated_into(
+                                definition_step_index,
+                            );
+                        <DefinitionSteps<T>>::insert(
+                            (registry_id, definition_id),
+                            definition_step_index,
+                            definition_step,
+                        );
+                    },
+                );
+            }
+
+            Self::deposit_event(Event::DefinitionUpdated(registry_id, definition_id));
+            Ok(().into())
+        }
+
+        /// Set definition active
+        ///
+        /// Arguments:
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn set_definition_active(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(
+                Self::is_registry_owner(&sender, registry_id),
+                Error::<T>::NotAuthorized
+            );
+
+            <Definitions<T>>::try_mutate_exists(
+                registry_id,
+                definition_id,
+                |maybe_definition| -> DispatchResult {
+                    let mut definition = maybe_definition.as_mut().ok_or(Error::<T>::NotFound)?;
+                    definition.status = DefinitionStatus::Active;
+                    Ok(())
+                },
+            )?;
+
+            Self::deposit_event(Event::DefinitionSetActive(registry_id, definition_id));
+            Ok(().into())
+        }
+        /// Set definition inactive
+        ///
+        /// Arguments:
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn set_definition_inactive(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(
+                Self::is_registry_owner(&sender, registry_id),
+                Error::<T>::NotAuthorized
+            );
+
+            <Definitions<T>>::try_mutate_exists(
+                registry_id,
+                definition_id,
+                |maybe_definition| -> DispatchResult {
+                    let mut definition = maybe_definition.as_mut().ok_or(Error::<T>::NotFound)?;
+                    definition.status = DefinitionStatus::Inactive;
+                    Ok(())
+                },
+            )?;
+
+            Self::deposit_event(Event::DefinitionSetInactive(registry_id, definition_id));
+            Ok(().into())
+        }
+
         /// Remove a definition
         ///
         /// Arguments:
+        /// - `registry_id` Registry the Definition is in
         /// - `definition_id` Definition to be removed
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn remove_definition(
@@ -357,7 +512,7 @@ pub mod pallet {
 
             ensure!(
                 Self::is_registry_owner(&sender, registry_id),
-                Error::<T>::NotFound
+                Error::<T>::NotAuthorized
             );
             ensure!(
                 Self::is_definition_in_registry(registry_id, definition_id),
@@ -379,7 +534,7 @@ pub mod pallet {
 
         /// Update a new definition_step
         ///
-        /// Arguments: none
+        /// Arguments:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_definition_step(
             origin: OriginFor<T>,
@@ -392,7 +547,7 @@ pub mod pallet {
 
             ensure!(
                 Self::is_registry_owner(&sender, registry_id),
-                Error::<T>::NotFound
+                Error::<T>::NotAuthorized
             );
             ensure!(
                 Self::is_definition_step_in_definition(
@@ -403,7 +558,16 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            //TODO: will we allow updating name?
+            <DefinitionSteps<T>>::try_mutate_exists(
+                (registry_id, definition_id),
+                definition_step_index,
+                |maybe_definition_step| -> DispatchResult {
+                    let mut definition_step =
+                        maybe_definition_step.as_mut().ok_or(Error::<T>::NotFound)?;
+                    definition_step.name = name;
+                    Ok(())
+                },
+            )?;
 
             //TODO: can the attestor group be changed?
 
@@ -417,7 +581,7 @@ pub mod pallet {
 
         /// Add a new process
         ///
-        /// Arguments: none
+        /// Arguments:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_process(
             origin: OriginFor<T>,
@@ -427,19 +591,23 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            let definition_step = <DefinitionSteps<T>>::get((registry_id, definition_id), 0);
+            let definition = <Definitions<T>>::get(registry_id, definition_id);
+            ensure!(definition.is_some(), Error::<T>::NotFound);
 
             ensure!(
-                T::MembershipSource::is_member(definition_step.group_id, sender),
+                definition.unwrap().status == DefinitionStatus::Active,
+                Error::<T>::IncorrectStatus
+            );
+
+            let definition_step = <DefinitionSteps<T>>::get((registry_id, definition_id), 0)
+                .ok_or(Error::<T>::NotFound)?;
+
+            ensure!(
+                T::GroupInfoSource::is_group_account(definition_step.group_id, &sender),
                 Error::<T>::NotAttestor
             );
 
-            //TODO: make a helper function or macro
-            let process_id = Self::next_process_id();
-            let next_id = process_id
-                .checked_add(&One::one())
-                .ok_or(Error::<T>::NoIdAvailable)?;
-            <NextProcessId<T>>::put(next_id);
+            let process_id = next_id!(NextProcessId<T>, T);
 
             let process = Process {
                 name,
@@ -447,6 +615,13 @@ pub mod pallet {
             };
 
             <Processes<T>>::insert((registry_id, definition_id), process_id, process);
+
+            let process_step = ProcessStep {
+                attested_by: None,
+                attributes: vec![],
+            };
+
+            <ProcessSteps<T>>::insert((registry_id, definition_id, process_id), 0, process_step);
 
             Self::deposit_event(Event::ProcessCreated(
                 registry_id,
@@ -456,21 +631,46 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Update a process
+        /// Update a process - admin can rename a process
         ///
-        /// Arguments: none
-        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        // pub fn update_process(origin,registry_id: T::RegistryId,definition_id: T::DefinitionId,process_id: T::ProcessId) {
-        //     let sender = ensure_signed(origin)?;
+        /// Arguments:
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn update_process(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            process_id: T::ProcessId,
+            name: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
 
-        //     //TODO:is attestor
-        //     ensure!(Self::is_process_in_definition(registry_id,definition_id,process_id), Error::<T>::NotFound);
+            ensure!(
+                Self::is_registry_owner(&sender, registry_id),
+                Error::<T>::NotAuthorized
+            );
 
-        //     //TODO:update
+            ensure!(
+                Self::is_process_in_definition(registry_id, definition_id, process_id),
+                Error::<T>::NotFound
+            );
 
-        //     Self::deposit_event(Event::ProcessUpdated(registry_id,definition_id,process_id));
-        //    Ok(().into())
-        // }
+            <Processes<T>>::try_mutate_exists(
+                (registry_id, definition_id),
+                process_id,
+                |maybe_process| -> DispatchResult {
+                    let mut process = maybe_process.as_mut().ok_or(Error::<T>::NotFound)?;
+                    process.name = name;
+                    Ok(())
+                },
+            )?;
+
+            Self::deposit_event(Event::ProcessUpdated(
+                registry_id,
+                definition_id,
+                process_id,
+            ));
+            Ok(().into())
+        }
 
         /// Remove a process
         ///
@@ -487,7 +687,7 @@ pub mod pallet {
 
             ensure!(
                 Self::is_registry_owner(&sender, registry_id),
-                Error::<T>::NotFound
+                Error::<T>::NotAuthorized
             );
             ensure!(
                 Self::is_process_in_definition(registry_id, definition_id, process_id),
@@ -505,101 +705,185 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Add a new process_step
+        // /// Add a new process_step
+        // ///
+        // /// Arguments:
+        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        // pub fn create_process_step(
+        //     origin: OriginFor<T>,
+        //     registry_id: T::RegistryId,
+        //     definition_id: T::DefinitionId,
+        //     definition_step_index: DefinitionStepIndex,
+        //     process_id: T::ProcessId,
+        //     attributes: Vec<Attribute>,
+        // ) -> DispatchResultWithPostInfo {
+        //     let sender = ensure_signed(origin)?;
+
+        //     ensure!(
+        //         Self::is_process_in_definition(registry_id, definition_id, process_id),
+        //         Error::<T>::NotFound
+        //     );
+
+        //     ensure!(
+        //         <DefinitionSteps<T>>::contains_key(
+        //             (registry_id, definition_id),
+        //             definition_step_index
+        //         ),
+        //         Error::<T>::NotFound
+        //     );
+
+        //     let definition_step =
+        //         <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)
+        //             .ok_or(Error::<T>::NotFound)?;
+
+        //     ensure!(
+        //         T::GroupInfoSource::is_group_account(definition_step.group_id, &sender),
+        //         Error::<T>::NotAttestor
+        //     );
+        //     ensure!(
+        //         Self::is_valid_definition_step(
+        //             registry_id,
+        //             definition_id,
+        //             definition_step_index,
+        //             process_id
+        //         ),
+        //         Error::<T>::NotAttestor
+        //     );
+
+        //     let process_step = ProcessStep {
+        //         attested_by: None,
+        //         attributes,
+        //     };
+
+        //     <ProcessSteps<T>>::insert(
+        //         (registry_id, definition_id, process_id),
+        //         definition_step_index,
+        //         process_step,
+        //     );
+
+        //     Self::deposit_event(Event::ProcessStepCreated(
+        //         registry_id,
+        //         definition_id,
+        //         process_id,
+        //         definition_step_index,
+        //     ));
+        //     Ok(().into())
+        // }
+
+        /// Update a process_step
         ///
-        /// Arguments: none
+        /// Arguments:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn create_process_step(
+        pub fn update_process_step(
             origin: OriginFor<T>,
-            did: Did,
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
-            definition_step_index: DefinitionStepIndex,
             process_id: T::ProcessId,
+            definition_step_index: DefinitionStepIndex,
             attributes: Vec<Attribute>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            ensure!(
-                Self::is_process_in_definition(registry_id, definition_id, process_id),
-                Error::<T>::NotFound
-            );
-
-            ensure!(
-                <DefinitionSteps<T>>::contains_key(
-                    (registry_id, definition_id),
-                    definition_step_index
-                ),
-                Error::<T>::NotFound
-            );
-
             let definition_step =
-                <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index);
+                <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)
+                    .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                T::MembershipSource::is_member(definition_step.group_id, sender),
-                Error::<T>::NotAttestor
-            );
-            ensure!(
-                Self::is_valid_definition_step(
-                    registry_id,
-                    definition_id,
-                    definition_step_index,
-                    process_id
-                ),
+                T::GroupInfoSource::is_group_account(definition_step.group_id, &sender),
                 Error::<T>::NotAttestor
             );
 
-            let process_step = ProcessStep {
-                attested_by: did,
-                attributes,
-            };
-
-            <ProcessSteps<T>>::insert(
+            <ProcessSteps<T>>::try_mutate_exists(
                 (registry_id, definition_id, process_id),
                 definition_step_index,
-                process_step,
-            );
+                |maybe_process_step| -> DispatchResult {
+                    let mut process_step =
+                        maybe_process_step.as_mut().ok_or(Error::<T>::NotFound)?;
+                    process_step.attributes = attributes;
+                    Ok(())
+                },
+            )?;
 
-            Self::deposit_event(Event::ProcessStepCreated(
+            Self::deposit_event(Event::ProcessStepUpdated(
                 registry_id,
                 definition_id,
                 process_id,
                 definition_step_index,
             ));
+
             Ok(().into())
         }
 
-        // /// Update a new process_step
-        // ///
-        // /// Arguments: none
-        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        // pub fn update_process_step(origin,registry_id: T::RegistryId,definition_id: T::DefinitionId,process_id:T::ProcessId,process_step_id: T::ProcessStepId) {
-        //     let sender = ensure_signed(origin)?;
+        /// Attest a process_step
+        ///
+        /// Arguments:
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn attest_process_step(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            process_id: T::ProcessId,
+            definition_step_index: DefinitionStepIndex,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
 
-        //     //TODO:is attestor
-        //     ensure!(Self::is_process_step_in_process(registry_id,definition_id,process_id,process_step_id), Error::<T>::NotFound);
+            let definition_step =
+                <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)
+                    .ok_or(Error::<T>::NotFound)?;
 
-        //     //TODO:update
+            ensure!(
+                T::GroupInfoSource::is_group_account(definition_step.group_id, &sender),
+                Error::<T>::NotAttestor
+            );
 
-        //     Self::deposit_event(Event::ProcessStepUpdated(registry_id,definition_id,process_id,process_step_id));
-        // }
+            //TODO: how do we record attestor? (sender is group account, not actual attestor)
 
-        // /// Remove a process_step
-        // ///
-        // /// Arguments:
-        // /// - `process_step_id` ProcessStep to be removed
-        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        // pub fn remove_process_step(origin, registry_id: T::RegistryId,definition_id: T::DefinitionId,process_id:T::ProcessId,process_step_id: T::ProcessStepId) {
-        //     let sender = ensure_signed(origin)?;
+            <ProcessSteps<T>>::try_mutate_exists(
+                (registry_id, definition_id, process_id),
+                definition_step_index,
+                |maybe_process_step| -> DispatchResult {
+                    let mut process_step =
+                        maybe_process_step.as_mut().ok_or(Error::<T>::NotFound)?;
+                    process_step.attested_by = Some(sender);
+                    Ok(())
+                },
+            )?;
 
-        //    //TODO:is attestor
-        //     ensure!(Self::is_process_step_in_process(registry_id,definition_id,process_id,process_step_id), Error::<T>::NotFound);
+            if <DefinitionSteps<T>>::contains_key(
+                (registry_id, definition_id),
+                definition_step_index + 1,
+            ) {
+                let process_step = ProcessStep {
+                    attested_by: None,
+                    attributes: vec![],
+                };
 
-        //     <ProcessSteps<T>>::remove((registry_id, definition_id,process_id),process_step_id);
+                <ProcessSteps<T>>::insert(
+                    (registry_id, definition_id, process_id),
+                    definition_step_index + 1,
+                    process_step,
+                );
+            } else {
+                <Processes<T>>::try_mutate_exists(
+                    (registry_id, definition_id),
+                    process_id,
+                    |maybe_process| -> DispatchResult {
+                        let mut process = maybe_process.as_mut().ok_or(Error::<T>::NotFound)?;
+                        process.status = ProcessStatus::Completed;
+                        Ok(())
+                    },
+                )?;
+            }
 
-        //     Self::deposit_event(Event::ProcessStepRemoved(registry_id,definition_id,process_id,process_step_id));
-        // }
+            Self::deposit_event(Event::ProcessStepAttested(
+                registry_id,
+                definition_id,
+                process_id,
+                definition_step_index,
+            ));
+
+            Ok(().into())
+        }
     }
 
     impl<T: Config> Module<T> {
@@ -612,8 +896,88 @@ pub mod pallet {
 
             registries
         }
-        pub fn get_registry(account: T::AccountId, registry_id: T::RegistryId) -> Registry {
+        pub fn get_registry(account: T::AccountId, registry_id: T::RegistryId) -> Option<Registry> {
             <Registries<T>>::get(account, registry_id)
+        }
+
+        pub fn get_definitions(registry_id: T::RegistryId) -> Vec<(T::DefinitionId, Definition)> {
+            let mut definitions = Vec::new();
+
+            <Definitions<T>>::iter_prefix(registry_id).for_each(|(definition_id, definition)| {
+                definitions.push((definition_id, definition))
+            });
+
+            definitions
+        }
+        pub fn get_definition(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+        ) -> Option<Definition> {
+            <Definitions<T>>::get(registry_id, definition_id)
+        }
+        pub fn get_definition_steps(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+        ) -> Vec<(DefinitionStepIndex, DefinitionStep<T::GroupId>)> {
+            let mut definition_steps = Vec::new();
+            <DefinitionSteps<T>>::iter_prefix((registry_id, definition_id)).for_each(
+                |(step_index, definition_step)| {
+                    definition_steps.push((step_index, definition_step))
+                },
+            );
+            definition_steps.sort_by(|(step_index_a, _), (step_index_b, _)| {
+                step_index_a.partial_cmp(step_index_b).unwrap()
+            });
+
+            definition_steps
+        }
+        pub fn get_processes(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+        ) -> Vec<(T::ProcessId, Process)> {
+            let mut processes = Vec::new();
+
+            <Processes<T>>::iter_prefix((registry_id, definition_id))
+                .for_each(|(process_id, process)| processes.push((process_id, process)));
+
+            processes
+        }
+        pub fn get_process(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            process_id: T::ProcessId,
+        ) -> Option<Process> {
+            <Processes<T>>::get((registry_id, definition_id), process_id)
+        }
+        pub fn get_process_steps(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            process_id: T::ProcessId,
+        ) -> Vec<ProcessStep<T::AccountId>> {
+            let mut process_steps = Vec::new();
+            <ProcessSteps<T>>::iter_prefix((registry_id, definition_id, process_id)).for_each(
+                |(step_index, definition_step)| process_steps.push((step_index, definition_step)),
+            );
+            process_steps.sort_by(|(step_index_a, _), (step_index_b, _)| {
+                step_index_a.partial_cmp(step_index_b).unwrap()
+            });
+
+            process_steps
+                .into_iter()
+                .map(|(_, process_step)| process_step)
+                .collect()
+        }
+
+        pub fn get_process_step(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            process_id: T::ProcessId,
+            definition_step_index: DefinitionStepIndex,
+        ) -> Option<ProcessStep<T::AccountId>> {
+            <ProcessSteps<T>>::get(
+                (registry_id, definition_id, process_id),
+                definition_step_index,
+            )
         }
 
         // -- private functions --
@@ -682,15 +1046,5 @@ pub mod pallet {
             definition_step_index - 1,
         )
         }
-    }
-    macro_rules! next_id {
-        ($id:ty) => {{
-            let current_id = <$id<T>>::get();
-            let next_id = current_id
-                .checked_add(&One::one())
-                .ok_or(Error::<T>::NoIdAvailable)?;
-            <$id<T>>::put(next_id);
-            current_id
-        }};
     }
 }

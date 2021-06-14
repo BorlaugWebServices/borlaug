@@ -2,9 +2,7 @@
 use super::*;
 use crate::mock::*;
 use frame_support::assert_ok;
-use primitives::{
-    attestor::Attestor, attribute::Attribute, definition_step::DefinitionStep, fact::Fact,
-};
+use primitives::{attribute::Attribute, definition_step::DefinitionStep, fact::Fact};
 
 #[test]
 fn creating_registry_should_work() {

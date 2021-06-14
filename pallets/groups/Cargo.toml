@@ -16,7 +16,7 @@ sp-runtime = {version = "3.0.0", default-features = false}
 sp-std = {package = "sp-std", version = "3.0.0", default-features = false}
 timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
 
-membership = {path = '../../traits/membership', default-features = false}
+group-info = {path = '../../traits/group_info', default-features = false}
 primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
 
 [dev-dependencies]
@@ -39,5 +39,5 @@ std = [
   "timestamp/std",
   "primitives/std",
   "pallet-balances/std",
-  'membership/std',
+  'group-info/std',
 ]

@@ -5,6 +5,7 @@ name = "Borlaug"
 version = "0.0.1"
 dependencies = [
  "borlaug-runtime",
+ "chrono",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "futures 0.3.13",
@@ -846,6 +847,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
+ "serde",
  "time",
  "winapi 0.3.9",
 ]
@@ -1875,10 +1877,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "group-info"
+version = "0.1.0"
+
+[[package]]
 name = "groups-runtime-api"
 version = "0.0.1"
 dependencies = [
  "frame-support",
+ "pallet-primitives",
  "parity-scale-codec",
  "serde_json",
  "sp-api",
@@ -3109,10 +3116,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
-name = "membership"
-version = "0.1.0"
-
-[[package]]
 name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3664,8 +3667,8 @@ dependencies = [
  "chrono",
  "frame-support",
  "frame-system",
+ "group-info",
  "hex-literal",
- "membership",
  "pallet-balances",
  "pallet-primitives",
  "pallet-randomness-collective-flip",
@@ -3767,7 +3770,7 @@ dependencies = [
  "chrono",
  "frame-support",
  "frame-system",
- "membership",
+ "group-info",
  "pallet-identity",
  "pallet-primitives",
  "pallet-randomness-collective-flip",

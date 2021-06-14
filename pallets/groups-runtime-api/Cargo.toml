@@ -7,6 +7,7 @@ version = "0.0.1"
 [dependencies]
 codec = {package = "parity-scale-codec", version = "2.0.0", default-features = false}
 frame-support = {version = "3.0.0", default-features = false}
+primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
 sp-api = {version = "3.0", default-features = false}
 
 [dev-dependencies]

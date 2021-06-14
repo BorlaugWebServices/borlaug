@@ -44,16 +44,18 @@ use pallet_grandpa::{
 };
 #[cfg(feature = "grandpa_babe")]
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_primitives::*;
 #[cfg(feature = "grandpa_babe")]
 use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use primitives::{
+    AccountId, Balance, BlockNumber, DefinitionId, DefinitionStepIndex, GroupId, Hash, Index,
+    MemberCount, Moment, ProcessId, ProposalId, RegistryId, Signature,
+};
 #[cfg(feature = "grandpa_babe")]
-use primitives::Moment;
-pub use primitives::*;
 pub use primitives::{AccountId, Signature};
-use primitives::{Balance, BlockNumber, Hash, Index};
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -372,7 +374,7 @@ parameter_types! {
 
 impl pallet_timestamp::Config for Runtime {
     /// A timestamp: milliseconds since the unix epoch.
-    type Moment = u64;
+    type Moment = Moment;
     #[cfg(feature = "grandpa_babe")]
     type OnTimestampSet = Babe;
     #[cfg(feature = "instant_seal")]
@@ -695,8 +697,8 @@ parameter_types! {
 
 impl groups::Config for Runtime {
     type Proposal = Call;
-    type GroupId = primitives::GroupId;
-    type ProposalId = u32;
+    type GroupId = GroupId;
+    type ProposalId = ProposalId;
     type Currency = Balances;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
@@ -710,7 +712,7 @@ impl identity::Config for Runtime {
 }
 
 impl asset_registry::Config for Runtime {
-    type RegistryId = primitives::RegistryId;
+    type RegistryId = RegistryId;
     type AssetId = u32;
     type LeaseId = u32;
     type Balance = Balance;
@@ -726,12 +728,12 @@ impl audits::Config for Runtime {
 }
 
 impl provenance::Config for Runtime {
-    type RegistryId = u32;
-    type DefinitionId = u32;
-    type ProcessId = u32;
+    type RegistryId = primitives::RegistryId;
+    type DefinitionId = primitives::DefinitionId;
+    type ProcessId = primitives::ProcessId;
     type Event = Event;
     type GroupId = primitives::GroupId;
-    type MembershipSource = Groups;
+    type GroupInfoSource = Groups;
 }
 #[cfg(feature = "grandpa_babe")]
 construct_runtime!(
@@ -1040,19 +1042,47 @@ impl_runtime_apis! {
 // }
 
 
-    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId> for Runtime {
+    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount> for Runtime {
         fn member_of(account:AccountId) -> Vec<GroupId>  {
             Groups::member_of(account)
         }
+        fn get_group(group:GroupId) -> Option<Group<GroupId, AccountId, MemberCount>>{
+            Groups::get_group(group)
+        }
+        fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount>)>>{
+            Groups::get_sub_groups(group)
+        }
     }
 
-    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId> for Runtime {
-        fn get_registries(account:AccountId) -> Vec<(RegistryId,pallet_primitives::registry::Registry)>  {
+    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId,GroupId,DefinitionStepIndex> for Runtime {
+        fn get_registries(account:AccountId) -> Vec<(RegistryId,Registry)>  {
             Provenance::get_registries(account)
         }
-        fn get_registry(account:AccountId,registry_id:RegistryId) -> pallet_primitives::registry::Registry  {
+        fn get_registry(account:AccountId,registry_id:RegistryId) ->Option<Registry>  {
             Provenance::get_registry(account,registry_id)
         }
+        fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition)>  {
+            Provenance::get_definitions(registry_id)
+        }
+        fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition>  {
+            Provenance::get_definition(registry_id,definition_id)
+        }
+        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId>)>  {
+            Provenance::get_definition_steps(registry_id,definition_id)
+        }
+        fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process)>  {
+            Provenance::get_processes(registry_id,definition_id)
+        }
+        fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Option<Process>  {
+            Provenance::get_process(registry_id,definition_id,process_id)
+        }
+        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<AccountId>>  {
+            Provenance::get_process_steps(registry_id,definition_id,process_id)
+        }
+        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<AccountId>>  {
+            Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
+        }
+
     }
 
 
