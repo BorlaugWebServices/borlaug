@@ -59,6 +59,7 @@ audits = {package = "pallet-audits", path = "../pallets/audits", default-feature
 groups = {package = "pallet-groups", path = "../pallets/groups", default-features = false}
 groups-runtime-api = {path = "../pallets/groups-runtime-api", default-features = false}
 identity = {package = "pallet-identity", path = "../pallets/identity", default-features = false}
+identity-runtime-api = {path = "../pallets/identity-runtime-api", default-features = false}
 pallet-primitives = {package = "pallet-primitives", path = "../pallets/primitives", default-features = false}
 provenance = {package = "pallet-provenance", path = "../pallets/provenance", default-features = false}
 provenance-runtime-api = {path = "../pallets/provenance-runtime-api", default-features = false}

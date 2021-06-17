@@ -3,6 +3,6 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Registry {
+pub struct Catalog {
     pub name: Vec<u8>,
 }

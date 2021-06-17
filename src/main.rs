@@ -10,6 +10,7 @@ mod cli;
 #[cfg_attr(feature = "grandpa_babe", path = "command_grandpa_babe.rs")]
 mod command;
 mod groups_rpc;
+mod identity_rpc;
 mod provenance_rpc;
 #[cfg_attr(feature = "grandpa_babe", path = "rpc_grandpa_babe.rs")]
 mod rpc;

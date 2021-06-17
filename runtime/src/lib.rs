@@ -51,11 +51,9 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 use primitives::{
-    AccountId, Balance, BlockNumber, DefinitionId, DefinitionStepIndex, GroupId, Hash, Index,
-    MemberCount, Moment, ProcessId, ProposalId, RegistryId, Signature,
+    AccountId, Balance, BlockNumber, CatalogId, DefinitionId, DefinitionStepIndex, GroupId, Hash,
+    Index, MemberCount, Moment, ProcessId, ProposalId, RegistryId, Signature,
 };
-#[cfg(feature = "grandpa_babe")]
-pub use primitives::{AccountId, Signature};
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -73,7 +71,7 @@ use sp_runtime::{
     create_runtime_str, generic,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, ModuleId, Perbill, Percent, Permill,
+    ApplyExtrinsicResult, FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
 #[cfg(feature = "grandpa_babe")]
 use sp_runtime::{
@@ -418,14 +416,18 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionByteFee: Balance = 1;
+    pub const TransactionByteFee: Balance = 10 * MILLIGRAM;
+    pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+    pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+    pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-    type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+    type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate = ();
+    type FeeMultiplierUpdate =
+        TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1082,9 +1084,30 @@ impl_runtime_apis! {
         fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<AccountId>>  {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
-
     }
-
+    impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId> for Runtime {
+        fn get_catalogs(did:Did) -> Vec<(CatalogId,Catalog)> {
+            Identity::get_catalogs(did)
+        }
+        fn get_catalog(owner_did:Did,catalog_id:CatalogId) -> Option<Catalog> {
+            Identity::get_catalog(owner_did,catalog_id)
+        }
+        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,Option<Vec<u8>>)>  {
+            Identity::get_dids_in_catalog(catalog_id)
+        }
+        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<(Option<Vec<u8>>, DidDocument<AccountId>)>  {
+            Identity::get_did_in_catalog(catalog_id,did)
+        }
+        fn get_did(did:Did) -> Option<DidDocument<AccountId>>  {
+            Identity::get_did(did)
+        }
+        fn get_dids_by_subject( subject: AccountId) -> Vec<(Did, Option<Vec<u8>>)>  {
+            Identity::get_dids_by_subject(subject)
+        }
+        fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<Vec<u8>>)>  {
+            Identity::get_dids_by_controller(controller)
+        }
+    }
 
     impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
         fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {

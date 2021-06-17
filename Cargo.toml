@@ -16,6 +16,7 @@ path = "src/main.rs"
 # third-party dependencies
 codec = {package = "parity-scale-codec", version = "2.0.0"}
 futures = {version = "0.3.9", features = ["compat"]}
+hex = "0.4"
 hex-literal = "0.3.1"
 jsonrpc-core = "15.0"
 jsonrpc-core-client = "15.0"
@@ -23,7 +24,7 @@ jsonrpc-derive = "15.0"
 log = "0.4.11"
 pallet-transaction-payment-rpc = "3.0.0"
 parking_lot = "0.10.0"
-serde = {version = "1.0.102", features = ["derive"]}
+serde = {version = "1.0.126", features = ["derive"]}
 
 # primitives
 sp-authority-discovery = "3.0.0"
@@ -78,6 +79,7 @@ frame-benchmarking-cli = "3.0.0"
 runtime = {package = "borlaug-runtime", path = "runtime", optional = true}
 
 groups-runtime-api = {path = "pallets/groups-runtime-api"}
+identity-runtime-api = {path = "pallets/identity-runtime-api"}
 provenance-runtime-api = {path = "pallets/provenance-runtime-api"}
 
 pallet-primitives = {path = "pallets/primitives", default-features = false}

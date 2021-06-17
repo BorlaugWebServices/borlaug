@@ -41,6 +41,7 @@ pub type Timestamp = u64;
 pub type GroupId = u32;
 pub type ProposalId = u32;
 pub type MemberCount = u32;
+pub type CatalogId = u32;
 pub type RegistryId = u32;
 pub type DefinitionId = u32;
 pub type DefinitionStepIndex = u8;

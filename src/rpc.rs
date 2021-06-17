@@ -46,6 +46,7 @@ where
         GroupId,
         DefinitionStepIndex,
     >,
+    C::Api: identity_runtime_api::IdentityApi<Block, AccountId, RegistryId>,
     P: TransactionPool + 'static,
 {
     let mut io = jsonrpc_core::IoHandler::default();
@@ -62,6 +63,10 @@ where
     // Add the provenance api
     io.extend_with(crate::provenance_rpc::ProvenanceApi::to_delegate(
         crate::provenance_rpc::Provenance::new(client.clone()),
+    ));
+    // Add the identity api
+    io.extend_with(crate::identity_rpc::IdentityApi::to_delegate(
+        crate::identity_rpc::Identity::new(client.clone()),
     ));
 
     // The final RPC extension receives commands for the manual seal consensus engine.

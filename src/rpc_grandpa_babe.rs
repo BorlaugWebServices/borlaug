@@ -35,7 +35,10 @@ use std::sync::Arc;
 use grandpa::{
     FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
-use runtime::primitives::{AccountId, Balance, Block, BlockNumber, GroupId, Hash, Index};
+use runtime::primitives::{
+    AccountId, Balance, Block, BlockNumber, DefinitionId, DefinitionStepIndex, GroupId, Hash,
+    Index, MemberCount, ProcessId, RegistryId,
+};
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
@@ -124,7 +127,7 @@ where
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BabeApi<Block>,
     C::Api: BlockBuilder<Block>,
-    C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId>,
+    C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId, MemberCount>,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,
         AccountId,
@@ -132,7 +135,9 @@ where
         DefinitionId,
         ProcessId,
         GroupId,
+        DefinitionStepIndex,
     >,
+    C::Api: identity_runtime_api::IdentityApi<Block, AccountId, RegistryId>,
     P: TransactionPool + 'static,
     SC: SelectChain<Block> + 'static,
     B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -160,6 +165,10 @@ where
     // Add the provenance api
     io.extend_with(crate::provenance_rpc::ProvenanceApi::to_delegate(
         crate::provenance_rpc::Provenance::new(client.clone()),
+    ));
+    // Add the identity api
+    io.extend_with(crate::identity_rpc::IdentityApi::to_delegate(
+        crate::identity_rpc::Identity::new(client.clone()),
     ));
 
     let BabeDeps {
