@@ -63,6 +63,7 @@ identity-runtime-api = {path = "../pallets/identity-runtime-api", default-featur
 pallet-primitives = {package = "pallet-primitives", path = "../pallets/primitives", default-features = false}
 provenance = {package = "pallet-provenance", path = "../pallets/provenance", default-features = false}
 provenance-runtime-api = {path = "../pallets/provenance-runtime-api", default-features = false}
+settings = {package = "pallet-settings", path = "../pallets/settings", default-features = false}
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"
@@ -107,6 +108,7 @@ std = [
   "pallet-offences/std",
   "frame-system-rpc-runtime-api/std",
   "identity/std",
+  "settings/std",
   "asset-registry/std",
   "audits/std",
   "groups/std",

@@ -662,6 +662,7 @@ dependencies = [
  "pallet-provenance",
  "pallet-randomness-collective-flip",
  "pallet-session",
+ "pallet-settings",
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-sudo",
@@ -3682,11 +3683,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "group-info",
- "hex-literal",
  "pallet-balances",
  "pallet-primitives",
- "pallet-randomness-collective-flip",
- "pallet-timestamp",
  "parity-scale-codec",
  "serde",
  "sp-core",
@@ -3830,6 +3828,22 @@ dependencies = [
  "sp-staking",
  "sp-std",
  "sp-trie",
+]
+
+[[package]]
+name = "pallet-settings"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "frame-support",
+ "frame-system",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

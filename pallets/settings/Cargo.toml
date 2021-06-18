@@ -1,25 +1,22 @@
 [package]
 authors = ["Borlaug Blockchain"]
 edition = "2018"
-name = "pallet-groups"
+name = "pallet-settings"
 version = "0.1.0"
 
 [dependencies]
 codec = {package = "parity-scale-codec", version = "2.0.0", default-features = false}
 frame-support = {version = "3.0.0", default-features = false}
 frame-system = {version = "3.0.0", default-features = false}
-pallet-balances = {version = "3.0.0", default-features = false}
+serde = "1.0"
 sp-core = {package = "sp-core", version = "3.0.0", default-features = false}
 sp-io = {version = "3.0.0", default-features = false}
 sp-runtime = {version = "3.0.0", default-features = false}
 sp-std = {package = "sp-std", version = "3.0.0", default-features = false}
-
-group-info = {path = '../../traits/group_info', default-features = false}
-primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
+timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
 
 [dev-dependencies]
 chrono = "0.4"
-serde = "1.0"
 sp-core = {version = "3.0.0", default-features = false}
 
 [features]
@@ -32,7 +29,5 @@ std = [
   "frame-support/std",
   'frame-system/std',
   'sp-runtime/std',
-  "primitives/std",
-  "pallet-balances/std",
-  'group-info/std',
+  "timestamp/std",
 ]

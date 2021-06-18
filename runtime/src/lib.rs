@@ -57,11 +57,9 @@ use primitives::{
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-#[cfg(feature = "grandpa_babe")]
-use sp_core::u32_trait::_4;
 use sp_core::{
     crypto::KeyTypeId,
-    u32_trait::{_1, _2, _3, _5},
+    u32_trait::{_1, _2, _3, _4, _5},
     OpaqueMetadata,
 };
 use sp_inherents::{CheckInherentsResult, InherentData};
@@ -125,11 +123,13 @@ pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
-            // for fees, 80% to treasury, 20% to author
-            let mut split = fees.ration(80, 20);
+            let treasury_share = Settings::fee_split_ratio().unwrap();
+            let author_share = 100 - treasury_share;
+
+            let mut split = fees.ration(treasury_share, author_share);
             if let Some(tips) = fees_then_tips.next() {
-                // for tips, if any, 80% to treasury, 20% to author (though this can be anything)
-                tips.ration_merge_into(80, 20, &mut split);
+                // for tips, if any,  (though this can be anything)
+                tips.ration_merge_into(treasury_share, author_share, &mut split);
             }
             Treasury::on_unbalanced(split.0);
             //TODO: Do we need the Author pallet?
@@ -697,6 +697,15 @@ parameter_types! {
     pub const GroupMaxMembers: u32 = 100;
 }
 
+impl settings::Config for Runtime {
+    type Event = Event;
+    type ChangeSettingOrigin = EnsureOneOf<
+        AccountId,
+        EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>,
+    >;
+}
+
 impl groups::Config for Runtime {
     type Proposal = Call;
     type GroupId = GroupId;
@@ -774,6 +783,7 @@ construct_runtime!(
         // BWS Modules
 
         Groups: groups::{Module, Call, Storage, Event<T>},
+        Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},
@@ -813,6 +823,7 @@ construct_runtime!(
         // BWS Modules
 
         Groups: groups::{Module, Call, Storage,  Event<T>},
+        Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},

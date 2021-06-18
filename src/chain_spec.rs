@@ -1,8 +1,8 @@
 use runtime::{
     constants::currency::*,
     primitives::{AccountId, Balance, Signature},
-    wasm_binary_unwrap, BalancesConfig, Block, CouncilConfig, GenesisConfig, SudoConfig,
-    SystemConfig,
+    wasm_binary_unwrap, BalancesConfig, Block, CouncilConfig, GenesisConfig, SettingsConfig,
+    SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -132,6 +132,10 @@ fn create_genesis(root_key: AccountId, endowed_accounts: Vec<AccountId>) -> Gene
         }),
         pallet_sudo: Some(SudoConfig { key: root_key }),
         pallet_collective_Instance1: Some(CouncilConfig::default()),
+        settings: Some(SettingsConfig {
+            fee_split_ratio: 80,
+            _phantom: Default::default(),
+        }),
         pallet_treasury: Some(Default::default()),
     }
 }
