@@ -1,5 +1,4 @@
 //! Mocks for the module.
-
 use crate as pallet_provenance;
 use frame_support::parameter_types;
 use frame_system as system;
@@ -8,7 +7,6 @@ use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -27,9 +25,14 @@ frame_support::construct_runtime!(
         Provenance: pallet_provenance::{Module, Call, Storage, Event<T>},
     }
 );
+
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub const SS58Prefix: u8 = 42;
+    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+    pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxMembers: u32 = 100;
+    pub const ExistentialDeposit: u128 = 1;
 }
 
 impl system::Config for Test {
@@ -60,10 +63,6 @@ impl system::Config for Test {
 pub const MILLISECS_PER_BLOCK: u64 = 5000;
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
-parameter_types! {
-    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
-}
-
 impl timestamp::Config for Test {
     type Moment = u64;
     type OnTimestampSet = ();
@@ -74,15 +73,6 @@ impl timestamp::Config for Test {
 impl identity::Config for Test {
     type CatalogId = u32;
     type Event = Event;
-}
-
-parameter_types! {
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxMembers: u32 = 100;
-}
-
-parameter_types! {
-    pub const ExistentialDeposit: u128 = 1;
 }
 
 impl pallet_balances::Config for Test {
@@ -113,6 +103,7 @@ impl pallet_provenance::Config for Test {
     type Event = Event;
     type GroupId = u32;
     type GroupInfoSource = Groups;
+    type Currency = Balances;
     type GetExtrinsicExtraSource = Settings;
 }
 
@@ -121,6 +112,7 @@ impl settings::Config for Test {
     type ChangeSettingOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type ModuleIndex = u8;
     type ExtrinsicIndex = u8;
+    type Balance = u128;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -8,7 +8,7 @@ use primitives::{attribute::Attribute, definition_step::DefinitionStep, fact::Fa
 fn creating_registry_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Registry for itself
-        assert_ok!(Provenance::create_registry(Origin::signed(1)));
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
         // verify registry was created
         assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
     });
@@ -18,7 +18,7 @@ fn creating_registry_should_work() {
 fn remove_registry_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Registry for itself
-        assert_ok!(Provenance::create_registry(Origin::signed(1)));
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
         // verify registry was created
         assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
         // remove the registry
@@ -35,14 +35,17 @@ fn create_definition_should_work() {
         System::set_block_number(1);
 
         // 1 creates a Registry for itself
-        assert_ok!(Provenance::create_registry(Origin::signed(1)));
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
         // verify registry was created
         assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
 
-        // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
-        let dids = Identity::dids(&1);
-        let attestor_did_1 = dids[0];
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1
+        ));
 
         // 1 creates a definition in the registry
         assert_ok!(Provenance::create_definition(
@@ -52,11 +55,8 @@ fn create_definition_should_work() {
             vec![(
                 DefinitionStep {
                     name: b"Test".to_vec(),
-                },
-                vec![Attestor {
-                    did: attestor_did_1,
-                    short_name: b"Test".to_vec(),
-                }]
+                    group_id: 0
+                }
             )]
         ));
         // verify definition was created
@@ -71,14 +71,17 @@ fn remove_definition_should_work() {
         System::set_block_number(1);
 
         // 1 creates a Registry for itself
-        assert_ok!(Provenance::create_registry(Origin::signed(1)));
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
         // verify registry was created
         assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
 
-        // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
-        let dids = Identity::dids(&1);
-        let attestor_did_1 = dids[0];
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1
+        ));
 
         // 1 creates a definition in the registry
         assert_ok!(Provenance::create_definition(
@@ -88,11 +91,8 @@ fn remove_definition_should_work() {
             vec![(
                 DefinitionStep {
                     name: b"Test".to_vec(),
-                },
-                vec![Attestor {
-                    did: attestor_did_1,
-                    short_name: b"Test".to_vec(),
-                }]
+                    group_id: 0
+                }
             )]
         ));
         // verify definition was created
@@ -111,14 +111,17 @@ fn update_definition_step_should_work() {
         System::set_block_number(1);
 
         // 1 creates a Registry for itself
-        assert_ok!(Provenance::create_registry(Origin::signed(1)));
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
         // verify registry was created
         assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
 
-        // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
-        let dids = Identity::dids(&1);
-        let attestor_did_1 = dids[0];
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1
+        ));
 
         // 1 creates a definition in the registry
         assert_ok!(Provenance::create_definition(
@@ -128,20 +131,12 @@ fn update_definition_step_should_work() {
             vec![(
                 DefinitionStep {
                     name: b"Test".to_vec(),
-                },
-                vec![Attestor {
-                    did: attestor_did_1,
-                    short_name: b"Test".to_vec(),
-                }]
+                    group_id: 0
+                }
             )]
         ));
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
-
-        // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
-        let dids = Identity::dids(&1);
-        let attestor_did_2 = dids[1];
 
         // update definition step
         assert_ok!(Provenance::update_definition_step(
@@ -149,25 +144,8 @@ fn update_definition_step_should_work() {
             1u32,
             1u32,
             0,
-            Some(vec![Attestor {
-                did: attestor_did_2,
-                short_name: b"Test".to_vec(),
-            }]),
-            Some(vec![Attestor {
-                did: attestor_did_1,
-                short_name: b"Test".to_vec(),
-            }]),
+            b"John Doe".to_vec(),
         ));
-        // verify attestor removed
-        assert_eq!(
-            Attestors::<Test>::contains_key((1u32, 1u32, 0), attestor_did_1),
-            false
-        );
-        // verify attestor added
-        assert_eq!(
-            Attestors::<Test>::contains_key((1u32, 1u32, 0), attestor_did_2),
-            true
-        );
     });
 }
 
@@ -178,14 +156,17 @@ fn create_process_should_work() {
         System::set_block_number(1);
 
         // 1 creates a Registry for itself
-        assert_ok!(Provenance::create_registry(Origin::signed(1)));
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
         // verify registry was created
         assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
 
-        // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
-        let dids = Identity::dids(&1);
-        let attestor_did_1 = dids[0];
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1
+        ));
 
         // 1 creates a definition in the registry
         assert_ok!(Provenance::create_definition(
@@ -195,24 +176,31 @@ fn create_process_should_work() {
             vec![(
                 DefinitionStep {
                     name: b"Test".to_vec(),
-                },
-                vec![Attestor {
-                    did: attestor_did_1,
-                    short_name: b"Test".to_vec(),
-                }]
+                    group_id: 1
+                }
             )]
         ));
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
-        // 1 creates a process
-        assert_ok!(Provenance::create_process(
+        // set definition step as active
+        assert_ok!(Provenance::set_definition_active(
             Origin::signed(1),
-            attestor_did_1,
             1u32,
             1u32,
-            b"Test".to_vec()
         ));
+
+        // Create process as a group
+        assert_ok!(Groups::as_group(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_process(
+                1u32,
+                1u32,
+                b"Test".to_vec(),
+            ))),
+        ));
+
         // verify process was created
         assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1u32), true);
     });
@@ -225,14 +213,17 @@ fn remove_process_should_work() {
         System::set_block_number(1);
 
         // 1 creates a Registry for itself
-        assert_ok!(Provenance::create_registry(Origin::signed(1)));
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
         // verify registry was created
         assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
 
-        // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
-        let dids = Identity::dids(&1);
-        let attestor_did_1 = dids[0];
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1
+        ));
 
         // 1 creates a definition in the registry
         assert_ok!(Provenance::create_definition(
@@ -242,26 +233,34 @@ fn remove_process_should_work() {
             vec![(
                 DefinitionStep {
                     name: b"Test".to_vec(),
-                },
-                vec![Attestor {
-                    did: attestor_did_1,
-                    short_name: b"Test".to_vec(),
-                }]
+                    group_id: 1
+                }
             )]
         ));
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
-        // 1 creates a process
-        assert_ok!(Provenance::create_process(
+        // set definition step as active
+        assert_ok!(Provenance::set_definition_active(
             Origin::signed(1),
-            attestor_did_1,
             1u32,
             1u32,
-            b"Test".to_vec()
         ));
+
+        // Create process as a group
+        assert_ok!(Groups::as_group(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_process(
+                1u32,
+                1u32,
+                b"Test".to_vec(),
+            ))),
+        ));
+
         // verify process was created
         assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1u32), true);
+
         // 1 creates a process
         assert_ok!(Provenance::remove_process(
             Origin::signed(1),
@@ -281,14 +280,17 @@ fn create_process_step_should_work() {
         System::set_block_number(1);
 
         // 1 creates a Registry for itself
-        assert_ok!(Provenance::create_registry(Origin::signed(1)));
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
         // verify registry was created
         assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
 
-        // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
-        let dids = Identity::dids(&1);
-        let attestor_did_1 = dids[0];
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1
+        ));
 
         // 1 creates a definition in the registry
         assert_ok!(Provenance::create_definition(
@@ -298,39 +300,48 @@ fn create_process_step_should_work() {
             vec![(
                 DefinitionStep {
                     name: b"Test".to_vec(),
-                },
-                vec![Attestor {
-                    did: attestor_did_1,
-                    short_name: b"Test".to_vec(),
-                }]
+                    group_id: 1
+                }
             )]
         ));
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
-        // 1 creates a process
-        assert_ok!(Provenance::create_process(
+        // set definition step as active
+        assert_ok!(Provenance::set_definition_active(
             Origin::signed(1),
-            attestor_did_1,
             1u32,
             1u32,
-            b"Test".to_vec()
         ));
+
+        // Create process as a group
+        assert_ok!(Groups::as_group(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_process(
+                1u32,
+                1u32,
+                b"Test".to_vec(),
+            ))),
+        ));
+
         // verify process was created
         assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1u32), true);
 
         // 1 creates a process step
-        assert_ok!(Provenance::create_process_step(
+        assert_ok!(Groups::as_group(
             Origin::signed(1),
-            attestor_did_1,
-            1u32,
-            1u32,
-            0,
-            1u32,
-            vec![Attribute {
-                name: b"Test".to_vec(),
-                fact: Fact::Text(b"Test".to_vec())
-            }]
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::update_process_step(
+                1u32,
+                1u32,
+                1u32,
+                0,
+                vec![Attribute {
+                    name: b"Test".to_vec(),
+                    fact: Fact::Text(b"Test".to_vec())
+                }]
+            ))),
         ));
 
         // verify process step was created
@@ -338,5 +349,74 @@ fn create_process_step_should_work() {
             ProcessSteps::<Test>::contains_key((1u32, 1u32, 1u32), 0),
             true
         );
+    });
+}
+
+#[test]
+fn attest_process_step_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        // 1 creates a Registry for itself
+        assert_ok!(Provenance::create_registry(Origin::signed(1), b"John Doe".to_vec()));
+        // verify registry was created
+        assert_eq!(Registries::<Test>::contains_key(&1, 1u32), true);
+
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1
+        ));
+
+        // 1 creates a definition in the registry
+        assert_ok!(Provenance::create_definition(
+            Origin::signed(1),
+            1u32,
+            b"Test".to_vec(),
+            vec![(
+                DefinitionStep {
+                    name: b"Test".to_vec(),
+                    group_id: 1
+                }
+            )]
+        ));
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
+
+        // set definition step as active
+        assert_ok!(Provenance::set_definition_active(
+            Origin::signed(1),
+            1u32,
+            1u32,
+        ));
+
+        // Create process as a group
+        assert_ok!(Groups::as_group(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_process(
+                1u32,
+                1u32,
+                b"Test".to_vec(),
+            ))),
+        ));
+
+        // verify process was created
+        assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1u32), true);
+
+        // 1 creates a process step
+        assert_ok!(Groups::as_group(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::attest_process_step(
+                1u32,
+                1u32,
+                1u32,
+                0
+            ))),
+        ));
     });
 }
