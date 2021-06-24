@@ -1,0 +1,14 @@
+[package]
+authors = ["Borlaug Blockchain"]
+description = "A trait that supplies a customizable extra fixed weight for extrinsics"
+edition = "2018"
+name = "extrinsic-extra"
+version = "0.1.0"
+
+[dependencies]
+# Substrate packages
+frame-support = {version = "3.0.0", default-features = false}
+
+[features]
+default = ['std']
+std = ["frame-support/std"]

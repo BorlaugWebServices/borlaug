@@ -8,6 +8,7 @@ dependencies = [
  "chrono",
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "frame-support",
  "futures 0.3.13",
  "groups-runtime-api",
  "hex",
@@ -47,6 +48,7 @@ dependencies = [
  "sc-transaction-pool",
  "serde",
  "serde_json",
+ "settings-runtime-api",
  "sp-api",
  "sp-authority-discovery",
  "sp-block-builder",
@@ -673,6 +675,7 @@ dependencies = [
  "parity-scale-codec",
  "provenance-runtime-api",
  "serde",
+ "settings-runtime-api",
  "sp-api",
  "sp-application-crypto",
  "sp-authority-discovery",
@@ -1286,6 +1289,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e43f2f1833d64e33f15592464d6fdd70f349dda7b1a53088eb83cd94014008c5"
 dependencies = [
  "futures 0.3.13",
+]
+
+[[package]]
+name = "extrinsic-extra"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
 ]
 
 [[package]]
@@ -3780,12 +3790,16 @@ name = "pallet-provenance"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "extrinsic-extra",
  "frame-support",
  "frame-system",
  "group-info",
+ "pallet-balances",
+ "pallet-groups",
  "pallet-identity",
  "pallet-primitives",
  "pallet-randomness-collective-flip",
+ "pallet-settings",
  "pallet-timestamp",
  "parity-scale-codec",
  "serde",
@@ -3835,6 +3849,7 @@ name = "pallet-settings"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "extrinsic-extra",
  "frame-support",
  "frame-system",
  "pallet-timestamp",
@@ -6155,6 +6170,16 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "settings-runtime-api"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "serde_json",
+ "sp-api",
 ]
 
 [[package]]

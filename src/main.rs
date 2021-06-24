@@ -14,6 +14,7 @@ mod identity_rpc;
 mod provenance_rpc;
 #[cfg_attr(feature = "grandpa_babe", path = "rpc_grandpa_babe.rs")]
 mod rpc;
+mod settings_rpc;
 
 fn main() -> sc_cli::Result<()> {
     command::run()

@@ -51,8 +51,9 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 use primitives::{
-    AccountId, Balance, BlockNumber, CatalogId, DefinitionId, DefinitionStepIndex, GroupId, Hash,
-    Index, MemberCount, Moment, ProcessId, ProposalId, RegistryId, Signature,
+    AccountId, Balance, BlockNumber, CatalogId, DefinitionId, DefinitionStepIndex, ExtrinsicIndex,
+    GroupId, Hash, Index, MemberCount, ModuleIndex, Moment, ProcessId, ProposalId, RegistryId,
+    Signature,
 };
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
@@ -123,7 +124,7 @@ pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
-            let treasury_share = Settings::fee_split_ratio().unwrap();
+            let treasury_share = Settings::fee_split_ratio();
             let author_share = 100 - treasury_share;
 
             let mut split = fees.ration(treasury_share, author_share);
@@ -704,6 +705,9 @@ impl settings::Config for Runtime {
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>,
     >;
+    type ModuleIndex = ModuleIndex;
+    type Balance = Balance;
+    type ExtrinsicIndex = ExtrinsicIndex;
 }
 
 impl groups::Config for Runtime {
@@ -742,9 +746,11 @@ impl provenance::Config for Runtime {
     type RegistryId = primitives::RegistryId;
     type DefinitionId = primitives::DefinitionId;
     type ProcessId = primitives::ProcessId;
+    type Currency = Balances;
     type Event = Event;
     type GroupId = primitives::GroupId;
     type GroupInfoSource = Groups;
+    type GetExtrinsicExtraSource = Settings;
 }
 #[cfg(feature = "grandpa_babe")]
 construct_runtime!(
@@ -1117,6 +1123,15 @@ impl_runtime_apis! {
         }
         fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<Vec<u8>>)>  {
             Identity::get_dids_by_controller(controller)
+        }
+    }
+
+    impl settings_runtime_api::SettingsApi<Block,ModuleIndex,ExtrinsicIndex,Balance> for Runtime {
+        fn get_fee_split_ratio() -> u32 {
+            Settings::get_fee_split_ratio()
+        }
+        fn get_extrinsic_extras() ->  Vec<(ModuleIndex,Vec<(ExtrinsicIndex,Balance)>)> {
+            Settings::get_extrinsic_extras()
         }
     }
 

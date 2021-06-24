@@ -31,6 +31,7 @@ sp-authority-discovery = "3.0.0"
 
 # client dependencies
 chrono = {version = "0.4.9", features = ["serde"]}
+frame-support = "3.0.0"
 grandpa = {version = "0.9.0", package = "sc-finality-grandpa"}
 sc-authority-discovery = "0.9.0"
 sc-basic-authorship = "0.9.0"
@@ -81,6 +82,7 @@ runtime = {package = "borlaug-runtime", path = "runtime", optional = true}
 groups-runtime-api = {path = "pallets/groups-runtime-api"}
 identity-runtime-api = {path = "pallets/identity-runtime-api"}
 provenance-runtime-api = {path = "pallets/provenance-runtime-api"}
+settings-runtime-api = {path = "pallets/settings-runtime-api"}
 
 pallet-primitives = {path = "pallets/primitives", default-features = false}
 

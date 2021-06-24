@@ -46,6 +46,22 @@ pub type RegistryId = u32;
 pub type DefinitionId = u32;
 pub type DefinitionStepIndex = u8;
 pub type ProcessId = u32;
+// #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug)]
+// pub enum Module {
+//     Identity,
+//     Provenance,
+//     Groups,
+//     AssetRegistry,
+//     Audits,
+// }
+
+/// Groups=1
+/// Identity=2
+/// Provenance=3
+/// AssetRegistry=4
+/// Audits=5
+pub type ModuleIndex = u8;
+pub type ExtrinsicIndex = u8;
 
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;

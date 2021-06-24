@@ -13,26 +13,31 @@ sp-runtime = {version = "3.0.0", default-features = false}
 sp-std = {package = "sp-std", version = "3.0.0", default-features = false}
 timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
 
-group-info = {path = '../../traits/group_info', default-features = false}
+extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
+group-info = {path = "../../traits/group_info", default-features = false}
 primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
 
 [dev-dependencies]
 chrono = "0.4"
+groups = {package = "pallet-groups", path = "../groups", default-features = false}
 identity = {package = "pallet-identity", path = "../identity", default-features = false}
+pallet-balances = "3.0.0"
 serde = "1.0"
+settings = {package = "pallet-settings", path = "../settings", default-features = false}
 sp-core = {version = "3.0.0", default-features = false}
 sp-io = {version = "3.0.0", default-features = false}
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-  'codec/std',
+  "codec/std",
   "sp-runtime/std",
   "sp-std/std",
   "frame-support/std",
-  'frame-system/std',
-  'randomness/std',
+  "frame-system/std",
+  "randomness/std",
   "timestamp/std",
   "primitives/std",
-  'group-info/std',
+  "group-info/std",
+  "extrinsic-extra/std",
 ]

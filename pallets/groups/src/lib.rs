@@ -316,6 +316,7 @@ pub mod pallet {
 
             <Groups<T>>::insert(group_id, group);
             <GroupChildren<T>>::insert(group_id, Vec::<T::GroupId>::new());
+            <ProposalHashes<T>>::insert(group_id, Vec::<T::Hash>::new());
 
             Self::deposit_event(Event::GroupCreated(sender, group_id, anonymous_account));
 
@@ -382,6 +383,7 @@ pub mod pallet {
                     Ok(())
                 },
             )?;
+            <ProposalHashes<T>>::insert(group_id, Vec::<T::Hash>::new());
 
             Self::deposit_event(Event::SubGroupCreated(
                 sender,
@@ -476,6 +478,7 @@ pub mod pallet {
 
             <Groups<T>>::remove(&group_id);
             <GroupChildren<T>>::remove(&group_id);
+            <ProposalHashes<T>>::remove(&group_id);
 
             Self::deposit_event(Event::GroupRemoved(sender, group_id));
 
@@ -529,7 +532,7 @@ pub mod pallet {
             let proposal_hash = T::Hashing::hash_of(&proposal);
             ensure!(
                 <ProposalHashes<T>>::contains_key(group_id),
-                Error::<T>::ProposalMissing
+                Error::<T>::GroupMissing
             );
             let proposal_hashes = <ProposalHashes<T>>::get(group_id).unwrap();
             ensure!(

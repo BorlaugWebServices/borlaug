@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use std::marker::PhantomData;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -112,6 +113,13 @@ fn get_endowed_accounts() -> Vec<AccountId> {
             .unwrap(),
         )
         .into_account(),
+        AccountPublic::from(
+            sp_core::sr25519::Public::from_ss58check(
+                "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
+            )
+            .unwrap(),
+        )
+        .into_account(),
     ]
 }
 
@@ -131,10 +139,19 @@ fn create_genesis(root_key: AccountId, endowed_accounts: Vec<AccountId>) -> Gene
                 .collect(),
         }),
         pallet_sudo: Some(SudoConfig { key: root_key }),
-        pallet_collective_Instance1: Some(CouncilConfig::default()),
+        pallet_collective_Instance1: Some(CouncilConfig {
+            members: vec![AccountPublic::from(
+                sp_core::sr25519::Public::from_ss58check(
+                    "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
+                )
+                .unwrap(),
+            )
+            .into_account()],
+            phantom: PhantomData,
+        }),
         settings: Some(SettingsConfig {
             fee_split_ratio: 80,
-            _phantom: Default::default(),
+            extrinisic_extra: vec![(3, vec![(1, 100_000)])],
         }),
         pallet_treasury: Some(Default::default()),
     }

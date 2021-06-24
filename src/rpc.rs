@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
 use runtime::primitives::{
-    AccountId, Block, DefinitionId, DefinitionStepIndex, GroupId, Hash, MemberCount, ProcessId,
-    RegistryId,
+    AccountId, Balance, Block, DefinitionId, DefinitionStepIndex, ExtrinsicIndex, GroupId, Hash,
+    MemberCount, ModuleIndex, ProcessId, RegistryId,
 };
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
@@ -47,6 +47,7 @@ where
         DefinitionStepIndex,
     >,
     C::Api: identity_runtime_api::IdentityApi<Block, AccountId, RegistryId>,
+    C::Api: settings_runtime_api::SettingsApi<Block, ModuleIndex, ExtrinsicIndex, Balance>,
     P: TransactionPool + 'static,
 {
     let mut io = jsonrpc_core::IoHandler::default();
@@ -67,6 +68,10 @@ where
     // Add the identity api
     io.extend_with(crate::identity_rpc::IdentityApi::to_delegate(
         crate::identity_rpc::Identity::new(client.clone()),
+    ));
+    // Add the settings api
+    io.extend_with(crate::settings_rpc::SettingsApi::to_delegate(
+        crate::settings_rpc::Settings::new(client.clone()),
     ));
 
     // The final RPC extension receives commands for the manual seal consensus engine.

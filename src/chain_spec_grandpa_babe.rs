@@ -6,7 +6,7 @@ use runtime::{
 };
 use runtime::{
     AuthorityDiscoveryConfig, BabeConfig, GrandpaConfig, ImOnlineConfig, SessionConfig,
-    SessionKeys, StakerStatus, StakingConfig,
+    SessionKeys, SettingsConfig, StakerStatus, StakingConfig,
 };
 // GeneralCouncilMembershipConfig,
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -235,6 +235,10 @@ fn create_genesis(
             ..Default::default()
         }),
         pallet_collective_Instance1: Some(CouncilConfig::default()),
+        settings: Some(SettingsConfig {
+            fee_split_ratio: 80,
+            extrinisic_extra: vec![(3, vec![(1, 100_000)])],
+        }),
 
         pallet_babe: Some(BabeConfig {
             authorities: vec![],

@@ -15,7 +15,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
-
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -23,7 +22,10 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use extrinsic_extra::GetExtrinsicExtra;
+    use frame_support::{
+        dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Currency,
+    };
     use frame_system::pallet_prelude::*;
     use group_info::GroupInfo;
     use primitives::{
@@ -34,25 +36,33 @@ pub mod pallet {
         process_step::ProcessStep,
         registry::Registry,
     };
-    // #[cfg(not(feature = "std"))]
-    // use sp_io::hashing::blake2_256;
     use sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, One, UniqueSaturatedInto},
         DispatchResult,
     };
     use sp_std::prelude::*;
 
+    const MODULE_INDEX: u8 = 3;
+
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-        type RegistryId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
-        type DefinitionId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
-        type ProcessId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
-        type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        type RegistryId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
+        type DefinitionId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
+        type ProcessId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
+        type GroupId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
 
         type GroupInfoSource: GroupInfo<GroupId = Self::GroupId, AccountId = Self::AccountId>;
+
+        type Currency: Currency<Self::AccountId>;
+
+        type GetExtrinsicExtraSource: GetExtrinsicExtra<
+            ModuleIndex = u8,
+            ExtrinsicIndex = u8,
+            Balance = <Self::Currency as Currency<Self::AccountId>>::Balance,
+        >;
     }
 
     pub type DefinitionStepIndex = u8;
@@ -260,15 +270,34 @@ pub mod pallet {
         /// Add a new registry
         ///
         /// Arguments: none
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+
+        #[pallet::weight( 10_000 +  T::DbWeight::get().writes(1))]
+        // #[pallet::weight( T::GetExtrinsicExtraSource::get_extrinsic_extra(&MODULE_INDEX, &1u8)+ T::DbWeight::get().writes(1))]
         pub fn create_registry(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+
+            // debug::info!("{:?}", T::Currency::total_balance(&sender));
+
+            // let (deducted, a) = T::Currency::slash(
+            //     &sender,
+            //     T::GetExtrinsicExtraSource::get_extrinsic_extra(&MODULE_INDEX, &1u8),
+            // );
+
+            // debug::info!("{:?}", a);
+
+            // debug::info!(
+            //     "{:?}",
+            //     T::GetExtrinsicExtraSource::get_extrinsic_extra(&MODULE_INDEX, &1u8)
+            // );
+
+            // debug::info!("{:?}", T::Currency::total_balance(&sender));
 
             let registry_id = next_id!(NextRegistryId<T>, T);
 
             <Registries<T>>::insert(&sender, &registry_id, Registry { name });
 
             Self::deposit_event(Event::RegistryCreated(registry_id));
+
             Ok(().into())
         }
 

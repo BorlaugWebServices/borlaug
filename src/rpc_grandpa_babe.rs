@@ -36,8 +36,8 @@ use grandpa::{
     FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
 use runtime::primitives::{
-    AccountId, Balance, Block, BlockNumber, DefinitionId, DefinitionStepIndex, GroupId, Hash,
-    Index, MemberCount, ProcessId, RegistryId,
+    AccountId, Balance, Block, BlockNumber, DefinitionId, DefinitionStepIndex, ExtrinsicIndex,
+    GroupId, Hash, Index, MemberCount, ModuleIndex, ProcessId, RegistryId,
 };
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
@@ -138,6 +138,7 @@ where
         DefinitionStepIndex,
     >,
     C::Api: identity_runtime_api::IdentityApi<Block, AccountId, RegistryId>,
+    C::Api: settings_runtime_api::SettingsApi<Block, ModuleIndex, ExtrinsicIndex>,
     P: TransactionPool + 'static,
     SC: SelectChain<Block> + 'static,
     B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -169,6 +170,10 @@ where
     // Add the identity api
     io.extend_with(crate::identity_rpc::IdentityApi::to_delegate(
         crate::identity_rpc::Identity::new(client.clone()),
+    ));
+    // Add the settings api
+    io.extend_with(crate::settings_rpc::SettingsApi::to_delegate(
+        crate::settings_rpc::Settings::new(client.clone()),
     ));
 
     let BabeDeps {

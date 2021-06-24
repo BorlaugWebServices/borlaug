@@ -14,7 +14,7 @@ sp-io = {version = "3.0.0", default-features = false}
 sp-runtime = {version = "3.0.0", default-features = false}
 sp-std = {package = "sp-std", version = "3.0.0", default-features = false}
 
-group-info = {path = '../../traits/group_info', default-features = false}
+group-info = {path = "../../traits/group_info", default-features = false}
 primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
 
 [dev-dependencies]
@@ -23,16 +23,16 @@ serde = "1.0"
 sp-core = {version = "3.0.0", default-features = false}
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-  'codec/std',
+  "codec/std",
   "sp-std/std",
   "sp-core/std",
   "sp-io/std",
   "frame-support/std",
-  'frame-system/std',
-  'sp-runtime/std',
+  "frame-system/std",
+  "sp-runtime/std",
   "primitives/std",
   "pallet-balances/std",
-  'group-info/std',
+  "group-info/std",
 ]
