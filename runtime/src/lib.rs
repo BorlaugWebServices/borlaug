@@ -711,8 +711,11 @@ impl settings::Config for Runtime {
 }
 
 impl groups::Config for Runtime {
+    type Origin = Origin;
+    type GroupApprovalOrigin = groups::EnsureThreshold<Runtime>;
     type Proposal = Call;
     type GroupId = GroupId;
+    type MemberCount = MemberCount;
     type ProposalId = ProposalId;
     type Currency = Balances;
     type Event = Event;
@@ -743,12 +746,15 @@ impl audits::Config for Runtime {
 }
 
 impl provenance::Config for Runtime {
+    type Origin = Origin;
+    type GroupApprovalOrigin = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
     type RegistryId = primitives::RegistryId;
     type DefinitionId = primitives::DefinitionId;
     type ProcessId = primitives::ProcessId;
     type Currency = Balances;
     type Event = Event;
     type GroupId = primitives::GroupId;
+    type MemberCount = MemberCount;
     type GroupInfoSource = Groups;
     type GetExtrinsicExtraSource = Settings;
 }
@@ -759,7 +765,7 @@ construct_runtime!(
         NodeBlock = primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        System: frame_system::{Module, Call, Config, Storage, Event<T>} ,
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 
@@ -774,6 +780,7 @@ construct_runtime!(
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+        //BorlaugCommittee
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
         Offences: pallet_offences::{Module, Call, Storage, Event},
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
@@ -788,12 +795,13 @@ construct_runtime!(
 
         // BWS Modules
 
-        Groups: groups::{Module, Call, Storage, Event<T>},
+        Groups: groups::{Module, Call, Storage, Origin<T>, Event<T>},
+        //Borlaug
         Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},
-        Provenance: provenance::{Module, Call, Storage, Event<T>},
+        Provenance: provenance::{Module, Call,Storage, Event<T>},
     }
 );
 #[cfg(feature = "instant_seal")]
@@ -828,8 +836,8 @@ construct_runtime!(
 
         // BWS Modules
 
-        Groups: groups::{Module, Call, Storage,  Event<T>},
-        Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
+        Groups: groups::{Module, Call, Storage, Origin<T>, Event<T>},
+        Settings: settings::{Module, Call, Config<T>, Storage, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},

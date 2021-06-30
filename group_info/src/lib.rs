@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-/// Types that implement the GroupInfo trait are able to check if an account is a member of a group
+/// Types that implement the AccountSet trait are able to supply a set of accounts
+/// The trait is generic over the notion of Account used.
 pub trait GroupInfo {
     type AccountId;
     type GroupId;

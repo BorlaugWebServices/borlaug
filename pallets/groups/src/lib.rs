@@ -38,16 +38,13 @@ pub mod pallet {
     use primitives::group::{Group, Votes};
     use sp_io::hashing::blake2_256;
     use sp_runtime::{
-        traits::{AtLeast32Bit, CheckedAdd, Hash, One},
+        traits::{
+            AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Hash, One, Saturating,
+            UniqueSaturatedFrom, Zero,
+        },
         DispatchResult,
     };
     use sp_std::{prelude::*, vec};
-
-    /// A number of members.
-    ///
-    /// This also serves as a number of voting members, and since for motions, each member may
-    /// vote exactly once, therefore also the number of votes for any given motion.
-    pub type MemberCount = u32;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -56,31 +53,66 @@ pub mod pallet {
 
         type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
         type ProposalId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        /// A number of members.
+        ///
+        /// This also serves as a number of voting members, and since for motions, each member may
+        /// vote exactly once, therefore also the number of votes for any given motion.
+        type MemberCount: Parameter + AtLeast32BitUnsigned + Default + Copy + PartialEq + PartialOrd;
 
         type Currency: Currency<Self::AccountId>;
 
         /// The outer origin type.
-        // type Origin: From<RawOrigin<Self::AccountId>>;
-        /// The outer call dispatch type.
+        type Origin: From<RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
+
+        type GroupApprovalOrigin: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = (
+                Self::GroupId,
+                Option<Self::MemberCount>,
+                Option<Self::MemberCount>,
+                Self::AccountId,
+            ),
+        >;
+
         type Proposal: Parameter
-            + Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
-            + From<frame_system::Call<Self>>
-            + GetDispatchInfo;
+            + Dispatchable<Origin = <Self as Config>::Origin, PostInfo = PostDispatchInfo>
+            + GetDispatchInfo
+            + From<frame_system::Call<Self>>;
 
         /// Maximum number of proposals allowed to be active in parallel.
         //TODO: choose correct type
-        type MaxProposals: Get<MemberCount>;
+        type MaxProposals: Get<Self::MemberCount>;
 
         /// The maximum number of members supported by the pallet. Used for weight estimation.
         ///
         /// NOTE:
         /// + Benchmarks will need to be re-run and weights adjusted if this changes.
         /// + This pallet assumes that dependents keep to the limit without enforcing it.
-        type MaxMembers: Get<MemberCount>;
+        type MaxMembers: Get<Self::MemberCount>;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }
+
+    /// Origin for groups module proposals.
+
+    #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode)]
+    pub enum RawOrigin<AccountId, GroupId, MemberCount> {
+        /// It has been condoned by a given number of members of the group.
+        /// (group_id,yes_votes,no_votes,group_account)
+        ProposalApproved(GroupId, MemberCount, MemberCount, AccountId),
+        /// It has been approved by veto.
+        /// (group_id,veto_account,group_account)
+        ProposalApprovedByVeto(GroupId, AccountId, AccountId),
+    }
+
+    /// Origin for the groups module.
+    #[pallet::origin]
+    pub type Origin<T> = RawOrigin<
+        <T as frame_system::Config>::AccountId,
+        <T as Config>::GroupId,
+        <T as Config>::MemberCount,
+    >;
 
     #[pallet::event]
     #[pallet::metadata(
@@ -94,12 +126,12 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// A new Group was created (creator,group_id,annonymous_account)
         GroupCreated(T::AccountId, T::GroupId, T::AccountId),
-        /// A new SubGroup was created (creator,group_id,parent_group_id,annonymous_account)
-        SubGroupCreated(T::AccountId, T::GroupId, T::GroupId, T::AccountId),
-        /// A Group was updated (updater,group_id)
-        GroupUpdated(T::AccountId, T::GroupId),
-        /// A Group was removed (remover,group_id)
-        GroupRemoved(T::AccountId, T::GroupId),
+        /// A new SubGroup was created (parent_group_id,group_id,annonymous_account)
+        SubGroupCreated(T::GroupId, T::GroupId, T::AccountId),
+        /// A Group was updated (admin_group_id,group_id)
+        GroupUpdated(T::GroupId, T::GroupId),
+        /// A Group was removed (admin_group_id,group_id)
+        GroupRemoved(T::GroupId, T::GroupId),
         /// A new SubGroup was created (proposer,group_id,proposal_id)
         Proposed(T::AccountId, T::GroupId, T::ProposalId),
         /// A proposal was voted on (voter,group_id,proposal_id,approved,yes_votes,no_votes)
@@ -108,16 +140,16 @@ pub mod pallet {
             T::GroupId,
             T::ProposalId,
             bool,
-            MemberCount,
-            MemberCount,
+            T::MemberCount,
+            T::MemberCount,
         ),
         /// A proposal was approved by veto (vetoer,group_id,proposal_id,approved,yes_votes,no_votes,success)
         ApprovedByVeto(
             T::AccountId,
             T::GroupId,
             T::ProposalId,
-            MemberCount,
-            MemberCount,
+            T::MemberCount,
+            T::MemberCount,
             bool,
         ),
         /// A proposal was disapproved by veto (vetoer,group_id,proposal_id,approved,yes_votes,no_votes)
@@ -125,13 +157,19 @@ pub mod pallet {
             T::AccountId,
             T::GroupId,
             T::ProposalId,
-            MemberCount,
-            MemberCount,
+            T::MemberCount,
+            T::MemberCount,
         ),
         /// A motion was approved by the required threshold and executed; (group_id,proposal_id,yes_votes,no_votes,success)
-        Approved(T::GroupId, T::ProposalId, MemberCount, MemberCount, bool),
+        Approved(
+            T::GroupId,
+            T::ProposalId,
+            T::MemberCount,
+            T::MemberCount,
+            bool,
+        ),
         /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
-        Disapproved(T::GroupId, T::ProposalId, MemberCount, MemberCount),
+        Disapproved(T::GroupId, T::ProposalId, T::MemberCount, T::MemberCount),
         /// A member of an admin group submitted an extrinsic as the group account  (member_account,group_id,error)
         DepositedAsGroup(T::AccountId, T::GroupId, Option<DispatchError>),
     }
@@ -140,8 +178,12 @@ pub mod pallet {
     pub enum Error<T> {
         /// Account is not a member
         NotMember,
-        /// Bad data provided in group
-        BadGroup,
+        /// A group must have members
+        MembersRequired,
+        /// Invalid threshold provided when creating a group
+        InvalidThreshold,
+        /// Failed to give minimum balance to group account
+        AccountCreationFailed,
         /// Duplicate proposals not allowed
         DuplicateProposal,
 
@@ -228,7 +270,7 @@ pub mod pallet {
         _,
         Identity,
         T::GroupId,
-        Group<T::GroupId, T::AccountId, MemberCount>,
+        Group<T::GroupId, T::AccountId, T::MemberCount>,
         OptionQuery,
     >;
 
@@ -270,7 +312,7 @@ pub mod pallet {
         T::GroupId,
         Identity,
         T::ProposalId,
-        Votes<T::AccountId, T::ProposalId>,
+        Votes<T::AccountId, T::ProposalId, T::MemberCount>,
         OptionQuery,
     >;
 
@@ -286,24 +328,31 @@ pub mod pallet {
             origin: OriginFor<T>,
             name: Vec<u8>,
             mut members: Vec<T::AccountId>,
-            threshold: MemberCount,
+            threshold: T::MemberCount,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             if !members.contains(&sender) {
                 members.push(sender.clone());
             }
             ensure!(
-                threshold > 0 && threshold as usize <= members.len(),
-                Error::<T>::BadGroup
+                threshold > Zero::zero()
+                    && threshold <= T::MemberCount::unique_saturated_from(members.len() as u128),
+                Error::<T>::InvalidThreshold
             );
 
             let group_id = next_id!(NextGroupId<T>, T);
 
             let anonymous_account = Self::anonymous_account(&sender, group_id);
 
-            let min = T::Currency::minimum_balance();
+            //TODO: Since groups pay for transactions, we will need to give them more currency at some point
+            let result = T::Currency::transfer(
+                &sender,
+                &anonymous_account,
+                T::Currency::minimum_balance(),
+                AllowDeath,
+            );
 
-            let _ = T::Currency::transfer(&anonymous_account, &sender, min, AllowDeath);
+            ensure!(result.is_ok(), Error::<T>::AccountCreationFailed);
 
             let group = Group {
                 parent: None,
@@ -331,40 +380,43 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_sub_group(
             origin: OriginFor<T>,
-            parent_group_id: T::GroupId,
             name: Vec<u8>,
             members: Vec<T::AccountId>,
-            threshold: MemberCount,
+            threshold: T::MemberCount,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (caller_group_id, _yes_votes, _no_votes, caller_group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
-            ensure!(members.len() > 0, Error::<T>::BadGroup);
+            ensure!(members.len() > 0, Error::<T>::MembersRequired);
             ensure!(
-                threshold > 0 && threshold as usize <= members.len(),
-                Error::<T>::BadGroup
+                threshold > Zero::zero()
+                    && threshold <= T::MemberCount::unique_saturated_from(members.len() as u128),
+                Error::<T>::InvalidThreshold
             );
 
-            let mut admin_group = Self::groups(parent_group_id).ok_or(Error::<T>::GroupMissing)?;
-            let mut admin_group_id = parent_group_id;
+            let mut admin_group = Self::groups(caller_group_id).ok_or(Error::<T>::GroupMissing)?;
+            let mut admin_group_id = caller_group_id;
             while admin_group.parent.is_some() {
                 admin_group_id = admin_group.parent.unwrap();
                 admin_group = Self::groups(admin_group_id).ok_or(Error::<T>::GroupMissing)?;
             }
-            ensure!(
-                admin_group.anonymous_account == sender,
-                Error::<T>::NotGroupAdmin
-            );
 
             let group_id = next_id!(NextGroupId<T>, T);
 
-            let anonymous_account = Self::anonymous_account(&sender, group_id);
+            let anonymous_account = Self::anonymous_account(&caller_group_account, group_id);
 
-            let min = T::Currency::minimum_balance();
+            //TODO: Since groups pay for transactions, we will need to give them more currency at some point
+            let result = T::Currency::transfer(
+                &caller_group_account,
+                &anonymous_account,
+                T::Currency::minimum_balance(),
+                AllowDeath,
+            );
 
-            let _ = T::Currency::transfer(&anonymous_account, &sender, min, AllowDeath);
+            ensure!(result.is_ok(), Error::<T>::AccountCreationFailed);
 
             let group = Group {
-                parent: Some(parent_group_id),
+                parent: Some(caller_group_id),
                 name,
                 members,
                 threshold,
@@ -374,7 +426,7 @@ pub mod pallet {
 
             <Groups<T>>::insert(group_id, group);
             <GroupChildren<T>>::try_mutate_exists(
-                parent_group_id,
+                caller_group_id,
                 |maybe_group_children| -> DispatchResult {
                     let group_children = maybe_group_children
                         .as_mut()
@@ -386,16 +438,15 @@ pub mod pallet {
             <ProposalHashes<T>>::insert(group_id, Vec::<T::Hash>::new());
 
             Self::deposit_event(Event::SubGroupCreated(
-                sender,
-                group_id,
                 admin_group_id,
+                group_id,
                 anonymous_account,
             ));
 
             Ok(().into())
         }
 
-        /// Update an Group. This is for admin groups only. Can only be called via proposal.
+        /// Update a Group. Can only be called via a proposal from any group in the parent chain.
         ///
         /// # <weight>
         /// TODO:
@@ -406,19 +457,19 @@ pub mod pallet {
             group_id: T::GroupId,
             name: Option<Vec<u8>>,
             members: Option<Vec<T::AccountId>>,
-            threshold: Option<MemberCount>,
+            threshold: Option<T::MemberCount>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
+
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             let mut admin_group = group;
-            while admin_group.parent.is_some() {
-                admin_group =
-                    Self::groups(admin_group.parent.unwrap()).ok_or(Error::<T>::GroupMissing)?;
+            let mut admin_group_id = group_id;
+            while caller_group_id != group_id && admin_group.parent.is_some() {
+                admin_group_id = admin_group.parent.unwrap();
+                admin_group = Self::groups(admin_group_id).ok_or(Error::<T>::GroupMissing)?;
             }
-            ensure!(
-                admin_group.anonymous_account == sender,
-                Error::<T>::NotGroupAdmin
-            );
+            ensure!(caller_group_id == group_id, Error::<T>::NotGroupAdmin);
 
             <Groups<T>>::mutate(group_id, |group_option| {
                 if let Some(group) = group_option {
@@ -434,12 +485,12 @@ pub mod pallet {
                 }
             });
 
-            Self::deposit_event(Event::GroupUpdated(sender, group_id));
+            Self::deposit_event(Event::GroupUpdated(admin_group_id, group_id));
 
             Ok(().into())
         }
 
-        /// Remove a Group. All child groups will also be removed. Can only be called via proposal.
+        /// Remove a Group. All child groups will also be removed. Can only be called via a proposal from any group in the parent chain.
         ///
         /// # <weight>
         ///TODO:
@@ -449,17 +500,17 @@ pub mod pallet {
             origin: OriginFor<T>,
             group_id: T::GroupId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
+
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             let mut admin_group = group.clone();
-            while admin_group.parent.is_some() {
-                admin_group =
-                    Self::groups(admin_group.parent.unwrap()).ok_or(Error::<T>::GroupMissing)?;
+            let mut admin_group_id = group_id;
+            while caller_group_id != group_id && admin_group.parent.is_some() {
+                admin_group_id = admin_group.parent.unwrap();
+                admin_group = Self::groups(admin_group_id).ok_or(Error::<T>::GroupMissing)?;
             }
-            ensure!(
-                admin_group.anonymous_account == sender,
-                Error::<T>::NotGroupAdmin
-            );
+            ensure!(caller_group_id == group_id, Error::<T>::NotGroupAdmin);
 
             Self::remove_children(group_id);
 
@@ -480,38 +531,9 @@ pub mod pallet {
             <GroupChildren<T>>::remove(&group_id);
             <ProposalHashes<T>>::remove(&group_id);
 
-            Self::deposit_event(Event::GroupRemoved(sender, group_id));
+            Self::deposit_event(Event::GroupRemoved(admin_group_id, group_id));
 
             Ok(().into())
-        }
-
-        /// Executes an extrinsic using the group account
-        ///
-        /// Requires the sender to be member.
-        ///
-
-        #[pallet::weight(proposal.get_dispatch_info().weight)]
-        pub fn as_group(
-            origin: OriginFor<T>,
-            group_id: T::GroupId,
-            proposal: Box<<T as Config>::Proposal>,
-        ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
-            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
-            ensure!(group.members.contains(&sender), Error::<T>::NotMember);
-            let proposal_len = proposal.using_encoded(|x| x.len());
-
-            let result = proposal
-                .dispatch(frame_system::RawOrigin::Signed(group.anonymous_account.clone()).into());
-
-            let error = match result {
-                Ok(_) => None,
-                Err(err) => Some(err.error),
-            };
-
-            Self::deposit_event(Event::DepositedAsGroup(sender, group_id, error));
-
-            Ok(Some(T::WeightInfo::as_group(proposal_len as u32)).into())
         }
 
         /// Add a new proposal to either be voted on or executed directly.
@@ -524,8 +546,12 @@ pub mod pallet {
             origin: OriginFor<T>,
             group_id: T::GroupId,
             proposal: Box<<T as Config>::Proposal>,
+            //TODO: how do we add compact macro?
+            // #[compact]
+            threshold: T::MemberCount,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             ensure!(group.members.contains(&sender), Error::<T>::NotMember);
             let proposal_len = proposal.using_encoded(|x| x.len());
@@ -543,11 +569,23 @@ pub mod pallet {
 
             let proposal_id = next_id!(NextProposalId<T>, T);
 
-            if group.threshold < 2 {
+            if threshold < 2u32.into() {
                 let result = proposal.dispatch(
-                    frame_system::RawOrigin::Signed(group.anonymous_account.clone()).into(),
+                    RawOrigin::ProposalApproved(
+                        group_id,
+                        1u32.into(),
+                        0u32.into(),
+                        group.anonymous_account.clone(),
+                    )
+                    .into(),
                 );
-                Self::deposit_event(Event::Approved(group_id, proposal_id, 1, 0, result.is_ok()));
+                Self::deposit_event(Event::Approved(
+                    group_id,
+                    proposal_id,
+                    1u32.into(),
+                    0u32.into(),
+                    result.is_ok(),
+                ));
 
                 Ok(Self::get_result_weight(result)
                     .map(|w| {
@@ -575,6 +613,7 @@ pub mod pallet {
 
                 let votes = Votes {
                     proposal_id,
+                    threshold,
                     ayes: vec![sender.clone()],
                     nays: vec![],
                 };
@@ -637,8 +676,8 @@ pub mod pallet {
                 }
             }
 
-            let yes_votes = voting.ayes.len() as MemberCount;
-            let no_votes = voting.nays.len() as MemberCount;
+            let yes_votes = T::MemberCount::unique_saturated_from(voting.ayes.len() as u128);
+            let no_votes = T::MemberCount::unique_saturated_from(voting.nays.len() as u128);
             Self::deposit_event(Event::Voted(
                 sender,
                 group_id,
@@ -648,15 +687,22 @@ pub mod pallet {
                 no_votes,
             ));
 
-            Voting::<T>::insert(group_id, proposal_id, voting);
+            Voting::<T>::insert(group_id, proposal_id, voting.clone());
 
-            let seats = group.members.len() as MemberCount;
-            let approved = yes_votes >= group.threshold;
-            let disapproved = seats.saturating_sub(no_votes) < group.threshold;
+            let seats = T::MemberCount::unique_saturated_from(group.members.len() as u128);
+            let approved = yes_votes >= voting.threshold;
+            let disapproved = seats.saturating_sub(no_votes) < voting.threshold;
             // Allow (dis-)approving the proposal as soon as there are enough votes.
             if approved {
-                let result = proposal
-                    .dispatch(frame_system::RawOrigin::Signed(group.anonymous_account).into());
+                let result = proposal.dispatch(
+                    RawOrigin::ProposalApproved(
+                        group_id,
+                        yes_votes,
+                        no_votes,
+                        group.anonymous_account.clone(),
+                    )
+                    .into(),
+                );
                 Self::deposit_event(Event::Approved(
                     group_id,
                     proposal_id,
@@ -718,12 +764,19 @@ pub mod pallet {
                 Self::proposals(group_id, proposal_id).ok_or(Error::<T>::ProposalMissing)?;
             let proposal_hash = T::Hashing::hash_of(&proposal);
             let voting = Self::voting(group_id, proposal_id).ok_or(Error::<T>::VoteMissing)?;
-            let yes_votes = voting.ayes.len() as MemberCount;
-            let no_votes = voting.nays.len() as MemberCount;
+
+            let yes_votes = T::MemberCount::unique_saturated_from(voting.ayes.len() as u128);
+            let no_votes = T::MemberCount::unique_saturated_from(voting.nays.len() as u128);
 
             if approve {
-                let result = proposal
-                    .dispatch(frame_system::RawOrigin::Signed(group.anonymous_account).into());
+                let result = proposal.dispatch(
+                    RawOrigin::ProposalApprovedByVeto(
+                        group_id,
+                        sender.clone(),
+                        group.anonymous_account.clone(),
+                    )
+                    .into(),
+                );
                 Self::deposit_event(Event::ApprovedByVeto(
                     sender,
                     group_id,
@@ -764,12 +817,12 @@ pub mod pallet {
 
         pub fn get_group(
             group_id: T::GroupId,
-        ) -> Option<Group<T::GroupId, T::AccountId, MemberCount>> {
+        ) -> Option<Group<T::GroupId, T::AccountId, T::MemberCount>> {
             <Groups<T>>::get(group_id)
         }
         pub fn get_sub_groups(
             group_id: T::GroupId,
-        ) -> Option<Vec<(T::GroupId, Group<T::GroupId, T::AccountId, MemberCount>)>> {
+        ) -> Option<Vec<(T::GroupId, Group<T::GroupId, T::AccountId, T::MemberCount>)>> {
             let maybe_group_ids = <GroupChildren<T>>::get(group_id);
             maybe_group_ids.map(|group_ids| {
                 group_ids
@@ -865,6 +918,77 @@ pub mod pallet {
         }
         fn is_group_account(groupd_id: Self::GroupId, account_id: &Self::AccountId) -> bool {
             Self::is_group_account(groupd_id, account_id)
+        }
+    }
+
+    pub struct EnsureApproved<AccountId, GroupId, MemberCount>(
+        sp_std::marker::PhantomData<(AccountId, GroupId, MemberCount)>,
+    );
+    impl<
+            O: Into<Result<RawOrigin<AccountId, GroupId, MemberCount>, O>>
+                + From<RawOrigin<AccountId, GroupId, MemberCount>>,
+            AccountId,
+            GroupId,
+            MemberCount,
+        > EnsureOrigin<O> for EnsureApproved<AccountId, GroupId, MemberCount>
+    {
+        type Success = (GroupId, Option<MemberCount>, Option<MemberCount>, AccountId);
+        fn try_origin(o: O) -> Result<Self::Success, O> {
+            o.into().and_then(|o| match o {
+                RawOrigin::ProposalApproved(group_id, yes_votes, no_votes, group_account) => {
+                    Ok((group_id, Some(yes_votes), Some(no_votes), group_account))
+                }
+                RawOrigin::ProposalApprovedByVeto(group_id, _, group_account) => {
+                    Ok((group_id, None, None, group_account))
+                }
+            })
+        }
+
+        #[cfg(feature = "runtime-benchmarks")]
+        fn successful_origin() -> O {
+            //TODO: fix
+            O::from(RawOrigin::ProposalApproved(None, 0, 0, None))
+        }
+    }
+
+    pub struct EnsureThreshold<T>(sp_std::marker::PhantomData<T>);
+    impl<
+            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>, O>>
+                + From<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>>,
+            T: Config,
+        > EnsureOrigin<O> for EnsureThreshold<T>
+    {
+        type Success = (
+            T::GroupId,
+            Option<T::MemberCount>,
+            Option<T::MemberCount>,
+            T::AccountId,
+        );
+        fn try_origin(o: O) -> Result<Self::Success, O> {
+            o.into().and_then(|o| match o.clone() {
+                RawOrigin::ProposalApproved(group_id, yes_votes, no_votes, group_account) => {
+                    let group_maybe = <Groups<T>>::get(group_id);
+                    match group_maybe {
+                        Some(group) => {
+                            if yes_votes >= group.threshold {
+                                Ok((group_id, Some(yes_votes), Some(no_votes), group_account))
+                            } else {
+                                Err(O::from(o))
+                            }
+                        }
+                        None => Err(O::from(o)),
+                    }
+                }
+                RawOrigin::ProposalApprovedByVeto(group_id, _, group_account) => {
+                    Ok((group_id, None, None, group_account))
+                }
+            })
+        }
+
+        #[cfg(feature = "runtime-benchmarks")]
+        fn successful_origin() -> O {
+            //TODO: fix
+            O::from(RawOrigin::ProposalApproved(None, None, None, None))
         }
     }
 }

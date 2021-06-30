@@ -52,7 +52,27 @@ pub mod pallet {
         type RegistryId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
         type DefinitionId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
         type ProcessId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
-        type GroupId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
+        type GroupId: Parameter + Member + AtLeast32Bit + Eq + Default + Copy + PartialEq;
+        type MemberCount: Parameter
+            + Member
+            + PartialOrd
+            + AtLeast32Bit
+            + Eq
+            + Default
+            + Copy
+            + PartialEq;
+
+        type Origin: From<groups::RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
+
+        type GroupApprovalOrigin: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = (
+                Self::GroupId,
+                Option<Self::MemberCount>,
+                Option<Self::MemberCount>,
+                Self::AccountId,
+            ),
+        >;
 
         type GroupInfoSource: GroupInfo<GroupId = Self::GroupId, AccountId = Self::AccountId>;
 
@@ -272,9 +292,18 @@ pub mod pallet {
         /// Arguments: none
 
         #[pallet::weight( 10_000 +  T::DbWeight::get().writes(1))]
-        // #[pallet::weight( T::GetExtrinsicExtraSource::get_extrinsic_extra(&MODULE_INDEX, &1u8)+ T::DbWeight::get().writes(1))]
         pub fn create_registry(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
+
+            // ensure!(group_account.is_some(), Error::<T>::NotAuthorized);
+            // let group_account = group_account.unwrap();
+
+            // let sender = ensure_signed(origin)?;
+            // ensure!(
+            //     T::GroupOriginSource::ensure_minimum(group_id, origin.into(), 1u32),
+            //     Error::<T>::NotAuthorized
+            // );
 
             // debug::info!("{:?}", T::Currency::total_balance(&sender));
 
@@ -294,7 +323,7 @@ pub mod pallet {
 
             let registry_id = next_id!(NextRegistryId<T>, T);
 
-            <Registries<T>>::insert(&sender, &registry_id, Registry { name });
+            <Registries<T>>::insert(&group_account, &registry_id, Registry { name });
 
             Self::deposit_event(Event::RegistryCreated(registry_id));
 
@@ -307,6 +336,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_registry(
             origin: OriginFor<T>,
+
             registry_id: T::RegistryId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
@@ -338,6 +368,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn remove_registry(
             origin: OriginFor<T>,
+
             registry_id: T::RegistryId,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;

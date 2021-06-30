@@ -19,9 +19,11 @@ pub struct Group<GroupId, AccountId, MemberCount> {
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 /// Info for keeping track of a motion being voted on.
-pub struct Votes<AccountId, ProposalId> {
+pub struct Votes<AccountId, ProposalId, MemberCount> {
     /// The proposal's Id
     pub proposal_id: ProposalId,
+    /// The number of approval votes that are needed to pass the motion.
+    pub threshold: MemberCount,
     /// The current set of voters that approved it.
     pub ayes: Vec<AccountId>,
     /// The current set of voters that rejected it.

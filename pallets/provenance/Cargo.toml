@@ -15,11 +15,12 @@ timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features =
 
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
 group-info = {path = "../../traits/group_info", default-features = false}
+groups = {package = "pallet-groups", path = "../groups", default-features = false}
 primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
 
 [dev-dependencies]
 chrono = "0.4"
-groups = {package = "pallet-groups", path = "../groups", default-features = false}
+
 identity = {package = "pallet-identity", path = "../identity", default-features = false}
 pallet-balances = "3.0.0"
 serde = "1.0"
