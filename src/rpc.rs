@@ -39,11 +39,11 @@ where
     C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId, MemberCount>,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,
-        AccountId,
         RegistryId,
         DefinitionId,
         ProcessId,
         GroupId,
+        MemberCount,
         DefinitionStepIndex,
     >,
     C::Api: identity_runtime_api::IdentityApi<Block, AccountId, RegistryId>,

@@ -755,7 +755,6 @@ impl provenance::Config for Runtime {
     type Event = Event;
     type GroupId = primitives::GroupId;
     type MemberCount = MemberCount;
-    type GroupInfoSource = Groups;
     type GetExtrinsicExtraSource = Settings;
 }
 #[cfg(feature = "grandpa_babe")]
@@ -1081,12 +1080,12 @@ impl_runtime_apis! {
         }
     }
 
-    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId,GroupId,DefinitionStepIndex> for Runtime {
-        fn get_registries(account:AccountId) -> Vec<(RegistryId,Registry)>  {
-            Provenance::get_registries(account)
+    impl provenance_runtime_api::ProvenanceApi<Block,RegistryId,DefinitionId,ProcessId,GroupId, MemberCount,DefinitionStepIndex> for Runtime {
+        fn get_registries(group_id: GroupId) -> Vec<(RegistryId,Registry)>  {
+            Provenance::get_registries(group_id)
         }
-        fn get_registry(account:AccountId,registry_id:RegistryId) ->Option<Registry>  {
-            Provenance::get_registry(account,registry_id)
+        fn get_registry(group_id: GroupId,registry_id:RegistryId) ->Option<Registry>  {
+            Provenance::get_registry(group_id,registry_id)
         }
         fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition)>  {
             Provenance::get_definitions(registry_id)
@@ -1094,7 +1093,7 @@ impl_runtime_apis! {
         fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition>  {
             Provenance::get_definition(registry_id,definition_id)
         }
-        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId>)>  {
+        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId, MemberCount>)>  {
             Provenance::get_definition_steps(registry_id,definition_id)
         }
         fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process)>  {
@@ -1103,10 +1102,10 @@ impl_runtime_apis! {
         fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Option<Process>  {
             Provenance::get_process(registry_id,definition_id,process_id)
         }
-        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<AccountId>>  {
+        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep>  {
             Provenance::get_process_steps(registry_id,definition_id,process_id)
         }
-        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<AccountId>>  {
+        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep>  {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
     }
