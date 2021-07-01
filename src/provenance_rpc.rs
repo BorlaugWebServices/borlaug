@@ -13,25 +13,25 @@ use std::sync::Arc;
 #[rpc]
 pub trait ProvenanceApi<
     BlockHash,
-    AccountId,
     RegistryId,
     DefinitionId,
     ProcessId,
     GroupId,
+    MemberCount,
     DefinitionStepIndex,
 >
 {
     #[rpc(name = "get_registries")]
     fn get_registries(
         &self,
-        account: AccountId,
+        group_id: GroupId,
         at: Option<BlockHash>,
     ) -> Result<Vec<RegistryResponse<RegistryId>>>;
 
     #[rpc(name = "get_registry")]
     fn get_registry(
         &self,
-        account: AccountId,
+        group_id: GroupId,
         registry_id: RegistryId,
         at: Option<BlockHash>,
     ) -> Result<RegistryResponse<RegistryId>>;
@@ -41,7 +41,11 @@ pub trait ProvenanceApi<
         &self,
         registry_id: RegistryId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<DefinitionResponse<RegistryId, DefinitionId, GroupId, DefinitionStepIndex>>>;
+    ) -> Result<
+        Vec<
+            DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex>,
+        >,
+    >;
 
     #[rpc(name = "get_definition")]
     fn get_definition(
@@ -49,7 +53,9 @@ pub trait ProvenanceApi<
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<BlockHash>,
-    ) -> Result<DefinitionResponse<RegistryId, DefinitionId, GroupId, DefinitionStepIndex>>;
+    ) -> Result<
+        DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex>,
+    >;
 
     #[rpc(name = "get_processes")]
     fn get_processes(
@@ -57,7 +63,7 @@ pub trait ProvenanceApi<
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId, AccountId>>>;
+    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId>>>;
 
     #[rpc(name = "get_process")]
     fn get_process(
@@ -66,7 +72,7 @@ pub trait ProvenanceApi<
         definition_id: DefinitionId,
         process_id: ProcessId,
         at: Option<BlockHash>,
-    ) -> Result<ProcessResponse<RegistryId, DefinitionId, ProcessId, AccountId>>;
+    ) -> Result<ProcessResponse<RegistryId, DefinitionId, ProcessId>>;
     #[rpc(name = "get_process_step")]
     fn get_process_step(
         &self,
@@ -75,7 +81,7 @@ pub trait ProvenanceApi<
         process_id: ProcessId,
         definition_step_index: DefinitionStepIndex,
         at: Option<BlockHash>,
-    ) -> Result<ProcessStepResponse<AccountId>>;
+    ) -> Result<ProcessStepResponse>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -85,31 +91,33 @@ pub struct RegistryResponse<RegistryId> {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct DefinitionResponse<RegistryId, DefinitionId, GroupId, DefinitionStepIndex> {
+pub struct DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex> {
     pub registry_id: RegistryId,
     pub definition_id: DefinitionId,
     pub name: String,
-    pub definition_steps: Option<Vec<DefinitionStepResponse<GroupId, DefinitionStepIndex>>>,
+    pub definition_steps:
+        Option<Vec<DefinitionStepResponse<GroupId, MemberCount, DefinitionStepIndex>>>,
 }
 #[derive(Serialize, Deserialize)]
-pub struct DefinitionStepResponse<GroupId, DefinitionStepIndex> {
+pub struct DefinitionStepResponse<GroupId, MemberCount, DefinitionStepIndex> {
     pub definition_step_index: DefinitionStepIndex,
     pub name: String,
     pub group_id: GroupId,
+    pub threshold: MemberCount,
 }
 #[derive(Serialize, Deserialize)]
-pub struct ProcessResponse<RegistryId, DefinitionId, ProcessId, AccountId> {
+pub struct ProcessResponse<RegistryId, DefinitionId, ProcessId> {
     pub registry_id: RegistryId,
     pub definition_id: DefinitionId,
     pub process_id: ProcessId,
     pub name: String,
-    pub process_steps: Option<Vec<ProcessStepResponse<AccountId>>>,
+    pub process_steps: Option<Vec<ProcessStepResponse>>,
     pub status: String,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ProcessStepResponse<AccountId> {
-    pub attested_by: Option<AccountId>,
+pub struct ProcessStepResponse {
+    pub attested: bool,
     pub attributes: Vec<AttributeResponse>,
 }
 #[derive(Serialize, Deserialize)]
@@ -208,25 +216,25 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, AccountId, RegistryId, DefinitionId, ProcessId, GroupId, DefinitionStepIndex>
+impl<C, Block, RegistryId, DefinitionId, ProcessId, GroupId, MemberCount, DefinitionStepIndex>
     ProvenanceApi<
         <Block as BlockT>::Hash,
-        AccountId,
         RegistryId,
         DefinitionId,
         ProcessId,
         GroupId,
+        MemberCount,
         DefinitionStepIndex,
     >
     for Provenance<
         C,
         (
             Block,
-            AccountId,
             RegistryId,
             DefinitionId,
             ProcessId,
             GroupId,
+            MemberCount,
             DefinitionStepIndex,
         ),
     >
@@ -237,23 +245,24 @@ where
     C: HeaderBackend<Block>,
     C::Api: ProvenanceRuntimeApi<
         Block,
-        AccountId,
         RegistryId,
         DefinitionId,
         ProcessId,
         GroupId,
+        MemberCount,
         DefinitionStepIndex,
     >,
-    AccountId: Codec + Send + Sync + 'static,
+
     RegistryId: Codec + Copy + Send + Sync + 'static,
     DefinitionId: Codec + Copy + Send + Sync + 'static,
     ProcessId: Codec + Copy + Send + Sync + 'static,
     GroupId: Codec + Copy + Send + Sync + 'static,
+    MemberCount: Codec + Copy + Send + Sync + 'static,
     DefinitionStepIndex: Codec + Copy + Send + Sync + 'static,
 {
     fn get_registries(
         &self,
-        account: AccountId,
+        group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<Vec<RegistryResponse<RegistryId>>> {
         let api = self.client.runtime_api();
@@ -261,7 +270,9 @@ where
             // If the block hash is not supplied assume the best block.
             self.client.info().best_hash));
 
-        let registries = api.get_registries(&at, account).map_err(convert_error!())?;
+        let registries = api
+            .get_registries(&at, group_id)
+            .map_err(convert_error!())?;
         Ok(registries
             .into_iter()
             .map(|(registry_id, registry)| RegistryResponse::<RegistryId> {
@@ -273,7 +284,7 @@ where
 
     fn get_registry(
         &self,
-        account: AccountId,
+        group_id: GroupId,
         registry_id: RegistryId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<RegistryResponse<RegistryId>> {
@@ -281,7 +292,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let registry = api
-            .get_registry(&at, account, registry_id)
+            .get_registry(&at, group_id, registry_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
@@ -295,8 +306,11 @@ where
         &self,
         registry_id: RegistryId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DefinitionResponse<RegistryId, DefinitionId, GroupId, DefinitionStepIndex>>>
-    {
+    ) -> Result<
+        Vec<
+            DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex>,
+        >,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -310,6 +324,7 @@ where
                 RegistryId,
                 DefinitionId,
                 GroupId,
+                MemberCount,
                 DefinitionStepIndex,
             > {
                 registry_id,
@@ -325,7 +340,9 @@ where
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<DefinitionResponse<RegistryId, DefinitionId, GroupId, DefinitionStepIndex>> {
+    ) -> Result<
+        DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex>,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -338,25 +355,30 @@ where
             .get_definition_steps(&at, registry_id, definition_id)
             .map_err(convert_error!())?;
 
-        Ok(
-            DefinitionResponse::<RegistryId, DefinitionId, GroupId, DefinitionStepIndex> {
-                registry_id,
-                definition_id,
-                name: String::from_utf8_lossy(&definition.name).to_string(),
-                definition_steps: Some(
-                    definition_steps
-                        .into_iter()
-                        .map(
-                            |(definition_step_index, definition_step)| DefinitionStepResponse {
-                                definition_step_index,
-                                name: String::from_utf8_lossy(&definition_step.name).to_string(),
-                                group_id: definition_step.group_id,
-                            },
-                        )
-                        .collect(),
-                ),
-            },
-        )
+        Ok(DefinitionResponse::<
+            RegistryId,
+            DefinitionId,
+            GroupId,
+            MemberCount,
+            DefinitionStepIndex,
+        > {
+            registry_id,
+            definition_id,
+            name: String::from_utf8_lossy(&definition.name).to_string(),
+            definition_steps: Some(
+                definition_steps
+                    .into_iter()
+                    .map(
+                        |(definition_step_index, definition_step)| DefinitionStepResponse {
+                            definition_step_index,
+                            name: String::from_utf8_lossy(&definition_step.name).to_string(),
+                            group_id: definition_step.group_id,
+                            threshold: definition_step.threshold,
+                        },
+                    )
+                    .collect(),
+            ),
+        })
     }
 
     fn get_processes(
@@ -364,7 +386,7 @@ where
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId, AccountId>>> {
+    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -374,22 +396,19 @@ where
 
         Ok(processes
             .into_iter()
-            .map(|(process_id, process)| ProcessResponse::<
-                RegistryId,
-                DefinitionId,
-                ProcessId,
-                AccountId,
-            > {
-                registry_id,
-                definition_id,
-                process_id,
-                name: String::from_utf8_lossy(&process.name).to_string(),
-                process_steps: None,
-                status: match process.status {
-                    pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
-                    pallet_primitives::ProcessStatus::InProgress => "InProgress".to_string(),
+            .map(
+                |(process_id, process)| ProcessResponse::<RegistryId, DefinitionId, ProcessId> {
+                    registry_id,
+                    definition_id,
+                    process_id,
+                    name: String::from_utf8_lossy(&process.name).to_string(),
+                    process_steps: None,
+                    status: match process.status {
+                        pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
+                        pallet_primitives::ProcessStatus::InProgress => "InProgress".to_string(),
+                    },
                 },
-            })
+            )
             .collect())
     }
 
@@ -399,7 +418,7 @@ where
         definition_id: DefinitionId,
         process_id: ProcessId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ProcessResponse<RegistryId, DefinitionId, ProcessId, AccountId>> {
+    ) -> Result<ProcessResponse<RegistryId, DefinitionId, ProcessId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -412,34 +431,32 @@ where
             .get_process_steps(&at, registry_id, definition_id, process_id)
             .map_err(convert_error!())?;
 
-        Ok(
-            ProcessResponse::<RegistryId, DefinitionId, ProcessId, AccountId> {
-                registry_id,
-                definition_id,
-                process_id,
-                name: String::from_utf8_lossy(&process.name).to_string(),
-                process_steps: Some(
-                    process_steps
-                        .into_iter()
-                        .map(|process_step| ProcessStepResponse::<AccountId> {
-                            attested_by: process_step.attested_by,
-                            attributes: process_step
-                                .attributes
-                                .into_iter()
-                                .map(|attribute| AttributeResponse {
-                                    name: String::from_utf8_lossy(&attribute.name).to_string(),
-                                    fact: attribute.fact.into(),
-                                })
-                                .collect(),
-                        })
-                        .collect(),
-                ),
-                status: match process.status {
-                    pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
-                    pallet_primitives::ProcessStatus::InProgress => "InProgress".to_string(),
-                },
+        Ok(ProcessResponse::<RegistryId, DefinitionId, ProcessId> {
+            registry_id,
+            definition_id,
+            process_id,
+            name: String::from_utf8_lossy(&process.name).to_string(),
+            process_steps: Some(
+                process_steps
+                    .into_iter()
+                    .map(|process_step| ProcessStepResponse {
+                        attested: process_step.attested,
+                        attributes: process_step
+                            .attributes
+                            .into_iter()
+                            .map(|attribute| AttributeResponse {
+                                name: String::from_utf8_lossy(&attribute.name).to_string(),
+                                fact: attribute.fact.into(),
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            ),
+            status: match process.status {
+                pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
+                pallet_primitives::ProcessStatus::InProgress => "InProgress".to_string(),
             },
-        )
+        })
     }
     fn get_process_step(
         &self,
@@ -448,7 +465,7 @@ where
         process_id: ProcessId,
         definition_step_index: DefinitionStepIndex,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ProcessStepResponse<AccountId>> {
+    ) -> Result<ProcessStepResponse> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -463,8 +480,8 @@ where
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
-        Ok(ProcessStepResponse::<AccountId> {
-            attested_by: process_step.attested_by,
+        Ok(ProcessStepResponse {
+            attested: process_step.attested,
             attributes: process_step
                 .attributes
                 .into_iter()

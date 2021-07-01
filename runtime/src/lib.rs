@@ -19,6 +19,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 }
 
 pub mod constants;
+mod payment;
 pub mod primitives;
 #[cfg(feature = "grandpa_babe")]
 use codec::Encode;
@@ -424,11 +425,14 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-    type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
+    // type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
+    type OnChargeTransaction = payment::GroupsCurrencyAdapter<Balances, DealWithFees>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate =
-        TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+    type FeeMultiplierUpdate = ();
+    //TODO: put this back. Removed temporarily to make fee analysis easier
+    // type FeeMultiplierUpdate =
+    //     TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -711,8 +715,11 @@ impl settings::Config for Runtime {
 }
 
 impl groups::Config for Runtime {
+    type Origin = Origin;
+    type GroupApprovalOrigin = groups::EnsureThreshold<Runtime>;
     type Proposal = Call;
     type GroupId = GroupId;
+    type MemberCount = MemberCount;
     type ProposalId = ProposalId;
     type Currency = Balances;
     type Event = Event;
@@ -743,13 +750,15 @@ impl audits::Config for Runtime {
 }
 
 impl provenance::Config for Runtime {
+    type Origin = Origin;
+    type GroupApprovalOrigin = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
     type RegistryId = primitives::RegistryId;
     type DefinitionId = primitives::DefinitionId;
     type ProcessId = primitives::ProcessId;
     type Currency = Balances;
     type Event = Event;
     type GroupId = primitives::GroupId;
-    type GroupInfoSource = Groups;
+    type MemberCount = MemberCount;
     type GetExtrinsicExtraSource = Settings;
 }
 #[cfg(feature = "grandpa_babe")]
@@ -759,7 +768,7 @@ construct_runtime!(
         NodeBlock = primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        System: frame_system::{Module, Call, Config, Storage, Event<T>} ,
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 
@@ -774,6 +783,7 @@ construct_runtime!(
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+        //BorlaugCommittee
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
         Offences: pallet_offences::{Module, Call, Storage, Event},
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
@@ -788,12 +798,13 @@ construct_runtime!(
 
         // BWS Modules
 
-        Groups: groups::{Module, Call, Storage, Event<T>},
+        Groups: groups::{Module, Call, Storage, Origin<T>, Event<T>},
+        //Borlaug
         Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},
-        Provenance: provenance::{Module, Call, Storage, Event<T>},
+        Provenance: provenance::{Module, Call,Storage, Event<T>},
     }
 );
 #[cfg(feature = "instant_seal")]
@@ -828,8 +839,8 @@ construct_runtime!(
 
         // BWS Modules
 
-        Groups: groups::{Module, Call, Storage,  Event<T>},
-        Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
+        Groups: groups::{Module, Call, Storage, Origin<T>, Event<T>},
+        Settings: settings::{Module, Call, Config<T>, Storage, Event<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
         AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
         Audits: audits::{Module, Call, Storage, Event<T>},
@@ -1073,12 +1084,12 @@ impl_runtime_apis! {
         }
     }
 
-    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId,GroupId,DefinitionStepIndex> for Runtime {
-        fn get_registries(account:AccountId) -> Vec<(RegistryId,Registry)>  {
-            Provenance::get_registries(account)
+    impl provenance_runtime_api::ProvenanceApi<Block,RegistryId,DefinitionId,ProcessId,GroupId, MemberCount,DefinitionStepIndex> for Runtime {
+        fn get_registries(group_id: GroupId) -> Vec<(RegistryId,Registry)>  {
+            Provenance::get_registries(group_id)
         }
-        fn get_registry(account:AccountId,registry_id:RegistryId) ->Option<Registry>  {
-            Provenance::get_registry(account,registry_id)
+        fn get_registry(group_id: GroupId,registry_id:RegistryId) ->Option<Registry>  {
+            Provenance::get_registry(group_id,registry_id)
         }
         fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition)>  {
             Provenance::get_definitions(registry_id)
@@ -1086,7 +1097,7 @@ impl_runtime_apis! {
         fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition>  {
             Provenance::get_definition(registry_id,definition_id)
         }
-        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId>)>  {
+        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId, MemberCount>)>  {
             Provenance::get_definition_steps(registry_id,definition_id)
         }
         fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process)>  {
@@ -1095,10 +1106,10 @@ impl_runtime_apis! {
         fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Option<Process>  {
             Provenance::get_process(registry_id,definition_id,process_id)
         }
-        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<AccountId>>  {
+        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep>  {
             Provenance::get_process_steps(registry_id,definition_id,process_id)
         }
-        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<AccountId>>  {
+        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep>  {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
     }

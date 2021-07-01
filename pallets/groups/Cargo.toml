@@ -8,6 +8,7 @@ version = "0.1.0"
 codec = {package = "parity-scale-codec", version = "2.0.0", default-features = false}
 frame-support = {version = "3.0.0", default-features = false}
 frame-system = {version = "3.0.0", default-features = false}
+# num = {version = "0.4", default-features = false}
 pallet-balances = {version = "3.0.0", default-features = false}
 sp-core = {package = "sp-core", version = "3.0.0", default-features = false}
 sp-io = {version = "3.0.0", default-features = false}

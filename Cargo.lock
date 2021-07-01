@@ -3794,7 +3794,6 @@ dependencies = [
  "extrinsic-extra",
  "frame-support",
  "frame-system",
- "group-info",
  "pallet-balances",
  "pallet-groups",
  "pallet-identity",

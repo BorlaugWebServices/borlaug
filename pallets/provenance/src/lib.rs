@@ -27,7 +27,6 @@ pub mod pallet {
         dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Currency,
     };
     use frame_system::pallet_prelude::*;
-    use group_info::GroupInfo;
     use primitives::{
         attribute::Attribute,
         definition::{Definition, DefinitionStatus},
@@ -42,7 +41,7 @@ pub mod pallet {
     };
     use sp_std::prelude::*;
 
-    const MODULE_INDEX: u8 = 3;
+    // const MODULE_INDEX: u8 = 3;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -52,9 +51,27 @@ pub mod pallet {
         type RegistryId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
         type DefinitionId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
         type ProcessId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
-        type GroupId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
+        type GroupId: Parameter + Member + AtLeast32Bit + Eq + Default + Copy + PartialEq;
+        type MemberCount: Parameter
+            + Member
+            + PartialOrd
+            + AtLeast32Bit
+            + Eq
+            + Default
+            + Copy
+            + PartialEq;
 
-        type GroupInfoSource: GroupInfo<GroupId = Self::GroupId, AccountId = Self::AccountId>;
+        type Origin: From<groups::RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
+
+        type GroupApprovalOrigin: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = (
+                Self::GroupId,
+                Option<Self::MemberCount>,
+                Option<Self::MemberCount>,
+                Self::AccountId,
+            ),
+        >;
 
         type Currency: Currency<Self::AccountId>;
 
@@ -72,7 +89,8 @@ pub mod pallet {
         T::RegistryId = "RegistryId",
         T::DefinitionId = "DefinitionId",
         T::ProcessId = "ProcessId",
-        T::GroupId = "GroupId"
+        T::GroupId = "GroupId",
+        T::MemberCount = "MemberCount"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -137,6 +155,8 @@ pub mod pallet {
         NotEmpty,
         /// Is not an attestor for the necessary definition step
         NotAttestor,
+        /// There weren't the expected number of yes votes to match the required threshold
+        IncorrectThreshold,
         /// Id out of bounds
         NoIdAvailable,
     }
@@ -168,17 +188,10 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn registries)]
-    /// An account can have multiple Regitries of process definitions
-    /// (T::AccountId,T::RegistryId) => T::RegistryId
-    pub(super) type Registries<T: Config> = StorageDoubleMap<
-        _,
-        Blake2_128Concat,
-        T::AccountId,
-        Blake2_128Concat,
-        T::RegistryId,
-        Registry,
-        OptionQuery,
-    >;
+    /// A group can have multiple Regitries of process definitions
+    /// (T::GroupId,T::RegistryId) => T::RegistryId
+    pub(super) type Registries<T: Config> =
+        StorageDoubleMap<_, Identity, T::GroupId, Identity, T::RegistryId, Registry, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn definitions)]
@@ -186,9 +199,9 @@ pub mod pallet {
     /// (T::RegistryId,T::DefinitionId) => Definition
     pub(super) type Definitions<T: Config> = StorageDoubleMap<
         _,
-        Blake2_128Concat,
+        Identity,
         T::RegistryId,
-        Blake2_128Concat,
+        Identity,
         T::DefinitionId,
         Definition,
         OptionQuery,
@@ -200,11 +213,11 @@ pub mod pallet {
     /// (T::RegistryId,T::DefinitionId), u8 => DefinitionStep
     pub(super) type DefinitionSteps<T: Config> = StorageDoubleMap<
         _,
-        Blake2_128Concat,
+        Identity,
         (T::RegistryId, T::DefinitionId),
-        Blake2_128Concat,
+        Identity,
         DefinitionStepIndex,
-        DefinitionStep<T::GroupId>,
+        DefinitionStep<T::GroupId, T::MemberCount>,
         OptionQuery,
     >;
 
@@ -214,9 +227,9 @@ pub mod pallet {
     /// (T::RegistryId,T::DefinitionId), T::ProcessId => T::ProcessId
     pub(super) type Processes<T: Config> = StorageDoubleMap<
         _,
-        Blake2_128Concat,
+        Identity,
         (T::RegistryId, T::DefinitionId),
-        Blake2_128Concat,
+        Identity,
         T::ProcessId,
         Process,
         OptionQuery,
@@ -228,11 +241,11 @@ pub mod pallet {
     /// (T::RegistryId,T::DefinitionId,T::ProcessId), DefinitionStepIndex => ProcessStep
     pub(super) type ProcessSteps<T: Config> = StorageDoubleMap<
         _,
-        Blake2_128Concat,
+        Identity,
         (T::RegistryId, T::DefinitionId, T::ProcessId),
-        Blake2_128Concat,
+        Identity,
         DefinitionStepIndex,
-        ProcessStep<T::AccountId>,
+        ProcessStep,
         OptionQuery,
     >;
 
@@ -272,9 +285,18 @@ pub mod pallet {
         /// Arguments: none
 
         #[pallet::weight( 10_000 +  T::DbWeight::get().writes(1))]
-        // #[pallet::weight( T::GetExtrinsicExtraSource::get_extrinsic_extra(&MODULE_INDEX, &1u8)+ T::DbWeight::get().writes(1))]
         pub fn create_registry(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
+
+            // ensure!(group_account.is_some(), Error::<T>::NotAuthorized);
+            // let group_account = group_account.unwrap();
+
+            // let sender = ensure_signed(origin)?;
+            // ensure!(
+            //     T::GroupOriginSource::ensure_minimum(group_id, origin.into(), 1u32),
+            //     Error::<T>::NotAuthorized
+            // );
 
             // debug::info!("{:?}", T::Currency::total_balance(&sender));
 
@@ -294,7 +316,7 @@ pub mod pallet {
 
             let registry_id = next_id!(NextRegistryId<T>, T);
 
-            <Registries<T>>::insert(&sender, &registry_id, Registry { name });
+            <Registries<T>>::insert(&group_id, &registry_id, Registry { name });
 
             Self::deposit_event(Event::RegistryCreated(registry_id));
 
@@ -307,18 +329,20 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn update_registry(
             origin: OriginFor<T>,
+
             registry_id: T::RegistryId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
 
             <Registries<T>>::try_mutate_exists(
-                &sender,
+                &group_id,
                 &registry_id,
                 |maybe_registry| -> DispatchResult {
                     let mut registry = maybe_registry.as_mut().ok_or(Error::<T>::NotFound)?;
@@ -338,12 +362,14 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn remove_registry(
             origin: OriginFor<T>,
+
             registry_id: T::RegistryId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -356,7 +382,7 @@ pub mod pallet {
                 );
             });
 
-            <Registries<T>>::remove(sender, registry_id);
+            <Registries<T>>::remove(group_id, registry_id);
 
             Self::deposit_event(Event::RegistryRemoved(registry_id));
             Ok(().into())
@@ -370,12 +396,13 @@ pub mod pallet {
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
             name: Vec<u8>,
-            definition_steps: Vec<DefinitionStep<T::GroupId>>,
+            definition_steps: Vec<DefinitionStep<T::GroupId, T::MemberCount>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -415,12 +442,13 @@ pub mod pallet {
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             name: Option<Vec<u8>>,
-            definition_steps: Option<Vec<DefinitionStep<T::GroupId>>>,
+            definition_steps: Option<Vec<DefinitionStep<T::GroupId, T::MemberCount>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -476,10 +504,11 @@ pub mod pallet {
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -505,10 +534,11 @@ pub mod pallet {
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -537,10 +567,11 @@ pub mod pallet {
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
             ensure!(
@@ -572,10 +603,11 @@ pub mod pallet {
             definition_step_index: DefinitionStepIndex,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
             ensure!(
@@ -608,7 +640,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Add a new process
+        /// Add a new process - any attestor on the first step can create a new process  (no voting required)
         ///
         /// Arguments:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
@@ -618,7 +650,8 @@ pub mod pallet {
             definition_id: T::DefinitionId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             let definition = <Definitions<T>>::get(registry_id, definition_id);
             ensure!(definition.is_some(), Error::<T>::NotFound);
@@ -632,7 +665,7 @@ pub mod pallet {
                 .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                T::GroupInfoSource::is_group_account(definition_step.group_id, &sender),
+                definition_step.group_id == group_id,
                 Error::<T>::NotAttestor
             );
 
@@ -646,7 +679,7 @@ pub mod pallet {
             <Processes<T>>::insert((registry_id, definition_id), process_id, process);
 
             let process_step = ProcessStep {
-                attested_by: None,
+                attested: false,
                 attributes: vec![],
             };
 
@@ -671,10 +704,11 @@ pub mod pallet {
             process_id: T::ProcessId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -712,10 +746,11 @@ pub mod pallet {
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_registry_owner(&sender, registry_id),
+                Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
             ensure!(
@@ -734,72 +769,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // /// Add a new process_step
-        // ///
-        // /// Arguments:
-        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        // pub fn create_process_step(
-        //     origin: OriginFor<T>,
-        //     registry_id: T::RegistryId,
-        //     definition_id: T::DefinitionId,
-        //     definition_step_index: DefinitionStepIndex,
-        //     process_id: T::ProcessId,
-        //     attributes: Vec<Attribute>,
-        // ) -> DispatchResultWithPostInfo {
-        //     let sender = ensure_signed(origin)?;
-
-        //     ensure!(
-        //         Self::is_process_in_definition(registry_id, definition_id, process_id),
-        //         Error::<T>::NotFound
-        //     );
-
-        //     ensure!(
-        //         <DefinitionSteps<T>>::contains_key(
-        //             (registry_id, definition_id),
-        //             definition_step_index
-        //         ),
-        //         Error::<T>::NotFound
-        //     );
-
-        //     let definition_step =
-        //         <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)
-        //             .ok_or(Error::<T>::NotFound)?;
-
-        //     ensure!(
-        //         T::GroupInfoSource::is_group_account(definition_step.group_id, &sender),
-        //         Error::<T>::NotAttestor
-        //     );
-        //     ensure!(
-        //         Self::is_valid_definition_step(
-        //             registry_id,
-        //             definition_id,
-        //             definition_step_index,
-        //             process_id
-        //         ),
-        //         Error::<T>::NotAttestor
-        //     );
-
-        //     let process_step = ProcessStep {
-        //         attested_by: None,
-        //         attributes,
-        //     };
-
-        //     <ProcessSteps<T>>::insert(
-        //         (registry_id, definition_id, process_id),
-        //         definition_step_index,
-        //         process_step,
-        //     );
-
-        //     Self::deposit_event(Event::ProcessStepCreated(
-        //         registry_id,
-        //         definition_id,
-        //         process_id,
-        //         definition_step_index,
-        //     ));
-        //     Ok(().into())
-        // }
-
-        /// Update a process_step
+        /// Update a process_step - any attestor on the step can update the step (no voting required)
         ///
         /// Arguments:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
@@ -811,14 +781,15 @@ pub mod pallet {
             definition_step_index: DefinitionStepIndex,
             attributes: Vec<Attribute>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
 
             let definition_step =
                 <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)
                     .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                T::GroupInfoSource::is_group_account(definition_step.group_id, &sender),
+                definition_step.group_id == group_id,
                 Error::<T>::NotAttestor
             );
 
@@ -843,7 +814,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Attest a process_step
+        /// Attest a process_step - attestors on the step must propose and vote up to the required threshold
         ///
         /// Arguments:
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
@@ -854,18 +825,24 @@ pub mod pallet {
             process_id: T::ProcessId,
             definition_step_index: DefinitionStepIndex,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, yes_votes, _no_votes, _group_account) =
+                T::GroupApprovalOrigin::ensure_origin(origin)?;
+
+            //TODO: threshold
 
             let definition_step =
                 <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)
                     .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                T::GroupInfoSource::is_group_account(definition_step.group_id, &sender),
+                definition_step.group_id == group_id,
                 Error::<T>::NotAttestor
             );
 
-            //TODO: how do we record attestor? (sender is group account, not actual attestor)
+            ensure!(
+                yes_votes.is_none() || yes_votes.unwrap() >= definition_step.threshold,
+                Error::<T>::IncorrectThreshold
+            );
 
             <ProcessSteps<T>>::try_mutate_exists(
                 (registry_id, definition_id, process_id),
@@ -873,7 +850,7 @@ pub mod pallet {
                 |maybe_process_step| -> DispatchResult {
                     let mut process_step =
                         maybe_process_step.as_mut().ok_or(Error::<T>::NotFound)?;
-                    process_step.attested_by = Some(sender);
+                    process_step.attested = true;
                     Ok(())
                 },
             )?;
@@ -883,7 +860,7 @@ pub mod pallet {
                 definition_step_index + 1,
             ) {
                 let process_step = ProcessStep {
-                    attested_by: None,
+                    attested: false,
                     attributes: vec![],
                 };
 
@@ -917,16 +894,16 @@ pub mod pallet {
 
     impl<T: Config> Module<T> {
         // -- rpc api functions --
-        pub fn get_registries(account: T::AccountId) -> Vec<(T::RegistryId, Registry)> {
+        pub fn get_registries(group_id: T::GroupId) -> Vec<(T::RegistryId, Registry)> {
             let mut registries = Vec::new();
 
-            <Registries<T>>::iter_prefix(account)
+            <Registries<T>>::iter_prefix(group_id)
                 .for_each(|(registry_id, registry)| registries.push((registry_id, registry)));
 
             registries
         }
-        pub fn get_registry(account: T::AccountId, registry_id: T::RegistryId) -> Option<Registry> {
-            <Registries<T>>::get(account, registry_id)
+        pub fn get_registry(group_id: T::GroupId, registry_id: T::RegistryId) -> Option<Registry> {
+            <Registries<T>>::get(group_id, registry_id)
         }
 
         pub fn get_definitions(registry_id: T::RegistryId) -> Vec<(T::DefinitionId, Definition)> {
@@ -947,7 +924,10 @@ pub mod pallet {
         pub fn get_definition_steps(
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
-        ) -> Vec<(DefinitionStepIndex, DefinitionStep<T::GroupId>)> {
+        ) -> Vec<(
+            DefinitionStepIndex,
+            DefinitionStep<T::GroupId, T::MemberCount>,
+        )> {
             let mut definition_steps = Vec::new();
             <DefinitionSteps<T>>::iter_prefix((registry_id, definition_id)).for_each(
                 |(step_index, definition_step)| {
@@ -982,7 +962,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
-        ) -> Vec<ProcessStep<T::AccountId>> {
+        ) -> Vec<ProcessStep> {
             let mut process_steps = Vec::new();
             <ProcessSteps<T>>::iter_prefix((registry_id, definition_id, process_id)).for_each(
                 |(step_index, definition_step)| process_steps.push((step_index, definition_step)),
@@ -1002,7 +982,7 @@ pub mod pallet {
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
             definition_step_index: DefinitionStepIndex,
-        ) -> Option<ProcessStep<T::AccountId>> {
+        ) -> Option<ProcessStep> {
             <ProcessSteps<T>>::get(
                 (registry_id, definition_id, process_id),
                 definition_step_index,
@@ -1011,8 +991,8 @@ pub mod pallet {
 
         // -- private functions --
 
-        fn is_registry_owner(account: &T::AccountId, registry_id: T::RegistryId) -> bool {
-            <Registries<T>>::contains_key(account, registry_id)
+        fn is_registry_owner(group_id: T::GroupId, registry_id: T::RegistryId) -> bool {
+            <Registries<T>>::contains_key(group_id, registry_id)
         }
 
         fn is_definition_in_registry(
@@ -1037,43 +1017,25 @@ pub mod pallet {
             <Processes<T>>::contains_key((registry_id, definition_id), process_id)
         }
 
-        // fn is_process_step_in_process(
-        //     registry_id: T::RegistryId,
-        //     definition_id: T::DefinitionId,
-        //     process_id: T::ProcessId,
-        //     process_step_id: DefinitionStepIndex,
-        // ) -> bool {
-        //     <ProcessSteps<T>>::contains_key((registry_id, definition_id, process_id), process_step_id)
-        // }
-
-        // fn is_attestor_definition_step(
+        // pub fn is_valid_definition_step(
         //     registry_id: T::RegistryId,
         //     definition_id: T::DefinitionId,
         //     definition_step_index: DefinitionStepIndex,
-        //     did: Did,
+        //     process_id: T::ProcessId,
         // ) -> bool {
-        //     <Attestors<T>>::contains_key((registry_id, definition_id, definition_step_index), did)
+        //     //must not already exist
+        //     if <ProcessSteps<T>>::contains_key(
+        //         (registry_id, definition_id, process_id),
+        //         definition_step_index,
+        //     ) {
+        //         return false;
+        //     }
+        //     definition_step_index==0 ||
+        // //previous step must exist
+        // <ProcessSteps<T>>::contains_key(
+        //     (registry_id, definition_id, process_id),
+        //     definition_step_index - 1,
+        // )
         // }
-
-        pub fn is_valid_definition_step(
-            registry_id: T::RegistryId,
-            definition_id: T::DefinitionId,
-            definition_step_index: DefinitionStepIndex,
-            process_id: T::ProcessId,
-        ) -> bool {
-            //must not already exist
-            if <ProcessSteps<T>>::contains_key(
-                (registry_id, definition_id, process_id),
-                definition_step_index,
-            ) {
-                return false;
-            }
-            definition_step_index==0 ||
-        //previous step must exist
-        <ProcessSteps<T>>::contains_key(
-            (registry_id, definition_id, process_id),
-            definition_step_index - 1,
-        )
-        }
     }
 }
