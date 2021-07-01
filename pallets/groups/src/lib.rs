@@ -120,7 +120,8 @@ pub mod pallet {
         T::GroupId = "GroupId",
         T::ProposalId = "ProposalId",
         T::Hash = "Hash",
-        T::AccountId = "AccountId"
+        T::AccountId = "AccountId",
+        T::MemberCount = "MemberCount"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -587,15 +588,22 @@ pub mod pallet {
                     result.is_ok(),
                 ));
 
-                Ok(Self::get_result_weight(result)
-                    .map(|w| {
-                        T::WeightInfo::propose_execute(
-                            proposal_len as u32,
-                            group.members.len() as u32,
-                        )
+                let weight = Self::get_result_weight(result).map(|w| {
+                    T::WeightInfo::propose_execute(proposal_len as u32, group.members.len() as u32)
                         .saturating_add(w) // P1
-                    })
-                    .into())
+                });
+
+                //refund caller
+                // let result = T::Currency::transfer(
+                //     &caller_group_account,
+                //     &anonymous_account,
+                //     cost,
+                //     AllowDeath,
+                // );
+
+                //TODO: what to do on insufficint funds
+
+                Ok(weight.into())
             } else {
                 <ProposalHashes<T>>::try_mutate_exists(
                     group_id,

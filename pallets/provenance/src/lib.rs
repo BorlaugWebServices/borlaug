@@ -89,7 +89,7 @@ pub mod pallet {
         T::RegistryId = "RegistryId",
         T::DefinitionId = "DefinitionId",
         T::ProcessId = "ProcessId",
-        T::GroupId = "GroupId"
+        T::GroupId = "GroupId",
         T::MemberCount = "MemberCount"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
