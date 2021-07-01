@@ -4,7 +4,7 @@
 
 use codec::Codec;
 use frame_support::dispatch::Vec;
-use primitives::{Catalog, Did, DidDocument};
+use primitives::{Catalog, Claim, Did, DidDocument};
 
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
@@ -29,6 +29,6 @@ sp_api::decl_runtime_apis! {
 
         fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<Vec<u8>>)>;
 
-
+        fn get_claims(owner_did:Did) -> Vec<(u64, Claim<u64>)>;
     }
 }

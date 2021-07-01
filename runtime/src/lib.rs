@@ -1124,6 +1124,9 @@ impl_runtime_apis! {
         fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<Vec<u8>>)>  {
             Identity::get_dids_by_controller(controller)
         }
+        fn get_claims( owner_did:Did) -> Vec<(u64, Claim<u64>)>  {
+            Identity::get_claims(owner_did)
+        }
     }
 
     impl settings_runtime_api::SettingsApi<Block,ModuleIndex,ExtrinsicIndex,Balance> for Runtime {

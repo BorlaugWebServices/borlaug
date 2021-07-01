@@ -44,6 +44,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
+pub type Timestamp = u64;
 
 #[cfg(test)]
 mod mock;
@@ -861,6 +862,12 @@ pub mod pallet {
                     )
                 })
                 .collect()
+        }
+
+        pub fn get_claims(did: Did) -> Vec<(u64, Claim<<T as timestamp::Config>::Moment>)> {
+            let mut claims = Vec::new();
+            <Claims<T>>::iter_prefix(did).for_each(|(claim_index, claim)| claims.push((claim_index, claim)));
+            claims
         }
 
         // -- private functions --
