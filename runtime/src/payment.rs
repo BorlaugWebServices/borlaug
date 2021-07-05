@@ -99,7 +99,7 @@ where
                 refund_amount
             );
 
-            let refund_amount = refund_amount + Self::Balance::unique_saturated_from(2_000u32);
+            let refund_amount = refund_amount + Self::Balance::unique_saturated_from(2_000u128);
             // refund to the the account that paid the fees. If this fails, the
             // account might have dropped below the existential balance. In
             // that case we don't refund anything.

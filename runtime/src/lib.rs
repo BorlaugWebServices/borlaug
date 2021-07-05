@@ -331,6 +331,7 @@ where
         Some((call, (address, signature, extra)))
     }
 }
+
 #[cfg(feature = "grandpa_babe")]
 impl frame_system::offchain::SigningTypes for Runtime {
     type Public = <Signature as traits::Verify>::Signer;
@@ -719,8 +720,8 @@ impl groups::Config for Runtime {
     type GroupApprovalOrigin = groups::EnsureThreshold<Runtime>;
     type Proposal = Call;
     type GroupId = GroupId;
-    type MemberCount = MemberCount;
     type ProposalId = ProposalId;
+    type MemberCount = MemberCount;
     type Currency = Balances;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
