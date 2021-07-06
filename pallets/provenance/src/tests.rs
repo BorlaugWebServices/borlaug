@@ -143,7 +143,7 @@ fn create_definition_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 0,
+                        group_id: None,
                         threshold: 1
 
                     }
@@ -188,7 +188,7 @@ fn remove_definition_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 0,
+                        group_id: None,
                         threshold: 1
 
                     }
@@ -244,7 +244,7 @@ fn update_definition_step_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 0,
+                        group_id: None,
                         threshold: 1
 
                     }
@@ -307,7 +307,7 @@ fn set_definition_active_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 0,
+                        group_id: None,
                         threshold: 1
 
                     }
@@ -368,7 +368,7 @@ fn set_definition_inactive_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 0,
+                        group_id: None,
                         threshold: 1
 
                     }
@@ -429,7 +429,7 @@ fn create_process_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 1,
+                        group_id: Some(1),
                         threshold: 1
 
                     }
@@ -501,7 +501,7 @@ fn update_process_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 1,
+                        group_id: Some(1),
                         threshold: 1
 
                     }
@@ -588,7 +588,7 @@ fn remove_process_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 1,
+                        group_id: Some(1),
                         threshold: 1
 
                     }
@@ -672,7 +672,7 @@ fn update_process_step_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 1,
+                        group_id: Some(1),
                         threshold: 1
 
                     }
@@ -764,7 +764,7 @@ fn attest_process_step_should_work() {
                 vec![(
                     DefinitionStep {
                         name: b"Test".to_vec(),
-                        group_id: 1,
+                        group_id: Some(1),
                         threshold: 1
 
                     }

@@ -665,7 +665,7 @@ pub mod pallet {
                 .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                definition_step.group_id == group_id,
+                definition_step.group_id == Some(group_id),
                 Error::<T>::NotAttestor
             );
 
@@ -789,7 +789,7 @@ pub mod pallet {
                     .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                definition_step.group_id == group_id,
+                definition_step.group_id == Some(group_id),
                 Error::<T>::NotAttestor
             );
 
@@ -835,7 +835,7 @@ pub mod pallet {
                     .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                definition_step.group_id == group_id,
+                definition_step.group_id == Some(group_id),
                 Error::<T>::NotAttestor
             );
 

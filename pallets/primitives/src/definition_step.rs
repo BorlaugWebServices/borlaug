@@ -5,6 +5,6 @@ use sp_runtime::RuntimeDebug;
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct DefinitionStep<GroupId, MemberCount> {
     pub name: Vec<u8>,
-    pub group_id: GroupId,
+    pub group_id: Option<GroupId>,
     pub threshold: MemberCount,
 }
