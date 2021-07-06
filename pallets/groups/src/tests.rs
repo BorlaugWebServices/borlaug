@@ -48,6 +48,9 @@ fn creating_new_sub_group_should_work() {
             ))),
             1
         ));
+
+        // verify sub group was created
+        assert_eq!(super::GroupChildren::<Test>::contains_key(1u32), true);
     });
 }
 
@@ -79,6 +82,13 @@ fn update_group_should_work() {
             ))),
             1
         ));
+
+        let group = Groups::get_group(1).unwrap();
+
+        // Verify name updated
+        assert_eq!(b"Test_2".to_vec(), group.name);
+        // Verify members updated
+        assert_eq!(vec![3, 2], group.members);
     });
 }
 
