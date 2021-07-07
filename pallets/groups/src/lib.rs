@@ -411,7 +411,7 @@ pub mod pallet {
             let result = <T as Config>::Currency::transfer(
                 &caller_group_account,
                 &anonymous_account,
-                <T as Config>::Currency::minimum_balance(),
+                <T as Config>::Currency::minimum_balance() + initial_balance,
                 AllowDeath,
             );
 

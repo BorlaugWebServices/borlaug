@@ -62,13 +62,6 @@ impl system::Config for Test {
 pub const MILLISECS_PER_BLOCK: u64 = 5000;
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
-impl timestamp::Config for Test {
-    type Moment = u64;
-    type OnTimestampSet = ();
-    type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
-}
-
 impl pallet_balances::Config for Test {
     type MaxLocks = ();
     type Balance = u128;
@@ -95,10 +88,14 @@ impl pallet_groups::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    let mut t = frame_system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap();
     pallet_balances::GenesisConfig::<Test> {
         balances: vec![(1, 10)],
-    }.assimilate_storage(&mut t).unwrap();
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
     ext

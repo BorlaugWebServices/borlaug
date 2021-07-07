@@ -13,7 +13,8 @@ fn creating_new_group_should_work() {
             Origin::signed(1),
             "Test".to_string().into(),
             vec![1],
-            1
+            1,
+            1_000_000_000u128
         ));
 
         // verify group was created
@@ -32,7 +33,8 @@ fn creating_new_sub_group_should_work() {
             Origin::signed(1),
             "Test".to_string().into(),
             vec![1],
-            1
+            1,
+            1_000_000_000u128
         ));
 
         // verify group was created
@@ -44,7 +46,8 @@ fn creating_new_sub_group_should_work() {
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 "Test".to_string().into(),
                 vec![2, 3],
-                2
+                2,
+                1_000_000_000u128
             ))),
             1
         ));
@@ -65,7 +68,8 @@ fn update_group_should_work() {
             Origin::signed(1),
             "Test".to_string().into(),
             vec![1],
-            1
+            1,
+            1_000_000_000u128
         ));
 
         // verify group was created
@@ -103,7 +107,8 @@ fn remove_group_should_work() {
             Origin::signed(1),
             "Test".to_string().into(),
             vec![1],
-            1
+            1,
+            1_000_000_000u128
         ));
         // verify group was created
         assert_eq!(super::Groups::<Test>::contains_key(1u32), true);
@@ -111,9 +116,7 @@ fn remove_group_should_work() {
         assert_ok!(Groups::propose(
             Origin::signed(1),
             1,
-            Box::new(crate::mock::Call::Groups(super::Call::remove_group(
-                1
-            ))),
+            Box::new(crate::mock::Call::Groups(super::Call::remove_group(1))),
             1
         ));
 
@@ -121,7 +124,6 @@ fn remove_group_should_work() {
         assert_eq!(super::Groups::<Test>::contains_key(1u32), false);
     });
 }
-
 
 fn make_proposal(value: u64) -> Call {
     Call::System(frame_system::Call::remark(value.encode()))
@@ -135,7 +137,8 @@ fn vote_in_a_group_should_work() {
             Origin::signed(1),
             "Test".to_string().into(),
             vec![1, 2, 3],
-            3
+            3,
+            1_000_000_000u128
         ));
         // verify group was created
         assert_eq!(super::Groups::<Test>::contains_key(1u32), true);
@@ -150,19 +153,9 @@ fn vote_in_a_group_should_work() {
         ));
 
         // Making vote by 2nd member
-        assert_ok!(Groups::vote(
-            Origin::signed(2),
-            1,
-            1,
-            true
-        ));
+        assert_ok!(Groups::vote(Origin::signed(2), 1, 1, true));
 
         // Making vote by 3rd member
-        assert_ok!(Groups::vote(
-            Origin::signed(3),
-            1,
-            1,
-            true
-        ));
+        assert_ok!(Groups::vote(Origin::signed(3), 1, 1, true));
     });
 }

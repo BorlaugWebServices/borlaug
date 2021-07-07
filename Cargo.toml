@@ -22,7 +22,10 @@ jsonrpc-core = "15.0"
 jsonrpc-core-client = "15.0"
 jsonrpc-derive = "15.0"
 log = "0.4.11"
+
+# TODO: do we need to point this to ours?
 pallet-transaction-payment-rpc = "3.0.0"
+
 parking_lot = "0.10.0"
 serde = {version = "1.0.126", features = ["derive"]}
 

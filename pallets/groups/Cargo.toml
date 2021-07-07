@@ -8,10 +8,6 @@ version = "0.1.0"
 codec = {package = "parity-scale-codec", version = "2.0.0", default-features = false}
 frame-support = {version = "3.0.0", default-features = false}
 frame-system = {version = "3.0.0", default-features = false}
-# num = {version = "0.4", default-features = false}
-pallet-balances = {version = "3.0.0", default-features = false}
-# pallet-proxy = {version = "3.0.0", default-features = false}
-# pallet-transaction-payment = {version = "3.0.0", default-features = false}
 sp-core = {package = "sp-core", version = "3.0.0", default-features = false}
 sp-io = {version = "3.0.0", default-features = false}
 sp-runtime = {version = "3.0.0", default-features = false}
@@ -22,8 +18,9 @@ primitives = {package = "pallet-primitives", path = "../primitives", default-fea
 
 [dev-dependencies]
 chrono = "0.4"
+pallet-balances = {version = "3.0.0"}
 serde = "1.0"
-sp-core = {version = "3.0.0", default-features = false}
+sp-core = {version = "3.0.0"}
 
 [features]
 default = ["std"]
@@ -36,6 +33,5 @@ std = [
   "frame-system/std",
   "sp-runtime/std",
   "primitives/std",
-  "pallet-balances/std",
-  "group-info/std", # "pallet-proxy/std",  # "pallet-transaction-payment/std",
+  "group-info/std",
 ]
