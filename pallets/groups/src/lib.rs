@@ -330,6 +330,7 @@ pub mod pallet {
             name: Vec<u8>,
             mut members: Vec<T::AccountId>,
             threshold: T::MemberCount,
+            initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             if !members.contains(&sender) {
@@ -345,11 +346,10 @@ pub mod pallet {
 
             let anonymous_account = Self::anonymous_account(&sender, group_id);
 
-            //TODO: Since groups pay for transactions, we will need to give them more currency at some point
-            let result = T::Currency::transfer(
+            let result = <T as Config>::Currency::transfer(
                 &sender,
                 &anonymous_account,
-                T::Currency::minimum_balance(),
+                <T as Config>::Currency::minimum_balance() + initial_balance,
                 AllowDeath,
             );
 
@@ -384,6 +384,7 @@ pub mod pallet {
             name: Vec<u8>,
             members: Vec<T::AccountId>,
             threshold: T::MemberCount,
+            initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
             let (caller_group_id, _yes_votes, _no_votes, caller_group_account) =
                 T::GroupApprovalOrigin::ensure_origin(origin)?;
@@ -407,10 +408,10 @@ pub mod pallet {
             let anonymous_account = Self::anonymous_account(&caller_group_account, group_id);
 
             //TODO: Since groups pay for transactions, we will need to give them more currency at some point
-            let result = T::Currency::transfer(
+            let result = <T as Config>::Currency::transfer(
                 &caller_group_account,
                 &anonymous_account,
-                T::Currency::minimum_balance(),
+                <T as Config>::Currency::minimum_balance(),
                 AllowDeath,
             );
 
@@ -589,17 +590,12 @@ pub mod pallet {
                 ));
 
                 let weight = Self::get_result_weight(result).map(|w| {
-                    T::WeightInfo::propose_execute(proposal_len as u32, group.members.len() as u32)
-                        .saturating_add(w) // P1
+                    <T as Config>::WeightInfo::propose_execute(
+                        proposal_len as u32,
+                        group.members.len() as u32,
+                    )
+                    .saturating_add(w) // P1
                 });
-
-                //refund caller
-                // let result = T::Currency::transfer(
-                //     &caller_group_account,
-                //     &anonymous_account,
-                //     cost,
-                //     AllowDeath,
-                // );
 
                 //TODO: what to do on insufficint funds
 
@@ -629,7 +625,7 @@ pub mod pallet {
 
                 Self::deposit_event(Event::Proposed(sender, group_id, proposal_id));
 
-                Ok(Some(T::WeightInfo::propose_proposed(
+                Ok(Some(<T as Config>::WeightInfo::propose_proposed(
                     proposal_len as u32,
                     group.members.len() as u32,
                     active_proposals as u32,
@@ -731,13 +727,13 @@ pub mod pallet {
 
             if is_account_voting_first_time {
                 Ok((
-                    Some(T::WeightInfo::vote(group.members.len() as u32)),
+                    Some(<T as Config>::WeightInfo::vote(group.members.len() as u32)),
                     Pays::No,
                 )
                     .into())
             } else {
                 Ok((
-                    Some(T::WeightInfo::vote(group.members.len() as u32)),
+                    Some(<T as Config>::WeightInfo::vote(group.members.len() as u32)),
                     Pays::Yes,
                 )
                     .into())

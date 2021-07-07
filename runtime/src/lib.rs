@@ -19,20 +19,19 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 }
 
 pub mod constants;
-mod payment;
 pub mod primitives;
-#[cfg(feature = "grandpa_babe")]
-use codec::Encode;
+use codec::{Decode, Encode};
 pub use frame_support::{
     construct_runtime, debug, parameter_types,
     traits::{
-        Currency, Imbalance, KeyOwnerProofSystem, OnUnbalanced, Randomness, U128CurrencyToVote,
+        Currency, Imbalance, InstanceFilter, KeyOwnerProofSystem, OnUnbalanced, Randomness,
+        U128CurrencyToVote,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
     },
-    StorageValue,
+    RuntimeDebug, StorageValue,
 };
 use frame_system::{
     limits::{BlockLength, BlockWeights},
@@ -50,7 +49,6 @@ use pallet_primitives::*;
 use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 use primitives::{
     AccountId, Balance, BlockNumber, CatalogId, DefinitionId, DefinitionStepIndex, ExtrinsicIndex,
     GroupId, Hash, Index, MemberCount, ModuleIndex, Moment, ProcessId, ProposalId, RegistryId,
@@ -425,8 +423,7 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-    // type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
-    type OnChargeTransaction = payment::GroupsCurrencyAdapter<Balances, DealWithFees>;
+    type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate = ();
@@ -698,6 +695,68 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 parameter_types! {
+    // One storage item; key size 32, value size 8; .
+    pub const ProxyDepositBase: Balance = deposit(1, 8);
+    // Additional storage item size of 33 bytes.
+    pub const ProxyDepositFactor: Balance = deposit(0, 33);
+    pub const MaxProxies: u16 = 32;
+    pub const AnnouncementDepositBase: Balance = deposit(1, 8);
+    pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+    pub const MaxPending: u16 = 32;
+}
+
+/// The type used to represent the kinds of proxying allowed.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug)]
+pub enum ProxyType {
+    Any,
+    NonTransfer,
+    Governance,
+    #[cfg(feature = "grandpa_babe")]
+    Staking,
+}
+
+impl Default for ProxyType {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+impl InstanceFilter<Call> for ProxyType {
+    fn filter(&self, c: &Call) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::NonTransfer => !matches!(c, Call::Balances(..)),
+            ProxyType::Governance => matches!(c, Call::Council(..) | Call::Treasury(..)),
+            #[cfg(feature = "grandpa_babe")]
+            ProxyType::Staking => matches!(c, Call::Staking(..)),
+        }
+    }
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (x, y) if x == y => true,
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::NonTransfer, _) => true,
+            _ => false,
+        }
+    }
+}
+
+impl pallet_proxy::Config for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type Currency = Balances;
+    type ProxyType = ProxyType;
+    type ProxyDepositBase = ProxyDepositBase;
+    type ProxyDepositFactor = ProxyDepositFactor;
+    type MaxProxies = MaxProxies;
+    type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
+    type MaxPending = MaxPending;
+    type CallHasher = BlakeTwo256;
+    type AnnouncementDepositBase = AnnouncementDepositBase;
+    type AnnouncementDepositFactor = AnnouncementDepositFactor;
+}
+
+parameter_types! {
     pub const GroupMaxProposals: u32 = 100;
     pub const GroupMaxMembers: u32 = 100;
 }
@@ -781,7 +840,7 @@ construct_runtime!(
         Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned},
 
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned},
-        TransactionPayment: pallet_transaction_payment::{Module, Storage},
+        TransactionPayment: pallet_transaction_payment::{Module,Call,  Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
         //BorlaugCommittee
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
@@ -789,6 +848,8 @@ construct_runtime!(
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
         ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
         AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
+
+        Proxy: pallet_proxy::{Module, Call, Storage, Event<T>},
 
         // Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>},
 
@@ -823,13 +884,13 @@ construct_runtime!(
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
 
-        TransactionPayment: pallet_transaction_payment::{Module, Storage},
+        TransactionPayment: pallet_transaction_payment::{Module,Call, Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
 
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
 
-
+        Proxy: pallet_proxy::{Module, Call, Storage, Event<T>},
 
         // Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>},
 
@@ -877,6 +938,7 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
     Runtime,
@@ -1145,15 +1207,15 @@ impl_runtime_apis! {
             Settings::get_extrinsic_extras()
         }
     }
-
-    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
-        fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
-            TransactionPayment::query_info(uxt, len)
-        }
-        fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
-            TransactionPayment::query_fee_details(uxt, len)
-        }
-    }
+//TODO: fix this
+    // impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
+    //     fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
+    //         TransactionPayment::query_info(uxt, len)
+    //     }
+    //     fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
+    //         TransactionPayment::query_fee_details(uxt, len)
+    //     }
+    // }
 
 
     impl sp_session::SessionKeys<Block> for Runtime {
