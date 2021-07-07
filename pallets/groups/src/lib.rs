@@ -64,7 +64,17 @@ pub mod pallet {
         /// The outer origin type.
         type Origin: From<RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
 
-        type GroupApprovalOrigin: EnsureOrigin<
+        type GroupsOriginByGroupThreshold: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = (
+                Self::GroupId,
+                Option<Self::MemberCount>,
+                Option<Self::MemberCount>,
+                Self::AccountId,
+            ),
+        >;
+
+        type GroupsOriginByCallerThreshold: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
             Success = (
                 Self::GroupId,
@@ -387,7 +397,7 @@ pub mod pallet {
             initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
             let (caller_group_id, _yes_votes, _no_votes, caller_group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             ensure!(members.len() > 0, Error::<T>::MembersRequired);
             ensure!(
@@ -462,7 +472,7 @@ pub mod pallet {
             threshold: Option<T::MemberCount>,
         ) -> DispatchResultWithPostInfo {
             let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             let mut admin_group = group;
@@ -503,7 +513,7 @@ pub mod pallet {
             group_id: T::GroupId,
         ) -> DispatchResultWithPostInfo {
             let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             let mut admin_group = group.clone();

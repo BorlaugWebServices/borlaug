@@ -44,41 +44,41 @@ pub mod pallet {
     // const MODULE_INDEX: u8 = 3;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         type RegistryId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
         type DefinitionId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
         type ProcessId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
-        type GroupId: Parameter + Member + AtLeast32Bit + Eq + Default + Copy + PartialEq;
-        type MemberCount: Parameter
-            + Member
-            + PartialOrd
-            + AtLeast32Bit
-            + Eq
-            + Default
-            + Copy
-            + PartialEq;
+        // type GroupId: Parameter + Member + AtLeast32Bit + Eq + Default + Copy + PartialEq;
+        // type MemberCount: Parameter
+        //     + Member
+        //     + PartialOrd
+        //     + AtLeast32Bit
+        //     + Eq
+        //     + Default
+        //     + Copy
+        //     + PartialEq;
 
         type Origin: From<groups::RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
 
-        type GroupApprovalOrigin: EnsureOrigin<
-            <Self as frame_system::Config>::Origin,
-            Success = (
-                Self::GroupId,
-                Option<Self::MemberCount>,
-                Option<Self::MemberCount>,
-                Self::AccountId,
-            ),
-        >;
+        // type GroupsOriginByCallerThreshold: EnsureOrigin<
+        //     <Self as frame_system::Config>::Origin,
+        //     Success = (
+        //         Self::GroupId,
+        //         Option<Self::MemberCount>,
+        //         Option<Self::MemberCount>,
+        //         Self::AccountId,
+        //     ),
+        // >;
 
         type Currency: Currency<Self::AccountId>;
 
         type GetExtrinsicExtraSource: GetExtrinsicExtra<
             ModuleIndex = u8,
             ExtrinsicIndex = u8,
-            Balance = <Self::Currency as Currency<Self::AccountId>>::Balance,
+            Balance = <<Self as Config>::Currency as Currency<Self::AccountId>>::Balance,
         >;
     }
 
@@ -159,6 +159,10 @@ pub mod pallet {
         IncorrectThreshold,
         /// Id out of bounds
         NoIdAvailable,
+        /// A definition can only be set active if all steps have attestor groups assigned
+        AttestorGroupNotSet,
+        /// The attestor group on a definition step does not exist.
+        AttestorsInvalidGroup,
     }
 
     #[pallet::type_value]
@@ -287,7 +291,7 @@ pub mod pallet {
         #[pallet::weight( 10_000 +  T::DbWeight::get().writes(1))]
         pub fn create_registry(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             // ensure!(group_account.is_some(), Error::<T>::NotAuthorized);
             // let group_account = group_account.unwrap();
@@ -334,7 +338,7 @@ pub mod pallet {
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -366,7 +370,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -399,7 +403,7 @@ pub mod pallet {
             definition_steps: Vec<DefinitionStep<T::GroupId, T::MemberCount>>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -445,7 +449,7 @@ pub mod pallet {
             definition_steps: Option<Vec<DefinitionStep<T::GroupId, T::MemberCount>>>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -505,12 +509,29 @@ pub mod pallet {
             definition_id: T::DefinitionId,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
             );
+
+            let mut attestor_group_set = true;
+            let mut attestors_group_valid = true;
+
+            <DefinitionSteps<T>>::iter_prefix((registry_id, definition_id)).for_each(
+                |(_step_index, definition_step)| {
+                    if let Some(group_id) = definition_step.group_id {
+                        if groups::Module::<T>::groups(group_id).is_none() {
+                            attestors_group_valid = false;
+                        }
+                    } else {
+                        attestor_group_set = false;
+                    }
+                },
+            );
+            ensure!(attestor_group_set, Error::<T>::AttestorGroupNotSet);
+            ensure!(attestors_group_valid, Error::<T>::AttestorsInvalidGroup);
 
             <Definitions<T>>::try_mutate_exists(
                 registry_id,
@@ -535,7 +556,7 @@ pub mod pallet {
             definition_id: T::DefinitionId,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -568,7 +589,7 @@ pub mod pallet {
             definition_id: T::DefinitionId,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -604,7 +625,7 @@ pub mod pallet {
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -651,7 +672,7 @@ pub mod pallet {
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             let definition = <Definitions<T>>::get(registry_id, definition_id);
             ensure!(definition.is_some(), Error::<T>::NotFound);
@@ -705,7 +726,7 @@ pub mod pallet {
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -747,7 +768,7 @@ pub mod pallet {
             process_id: T::ProcessId,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -782,7 +803,7 @@ pub mod pallet {
             attributes: Vec<Attribute>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             let definition_step =
                 <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)
@@ -826,9 +847,7 @@ pub mod pallet {
             definition_step_index: DefinitionStepIndex,
         ) -> DispatchResultWithPostInfo {
             let (group_id, yes_votes, _no_votes, _group_account) =
-                T::GroupApprovalOrigin::ensure_origin(origin)?;
-
-            //TODO: threshold
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             let definition_step =
                 <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)

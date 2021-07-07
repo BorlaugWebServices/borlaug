@@ -87,7 +87,8 @@ impl pallet_balances::Config for Test {
 
 impl groups::Config for Test {
     type Origin = Origin;
-    type GroupApprovalOrigin = groups::EnsureThreshold<Test>;
+    type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Test>;
+    type GroupsOriginByCallerThreshold = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
     type Proposal = Call;
     type GroupId = u32;
     type ProposalId = u32;
@@ -101,14 +102,11 @@ impl groups::Config for Test {
 
 impl pallet_provenance::Config for Test {
     type Origin = Origin;
-    type GroupApprovalOrigin = groups::EnsureThreshold<Test>;
     type RegistryId = u32;
     type DefinitionId = u32;
     type ProcessId = u32;
     type Event = Event;
-    type GroupId = u32;
     type Currency = Balances;
-    type MemberCount = u32;
     type GetExtrinsicExtraSource = Settings;
 }
 
@@ -122,10 +120,14 @@ impl settings::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+    let mut t = frame_system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap();
     pallet_balances::GenesisConfig::<Test> {
         balances: vec![(1, 10)],
-    }.assimilate_storage(&mut t).unwrap();
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
     ext

@@ -74,7 +74,8 @@ impl pallet_balances::Config for Test {
 
 impl pallet_groups::Config for Test {
     type Origin = Origin;
-    type GroupApprovalOrigin = pallet_groups::EnsureThreshold<Test>;
+    type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Runtime>;
+    type GroupsOriginByCallerThreshold = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
     type Proposal = Call;
     type GroupId = u32;
     type ProposalId = u32;
@@ -92,7 +93,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .build_storage::<Test>()
         .unwrap();
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(1, 10)],
+        balances: vec![(1, 2_000_000_000u128)],
     }
     .assimilate_storage(&mut t)
     .unwrap();

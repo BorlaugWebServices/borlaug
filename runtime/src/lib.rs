@@ -776,7 +776,8 @@ impl settings::Config for Runtime {
 
 impl groups::Config for Runtime {
     type Origin = Origin;
-    type GroupApprovalOrigin = groups::EnsureThreshold<Runtime>;
+    type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Runtime>;
+    type GroupsOriginByCallerThreshold = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
     type Proposal = Call;
     type GroupId = GroupId;
     type ProposalId = ProposalId;
@@ -811,14 +812,13 @@ impl audits::Config for Runtime {
 
 impl provenance::Config for Runtime {
     type Origin = Origin;
-    type GroupApprovalOrigin = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
     type RegistryId = primitives::RegistryId;
     type DefinitionId = primitives::DefinitionId;
     type ProcessId = primitives::ProcessId;
     type Currency = Balances;
     type Event = Event;
-    type GroupId = primitives::GroupId;
-    type MemberCount = MemberCount;
+    // type GroupId = primitives::GroupId;
+    // type MemberCount = MemberCount;
     type GetExtrinsicExtraSource = Settings;
 }
 #[cfg(feature = "grandpa_babe")]
