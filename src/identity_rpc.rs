@@ -3,7 +3,7 @@ use codec::{Codec, Decode, Encode};
 use identity_runtime_api::IdentityApi as IdentityRuntimeApi;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_primitives::{DidDocument, DidProperty, Fact};
+use pallet_primitives::{DidDocument, DidProperty, Fact, Attestation, Statement};
 use serde::{
     Deserialize, Serialize,
     {
@@ -66,6 +66,13 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId> {
         controller: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<DidDocumentBasicResponse>>;
+
+    #[rpc(name = "get_claims")]
+    fn get_claims(
+        &self,
+        did: Did,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<ClaimResponse>>;
 }
 
 #[derive(Encode, Default, Decode, Debug, Clone)]
@@ -81,8 +88,8 @@ impl From<Did> for pallet_primitives::Did {
 
 impl<'de> Deserialize<'de> for Did {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
     {
         struct DidVisitor;
 
@@ -94,8 +101,8 @@ impl<'de> Deserialize<'de> for Did {
             }
 
             fn visit_str<E>(self, value: &str) -> std::result::Result<Did, E>
-            where
-                E: de::Error,
+                where
+                    E: de::Error,
             {
                 if value.len() != 66 {
                     return Err(E::custom("Invalid DID".to_string()));
@@ -164,8 +171,8 @@ impl From<&[u8]> for Did {
 
 impl Serialize for Did {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where
+            S: Serializer,
     {
         serializer.serialize_str(&format!("0x{}", hex::encode(self.id)))
     }
@@ -202,6 +209,20 @@ impl From<(pallet_primitives::Did, Option<Vec<u8>>)> for DidDocumentBasicRespons
     }
 }
 
+impl From<(u64, pallet_primitives::Claim<u64>)> for ClaimResponse {
+    fn from((_claim_index, claim): (u64, pallet_primitives::Claim<u64>)) -> Self {
+        ClaimResponse {
+            description: String::from_utf8_lossy(&claim.description).to_string(),
+            statements: claim.statements
+                .into_iter()
+                .map(|s| s.into())
+                .collect(),
+            created_by: Did::from(claim.created_by),
+            attestation: claim.attestation.map(|a|a.into())
+        }
+    }
+}
+
 impl<AccountId> From<(Option<Vec<u8>>, DidDocument<AccountId>)> for DidDocumentResponse<AccountId> {
     fn from((short_name, did_document): (Option<Vec<u8>>, DidDocument<AccountId>)) -> Self {
         DidDocumentResponse {
@@ -230,6 +251,25 @@ impl From<DidProperty> for DidPropertyResponse {
         DidPropertyResponse {
             name: String::from_utf8_lossy(&property.name).to_string(),
             fact: property.fact.into(),
+        }
+    }
+}
+
+impl From<Attestation<u64>> for AttestationResponse {
+    fn from(attestation: Attestation<u64>) -> Self {
+        AttestationResponse {
+            attested_by: Did::from(attestation.attested_by),
+            valid_until: attestation.valid_until
+        }
+    }
+}
+
+impl From<Statement> for StatementResponse {
+    fn from(statement: Statement) -> Self {
+        StatementResponse {
+            name: String::from_utf8_lossy(&statement.name).to_string(),
+            fact: statement.fact.into(),
+            for_issuer: statement.for_issuer
         }
     }
 }
@@ -291,6 +331,27 @@ impl From<Fact> for FactResponse {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct StatementResponse {
+    pub name: String,
+    pub fact: FactResponse,
+    pub for_issuer: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AttestationResponse {
+    pub attested_by: Did,
+    pub valid_until: u64
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ClaimResponse {
+    pub description: String,
+    pub statements: Vec<StatementResponse>,
+    pub created_by: Did,
+    pub attestation: Option<AttestationResponse>
+}
+
 pub struct Identity<C, M> {
     client: Arc<C>,
     _marker: std::marker::PhantomData<M>,
@@ -326,15 +387,15 @@ macro_rules! not_found_error {
 }
 
 impl<C, Block, AccountId, CatalogId> IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId>
-    for Identity<C, (Block, AccountId, CatalogId)>
-where
-    Block: BlockT,
-    C: Send + Sync + 'static,
-    C: ProvideRuntimeApi<Block>,
-    C: HeaderBackend<Block>,
-    C::Api: IdentityRuntimeApi<Block, AccountId, CatalogId>,
-    AccountId: Codec + Send + Sync + 'static,
-    CatalogId: Codec + Copy + Send + Sync + 'static,
+for Identity<C, (Block, AccountId, CatalogId)>
+    where
+        Block: BlockT,
+        C: Send + Sync + 'static,
+        C: ProvideRuntimeApi<Block>,
+        C: HeaderBackend<Block>,
+        C::Api: IdentityRuntimeApi<Block, AccountId, CatalogId>,
+        AccountId: Codec + Send + Sync + 'static,
+        CatalogId: Codec + Copy + Send + Sync + 'static,
 {
     fn get_catalogs(
         &self,
@@ -455,6 +516,23 @@ where
         Ok(dids
             .into_iter()
             .map(|(did, maybe_short_name)| (did, maybe_short_name).into())
+            .collect())
+    }
+
+    fn get_claims(
+        &self,
+        did: Did,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<ClaimResponse>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let claims = api
+            .get_claims(&at, did.clone().into())
+            .map_err(convert_error!())?;
+        Ok(claims
+            .into_iter()
+            .map(|(claim_index, claim)| (claim_index, claim).into())
             .collect())
     }
 }

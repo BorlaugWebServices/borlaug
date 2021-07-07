@@ -102,7 +102,7 @@ pub struct DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, De
 pub struct DefinitionStepResponse<GroupId, MemberCount, DefinitionStepIndex> {
     pub definition_step_index: DefinitionStepIndex,
     pub name: String,
-    pub group_id: GroupId,
+    pub group_id: Option<GroupId>,
     pub threshold: MemberCount,
 }
 #[derive(Serialize, Deserialize)]

@@ -3698,6 +3698,7 @@ dependencies = [
  "group-info",
  "pallet-balances",
  "pallet-primitives",
+ "pallet-timestamp",
  "parity-scale-codec",
  "serde",
  "sp-core",
