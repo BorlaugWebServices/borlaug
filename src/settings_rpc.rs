@@ -8,19 +8,49 @@ use sp_blockchain::HeaderBackend;
 use sp_runtime::{
     generic::BlockId,
     traits::{AtLeast32BitUnsigned, Block as BlockT},
+    Perbill,
 };
 use std::sync::Arc;
 
 #[rpc]
 pub trait SettingsApi<BlockHash, ModuleIndex, ExtrinsicIndex, Balance> {
+    #[rpc(name = "get_weight_to_fee_coefficients")]
+    fn get_weight_to_fee_coefficients(
+        &self,
+        at: Option<BlockHash>,
+    ) -> Result<WeightToFeeCoefficientsResponse>;
+
+    #[rpc(name = "get_transaction_byte_fee")]
+    fn get_transaction_byte_fee(&self, at: Option<BlockHash>)
+        -> Result<TransactionByteFeeResponse>;
+
     #[rpc(name = "get_fee_split_ratio")]
     fn get_fee_split_ratio(&self, at: Option<BlockHash>) -> Result<FeeSplitRatioResponse>;
 
+    #[rpc(name = "get_extrinsic_extra")]
+    fn get_extrinsic_extra(
+        &self,
+        module_index: ModuleIndex,
+        extrinsic_index: ExtrinsicIndex,
+        at: Option<BlockHash>,
+    ) -> Result<ExtrinsicExtraResponse>;
     #[rpc(name = "get_extrinsic_extras")]
     fn get_extrinsic_extras(
         &self,
         at: Option<BlockHash>,
-    ) -> Result<ExtrinsicExtraResponse<ModuleIndex, ExtrinsicIndex>>;
+    ) -> Result<ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex>>;
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WeightToFeeCoefficientsResponse {
+    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
+    pub weight_to_fee_coefficients: Vec<(u64, Perbill, bool, u8)>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TransactionByteFeeResponse {
+    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
+    pub transaction_byte_fee: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -29,10 +59,16 @@ pub struct FeeSplitRatioResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ExtrinsicExtraResponse<ModuleIndex, ExtrinsicIndex> {
+pub struct ExtrinsicExtraResponse {
     //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
     //TODO: change once bug is fixed
-    pub data: Vec<(ModuleIndex, Vec<(ExtrinsicIndex, u64)>)>,
+    pub fee: Option<u64>,
+}
+#[derive(Serialize, Deserialize)]
+pub struct ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex> {
+    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
+    //TODO: change once bug is fixed
+    pub fees: Vec<(ModuleIndex, Vec<(ExtrinsicIndex, u64)>)>,
 }
 
 pub struct Settings<C, M> {
@@ -72,9 +108,43 @@ where
     ExtrinsicIndex: Codec + Copy + Send + Sync + 'static,
     Balance: Codec + Copy + Send + Sync + AtLeast32BitUnsigned + 'static,
 {
+    fn get_weight_to_fee_coefficients(
+        &self,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<WeightToFeeCoefficientsResponse> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(||
+            // If the block hash is not supplied assume the best block.
+            self.client.info().best_hash));
+
+        let weight_to_fee_coefficients = api
+            .get_weight_to_fee_coefficients(&at)
+            .map_err(convert_error!())?;
+
+        Ok(WeightToFeeCoefficientsResponse {
+            weight_to_fee_coefficients,
+        })
+    }
+
+    fn get_transaction_byte_fee(
+        &self,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<TransactionByteFeeResponse> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(||
+            // If the block hash is not supplied assume the best block.
+            self.client.info().best_hash));
+
+        let transaction_byte_fee = api
+            .get_transaction_byte_fee(&at)
+            .map_err(convert_error!())?;
+        Ok(TransactionByteFeeResponse {
+            transaction_byte_fee: transaction_byte_fee.unique_saturated_into(),
+        })
+    }
+
     fn get_fee_split_ratio(
         &self,
-
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<FeeSplitRatioResponse> {
         let api = self.client.runtime_api();
@@ -86,18 +156,35 @@ where
         Ok(FeeSplitRatioResponse { fee_split_ratio })
     }
 
-    fn get_extrinsic_extras(
+    fn get_extrinsic_extra(
         &self,
-
+        module_index: ModuleIndex,
+        extrinsic_index: ExtrinsicIndex,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ExtrinsicExtraResponse<ModuleIndex, ExtrinsicIndex>> {
+    ) -> Result<ExtrinsicExtraResponse> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let data = api.get_extrinsic_extras(&at).map_err(convert_error!())?;
+        let fee = api
+            .get_extrinsic_extra(&at, module_index, extrinsic_index)
+            .map_err(convert_error!())?;
 
         Ok(ExtrinsicExtraResponse {
-            data: data
+            fee: fee.map(|f| f.unique_saturated_into()),
+        })
+    }
+
+    fn get_extrinsic_extras(
+        &self,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let fees = api.get_extrinsic_extras(&at).map_err(convert_error!())?;
+
+        Ok(ExtrinsicExtrasResponse {
+            fees: fees
                 .into_iter()
                 .map(|(mi, e)| {
                     (

@@ -40,7 +40,7 @@ pallet-proxy = {version = "3.0.0", default-features = false}
 pallet-randomness-collective-flip = {version = "3.0.0", default-features = false}
 pallet-sudo = {version = "3.0.0", default-features = false}
 pallet-timestamp = {version = "3.0.0", default-features = false}
-pallet-transaction-payment-rpc-runtime-api = {version = "3.0.0", default-features = false}
+
 pallet-treasury = {version = "3.0.0", default-features = false}
 
 # grandpa/babe dependencies
@@ -56,6 +56,11 @@ pallet-session = {version = "3.0.0", default-features = false, optional = true}
 pallet-staking = {version = "3.0.0", default-features = false, optional = true}
 pallet-staking-reward-curve = {version = "3.0.0", default-features = false, optional = true}
 
+# Used for runtime benchmarking
+frame-benchmarking = {version = "3.1.0", default-features = false, optional = true}
+frame-system-benchmarking = {version = "3.0.0", default-features = false, optional = true}
+hex-literal = {version = "0.3.1", optional = true}
+
 # Borlaug Dependencies
 asset-registry = {package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false}
 audits = {package = "pallet-audits", path = "../pallets/audits", default-features = false}
@@ -70,6 +75,7 @@ settings = {package = "pallet-settings", path = "../pallets/settings", default-f
 settings-runtime-api = {path = "../pallets/settings-runtime-api", default-features = false}
 
 pallet-transaction-payment = {path = "../pallets/transaction-payment", default-features = false}
+pallet-transaction-payment-rpc-runtime-api = {path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false}
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"
@@ -141,3 +147,21 @@ grandpa_babe = [
   "pallet-authority-discovery",
 ]
 instant_seal = []
+
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system-benchmarking",
+  "frame-system/runtime-benchmarks",
+  "hex-literal",
+  "pallet-balances/runtime-benchmarks",
+  "pallet-timestamp/runtime-benchmarks",
+  "pallet-collective/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+  "identity/runtime-benchmarks",
+  "settings/runtime-benchmarks",
+  "asset-registry/runtime-benchmarks",
+  "audits/runtime-benchmarks",
+  "groups/runtime-benchmarks",
+  "provenance/runtime-benchmarks",
+]

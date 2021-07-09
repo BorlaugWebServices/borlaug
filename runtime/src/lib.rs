@@ -29,7 +29,7 @@ pub use frame_support::{
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        DispatchClass, IdentityFee, Weight,
+        DispatchClass, IdentityFee, Weight, WeightToFeeCoefficient,
     },
     RuntimeDebug, StorageValue,
 };
@@ -425,8 +425,8 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
-    type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = IdentityFee<Balance>;
+    type TransactionByteFee = settings::TransactionByteFeeGet<Runtime>;
+    type WeightToFee = settings::CustomizableFee<Runtime>;
     type FeeMultiplierUpdate = ();
     //TODO: put this back. Removed temporarily to make fee analysis easier
     // type FeeMultiplierUpdate =
@@ -770,6 +770,7 @@ impl settings::Config for Runtime {
         pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>,
     >;
     type ModuleIndex = ModuleIndex;
+    type Currency = Balances;
     type Balance = Balance;
     type ExtrinsicIndex = ExtrinsicIndex;
 }
@@ -777,7 +778,7 @@ impl settings::Config for Runtime {
 impl groups::Config for Runtime {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Runtime>;
-    type GroupsOriginByCallerThreshold = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
+    type GroupsOriginByCallerThreshold = groups::EnsureApproved<Runtime>;
     type Proposal = Call;
     type GroupId = GroupId;
     type ProposalId = ProposalId;
@@ -787,6 +788,7 @@ impl groups::Config for Runtime {
     type MaxProposals = GroupMaxProposals;
     type MaxMembers = GroupMaxMembers;
     type WeightInfo = groups::weights::SubstrateWeight<Runtime>;
+    type GetExtrinsicExtraSource = Settings;
 }
 
 impl identity::Config for Runtime {
@@ -815,10 +817,7 @@ impl provenance::Config for Runtime {
     type RegistryId = primitives::RegistryId;
     type DefinitionId = primitives::DefinitionId;
     type ProcessId = primitives::ProcessId;
-    type Currency = Balances;
     type Event = Event;
-    // type GroupId = primitives::GroupId;
-    // type MemberCount = MemberCount;
     type GetExtrinsicExtraSource = Settings;
 }
 #[cfg(feature = "grandpa_babe")]
@@ -1204,22 +1203,38 @@ impl_runtime_apis! {
     }
 
     impl settings_runtime_api::SettingsApi<Block,ModuleIndex,ExtrinsicIndex,Balance> for Runtime {
+        fn get_weight_to_fee_coefficients() -> Vec<(u64, Perbill, bool, u8)>{
+            Settings::get_weight_to_fee_coefficients()
+        }
+
+        fn get_transaction_byte_fee() -> Balance{
+            Settings::get_transaction_byte_fee()
+        }
+
         fn get_fee_split_ratio() -> u32 {
             Settings::get_fee_split_ratio()
+        }
+        fn get_extrinsic_extra(module_index:ModuleIndex,extrinsic_index:ExtrinsicIndex) ->   Option<Balance>{
+            Settings::get_extrinsic_extra(module_index,extrinsic_index)
         }
         fn get_extrinsic_extras() ->  Vec<(ModuleIndex,Vec<(ExtrinsicIndex,Balance)>)> {
             Settings::get_extrinsic_extras()
         }
     }
-//TODO: fix this
-    // impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
-    //     fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
-    //         TransactionPayment::query_info(uxt, len)
-    //     }
-    //     fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
-    //         TransactionPayment::query_fee_details(uxt, len)
-    //     }
-    // }
+    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
+        fn query_info(
+            uxt: <Block as BlockT>::Extrinsic,
+            len: u32,
+        ) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
+            TransactionPayment::query_info(uxt, len)
+        }
+        fn query_fee_details(
+            uxt: <Block as BlockT>::Extrinsic,
+            len: u32,
+        ) -> pallet_transaction_payment::FeeDetails<Balance> {
+            TransactionPayment::query_fee_details(uxt, len)
+        }
+    }
 
 
     impl sp_session::SessionKeys<Block> for Runtime {
@@ -1282,6 +1297,8 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
             add_benchmark!(params, batches, pallet_balances, Balances);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+
+            add_benchmark!(params, batches, pallet_groups, Groups);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

@@ -167,6 +167,7 @@
   },
   "Votes": {
     "proposal_id": "ProposalId",
+    "threshold": "MemberCount",
     "ayes": "Vec<AccountId>",
     "nays": "Vec<AccountId>"
   }

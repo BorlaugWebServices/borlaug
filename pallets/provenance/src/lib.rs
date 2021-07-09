@@ -23,9 +23,7 @@ mod tests;
 #[frame_support::pallet]
 pub mod pallet {
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::{
-        dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Currency,
-    };
+    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use primitives::{
         attribute::Attribute,
@@ -41,7 +39,14 @@ pub mod pallet {
     };
     use sp_std::prelude::*;
 
-    // const MODULE_INDEX: u8 = 3;
+    const MODULE_INDEX: u8 = 3;
+
+    #[repr(u8)]
+    pub enum ExtrinsicIndex {
+        Registry = 1,
+        Definition = 2,
+        Process = 3,
+    }
 
     #[pallet::config]
     pub trait Config: frame_system::Config + groups::Config {
@@ -51,34 +56,13 @@ pub mod pallet {
         type RegistryId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
         type DefinitionId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
         type ProcessId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
-        // type GroupId: Parameter + Member + AtLeast32Bit + Eq + Default + Copy + PartialEq;
-        // type MemberCount: Parameter
-        //     + Member
-        //     + PartialOrd
-        //     + AtLeast32Bit
-        //     + Eq
-        //     + Default
-        //     + Copy
-        //     + PartialEq;
 
         type Origin: From<groups::RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
-
-        // type GroupsOriginByCallerThreshold: EnsureOrigin<
-        //     <Self as frame_system::Config>::Origin,
-        //     Success = (
-        //         Self::GroupId,
-        //         Option<Self::MemberCount>,
-        //         Option<Self::MemberCount>,
-        //         Self::AccountId,
-        //     ),
-        // >;
-
-        type Currency: Currency<Self::AccountId>;
 
         type GetExtrinsicExtraSource: GetExtrinsicExtra<
             ModuleIndex = u8,
             ExtrinsicIndex = u8,
-            Balance = <<Self as Config>::Currency as Currency<Self::AccountId>>::Balance,
+            AccountId = Self::AccountId,
         >;
     }
 
@@ -290,33 +274,14 @@ pub mod pallet {
 
         #[pallet::weight( 10_000 +  T::DbWeight::get().writes(1))]
         pub fn create_registry(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
-            let (group_id, _yes_votes, _no_votes, _group_account) =
+            let (group_id, _yes_votes, _no_votes, group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
-            // ensure!(group_account.is_some(), Error::<T>::NotAuthorized);
-            // let group_account = group_account.unwrap();
-
-            // let sender = ensure_signed(origin)?;
-            // ensure!(
-            //     T::GroupOriginSource::ensure_minimum(group_id, origin.into(), 1u32),
-            //     Error::<T>::NotAuthorized
-            // );
-
-            // debug::info!("{:?}", T::Currency::total_balance(&sender));
-
-            // let (deducted, a) = T::Currency::slash(
-            //     &sender,
-            //     T::GetExtrinsicExtraSource::get_extrinsic_extra(&MODULE_INDEX, &1u8),
-            // );
-
-            // debug::info!("{:?}", a);
-
-            // debug::info!(
-            //     "{:?}",
-            //     T::GetExtrinsicExtraSource::get_extrinsic_extra(&MODULE_INDEX, &1u8)
-            // );
-
-            // debug::info!("{:?}", T::Currency::total_balance(&sender));
+            <T as Config>::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Registry as u8),
+                &group_account,
+            );
 
             let registry_id = next_id!(NextRegistryId<T>, T);
 
@@ -402,12 +367,18 @@ pub mod pallet {
             name: Vec<u8>,
             definition_steps: Vec<DefinitionStep<T::GroupId, T::MemberCount>>,
         ) -> DispatchResultWithPostInfo {
-            let (group_id, _yes_votes, _no_votes, _group_account) =
+            let (group_id, _yes_votes, _no_votes, group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
                 Error::<T>::NotAuthorized
+            );
+
+            <T as Config>::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Definition as u8),
+                &group_account,
             );
 
             let definition_id = next_id!(NextDefinitionId<T>, T);
@@ -671,7 +642,7 @@ pub mod pallet {
             definition_id: T::DefinitionId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let (group_id, _yes_votes, _no_votes, _group_account) =
+            let (group_id, _yes_votes, _no_votes, group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             let definition = <Definitions<T>>::get(registry_id, definition_id);
@@ -688,6 +659,12 @@ pub mod pallet {
             ensure!(
                 definition_step.group_id == Some(group_id),
                 Error::<T>::NotAttestor
+            );
+
+            <T as Config>::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Process as u8),
+                &group_account,
             );
 
             let process_id = next_id!(NextProcessId<T>, T);

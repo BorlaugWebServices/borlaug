@@ -150,6 +150,7 @@ fn create_genesis(root_key: AccountId, endowed_accounts: Vec<AccountId>) -> Gene
             phantom: PhantomData,
         }),
         settings: Some(SettingsConfig {
+            transaction_byte_fee: 10_000u32.into(),
             fee_split_ratio: 80,
             extrinisic_extra: vec![(3, vec![(1, 100_000)])],
         }),

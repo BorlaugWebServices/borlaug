@@ -127,7 +127,7 @@ type BalanceOf<T> = <<T as Config>::OnChargeTransaction as OnChargeTransaction<T
 /// Meaning that fees can change by around ~23% per day, given extreme congestion.
 ///
 /// More info can be found at:
-/// <https://w3f-research.readthedocs.io/en/latest/polkadot/Token%20Economics.html>
+/// <https://w3f-research.readthedocs.io/en/latest/polkadot/overview/2-token-economics.html>
 pub struct TargetedFeeAdjustment<T, S, V, M>(sp_std::marker::PhantomData<(T, S, V, M)>);
 
 /// Something that can convert the current multiplier to the next one.
@@ -266,7 +266,7 @@ pub mod pallet {
         type OnChargeTransaction: OnChargeTransaction<Self>;
 
         /// The fee to be paid for making a transaction; the per-byte portion.
-        #[pallet::constant]
+        // #[pallet::constant]
         type TransactionByteFee: Get<BalanceOf<Self>>;
 
         /// Convert a weight value into a deductible fee based on the currency type.

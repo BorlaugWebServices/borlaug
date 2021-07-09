@@ -5,7 +5,7 @@ use std::sync::Arc;
 use futures::channel::mpsc::Sender;
 use runtime::primitives::{
     AccountId, Balance, Block, DefinitionId, DefinitionStepIndex, ExtrinsicIndex, GroupId, Hash,
-    MemberCount, ModuleIndex, ProcessId, RegistryId,
+    Index, MemberCount, ModuleIndex, ProcessId, RegistryId,
 };
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
@@ -33,6 +33,8 @@ pub struct FullDeps<C, P> {
 pub fn create_full<C, P>(deps: FullDeps<C, P>) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
 where
     C: ProvideRuntimeApi<Block>,
+    C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
+    C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
     C: Send + Sync + 'static,
     C::Api: BlockBuilder<Block>,

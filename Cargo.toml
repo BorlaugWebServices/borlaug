@@ -22,10 +22,6 @@ jsonrpc-core = "15.0"
 jsonrpc-core-client = "15.0"
 jsonrpc-derive = "15.0"
 log = "0.4.11"
-
-# TODO: do we need to point this to ours?
-pallet-transaction-payment-rpc = "3.0.0"
-
 parking_lot = "0.10.0"
 serde = {version = "1.0.126", features = ["derive"]}
 
@@ -89,7 +85,10 @@ settings-runtime-api = {path = "pallets/settings-runtime-api"}
 
 pallet-primitives = {path = "pallets/primitives", default-features = false}
 
+pallet-transaction-payment-rpc = {version = "3.0.0", path = "pallets/transaction-payment/rpc"}
+
 [build-dependencies]
+pallet-transaction-payment = {version = "3.0.0", path = "pallets/transaction-payment"}
 substrate-build-script-utils = "3.0.0"
 vergen = "3.0.4"
 
@@ -113,4 +112,7 @@ instant_seal = [
   "sc-consensus-manual-seal",
   "sp-timestamp",
   "runtime/instant_seal",
+]
+runtime-benchmarks = [
+  "runtime/runtime-benchmarks",
 ]

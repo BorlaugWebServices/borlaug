@@ -1,14 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-/// Types that implement the AccountSet trait are able to supply a set of accounts
-/// The trait is generic over the notion of Account used.
+/// This allows extrinsics to charge a special fee, customizably by the council
 pub trait GetExtrinsicExtra {
     type ModuleIndex;
     type ExtrinsicIndex;
-    type Balance;
+    type AccountId;
 
-    fn get_extrinsic_extra(
+    fn charge_extrinsic_extra(
         module_index: &Self::ModuleIndex,
         extrinsic_index: &Self::ExtrinsicIndex,
-    ) -> Self::Balance;
+        account: &Self::AccountId,
+    );
 }

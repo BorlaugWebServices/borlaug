@@ -10,6 +10,7 @@
 
 pub use pallet::*;
 
+mod benchmarking;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -21,7 +22,7 @@ pub mod weights;
 pub mod pallet {
 
     pub use super::weights::WeightInfo;
-
+    use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{
         codec::{Decode, Encode},
         dispatch::{
@@ -30,7 +31,7 @@ pub mod pallet {
         },
         ensure,
         pallet_prelude::*,
-        traits::{Currency, ExistenceRequirement::AllowDeath, Get},
+        traits::{Currency, ExistenceRequirement::AllowDeath, Get, ReservableCurrency},
         weights::{GetDispatchInfo, Weight},
     };
     use frame_system::{self as system, pallet_prelude::*};
@@ -46,6 +47,14 @@ pub mod pallet {
     };
     use sp_std::{prelude::*, vec};
 
+    const MODULE_INDEX: u8 = 1;
+
+    #[repr(u8)]
+    pub enum ExtrinsicIndex {
+        Group = 1,
+        SubGroup = 2,
+    }
+
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -59,7 +68,7 @@ pub mod pallet {
         /// vote exactly once, therefore also the number of votes for any given motion.
         type MemberCount: Parameter + AtLeast32BitUnsigned + Default + Copy + PartialEq + PartialOrd;
 
-        type Currency: Currency<Self::AccountId>;
+        type Currency: ReservableCurrency<Self::AccountId>;
 
         /// The outer origin type.
         type Origin: From<RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
@@ -102,6 +111,12 @@ pub mod pallet {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
+
+        type GetExtrinsicExtraSource: GetExtrinsicExtra<
+            ModuleIndex = u8,
+            ExtrinsicIndex = u8,
+            AccountId = Self::AccountId,
+        >;
     }
 
     /// Origin for groups module proposals.
@@ -352,6 +367,12 @@ pub mod pallet {
                 Error::<T>::InvalidThreshold
             );
 
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Group as u8),
+                &sender,
+            );
+
             let group_id = next_id!(NextGroupId<T>, T);
 
             let anonymous_account = Self::anonymous_account(&sender, group_id);
@@ -412,6 +433,12 @@ pub mod pallet {
                 admin_group_id = admin_group.parent.unwrap();
                 admin_group = Self::groups(admin_group_id).ok_or(Error::<T>::GroupMissing)?;
             }
+
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::SubGroup as u8),
+                &caller_group_account,
+            );
 
             let group_id = next_id!(NextGroupId<T>, T);
 
@@ -935,18 +962,20 @@ pub mod pallet {
         }
     }
 
-    pub struct EnsureApproved<AccountId, GroupId, MemberCount>(
-        sp_std::marker::PhantomData<(AccountId, GroupId, MemberCount)>,
-    );
+    /// This just verifies that the origin came from a proposal. It does NOT do any threshold checks. The proposer specifies a threshold and that is used for voting. It is up to the recieving extrinsic to enforce a threshold.
+    pub struct EnsureApproved<T>(sp_std::marker::PhantomData<T>);
     impl<
-            O: Into<Result<RawOrigin<AccountId, GroupId, MemberCount>, O>>
-                + From<RawOrigin<AccountId, GroupId, MemberCount>>,
-            AccountId,
-            GroupId,
-            MemberCount,
-        > EnsureOrigin<O> for EnsureApproved<AccountId, GroupId, MemberCount>
+            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>, O>>
+                + From<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>>,
+            T: Config,
+        > EnsureOrigin<O> for EnsureApproved<T>
     {
-        type Success = (GroupId, Option<MemberCount>, Option<MemberCount>, AccountId);
+        type Success = (
+            T::GroupId,
+            Option<T::MemberCount>,
+            Option<T::MemberCount>,
+            T::AccountId,
+        );
         fn try_origin(o: O) -> Result<Self::Success, O> {
             o.into().and_then(|o| match o {
                 RawOrigin::ProposalApproved(group_id, yes_votes, no_votes, group_account) => {
@@ -960,10 +989,15 @@ pub mod pallet {
 
         #[cfg(feature = "runtime-benchmarks")]
         fn successful_origin() -> O {
-            //TODO: fix
-            O::from(RawOrigin::ProposalApproved(None, 0, 0, None))
+            O::from(RawOrigin::ProposalApprovedByVeto(
+                0u32.into(),
+                T::AccountId::default(),
+                T::AccountId::default(),
+            ))
         }
     }
+
+    /// This verifies that the origin came from a proposal and enforces the threshold is at least as great as the group threshold. The proposer specifies a threshold and voting proceeds until that threshold.
 
     pub struct EnsureThreshold<T>(sp_std::marker::PhantomData<T>);
     impl<
@@ -1001,8 +1035,11 @@ pub mod pallet {
 
         #[cfg(feature = "runtime-benchmarks")]
         fn successful_origin() -> O {
-            //TODO: fix
-            O::from(RawOrigin::ProposalApproved(None, None, None, None))
+            O::from(RawOrigin::ProposalApprovedByVeto(
+                0u32.into(),
+                T::AccountId::default(),
+                T::AccountId::default(),
+            ))
         }
     }
 }
