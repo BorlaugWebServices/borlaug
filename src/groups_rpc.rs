@@ -2,7 +2,7 @@ use codec::Codec;
 use groups_runtime_api::GroupsApi as GroupsRuntimeApi;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_primitives::Group;
+use pallet_primitives::{Group, Votes};
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
@@ -10,7 +10,7 @@ use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 
 #[rpc]
-pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount> {
+pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId> {
     #[rpc(name = "member_of")]
     fn member_of(&self, account: AccountId, at: Option<BlockHash>) -> Result<Vec<GroupId>>;
     #[rpc(name = "get_group")]
@@ -25,6 +25,13 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount> {
         group_id: GroupId,
         at: Option<BlockHash>,
     ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
+    #[rpc(name = "get_voting")]
+    fn get_voting(
+        &self,
+        group_id: GroupId,
+        proposal_id: ProposalId,
+        at: Option<BlockHash>,
+    ) -> Result<VoteResponse<AccountId, ProposalId, MemberCount>>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -49,6 +56,26 @@ impl<GroupId, AccountId, MemberCount> From<(GroupId, Group<GroupId, AccountId, M
             funding_account: group.funding_account,
             anonymous_account: group.anonymous_account,
             parent: group.parent,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct VoteResponse<AccountId, ProposalId, MemberCount> {
+    pub proposal_id: ProposalId,
+    pub threshold: MemberCount,
+    pub ayes: Vec<AccountId>,
+    pub nays: Vec<AccountId>,
+}
+impl<AccountId, ProposalId, MemberCount> From<(ProposalId, Votes<AccountId, ProposalId, MemberCount>)>
+for VoteResponse<AccountId, ProposalId, MemberCount>
+{
+    fn from((proposal_id, vote): (ProposalId, Votes<AccountId, ProposalId, MemberCount>)) -> Self {
+        VoteResponse {
+            proposal_id,
+            threshold: vote.threshold,
+            ayes: vote.ayes,
+            nays: vote.nays
         }
     }
 }
@@ -87,18 +114,19 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, AccountId, GroupId, MemberCount>
-    GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount>
+impl<C, Block, AccountId, GroupId, MemberCount, ProposalId>
+    GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId>
     for Groups<C, (Block, AccountId, GroupId, MemberCount)>
 where
     Block: BlockT,
     C: Send + Sync + 'static,
     C: ProvideRuntimeApi<Block>,
     C: HeaderBackend<Block>,
-    C::Api: GroupsRuntimeApi<Block, AccountId, GroupId, MemberCount>,
+    C::Api: GroupsRuntimeApi<Block, AccountId, GroupId, MemberCount, ProposalId>,
     GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     AccountId: Codec + Send + Sync + 'static,
+    ProposalId: Codec + Copy  + Send + Sync + 'static,
 {
     fn member_of(
         &self,
@@ -147,5 +175,21 @@ where
             .into_iter()
             .map(|(sub_group_id, group)| (sub_group_id, group).into())
             .collect())
+    }
+
+    fn get_voting(
+        &self,
+        group_id: GroupId,
+        proposal_id: ProposalId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<VoteResponse<AccountId, ProposalId, MemberCount>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let vote = api
+            .get_voting(&at, group_id, proposal_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok((proposal_id, vote).into())
     }
 }

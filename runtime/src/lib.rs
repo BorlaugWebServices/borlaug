@@ -1134,7 +1134,7 @@ impl_runtime_apis! {
 // }
 
 
-    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount> for Runtime {
+    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount, ProposalId> for Runtime {
         fn member_of(account:AccountId) -> Vec<GroupId>  {
             Groups::member_of(account)
         }
@@ -1143,6 +1143,9 @@ impl_runtime_apis! {
         }
         fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount>)>>{
             Groups::get_sub_groups(group)
+        }
+        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, ProposalId, MemberCount>>{
+            Groups::get_voting(group, proposal)
         }
     }
 

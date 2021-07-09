@@ -875,6 +875,15 @@ pub mod pallet {
             })
         }
 
+        pub fn get_voting(
+            group_id: T::GroupId,
+            proposal_id: T::ProposalId
+        ) -> Option<Votes<T::AccountId, T::ProposalId, T::MemberCount>> {
+            <Voting<T>>::get(group_id, proposal_id)
+        }
+
+
+
         // -- private functions --
 
         fn is_member(groupd_id: T::GroupId, account_id: &T::AccountId) -> bool {
