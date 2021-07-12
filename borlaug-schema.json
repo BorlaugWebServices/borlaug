@@ -161,7 +161,6 @@
     "name": "Vec<u8>",
     "members": "Vec<AccountId>",
     "threshold": "MemberCount",
-    "funding_account": "AccountId",
     "anonymous_account": "AccountId",
     "parent": "Option<GroupId>"
   },
@@ -170,5 +169,8 @@
     "threshold": "MemberCount",
     "ayes": "Vec<AccountId>",
     "nays": "Vec<AccountId>"
+  },
+  "Registry": {
+    "name": "Vec<u8>"
   }
 }

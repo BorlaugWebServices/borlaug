@@ -25,10 +25,7 @@ pub mod pallet {
     use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{
         codec::{Decode, Encode},
-        dispatch::{
-            DispatchError, DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo,
-            Vec,
-        },
+        dispatch::{DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo, Vec},
         ensure,
         pallet_prelude::*,
         traits::{Currency, ExistenceRequirement::AllowDeath, Get, ReservableCurrency},
@@ -156,8 +153,10 @@ pub mod pallet {
         SubGroupCreated(T::GroupId, T::GroupId, T::AccountId),
         /// A Group was updated (admin_group_id,group_id)
         GroupUpdated(T::GroupId, T::GroupId),
+        /// A Group was removed (group_id,return_funds_too)
+        GroupRemoved(T::GroupId, T::AccountId),
         /// A Group was removed (admin_group_id,group_id)
-        GroupRemoved(T::GroupId, T::GroupId),
+        SubGroupRemoved(T::GroupId, T::GroupId),
         /// A new SubGroup was created (proposer,group_id,proposal_id)
         Proposed(T::AccountId, T::GroupId, T::ProposalId),
         /// A proposal was voted on (voter,group_id,proposal_id,approved,yes_votes,no_votes)
@@ -196,8 +195,6 @@ pub mod pallet {
         ),
         /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
         Disapproved(T::GroupId, T::ProposalId, T::MemberCount, T::MemberCount),
-        /// A member of an admin group submitted an extrinsic as the group account  (member_account,group_id,error)
-        DepositedAsGroup(T::AccountId, T::GroupId, Option<DispatchError>),
     }
 
     #[pallet::error]
@@ -391,7 +388,6 @@ pub mod pallet {
                 name,
                 members,
                 threshold,
-                funding_account: sender.clone(),
                 anonymous_account: anonymous_account.clone(),
             };
 
@@ -459,7 +455,6 @@ pub mod pallet {
                 name,
                 members,
                 threshold,
-                funding_account: admin_group.funding_account,
                 anonymous_account: anonymous_account.clone(),
             };
 
@@ -529,7 +524,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Remove a Group. All child groups will also be removed. Can only be called via a proposal from any group in the parent chain.
+        /// Remove a Group. All child groups will also be removed.  Can only be called via a proposal from any group in the parent chain. Funds returned to specified member.
         ///
         /// # <weight>
         ///TODO:
@@ -538,39 +533,62 @@ pub mod pallet {
         pub fn remove_group(
             origin: OriginFor<T>,
             group_id: T::GroupId,
+            return_funds_too: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
-
+            ensure!(caller_group_id == group_id, Error::<T>::NotGroupAccount);
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
-            let mut admin_group = group.clone();
-            let mut admin_group_id = group_id;
-            while caller_group_id != group_id && admin_group.parent.is_some() {
-                admin_group_id = admin_group.parent.unwrap();
-                admin_group = Self::groups(admin_group_id).ok_or(Error::<T>::GroupMissing)?;
-            }
-            ensure!(caller_group_id == group_id, Error::<T>::NotGroupAdmin);
+            ensure!(group.parent.is_none(), Error::<T>::NotGroup);
 
-            Self::remove_children(group_id);
+            Self::remove_children(group_id, &return_funds_too)?;
 
-            if let Some(parent_group_id) = group.parent {
-                <GroupChildren<T>>::try_mutate_exists(
-                    parent_group_id,
-                    |maybe_group_children| -> DispatchResult {
-                        let group_children = maybe_group_children
-                            .as_mut()
-                            .ok_or(Error::<T>::GroupMissing)?;
-                        group_children.retain(|gid| *gid != group_id);
-                        Ok(())
-                    },
-                )?;
-            }
+            <T as Config>::Currency::transfer(
+                &group.anonymous_account,
+                &return_funds_too,
+                <T as Config>::Currency::free_balance(&group.anonymous_account),
+                AllowDeath,
+            )?;
 
             <Groups<T>>::remove(&group_id);
             <GroupChildren<T>>::remove(&group_id);
             <ProposalHashes<T>>::remove(&group_id);
 
-            Self::deposit_event(Event::GroupRemoved(admin_group_id, group_id));
+            Self::deposit_event(Event::GroupRemoved(group_id, return_funds_too));
+
+            Ok(().into())
+        }
+
+        /// Remove a Sub-group. All child groups will also be removed.  Can only be called via a proposal from any group in the parent chain. Funds returned to immediate parent.
+        ///
+        /// # <weight>
+        ///TODO:
+        /// # </weight>
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn remove_sub_group(
+            origin: OriginFor<T>,
+            subgroup_id: T::GroupId,
+        ) -> DispatchResultWithPostInfo {
+            let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+            ensure!(caller_group_id != subgroup_id, Error::<T>::NotSubGroup);
+            let group = Self::groups(subgroup_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(group.parent.is_some(), Error::<T>::NotSubGroup);
+            let parent_group_id = group.parent.unwrap();
+            let parent_group = Self::groups(parent_group_id).ok_or(Error::<T>::GroupMissing)?;
+            let return_funds_too = parent_group.anonymous_account;
+
+            let mut admin_group = group.clone();
+            let mut admin_group_id = subgroup_id;
+            while caller_group_id != admin_group_id && admin_group.parent.is_some() {
+                admin_group_id = admin_group.parent.unwrap();
+                admin_group = Self::groups(admin_group_id).ok_or(Error::<T>::GroupMissing)?;
+            }
+            ensure!(caller_group_id == admin_group_id, Error::<T>::NotGroupAdmin);
+
+            Self::remove_children(parent_group_id, &return_funds_too)?;
+
+            Self::deposit_event(Event::SubGroupRemoved(admin_group_id, subgroup_id));
 
             Ok(().into())
         }
@@ -877,12 +895,10 @@ pub mod pallet {
 
         pub fn get_voting(
             group_id: T::GroupId,
-            proposal_id: T::ProposalId
+            proposal_id: T::ProposalId,
         ) -> Option<Votes<T::AccountId, T::ProposalId, T::MemberCount>> {
             <Voting<T>>::get(group_id, proposal_id)
         }
-
-
 
         // -- private functions --
 
@@ -929,15 +945,33 @@ pub mod pallet {
             T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()
         }
 
-        fn remove_children(group_id: T::GroupId) {
+        fn remove_children(
+            group_id: T::GroupId,
+            return_funds_too: &T::AccountId,
+        ) -> DispatchResult {
             <GroupChildren<T>>::get(group_id).map(|group_ids| {
-                group_ids.into_iter().for_each(|child_group_id| {
-                    //TODO: should we emit event for every child group?
-                    Self::remove_children(child_group_id);
-                    <Groups<T>>::remove(&child_group_id);
-                    <GroupChildren<T>>::remove(&child_group_id);
-                })
+                group_ids
+                    .into_iter()
+                    .map(|child_group_id| {
+                        //TODO: should we emit event for every child group?
+                        Self::remove_children(child_group_id, return_funds_too)?;
+
+                        let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
+                        <T as Config>::Currency::transfer(
+                            &group.anonymous_account,
+                            &return_funds_too,
+                            <T as Config>::Currency::free_balance(&group.anonymous_account),
+                            AllowDeath,
+                        )?;
+
+                        <Groups<T>>::remove(&child_group_id);
+                        <GroupChildren<T>>::remove(&child_group_id);
+                        <ProposalHashes<T>>::remove(&group_id);
+                        Ok(())
+                    })
+                    .collect::<DispatchResult>()
             });
+            Ok(())
         }
         fn remove_proposal(
             group_id: T::GroupId,

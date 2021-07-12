@@ -7,7 +7,6 @@ pub struct Group<GroupId, AccountId, MemberCount> {
     pub name: Vec<u8>,
     pub members: Vec<AccountId>,
     pub threshold: MemberCount,
-    pub funding_account: AccountId,
     pub anonymous_account: AccountId,
     pub parent: Option<GroupId>,
 }

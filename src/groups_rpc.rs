@@ -40,7 +40,6 @@ pub struct GroupResponse<GroupId, AccountId, MemberCount> {
     pub name: String,
     pub members: Vec<AccountId>,
     pub threshold: MemberCount,
-    pub funding_account: AccountId,
     pub anonymous_account: AccountId,
     pub parent: Option<GroupId>,
 }
@@ -53,7 +52,6 @@ impl<GroupId, AccountId, MemberCount> From<(GroupId, Group<GroupId, AccountId, M
             name: String::from_utf8_lossy(&group.name).to_string(),
             members: group.members,
             threshold: group.threshold,
-            funding_account: group.funding_account,
             anonymous_account: group.anonymous_account,
             parent: group.parent,
         }
@@ -67,15 +65,16 @@ pub struct VoteResponse<AccountId, ProposalId, MemberCount> {
     pub ayes: Vec<AccountId>,
     pub nays: Vec<AccountId>,
 }
-impl<AccountId, ProposalId, MemberCount> From<(ProposalId, Votes<AccountId, ProposalId, MemberCount>)>
-for VoteResponse<AccountId, ProposalId, MemberCount>
+impl<AccountId, ProposalId, MemberCount>
+    From<(ProposalId, Votes<AccountId, ProposalId, MemberCount>)>
+    for VoteResponse<AccountId, ProposalId, MemberCount>
 {
     fn from((proposal_id, vote): (ProposalId, Votes<AccountId, ProposalId, MemberCount>)) -> Self {
         VoteResponse {
             proposal_id,
             threshold: vote.threshold,
             ayes: vote.ayes,
-            nays: vote.nays
+            nays: vote.nays,
         }
     }
 }
@@ -126,7 +125,7 @@ where
     GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     AccountId: Codec + Send + Sync + 'static,
-    ProposalId: Codec + Copy  + Send + Sync + 'static,
+    ProposalId: Codec + Copy + Send + Sync + 'static,
 {
     fn member_of(
         &self,
