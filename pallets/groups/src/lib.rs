@@ -212,6 +212,8 @@ pub mod pallet {
 
         /// Group must exist
         GroupMissing,
+        /// Cannot remove a group that has children.
+        GroupHasChildren,
         /// Proposal must exist
         ProposalMissing,
         /// Vote must exist
@@ -343,10 +345,20 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Create a new Group
         ///
+        /// - `name`: The name of the group
+        /// - `members`: The members of the group. Sender is automatically added to members if not already included.
+        /// - `threshold`: The threshold number of votes required to make modifications to the group.
+        /// - `initial_balance`: The initial GRAMs to transfer from the sender to the group account to be used for calling extrinsics by the group.
+        ///
         /// # <weight>
         /// TODO:
         /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(
+            T::WeightInfo::create_group(
+                name.len() as u32, // name_len
+                members.len() as u32 // member_count            
+            )
+    )]
         pub fn create_group(
             origin: OriginFor<T>,
             name: Vec<u8>,
@@ -383,6 +395,8 @@ pub mod pallet {
 
             ensure!(result.is_ok(), Error::<T>::AccountCreationFailed);
 
+            members.sort();
+
             let group = Group {
                 parent: None,
                 name,
@@ -402,14 +416,22 @@ pub mod pallet {
 
         /// Create a new SubGroup
         ///
+        /// - `name`: The name of the group
+        /// - `members`: The members of the group. Sender is automatically added to members if not already included.
+        /// - `threshold`: The threshold number of votes required to make modifications to the group.
+        /// - `initial_balance`: The initial GRAMs to transfer from the sender to the group account to be used for calling extrinsics by the group.       
+        ///
         /// # <weight>
         /// TODO:
         /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(T::WeightInfo::create_sub_group(
+            name.len() as u32, // name_len
+            members.len() as u32, // member_count            
+        ))]
         pub fn create_sub_group(
             origin: OriginFor<T>,
             name: Vec<u8>,
-            members: Vec<T::AccountId>,
+            mut members: Vec<T::AccountId>,
             threshold: T::MemberCount,
             initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
@@ -449,6 +471,8 @@ pub mod pallet {
             );
 
             ensure!(result.is_ok(), Error::<T>::AccountCreationFailed);
+
+            members.sort();
 
             let group = Group {
                 parent: Some(caller_group_id),
@@ -510,7 +534,8 @@ pub mod pallet {
                     if let Some(name) = name {
                         group.name = name;
                     }
-                    if let Some(members) = members {
+                    if let Some(mut members) = members {
+                        members.sort();
                         group.members = members;
                     }
                     if let Some(threshold) = threshold {
@@ -540,8 +565,16 @@ pub mod pallet {
             ensure!(caller_group_id == group_id, Error::<T>::NotGroupAccount);
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             ensure!(group.parent.is_none(), Error::<T>::NotGroup);
+            ensure!(
+                Self::is_member(group_id, &return_funds_too),
+                Error::<T>::NotMember
+            );
 
-            Self::remove_children(group_id, &return_funds_too)?;
+            ensure!(
+                <GroupChildren<T>>::get(&group_id).is_none()
+                    || <GroupChildren<T>>::get(&group_id).unwrap().len() == 0,
+                Error::<T>::GroupHasChildren
+            );
 
             <T as Config>::Currency::transfer(
                 &group.anonymous_account,
@@ -586,7 +619,22 @@ pub mod pallet {
             }
             ensure!(caller_group_id == admin_group_id, Error::<T>::NotGroupAdmin);
 
-            Self::remove_children(parent_group_id, &return_funds_too)?;
+            ensure!(
+                <GroupChildren<T>>::get(&subgroup_id).is_none()
+                    || <GroupChildren<T>>::get(&subgroup_id).unwrap().len() == 0,
+                Error::<T>::GroupHasChildren
+            );
+
+            <T as Config>::Currency::transfer(
+                &group.anonymous_account,
+                &return_funds_too,
+                <T as Config>::Currency::free_balance(&group.anonymous_account),
+                AllowDeath,
+            )?;
+
+            <Groups<T>>::remove(&subgroup_id);
+            <GroupChildren<T>>::remove(&subgroup_id);
+            <ProposalHashes<T>>::remove(&subgroup_id);
 
             Self::deposit_event(Event::SubGroupRemoved(admin_group_id, subgroup_id));
 
@@ -645,11 +693,8 @@ pub mod pallet {
                 ));
 
                 let weight = Self::get_result_weight(result).map(|w| {
-                    <T as Config>::WeightInfo::propose_execute(
-                        proposal_len as u32,
-                        group.members.len() as u32,
-                    )
-                    .saturating_add(w) // P1
+                    <T as Config>::WeightInfo::propose_execute(proposal_len as u32)
+                        .saturating_add(w) // P1
                 });
 
                 //TODO: what to do on insufficint funds
@@ -666,7 +711,7 @@ pub mod pallet {
                         Ok(())
                     },
                 )?;
-                let active_proposals = proposals_length + 1;
+                // let active_proposals = proposals_length + 1;
 
                 <Proposals<T>>::insert(group_id, proposal_id, proposal);
 
@@ -683,7 +728,6 @@ pub mod pallet {
                 Ok(Some(<T as Config>::WeightInfo::propose_proposed(
                     proposal_len as u32,
                     group.members.len() as u32,
-                    active_proposals as u32,
                 ))
                 .into())
             }
