@@ -205,7 +205,7 @@ pub mod pallet {
         MembersRequired,
         /// Invalid threshold provided when creating a group
         InvalidThreshold,
-        /// Failed to give minimum balance to group account
+        /// Failed to give requested balance to group account
         AccountCreationFailed,
         /// Duplicate proposals not allowed
         DuplicateProposal,
@@ -989,34 +989,6 @@ pub mod pallet {
             T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()
         }
 
-        fn remove_children(
-            group_id: T::GroupId,
-            return_funds_too: &T::AccountId,
-        ) -> DispatchResult {
-            <GroupChildren<T>>::get(group_id).map(|group_ids| {
-                group_ids
-                    .into_iter()
-                    .map(|child_group_id| {
-                        //TODO: should we emit event for every child group?
-                        Self::remove_children(child_group_id, return_funds_too)?;
-
-                        let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
-                        <T as Config>::Currency::transfer(
-                            &group.anonymous_account,
-                            &return_funds_too,
-                            <T as Config>::Currency::free_balance(&group.anonymous_account),
-                            AllowDeath,
-                        )?;
-
-                        <Groups<T>>::remove(&child_group_id);
-                        <GroupChildren<T>>::remove(&child_group_id);
-                        <ProposalHashes<T>>::remove(&group_id);
-                        Ok(())
-                    })
-                    .collect::<DispatchResult>()
-            });
-            Ok(())
-        }
         fn remove_proposal(
             group_id: T::GroupId,
             proposal_id: T::ProposalId,
@@ -1077,7 +1049,7 @@ pub mod pallet {
         #[cfg(feature = "runtime-benchmarks")]
         fn successful_origin() -> O {
             O::from(RawOrigin::ProposalApprovedByVeto(
-                0u32.into(),
+                1u32.into(),
                 T::AccountId::default(),
                 T::AccountId::default(),
             ))
@@ -1123,7 +1095,7 @@ pub mod pallet {
         #[cfg(feature = "runtime-benchmarks")]
         fn successful_origin() -> O {
             O::from(RawOrigin::ProposalApprovedByVeto(
-                0u32.into(),
+                1u32.into(),
                 T::AccountId::default(),
                 T::AccountId::default(),
             ))

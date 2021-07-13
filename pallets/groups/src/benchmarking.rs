@@ -22,9 +22,12 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
-use frame_support::{dispatch::Vec, traits::Currency};
+use frame_support::{
+    dispatch::Vec,
+    traits::{Currency, EnsureOrigin, UnfilteredDispatchable},
+};
 use frame_system::Call as SystemCall;
-use frame_system::RawOrigin as SystemOrigin;
+use frame_system::{self, RawOrigin as SystemOrigin};
 use sp_runtime::traits::Bounded;
 use sp_std::{prelude::*, vec};
 
@@ -62,89 +65,93 @@ benchmarks! {
         assert_eq!(Groups::<T>::contains_key(group_id), true);
     }
 
-//     create_sub_group {
-//         let n in 1 .. MAX_BYTES;
-//         let m in 1 .. 1000;
+    create_sub_group {
+        let n in 1 .. MAX_BYTES;
+        let m in 2 .. 500;
 
-//         let caller = whitelisted_caller();
-//         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-//         GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],vec![], 1u32.into(),1_000_000u32.into())?;
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
 
-//         let mut members = vec![];
-//         for i in 0 .. m - 1 {
-//             let member = account("member", i, SEED);
-//             members.push(member);
-//         }
-//         let name = vec![42u8; n as usize];
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],vec![], 1u32.into(),1_000_000_000u32.into())?;
 
+        let mut members = vec![];
+        for i in 0 .. m - 1 {
+            let member = account("member", i, SEED);
+            members.push(member);
+        }
+        let name = vec![42u8; n as usize];
 
-//     }: _(RawOrigin::ProposalApproved(1u32.into(),1u32.into(),1u32.into(),caller.clone()), name,members,1u32.into(),1_000_000u32.into())
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let call = Call::<T>::create_sub_group(name,members,1u32.into(),1_000_000u32.into());
 
-//     verify {
-//         let group_id:T::GroupId=1u32.into();
-//         assert_eq!(Groups::<T>::contains_key(group_id), true);
-//     }
+    }: { call.dispatch_bypass_filter(origin)? }
 
-// // This tests when execution would happen immediately after proposal
-//     propose_execute {
-//         let b in 1 .. MAX_BYTES;
+    verify {
+        let group_id:T::GroupId=1u32.into();
+        assert_eq!(Groups::<T>::contains_key(group_id), true);
+    }
 
-//         let caller = whitelisted_caller();
-//         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+// This tests when execution would happen immediately after proposal
+    propose_execute {
+        let b in 1 .. MAX_BYTES;
 
-//         GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],vec![], 1u32.into(),1_000_000u32.into())?;
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-//       let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; b as usize]).into();
-//         let threshold = 1u32.into();
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],vec![], 1u32.into(),1_000_000u32.into())?;
 
-//     }: propose(SystemOrigin::Signed(caller.clone()), 1u32.into(),Box::new(proposal.clone()),threshold)
+      let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; b as usize]).into();
+        let threshold = 1u32.into();
 
-//     // This tests when proposal is created and queued as "proposed"
-//     propose_proposed {
-//         let b in 1 .. MAX_BYTES;
-//         let m in 1 .. 1000;
+    }: propose(SystemOrigin::Signed(caller.clone()), 1u32.into(),Box::new(proposal.clone()),threshold)
 
-//         let caller = whitelisted_caller();
-//         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+    // This tests when proposal is created and queued as "proposed"
+    propose_proposed {
+        let b in 1 .. MAX_BYTES;
+        let m in 1 .. 1000;
 
-//         let mut members = vec![];
-//         for i in 0 .. m - 1 {
-//             let member = account("member", i, SEED);
-//             members.push(member);
-//         }
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-//         GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members, m.into(),1_000_000u32.into())?;
+        let mut members = vec![];
+        for i in 0 .. m - 1 {
+            let member = account("member", i, SEED);
+            members.push(member);
+        }
 
-//         let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; b as usize]).into();
-//         let threshold = m.into();
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members, m.into(),1_000_000u32.into())?;
 
-//     }: propose(SystemOrigin::Signed(caller.clone()), 1u32.into(),Box::new(proposal.clone()),threshold)
+        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; b as usize]).into();
+        let threshold = m.into();
+
+    }: propose(SystemOrigin::Signed(caller.clone()), 1u32.into(),Box::new(proposal.clone()),threshold)
 
 // //TODO: handle case where vote results in approval and extrinsic is executed.
 
-//     vote {
-//         let b in 1 .. MAX_BYTES;
-//         let m in 1 .. 1000;
+    vote {
+        let b in 1 .. MAX_BYTES;
+        let m in 1 .. 1000;
 
-//         let caller = whitelisted_caller();
-//         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-//         let mut members = vec![];
-//         for i in 0 .. m - 1 {
-//             let member = account("member", i, SEED);
-//             members.push(member);
-//         }
+        let mut members = vec![];
+        for i in 0 .. m - 1 {
+            let member = account("member", i, SEED);
+            members.push(member);
+        }
 
-//         GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members, m.into(),1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members, m.into(),1_000_000u32.into())?;
 
-//         let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; b as usize]).into();
-//         let threshold = m.into();
+        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; b as usize]).into();
+        let threshold = m.into();
 
-//         GroupPallet::<T>::propose(SystemOrigin::Signed(caller.clone()).into(), 1u32.into(),Box::new(proposal.clone()),threshold)?;
+        GroupPallet::<T>::propose(SystemOrigin::Signed(caller.clone()).into(), 1u32.into(),Box::new(proposal.clone()),threshold)?;
 
 
-//     }: _(SystemOrigin::Signed(caller.clone()), 1u32.into(),1u32.into(),true)
+    }: _(SystemOrigin::Signed(caller.clone()), 1u32.into(),1u32.into(),true)
 }
 
 impl_benchmark_test_suite!(GroupPallet, crate::mock::new_test_ext(), crate::mock::Test,);

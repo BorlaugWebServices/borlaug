@@ -92,7 +92,7 @@ fn update_group_should_work() {
         // Verify name updated
         assert_eq!(b"Test_2".to_vec(), group.name);
         // Verify members updated
-        assert_eq!(vec![3, 2], group.members);
+        assert_eq!(vec![2, 3], group.members);
     });
 }
 
@@ -116,7 +116,7 @@ fn remove_group_should_work() {
         assert_ok!(Groups::propose(
             Origin::signed(1),
             1,
-            Box::new(crate::mock::Call::Groups(super::Call::remove_group(1))),
+            Box::new(crate::mock::Call::Groups(super::Call::remove_group(1, 1))),
             1
         ));
 

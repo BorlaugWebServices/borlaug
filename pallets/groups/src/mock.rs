@@ -1,8 +1,9 @@
 //! Mocks for the module.
 
 use crate as pallet_groups;
-use frame_support::parameter_types;
+use frame_support::{ord_parameter_types, parameter_types};
 use frame_system as system;
+use frame_system::EnsureSignedBy;
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -22,8 +23,14 @@ frame_support::construct_runtime!(
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         Groups: pallet_groups::{Module, Call, Storage, Event<T>, Origin<T>},
+        Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
     }
 );
+
+type AccountId = u64;
+type ModuleIndex = u8;
+type ExtrinsicIndex = u8;
+type Balance = u64;
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
@@ -45,7 +52,7 @@ impl system::Config for Test {
     type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
-    type AccountId = u64;
+    type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type Event = Event;
@@ -74,8 +81,8 @@ impl pallet_balances::Config for Test {
 
 impl pallet_groups::Config for Test {
     type Origin = Origin;
-    type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Runtime>;
-    type GroupsOriginByCallerThreshold = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
+    type GroupsOriginByGroupThreshold = pallet_groups::EnsureThreshold<Test>;
+    type GroupsOriginByCallerThreshold = pallet_groups::EnsureApproved<Test>;
     type Proposal = Call;
     type GroupId = u32;
     type ProposalId = u32;
@@ -85,6 +92,21 @@ impl pallet_groups::Config for Test {
     type MaxProposals = GroupMaxProposals;
     type MaxMembers = GroupMaxMembers;
     type WeightInfo = pallet_groups::weights::SubstrateWeight<Test>;
+    type GetExtrinsicExtraSource = Settings;
+}
+
+ord_parameter_types! {
+    pub const One: AccountId = 1;
+
+}
+
+impl settings::Config for Test {
+    type Event = Event;
+    type ChangeSettingOrigin = EnsureSignedBy<One, AccountId>;
+    type ModuleIndex = ModuleIndex;
+    type Currency = Balances;
+    type Balance = Balance;
+    type ExtrinsicIndex = ExtrinsicIndex;
 }
 
 // Build genesis storage according to the mock runtime.
