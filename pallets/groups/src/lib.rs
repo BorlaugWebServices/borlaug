@@ -114,6 +114,9 @@ pub mod pallet {
             ExtrinsicIndex = u8,
             AccountId = Self::AccountId,
         >;
+
+        /// The maximum length of a name or symbol stored on-chain.
+        type StringLimit: Get<u32>;
     }
 
     /// Origin for groups module proposals.
@@ -295,7 +298,7 @@ pub mod pallet {
         _,
         Identity,
         T::GroupId,
-        Group<T::GroupId, T::AccountId, T::MemberCount>,
+        Group<T::GroupId, T::AccountId, T::MemberCount, Vec<u8>>,
         OptionQuery,
     >;
 
@@ -920,12 +923,17 @@ pub mod pallet {
 
         pub fn get_group(
             group_id: T::GroupId,
-        ) -> Option<Group<T::GroupId, T::AccountId, T::MemberCount>> {
+        ) -> Option<Group<T::GroupId, T::AccountId, T::MemberCount, Vec<u8>>> {
             <Groups<T>>::get(group_id)
         }
         pub fn get_sub_groups(
             group_id: T::GroupId,
-        ) -> Option<Vec<(T::GroupId, Group<T::GroupId, T::AccountId, T::MemberCount>)>> {
+        ) -> Option<
+            Vec<(
+                T::GroupId,
+                Group<T::GroupId, T::AccountId, T::MemberCount, Vec<u8>>,
+            )>,
+        > {
             let maybe_group_ids = <GroupChildren<T>>::get(group_id);
             maybe_group_ids.map(|group_ids| {
                 group_ids
@@ -1048,10 +1056,12 @@ pub mod pallet {
 
         #[cfg(feature = "runtime-benchmarks")]
         fn successful_origin() -> O {
+            let group_id: T::GroupId = 1u32.into();
+            let group = Groups::<T>::get(group_id).unwrap();
             O::from(RawOrigin::ProposalApprovedByVeto(
-                1u32.into(),
+                group_id,
                 T::AccountId::default(),
-                T::AccountId::default(),
+                group.anonymous_account.clone(),
             ))
         }
     }
@@ -1094,10 +1104,12 @@ pub mod pallet {
 
         #[cfg(feature = "runtime-benchmarks")]
         fn successful_origin() -> O {
+            let group_id: T::GroupId = 1u32.into();
+            let group = Groups::<T>::get(group_id).unwrap();
             O::from(RawOrigin::ProposalApprovedByVeto(
-                1u32.into(),
+                group_id,
                 T::AccountId::default(),
-                T::AccountId::default(),
+                group.anonymous_account.clone(),
             ))
         }
     }

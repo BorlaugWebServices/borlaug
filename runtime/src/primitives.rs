@@ -2,6 +2,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::dispatch::Vec;
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -46,6 +47,8 @@ pub type RegistryId = u32;
 pub type DefinitionId = u32;
 pub type DefinitionStepIndex = u8;
 pub type ProcessId = u32;
+
+pub type BoundedString = Vec<u8>;
 // #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug)]
 // pub enum Module {
 //     Identity,
@@ -71,7 +74,6 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
-
 
 /// App-specific crypto used for reporting equivocation/misbehavior in BABE and
 /// GRANDPA. Any rewards for misbehavior reporting will be paid out to this

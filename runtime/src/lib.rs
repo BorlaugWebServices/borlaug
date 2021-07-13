@@ -50,9 +50,9 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
-    AccountId, Balance, BlockNumber, CatalogId, DefinitionId, DefinitionStepIndex, ExtrinsicIndex,
-    GroupId, Hash, Index, MemberCount, ModuleIndex, Moment, ProcessId, ProposalId, RegistryId,
-    Signature,
+    AccountId, Balance, BlockNumber, BoundedString, CatalogId, DefinitionId, DefinitionStepIndex,
+    ExtrinsicIndex, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment, ProcessId, ProposalId,
+    RegistryId, Signature,
 };
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
@@ -774,6 +774,9 @@ impl settings::Config for Runtime {
     type Balance = Balance;
     type ExtrinsicIndex = ExtrinsicIndex;
 }
+parameter_types! {
+    pub const StringLimit: u32 = 50;
+}
 
 impl groups::Config for Runtime {
     type Origin = Origin;
@@ -789,6 +792,7 @@ impl groups::Config for Runtime {
     type MaxMembers = GroupMaxMembers;
     type WeightInfo = groups::weights::SubstrateWeight<Runtime>;
     type GetExtrinsicExtraSource = Settings;
+    type StringLimit = StringLimit;
 }
 
 impl identity::Config for Runtime {
@@ -1134,14 +1138,14 @@ impl_runtime_apis! {
 // }
 
 
-    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount, ProposalId> for Runtime {
+    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount, ProposalId,BoundedString> for Runtime {
         fn member_of(account:AccountId) -> Vec<GroupId>  {
             Groups::member_of(account)
         }
-        fn get_group(group:GroupId) -> Option<Group<GroupId, AccountId, MemberCount>>{
+        fn get_group(group:GroupId) -> Option<Group<GroupId, AccountId, MemberCount,BoundedString>>{
             Groups::get_group(group)
         }
-        fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount>)>>{
+        fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedString>)>>{
             Groups::get_sub_groups(group)
         }
         fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, ProposalId, MemberCount>>{

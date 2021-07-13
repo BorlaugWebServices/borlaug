@@ -3,8 +3,8 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Group<GroupId, AccountId, MemberCount> {
-    pub name: Vec<u8>,
+pub struct Group<GroupId, AccountId, MemberCount, BoundedString> {
+    pub name: BoundedString,
     pub members: Vec<AccountId>,
     pub threshold: MemberCount,
     pub anonymous_account: AccountId,

@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
 use runtime::primitives::{
-    AccountId, Balance, Block, DefinitionId, DefinitionStepIndex, ExtrinsicIndex, GroupId, Hash,
-    Index, MemberCount, ModuleIndex, ProcessId, RegistryId, ProposalId
+    AccountId, Balance, Block, BoundedString, DefinitionId, DefinitionStepIndex, ExtrinsicIndex,
+    GroupId, Hash, Index, MemberCount, ModuleIndex, ProcessId, ProposalId, RegistryId,
 };
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
@@ -38,7 +38,14 @@ where
     C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
     C: Send + Sync + 'static,
     C::Api: BlockBuilder<Block>,
-    C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId, MemberCount, ProposalId>,
+    C::Api: groups_runtime_api::GroupsApi<
+        Block,
+        AccountId,
+        GroupId,
+        MemberCount,
+        ProposalId,
+        BoundedString,
+    >,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,
         RegistryId,

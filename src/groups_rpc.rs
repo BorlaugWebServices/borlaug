@@ -43,13 +43,23 @@ pub struct GroupResponse<GroupId, AccountId, MemberCount> {
     pub anonymous_account: AccountId,
     pub parent: Option<GroupId>,
 }
-impl<GroupId, AccountId, MemberCount> From<(GroupId, Group<GroupId, AccountId, MemberCount>)>
-    for GroupResponse<GroupId, AccountId, MemberCount>
+impl<GroupId, AccountId, MemberCount, BoundedString>
+    From<(
+        GroupId,
+        Group<GroupId, AccountId, MemberCount, BoundedString>,
+    )> for GroupResponse<GroupId, AccountId, MemberCount>
+where
+    BoundedString: Into<Vec<u8>>,
 {
-    fn from((group_id, group): (GroupId, Group<GroupId, AccountId, MemberCount>)) -> Self {
+    fn from(
+        (group_id, group): (
+            GroupId,
+            Group<GroupId, AccountId, MemberCount, BoundedString>,
+        ),
+    ) -> Self {
         GroupResponse {
             group_id,
-            name: String::from_utf8_lossy(&group.name).to_string(),
+            name: String::from_utf8_lossy(&group.name.into()).to_string(),
             members: group.members,
             threshold: group.threshold,
             anonymous_account: group.anonymous_account,
@@ -113,19 +123,30 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, AccountId, GroupId, MemberCount, ProposalId>
+impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, BoundedString>
     GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId>
-    for Groups<C, (Block, AccountId, GroupId, MemberCount)>
+    for Groups<
+        C,
+        (
+            Block,
+            AccountId,
+            GroupId,
+            MemberCount,
+            ProposalId,
+            BoundedString,
+        ),
+    >
 where
     Block: BlockT,
     C: Send + Sync + 'static,
     C: ProvideRuntimeApi<Block>,
     C: HeaderBackend<Block>,
-    C::Api: GroupsRuntimeApi<Block, AccountId, GroupId, MemberCount, ProposalId>,
+    C::Api: GroupsRuntimeApi<Block, AccountId, GroupId, MemberCount, ProposalId, BoundedString>,
     GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     AccountId: Codec + Send + Sync + 'static,
     ProposalId: Codec + Copy + Send + Sync + 'static,
+    BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
     fn member_of(
         &self,

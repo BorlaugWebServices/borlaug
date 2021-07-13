@@ -35,7 +35,8 @@ use sp_std::{prelude::*, vec};
 use crate::Pallet as GroupPallet;
 
 const SEED: u32 = 0;
-const MAX_BYTES: u32 = 1_024;
+const MAX_BYTES: u32 = 2;
+const MAX_MEMBERS: u32 = 3;
 
 //TODO: compare with collective pallet in substrate and see if we need to set maximums.
 
@@ -45,7 +46,7 @@ type BalanceOf<T> =
 benchmarks! {
     create_group {
         let n in 1 .. MAX_BYTES;
-        let m in 1 .. 1000;
+        let m in 1 .. MAX_MEMBERS;
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -58,7 +59,7 @@ benchmarks! {
         let name = vec![42u8; n as usize];
 
 
-    }: _(SystemOrigin::Signed(caller.clone()), name,members,1u32.into(),1_000_000u32.into())
+    }: _(SystemOrigin::Signed(caller.clone()), name,members,1u32.into(),1_000_000_000u32.into())
 
     verify {
         let group_id:T::GroupId=1u32.into();
@@ -67,7 +68,7 @@ benchmarks! {
 
     create_sub_group {
         let n in 1 .. MAX_BYTES;
-        let m in 2 .. 500;
+        let m in 2 .. MAX_MEMBERS;
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -75,6 +76,9 @@ benchmarks! {
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
 
         GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],vec![], 1u32.into(),1_000_000_000u32.into())?;
+
+        let group_id:T::GroupId=1u32.into();
+        assert_eq!(Groups::<T>::contains_key(group_id), true);
 
         let mut members = vec![];
         for i in 0 .. m - 1 {
@@ -84,7 +88,7 @@ benchmarks! {
         let name = vec![42u8; n as usize];
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::create_sub_group(name,members,1u32.into(),1_000_000u32.into());
+        let call = Call::<T>::create_sub_group(name,members,1u32.into(),1_000u32.into());
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -110,7 +114,7 @@ benchmarks! {
     // This tests when proposal is created and queued as "proposed"
     propose_proposed {
         let b in 1 .. MAX_BYTES;
-        let m in 1 .. 1000;
+        let m in 1 .. MAX_MEMBERS;
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -131,27 +135,27 @@ benchmarks! {
 // //TODO: handle case where vote results in approval and extrinsic is executed.
 
     vote {
-        let b in 1 .. MAX_BYTES;
-        let m in 1 .. 1000;
+        // let b in 1 .. MAX_BYTES;
+        let m in 2 .. MAX_MEMBERS;
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let mut members = vec![];
-        for i in 0 .. m - 1 {
+        for i in 0 .. m  {
             let member = account("member", i, SEED);
             members.push(member);
         }
 
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members, m.into(),1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members.clone(), m.into(),1_000_000u32.into())?;
 
-        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; b as usize]).into();
+        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; 20u32 as usize]).into();
         let threshold = m.into();
 
         GroupPallet::<T>::propose(SystemOrigin::Signed(caller.clone()).into(), 1u32.into(),Box::new(proposal.clone()),threshold)?;
 
 
-    }: _(SystemOrigin::Signed(caller.clone()), 1u32.into(),1u32.into(),true)
+    }: _(SystemOrigin::Signed(members[0 as usize].clone()), 1u32.into(),1u32.into(),true)
 }
 
 impl_benchmark_test_suite!(GroupPallet, crate::mock::new_test_ext(), crate::mock::Test,);
