@@ -93,7 +93,10 @@ pub mod pallet {
         T::Moment = "Moment",
         T::CatalogId = "CatalogId",
         T::ClaimId = "ClaimId",
-        T::GroupId = "GroupId"
+        T::GroupId = "GroupId",
+        Vec<T::GroupId> = "Vec<GroupId>",
+        Vec<ClaimConsumer<T::GroupId, T::Moment>> = "Vec<ClaimConsumer<GroupId, Moment>>",
+        Vec<ClaimIssuer<T::GroupId, T::Moment>> = "Vec<ClaimIssuer<GroupId, Moment>>"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
