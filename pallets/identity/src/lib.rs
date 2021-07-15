@@ -92,7 +92,8 @@ pub mod pallet {
         T::AccountId = "AccountId",
         T::Moment = "Moment",
         T::CatalogId = "CatalogId",
-        T::ClaimId = "ClaimId"
+        T::ClaimId = "ClaimId",
+        T::GroupId = "GroupId"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
