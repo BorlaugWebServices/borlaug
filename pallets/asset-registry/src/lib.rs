@@ -80,7 +80,10 @@ pub mod pallet {
             + PartialEq;
 
         /// The maximum length of a name or symbol stored on-chain.
-        type StringLimit: Get<u32>;
+        type NameLimit: Get<u32>;
+
+        /// The maximum length of a name or symbol stored on-chain.
+        type FactStringLimit: Get<u32>;
     }
 
     #[pallet::event]
@@ -182,7 +185,12 @@ pub mod pallet {
         T::RegistryId,
         Blake2_128Concat,
         T::AssetId,
-        Asset<T::Moment, T::Balance, BoundedVec<u8, <T as Config>::StringLimit>>,
+        Asset<
+            T::Moment,
+            T::Balance,
+            BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::FactStringLimit>,
+        >,
         OptionQuery,
     >;
 
@@ -208,7 +216,12 @@ pub mod pallet {
         Did,
         Blake2_128Concat,
         T::LeaseId,
-        LeaseAgreement<T::RegistryId, T::AssetId, T::Moment, BoundedVec<u8, T::StringLimit>>,
+        LeaseAgreement<
+            T::RegistryId,
+            T::AssetId,
+            T::Moment,
+            BoundedVec<u8, <T as Config>::NameLimit>,
+        >,
         OptionQuery,
     >;
 
@@ -278,7 +291,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             owner_did: Did,
             registry_id: T::RegistryId,
-            asset: Asset<T::Moment, T::Balance, Vec<u8>>,
+            asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -309,7 +322,7 @@ pub mod pallet {
             owner_did: Did,
             registry_id: T::RegistryId,
             asset_id: T::AssetId,
-            asset: Asset<T::Moment, T::Balance, Vec<u8>>,
+            asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             ensure!(
@@ -435,7 +448,7 @@ pub mod pallet {
         pub fn get_asset(
             _registry_id: T::RegistryId,
             _asset_id: T::AssetId,
-        ) -> Option<Asset<T::Moment, T::Balance, Vec<u8>>> {
+        ) -> Option<Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>> {
             None
         }
     }
@@ -445,7 +458,7 @@ pub mod pallet {
         /// Create an asset and store it in the given registry
         fn create_registry_asset(
             registry_id: T::RegistryId,
-            asset: Asset<T::Moment, T::Balance, Vec<u8>>,
+            asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResult {
             let asset_id = next_id!(NextAssetId<T>, T);
 

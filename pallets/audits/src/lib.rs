@@ -68,7 +68,7 @@ pub mod pallet {
             + PartialEq;
 
         /// The maximum length of a name or symbol stored on-chain.
-        type StringLimit: Get<u32>;
+        type NameLimit: Get<u32>;
     }
 
     #[pallet::event]
@@ -193,7 +193,7 @@ pub mod pallet {
         T::AuditId,
         Blake2_128Concat,
         T::EvidenceId,
-        Evidence<BoundedVec<u8, <T as Config>::StringLimit>>,
+        Evidence<BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
 

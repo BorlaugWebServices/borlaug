@@ -217,18 +217,19 @@ where
     }
 }
 
-impl<ClaimId, GroupId, Moment, BoundedString>
+impl<ClaimId, GroupId, Moment, BoundedStringName, BoundedStringFact>
     From<(
         ClaimId,
-        pallet_primitives::Claim<GroupId, Moment, BoundedString>,
+        pallet_primitives::Claim<GroupId, Moment, BoundedStringName, BoundedStringFact>,
     )> for ClaimResponse<ClaimId, GroupId, Moment>
 where
-    BoundedString: Into<Vec<u8>>,
+    BoundedStringName: Into<Vec<u8>>,
+    BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(
         (claim_id, claim): (
             ClaimId,
-            pallet_primitives::Claim<GroupId, Moment, BoundedString>,
+            pallet_primitives::Claim<GroupId, Moment, BoundedStringName, BoundedStringFact>,
         ),
     ) -> Self {
         ClaimResponse {
@@ -241,18 +242,21 @@ where
     }
 }
 
-impl<AccountId, GroupId, BoundedString>
+impl<AccountId, GroupId, BoundedStringName, BoundedStringFact>
     From<(
-        Option<BoundedString>,
-        DidDocument<AccountId, GroupId, BoundedString>,
+        Option<BoundedStringName>,
+        DidDocument<AccountId, GroupId, BoundedStringName>,
+        Vec<DidProperty<BoundedStringName, BoundedStringFact>>,
     )> for DidDocumentResponse<AccountId, GroupId>
 where
-    BoundedString: Clone + Into<Vec<u8>>,
+    BoundedStringName: Clone + Into<Vec<u8>>,
+    BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(
-        (short_name, did_document): (
-            Option<BoundedString>,
-            DidDocument<AccountId, GroupId, BoundedString>,
+        (short_name, did_document, properties): (
+            Option<BoundedStringName>,
+            DidDocument<AccountId, GroupId, BoundedStringName>,
+            Vec<DidProperty<BoundedStringName, BoundedStringFact>>,
         ),
     ) -> Self {
         DidDocumentResponse {
@@ -261,11 +265,7 @@ where
                 .map(|short_name| String::from_utf8_lossy(&short_name.into()).to_string()),
             subject: did_document.subject,
             controller: did_document.controller,
-            properties: did_document
-                .properties
-                .into_iter()
-                .map(|p| p.into())
-                .collect(),
+            properties: properties.into_iter().map(|p| p.into()).collect(),
         }
     }
 }
@@ -276,11 +276,13 @@ pub struct DidPropertyResponse {
     pub fact: FactResponse,
 }
 
-impl<BoundedString> From<DidProperty<BoundedString>> for DidPropertyResponse
+impl<BoundedStringName, BoundedStringFact> From<DidProperty<BoundedStringName, BoundedStringFact>>
+    for DidPropertyResponse
 where
-    BoundedString: Into<Vec<u8>>,
+    BoundedStringName: Into<Vec<u8>>,
+    BoundedStringFact: Into<Vec<u8>>,
 {
-    fn from(property: DidProperty<BoundedString>) -> Self {
+    fn from(property: DidProperty<BoundedStringName, BoundedStringFact>) -> Self {
         DidPropertyResponse {
             name: String::from_utf8_lossy(&property.name.into()).to_string(),
             fact: property.fact.into(),
@@ -297,11 +299,13 @@ impl<GroupId, Moment> From<Attestation<GroupId, Moment>> for AttestationResponse
     }
 }
 
-impl<BoundedString> From<Statement<BoundedString>> for StatementResponse
+impl<BoundedStringName, BoundedStringFact> From<Statement<BoundedStringName, BoundedStringFact>>
+    for StatementResponse
 where
-    BoundedString: Into<Vec<u8>>,
+    BoundedStringName: Into<Vec<u8>>,
+    BoundedStringFact: Into<Vec<u8>>,
 {
-    fn from(statement: Statement<BoundedString>) -> Self {
+    fn from(statement: Statement<BoundedStringName, BoundedStringFact>) -> Self {
         StatementResponse {
             name: String::from_utf8_lossy(&statement.name.into()).to_string(),
             fact: statement.fact.into(),
@@ -426,22 +430,51 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, AccountId, CatalogId, GroupId, ClaimId, Moment, BoundedString>
-    IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId, GroupId, ClaimId, Moment>
-    for Identity<C, (Block, AccountId, CatalogId, GroupId, ClaimId, BoundedString)>
+impl<
+        C,
+        Block,
+        AccountId,
+        CatalogId,
+        GroupId,
+        ClaimId,
+        Moment,
+        BoundedStringName,
+        BoundedStringFact,
+    > IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId, GroupId, ClaimId, Moment>
+    for Identity<
+        C,
+        (
+            Block,
+            AccountId,
+            CatalogId,
+            GroupId,
+            ClaimId,
+            BoundedStringName,
+            BoundedStringFact,
+        ),
+    >
 where
     Block: BlockT,
     C: Send + Sync + 'static,
     C: ProvideRuntimeApi<Block>,
     C: HeaderBackend<Block>,
-    C::Api:
-        IdentityRuntimeApi<Block, AccountId, CatalogId, GroupId, ClaimId, Moment, BoundedString>,
+    C::Api: IdentityRuntimeApi<
+        Block,
+        AccountId,
+        CatalogId,
+        GroupId,
+        ClaimId,
+        Moment,
+        BoundedStringName,
+        BoundedStringFact,
+    >,
     AccountId: Codec + Send + Sync + 'static,
     CatalogId: Codec + Copy + Send + Sync + 'static,
     GroupId: Codec + Copy + Send + Sync + 'static,
     ClaimId: Codec + Copy + Send + Sync + 'static,
     Moment: Codec + Copy + Send + Sync + 'static,
-    BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+    BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+    BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
     fn get_catalogs(
         &self,
@@ -507,11 +540,11 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (name_maybe, did_document) = api
+        let (name_maybe, did_document, properties) = api
             .get_did_in_catalog(&at, catalog_id, did.clone().into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((name_maybe, did_document).into())
+        Ok((name_maybe, did_document, properties).into())
     }
 
     fn get_did(
@@ -522,11 +555,11 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let did_document = api
+        let (did_document, properties) = api
             .get_did(&at, did.clone().into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((None, did_document).into())
+        Ok((None, did_document, properties).into())
     }
 
     fn get_dids_by_subject(

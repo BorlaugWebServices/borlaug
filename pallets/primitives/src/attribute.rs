@@ -3,7 +3,7 @@ use codec::{Decode, Encode};
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Attribute<BoundedString> {
-    pub name: BoundedString,
-    pub fact: Fact<BoundedString>,
+pub struct Attribute<BoundedStringName, BoundedStringFact> {
+    pub name: BoundedStringName,
+    pub fact: Fact<BoundedStringFact>,
 }

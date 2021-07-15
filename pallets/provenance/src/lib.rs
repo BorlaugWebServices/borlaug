@@ -60,7 +60,10 @@ pub mod pallet {
         >;
 
         /// The maximum length of a name or symbol stored on-chain.
-        type StringLimit: Get<u32>;
+        type NameLimit: Get<u32>;
+
+        /// The maximum length of a name or symbol stored on-chain.
+        type FactStringLimit: Get<u32>;
     }
 
     pub type DefinitionStepIndex = u8;
@@ -183,7 +186,7 @@ pub mod pallet {
         T::GroupId,
         Blake2_128Concat,
         T::RegistryId,
-        Registry<BoundedVec<u8, <T as Config>::StringLimit>>,
+        Registry<BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
 
@@ -197,7 +200,7 @@ pub mod pallet {
         T::RegistryId,
         Blake2_128Concat,
         T::DefinitionId,
-        Definition<BoundedVec<u8, <T as Config>::StringLimit>>,
+        Definition<BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
 
@@ -211,7 +214,7 @@ pub mod pallet {
         (T::RegistryId, T::DefinitionId),
         Blake2_128Concat,
         DefinitionStepIndex,
-        DefinitionStep<T::GroupId, T::MemberCount, BoundedVec<u8, <T as Config>::StringLimit>>,
+        DefinitionStep<T::GroupId, T::MemberCount, BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
 
@@ -225,7 +228,7 @@ pub mod pallet {
         (T::RegistryId, T::DefinitionId),
         Blake2_128Concat,
         T::ProcessId,
-        Process<BoundedVec<u8, <T as Config>::StringLimit>>,
+        Process<BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
 
@@ -239,7 +242,10 @@ pub mod pallet {
         (T::RegistryId, T::DefinitionId, T::ProcessId),
         Blake2_128Concat,
         DefinitionStepIndex,
-        ProcessStep<BoundedVec<u8, <T as Config>::StringLimit>>,
+        ProcessStep<
+            BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::FactStringLimit>,
+        >,
         OptionQuery,
     >;
 
@@ -283,8 +289,7 @@ pub mod pallet {
             let (group_id, _yes_votes, _no_votes, group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
-            let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
-                name.clone().try_into().map_err(|_| Error::<T>::BadString)?;
+            let bounded_name = enforce_limit!(name);
 
             <T as Config>::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
@@ -319,8 +324,7 @@ pub mod pallet {
                 Error::<T>::NotAuthorized
             );
 
-            let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
-                name.try_into().map_err(|_| Error::<T>::BadString)?;
+            let bounded_name = enforce_limit!(name);
 
             <Registries<T>>::try_mutate_exists(
                 &group_id,
@@ -630,8 +634,7 @@ pub mod pallet {
                 ),
                 Error::<T>::NotFound
             );
-            let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
-                name.try_into().map_err(|_| Error::<T>::BadString)?;
+            let bounded_name = enforce_limit!(name);
 
             <DefinitionSteps<T>>::try_mutate_exists(
                 (registry_id, definition_id),
@@ -667,8 +670,7 @@ pub mod pallet {
             let (group_id, _yes_votes, _no_votes, group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
-            let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
-                name.try_into().map_err(|_| Error::<T>::BadString)?;
+            let bounded_name = enforce_limit!(name);
 
             let definition = <Definitions<T>>::get(registry_id, definition_id);
             ensure!(definition.is_some(), Error::<T>::NotFound);
@@ -730,8 +732,7 @@ pub mod pallet {
             let (group_id, _yes_votes, _no_votes, _group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
-            let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
-                name.try_into().map_err(|_| Error::<T>::BadString)?;
+            let bounded_name = enforce_limit!(name);
 
             ensure!(
                 Self::is_registry_owner(group_id, registry_id),
@@ -805,7 +806,7 @@ pub mod pallet {
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
             definition_step_index: DefinitionStepIndex,
-            attributes: Vec<Attribute<Vec<u8>>>,
+            attributes: Vec<Attribute<Vec<u8>, Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
@@ -924,7 +925,7 @@ pub mod pallet {
             group_id: T::GroupId,
         ) -> Vec<(
             T::RegistryId,
-            Registry<BoundedVec<u8, <T as Config>::StringLimit>>,
+            Registry<BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut registries = Vec::new();
 
@@ -936,7 +937,7 @@ pub mod pallet {
         pub fn get_registry(
             group_id: T::GroupId,
             registry_id: T::RegistryId,
-        ) -> Option<Registry<BoundedVec<u8, <T as Config>::StringLimit>>> {
+        ) -> Option<Registry<BoundedVec<u8, <T as Config>::NameLimit>>> {
             <Registries<T>>::get(group_id, registry_id)
         }
 
@@ -944,7 +945,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
         ) -> Vec<(
             T::DefinitionId,
-            Definition<BoundedVec<u8, <T as Config>::StringLimit>>,
+            Definition<BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut definitions = Vec::new();
 
@@ -957,7 +958,7 @@ pub mod pallet {
         pub fn get_definition(
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
-        ) -> Option<Definition<BoundedVec<u8, <T as Config>::StringLimit>>> {
+        ) -> Option<Definition<BoundedVec<u8, <T as Config>::NameLimit>>> {
             <Definitions<T>>::get(registry_id, definition_id)
         }
         pub fn get_definition_steps(
@@ -965,7 +966,7 @@ pub mod pallet {
             definition_id: T::DefinitionId,
         ) -> Vec<(
             DefinitionStepIndex,
-            DefinitionStep<T::GroupId, T::MemberCount, BoundedVec<u8, <T as Config>::StringLimit>>,
+            DefinitionStep<T::GroupId, T::MemberCount, BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut definition_steps = Vec::new();
             <DefinitionSteps<T>>::iter_prefix((registry_id, definition_id)).for_each(
@@ -984,7 +985,7 @@ pub mod pallet {
             definition_id: T::DefinitionId,
         ) -> Vec<(
             T::ProcessId,
-            Process<BoundedVec<u8, <T as Config>::StringLimit>>,
+            Process<BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut processes = Vec::new();
 
@@ -997,14 +998,19 @@ pub mod pallet {
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
-        ) -> Option<Process<BoundedVec<u8, <T as Config>::StringLimit>>> {
+        ) -> Option<Process<BoundedVec<u8, <T as Config>::NameLimit>>> {
             <Processes<T>>::get((registry_id, definition_id), process_id)
         }
         pub fn get_process_steps(
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
-        ) -> Vec<ProcessStep<BoundedVec<u8, <T as Config>::StringLimit>>> {
+        ) -> Vec<
+            ProcessStep<
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::FactStringLimit>,
+            >,
+        > {
             let mut process_steps = Vec::new();
             <ProcessSteps<T>>::iter_prefix((registry_id, definition_id, process_id)).for_each(
                 |(step_index, definition_step)| process_steps.push((step_index, definition_step)),
@@ -1024,7 +1030,12 @@ pub mod pallet {
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
             definition_step_index: DefinitionStepIndex,
-        ) -> Option<ProcessStep<BoundedVec<u8, <T as Config>::StringLimit>>> {
+        ) -> Option<
+            ProcessStep<
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::FactStringLimit>,
+            >,
+        > {
             <ProcessSteps<T>>::get(
                 (registry_id, definition_id, process_id),
                 definition_step_index,

@@ -51,12 +51,14 @@ pub type DefinitionStepIndex = u8;
 pub type ProcessId = u32;
 
 parameter_types! {
-    pub const StringLimit: u32 = 50;
+    pub const NameLimit: u32 = 50;
+    pub const FactStringLimit: u32 = 500;
     pub const PropertyLimit: u32 = 500;
     pub const StatementLimit: u32 = 500;
 }
 
-pub type BoundedString = BoundedVec<u8, StringLimit>;
+pub type BoundedStringName = BoundedVec<u8, NameLimit>;
+pub type BoundedStringFact = BoundedVec<u8, FactStringLimit>;
 // #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug)]
 // pub enum Module {
 //     Identity,

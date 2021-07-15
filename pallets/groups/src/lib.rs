@@ -116,7 +116,7 @@ pub mod pallet {
         >;
 
         /// The maximum length of a name or symbol stored on-chain.
-        type StringLimit: Get<u32>;
+        type NameLimit: Get<u32>;
     }
 
     /// Origin for groups module proposals.
@@ -289,7 +289,7 @@ pub mod pallet {
         _,
         Blake2_128Concat,
         T::GroupId,
-        Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::StringLimit>>,
+        Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
         OptionQuery,
     >;
 
@@ -313,6 +313,8 @@ pub mod pallet {
         <T as Config>::Proposal,
         OptionQuery,
     >;
+
+    //TODO: use doublemap to allow for much greater numbers
 
     /// Store vec of proposal hashes by group to ensure uniqueness ie a group may not have two identical proposals at any one time
     /// GroupId => Vec<T::Hash>
@@ -920,7 +922,7 @@ pub mod pallet {
 
         pub fn get_group(
             group_id: T::GroupId,
-        ) -> Option<Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::StringLimit>>>
+        ) -> Option<Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>>
         {
             <Groups<T>>::get(group_id)
         }
@@ -929,7 +931,7 @@ pub mod pallet {
         ) -> Option<
             Vec<(
                 T::GroupId,
-                Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::StringLimit>>,
+                Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
             )>,
         > {
             let maybe_group_ids = <GroupChildren<T>>::get(group_id);

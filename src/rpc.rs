@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
 use runtime::primitives::{
-    AccountId, Balance, Block, BoundedString, CatalogId, ClaimId, DefinitionId,
-    DefinitionStepIndex, ExtrinsicIndex, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment,
-    ProcessId, ProposalId, RegistryId,
+    AccountId, Balance, Block, BoundedStringFact, BoundedStringName, CatalogId, ClaimId,
+    DefinitionId, DefinitionStepIndex, ExtrinsicIndex, GroupId, Hash, Index, MemberCount,
+    ModuleIndex, Moment, ProcessId, ProposalId, RegistryId,
 };
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
@@ -45,7 +45,7 @@ where
         GroupId,
         MemberCount,
         ProposalId,
-        BoundedString,
+        BoundedStringName,
     >,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,
@@ -55,7 +55,8 @@ where
         GroupId,
         MemberCount,
         DefinitionStepIndex,
-        BoundedString,
+        BoundedStringName,
+        BoundedStringFact,
     >,
     C::Api: identity_runtime_api::IdentityApi<
         Block,
@@ -64,7 +65,8 @@ where
         GroupId,
         ClaimId,
         Moment,
-        BoundedString,
+        BoundedStringName,
+        BoundedStringFact,
     >,
     C::Api: settings_runtime_api::SettingsApi<Block, ModuleIndex, ExtrinsicIndex, Balance>,
     P: TransactionPool + 'static,

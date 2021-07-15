@@ -228,7 +228,8 @@ impl<
         GroupId,
         MemberCount,
         DefinitionStepIndex,
-        BoundedString,
+        BoundedStringName,
+        BoundedStringFact,
     >
     ProvenanceApi<
         <Block as BlockT>::Hash,
@@ -249,7 +250,8 @@ impl<
             GroupId,
             MemberCount,
             DefinitionStepIndex,
-            BoundedString,
+            BoundedStringName,
+            BoundedStringFact,
         ),
     >
 where
@@ -265,7 +267,8 @@ where
         GroupId,
         MemberCount,
         DefinitionStepIndex,
-        BoundedString,
+        BoundedStringName,
+        BoundedStringFact,
     >,
 
     RegistryId: Codec + Copy + Send + Sync + 'static,
@@ -274,7 +277,8 @@ where
     GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     DefinitionStepIndex: Codec + Copy + Send + Sync + 'static,
-    BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+    BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+    BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
     fn get_registries(
         &self,

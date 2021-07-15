@@ -3,7 +3,7 @@ use codec::{Decode, Encode};
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct AssetProperty<BoundedString> {
-    pub name: BoundedString,
-    pub fact: Fact<BoundedString>,
+pub struct AssetProperty<BoundedStringName, BoundedStringFact> {
+    pub name: BoundedStringName,
+    pub fact: Fact<BoundedStringFact>,
 }

@@ -32,10 +32,10 @@ pub use codec::Encode;
 #[macro_export]
 macro_rules! enforce_limit_fact {
     ($id:expr) => {{
-        let fact: Fact<BoundedVec<u8, <T as Config>::StringLimit>> = match $id {
+        let fact: Fact<BoundedVec<u8, <T as Config>::FactStringLimit>> = match $id {
             Fact::Bool(v) => Fact::Bool(v),
             Fact::Text(string) => {
-                let bounded_string: BoundedVec<u8, <T as Config>::StringLimit> =
+                let bounded_string: BoundedVec<u8, <T as Config>::FactStringLimit> =
                     string.try_into().map_err(|_| Error::<T>::BadString)?;
                 Fact::Text(bounded_string)
             }
@@ -64,7 +64,7 @@ macro_rules! next_id {
 #[macro_export]
 macro_rules! enforce_limit {
     ($id:expr) => {{
-        let bounded_string: BoundedVec<u8, <T as Config>::StringLimit> =
+        let bounded_string: BoundedVec<u8, <T as Config>::NameLimit> =
             $id.try_into().map_err(|_| Error::<T>::BadString)?;
         bounded_string
     }};
@@ -74,7 +74,7 @@ macro_rules! enforce_limit_option {
     ($id:expr) => {{
         let bounded_string = match $id {
             Some(id) => {
-                let bounded_string: BoundedVec<u8, <T as Config>::StringLimit> =
+                let bounded_string: BoundedVec<u8, <T as Config>::NameLimit> =
                     id.try_into().map_err(|_| Error::<T>::BadString)?;
                 Some(bounded_string)
             }

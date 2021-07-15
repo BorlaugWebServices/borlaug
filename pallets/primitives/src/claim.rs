@@ -5,23 +5,23 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Claim<GroupId, Timestamp, BoundedString> {
+pub struct Claim<GroupId, Moment, BoundedStringName, BoundedStringFact> {
     /// A claim description
-    pub description: BoundedString,
+    pub description: BoundedStringName,
     /// Statements contained in this claim
-    pub statements: Vec<Statement<BoundedString>>,
+    pub statements: Vec<Statement<BoundedStringName, BoundedStringFact>>,
     /// Claim consumer creates a claim
     pub created_by: GroupId,
     /// Attesttation by claim verifier
-    pub attestation: Option<Attestation<GroupId, Timestamp>>,
+    pub attestation: Option<Attestation<GroupId, Moment>>,
 }
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Statement<BoundedString> {
+pub struct Statement<BoundedStringName, BoundedStringFact> {
     /// Name of the property
-    pub name: BoundedString,
+    pub name: BoundedStringName,
     /// Fact in question
-    pub fact: Fact<BoundedString>,
+    pub fact: Fact<BoundedStringFact>,
     /// To be completed by verifier
     pub for_issuer: bool,
 }

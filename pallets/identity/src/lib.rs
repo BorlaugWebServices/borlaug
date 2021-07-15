@@ -61,14 +61,10 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use primitives::{bounded_vec::BoundedVec, *};
     use sp_runtime::{
-        traits::{AtLeast32Bit, CheckedAdd, One},
+        traits::{AtLeast32Bit, CheckedAdd, Hash, One},
         DispatchResult,
     };
     use sp_std::prelude::*;
-
-    /// Key used for DidProperty.
-    pub type DidPropertyName = Vec<u8>;
-
     #[pallet::config]
     pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -79,7 +75,10 @@ pub mod pallet {
         type ClaimId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
 
         /// The maximum length of a name or symbol stored on-chain.
-        type StringLimit: Get<u32>;
+        type NameLimit: Get<u32>;
+
+        /// The maximum length of a name or symbol stored on-chain.
+        type FactStringLimit: Get<u32>;
 
         /// The maximum number of properties a DID may have
         type PropertyLimit: Get<u32>;
@@ -205,7 +204,26 @@ pub mod pallet {
         _,
         Blake2_128Concat,
         Did,
-        DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::StringLimit>>,
+        DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::NameLimit>>,
+        OptionQuery,
+    >;
+
+    //TODO: when Full BoundedVec support released, use BoundedVec not hash for storage key and remove name from DidProperty and use Fact here.
+
+    /// A DidDocument has properties
+    /// Did => DidDocumentProperty
+    #[pallet::storage]
+    #[pallet::getter(fn did_document_properties)]
+    pub type DidDocumentProperties<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        Did,
+        Blake2_128Concat,
+        T::Hash,
+        DidProperty<
+            BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::FactStringLimit>,
+        >,
         OptionQuery,
     >;
 
@@ -247,7 +265,12 @@ pub mod pallet {
         Did,
         Blake2_128Concat,
         T::ClaimId,
-        Claim<T::GroupId, T::Moment, BoundedVec<u8, <T as Config>::StringLimit>>,
+        Claim<
+            T::GroupId,
+            T::Moment,
+            BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::FactStringLimit>,
+        >,
         OptionQuery,
     >;
 
@@ -260,7 +283,7 @@ pub mod pallet {
         T::GroupId,
         Blake2_128Concat,
         T::CatalogId,
-        Catalog<BoundedVec<u8, <T as Config>::StringLimit>>,
+        Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
 
@@ -274,7 +297,7 @@ pub mod pallet {
         T::CatalogId,
         Blake2_128Concat,
         Did,
-        Option<BoundedVec<u8, <T as Config>::StringLimit>>,
+        Option<BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
 
@@ -307,14 +330,7 @@ pub mod pallet {
         //     let (group_id, _yes_votes, _no_votes, group_account) =
         //         T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
-        //     let bounded_name = match short_name {
-        //         Some(name) => {
-        //             let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
-        //                 name.try_into().map_err(|_| Error::<T>::BadString)?;
-        //             Some(bounded_name)
-        //         }
-        //         None => None,
-        //     };
+        //      let bounded_name = enforce_limit_option!(name);
 
         //     Self::mint_did(sender.clone(), sender, bounded_name, properties);
         //     Ok(().into())
@@ -330,7 +346,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             subject: T::AccountId,
             short_name: Option<Vec<u8>>,
-            properties: Option<Vec<DidProperty<Vec<u8>>>>,
+            properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
@@ -354,8 +370,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             did: Did,
             short_name: Option<Vec<u8>>,
-            add_properties: Option<Vec<DidProperty<Vec<u8>>>>,
-            remove_keys: Option<Vec<DidPropertyName>>,
+            add_properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
+            remove_keys: Option<Vec<Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
@@ -363,6 +379,15 @@ pub mod pallet {
             let bounded_short_name = enforce_limit_option!(short_name);
 
             let add_properties = enforce_limit_did_properties_option!(add_properties);
+
+            let remove_keys = remove_keys
+                .map(|remove_keys| {
+                    remove_keys
+                        .into_iter()
+                        .map(|remove_key| Ok(enforce_limit!(remove_key)))
+                        .collect::<Result<Vec<_>, Error<T>>>()
+                })
+                .map_or(Ok(None), |r| r.map(Some))?;
 
             ensure!(
                 <DidByController<T>>::contains_key(&group_id, &did),
@@ -375,17 +400,21 @@ pub mod pallet {
                 if let Some(short_name) = bounded_short_name {
                     did_doc.short_name = Some(short_name);
                 }
-                if let Some(remove_keys) = remove_keys {
-                    did_doc
-                        .properties
-                        .retain(|p| !remove_keys.contains(&p.name));
-                }
-                if let Some(mut add_properties) = add_properties {
-                    did_doc.properties.append(&mut add_properties);
-                }
-
                 Ok(())
             })?;
+
+            if let Some(remove_keys) = remove_keys {
+                remove_keys.into_iter().for_each(|remove_key| {
+                    let hash = T::Hashing::hash_of(&remove_key);
+                    <DidDocumentProperties<T>>::remove(&did, &hash);
+                });
+            }
+            if let Some(add_properties) = add_properties {
+                add_properties.into_iter().for_each(|add_property| {
+                    let hash = T::Hashing::hash_of(&add_property.name);
+                    <DidDocumentProperties<T>>::insert(&did, &hash, add_property);
+                });
+            }
 
             Self::deposit_event(Event::DidUpdated(group_id, did));
             Ok(().into())
@@ -400,7 +429,7 @@ pub mod pallet {
         pub fn replace_did(
             origin: OriginFor<T>,
             did: Did,
-            properties: Vec<DidProperty<Vec<u8>>>,
+            properties: Vec<DidProperty<Vec<u8>, Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
@@ -412,11 +441,12 @@ pub mod pallet {
 
             let properties = enforce_limit_did_properties!(properties);
 
-            <DidDocuments<T>>::try_mutate_exists(&did, |maybe_did_doc| -> DispatchResult {
-                let did_doc = maybe_did_doc.as_mut().ok_or(Error::<T>::NotFound)?;
-                did_doc.properties = properties;
-                Ok(())
-            })?;
+            <DidDocumentProperties<T>>::remove_prefix(&did);
+
+            properties.into_iter().for_each(|property| {
+                let hash = T::Hashing::hash_of(&property.name);
+                <DidDocumentProperties<T>>::insert(&did, &hash, property);
+            });
 
             Self::deposit_event(Event::DidReplaced(group_id, did));
             Ok(().into())
@@ -585,7 +615,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             target_did: Did,
             description: Vec<u8>,
-            statements: Vec<Statement<Vec<u8>>>,
+            statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
                 T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
@@ -636,7 +666,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             target_did: Did,
             claim_index: T::ClaimId,
-            statements: Vec<Statement<Vec<u8>>>,
+            statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
             valid_until: T::Moment,
         ) -> DispatchResultWithPostInfo {
             let (group_id, _yes_votes, _no_votes, _group_account) =
@@ -788,8 +818,8 @@ pub mod pallet {
             //TODO: check name lengths first before mutating any storage
 
             for (did, short_name) in dids.into_iter() {
-                let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
-                    short_name.try_into().map_err(|_| Error::<T>::BadString)?;
+                let bounded_name = enforce_limit!(short_name);
+
                 <Catalogs<T>>::insert(catalog_id, did, Some(bounded_name));
             }
 
@@ -833,7 +863,7 @@ pub mod pallet {
             group_id: T::GroupId,
         ) -> Vec<(
             T::CatalogId,
-            Catalog<BoundedVec<u8, <T as Config>::StringLimit>>,
+            Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut catalogs = Vec::new();
             <CatalogOwnership<T>>::iter_prefix(group_id)
@@ -844,13 +874,13 @@ pub mod pallet {
         pub fn get_catalog(
             group_id: T::GroupId,
             catalog_id: T::CatalogId,
-        ) -> Option<Catalog<BoundedVec<u8, <T as Config>::StringLimit>>> {
+        ) -> Option<Catalog<BoundedVec<u8, <T as Config>::NameLimit>>> {
             <CatalogOwnership<T>>::get(group_id, catalog_id)
         }
 
         pub fn get_dids_in_catalog(
             catalog_id: T::CatalogId,
-        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::StringLimit>>)> {
+        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::NameLimit>>)> {
             let mut dids = Vec::new();
             <Catalogs<T>>::iter_prefix(catalog_id)
                 .for_each(|(did, name)| dids.push((did, name.map(|name| name.into()))));
@@ -861,25 +891,46 @@ pub mod pallet {
             catalog_id: T::CatalogId,
             did: Did,
         ) -> Option<(
-            Option<BoundedVec<u8, <T as Config>::StringLimit>>,
-            DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::StringLimit>>,
+            Option<BoundedVec<u8, <T as Config>::NameLimit>>,
+            DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            Vec<
+                DidProperty<
+                    BoundedVec<u8, <T as Config>::NameLimit>,
+                    BoundedVec<u8, <T as Config>::FactStringLimit>,
+                >,
+            >,
         )> {
             <DidDocuments<T>>::get(did).map(|did_document| {
                 let short_name = <Catalogs<T>>::get(catalog_id, did).flatten();
-                (short_name, did_document)
+                let mut properties = Vec::new();
+                <DidDocumentProperties<T>>::iter_prefix(&did)
+                    .for_each(|(_hash, property)| properties.push(property));
+                (short_name, did_document, properties)
             })
         }
 
         pub fn get_did(
             did: Did,
-        ) -> Option<DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::StringLimit>>>
-        {
-            <DidDocuments<T>>::get(did)
+        ) -> Option<(
+            DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            Vec<
+                DidProperty<
+                    BoundedVec<u8, <T as Config>::NameLimit>,
+                    BoundedVec<u8, <T as Config>::FactStringLimit>,
+                >,
+            >,
+        )> {
+            <DidDocuments<T>>::get(did).map(|did_document| {
+                let mut properties = Vec::new();
+                <DidDocumentProperties<T>>::iter_prefix(&did)
+                    .for_each(|(_hash, property)| properties.push(property));
+                (did_document, properties)
+            })
         }
 
         pub fn get_dids_by_subject(
             subject: T::AccountId,
-        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::StringLimit>>)> {
+        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::NameLimit>>)> {
             let mut did_documents = Vec::new();
             <DidBySubject<T>>::iter_prefix(subject).for_each(|(did, _)| {
                 did_documents.push((
@@ -894,7 +945,7 @@ pub mod pallet {
 
         pub fn get_dids_by_controller(
             group_id: T::GroupId,
-        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::StringLimit>>)> {
+        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::NameLimit>>)> {
             let mut did_documents = Vec::new();
             <DidByController<T>>::iter_prefix(group_id).for_each(|(did, _)| {
                 did_documents.push((
@@ -914,7 +965,8 @@ pub mod pallet {
             Claim<
                 T::GroupId,
                 <T as timestamp::Config>::Moment,
-                BoundedVec<u8, <T as Config>::StringLimit>,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::FactStringLimit>,
             >,
         )> {
             let mut claims = Vec::new();
@@ -942,8 +994,15 @@ pub mod pallet {
         fn mint_did(
             subject: T::AccountId,
             controller: T::GroupId,
-            short_name: Option<BoundedVec<u8, <T as Config>::StringLimit>>,
-            properties: Option<Vec<DidProperty<BoundedVec<u8, <T as Config>::StringLimit>>>>,
+            short_name: Option<BoundedVec<u8, <T as Config>::NameLimit>>,
+            properties: Option<
+                Vec<
+                    DidProperty<
+                        BoundedVec<u8, <T as Config>::NameLimit>,
+                        BoundedVec<u8, <T as Config>::FactStringLimit>,
+                    >,
+                >,
+            >,
         ) {
             let nonce = Self::next_nonce();
             let random = <randomness::Module<T>>::random(&b"mint_did context"[..]);
@@ -958,9 +1017,15 @@ pub mod pallet {
                 short_name,
                 subject: subject.clone(),
                 controller: controller,
-                properties: properties.unwrap_or_else(|| Vec::new()),
             };
             <DidDocuments<T>>::insert(&did, did_doc);
+
+            if let Some(properties) = properties {
+                properties.into_iter().for_each(|property| {
+                    let hash = T::Hashing::hash_of(&property.name);
+                    <DidDocumentProperties<T>>::insert(&did, &hash, property);
+                });
+            }
 
             Self::deposit_event(Event::Registered(subject, controller, did));
         }
