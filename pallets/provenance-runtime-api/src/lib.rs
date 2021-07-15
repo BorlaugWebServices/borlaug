@@ -12,7 +12,7 @@ use primitives::{
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
 sp_api::decl_runtime_apis! {
-    pub trait ProvenanceApi<RegistryId,DefinitionId,ProcessId,GroupId,MemberCount,DefinitionStepIndex>
+    pub trait ProvenanceApi<RegistryId,DefinitionId,ProcessId,GroupId,MemberCount,DefinitionStepIndex,BoundedString>
     where
     RegistryId: Codec,
     DefinitionId: Codec,
@@ -20,16 +20,17 @@ sp_api::decl_runtime_apis! {
     GroupId: Codec,
     MemberCount: Codec,
     DefinitionStepIndex: Codec,
+    BoundedString: Codec + Into<Vec<u8>>
      {
-        fn get_registries(group_id: GroupId) -> Vec<(RegistryId, Registry)>;
-        fn get_registry(group_id: GroupId,registry_id:RegistryId) -> Option<Registry>;
-        fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition)>;
-        fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition>;
-        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId,MemberCount>)>;
-        fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process)>;
-        fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Option<Process>;
-        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Vec<ProcessStep>;
-        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep>;
+        fn get_registries(group_id: GroupId) -> Vec<(RegistryId, Registry<BoundedString>)>;
+        fn get_registry(group_id: GroupId,registry_id:RegistryId) -> Option<Registry<BoundedString>>;
+        fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition<BoundedString>)>;
+        fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition<BoundedString>>;
+        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId,MemberCount,BoundedString>)>;
+        fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process<BoundedString>)>;
+        fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Option<Process<BoundedString>>;
+        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Vec<ProcessStep<BoundedString>>;
+        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<BoundedString>>;
 
 
     }

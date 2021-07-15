@@ -132,8 +132,11 @@ pub struct FactResponse {
     pub value: String,
 }
 
-impl From<Fact> for FactResponse {
-    fn from(fact: Fact) -> Self {
+impl<BoundedString> From<Fact<BoundedString>> for FactResponse
+where
+    BoundedString: Into<Vec<u8>>,
+{
+    fn from(fact: Fact<BoundedString>) -> Self {
         match fact {
             Fact::Bool(value) => FactResponse {
                 data_type: String::from("Bool"),
@@ -141,7 +144,7 @@ impl From<Fact> for FactResponse {
             },
             Fact::Text(value) => FactResponse {
                 data_type: String::from("Text"),
-                value: String::from_utf8_lossy(&value).to_string(),
+                value: String::from_utf8_lossy(&value.into()).to_string(),
             },
             Fact::U8(value) => FactResponse {
                 data_type: String::from("U8"),
@@ -216,7 +219,17 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, RegistryId, DefinitionId, ProcessId, GroupId, MemberCount, DefinitionStepIndex>
+impl<
+        C,
+        Block,
+        RegistryId,
+        DefinitionId,
+        ProcessId,
+        GroupId,
+        MemberCount,
+        DefinitionStepIndex,
+        BoundedString,
+    >
     ProvenanceApi<
         <Block as BlockT>::Hash,
         RegistryId,
@@ -236,6 +249,7 @@ impl<C, Block, RegistryId, DefinitionId, ProcessId, GroupId, MemberCount, Defini
             GroupId,
             MemberCount,
             DefinitionStepIndex,
+            BoundedString,
         ),
     >
 where
@@ -251,6 +265,7 @@ where
         GroupId,
         MemberCount,
         DefinitionStepIndex,
+        BoundedString,
     >,
 
     RegistryId: Codec + Copy + Send + Sync + 'static,
@@ -259,6 +274,7 @@ where
     GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     DefinitionStepIndex: Codec + Copy + Send + Sync + 'static,
+    BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
     fn get_registries(
         &self,
@@ -277,7 +293,7 @@ where
             .into_iter()
             .map(|(registry_id, registry)| RegistryResponse::<RegistryId> {
                 registry_id,
-                name: String::from_utf8_lossy(&registry.name).to_string(),
+                name: String::from_utf8_lossy(&registry.name.into()).to_string(),
             })
             .collect())
     }
@@ -298,7 +314,7 @@ where
 
         Ok(RegistryResponse::<RegistryId> {
             registry_id,
-            name: String::from_utf8_lossy(&registry.name).to_string(),
+            name: String::from_utf8_lossy(&registry.name.into()).to_string(),
         })
     }
 
@@ -329,7 +345,7 @@ where
             > {
                 registry_id,
                 definition_id,
-                name: String::from_utf8_lossy(&definition.name).to_string(),
+                name: String::from_utf8_lossy(&definition.name.into()).to_string(),
                 definition_steps: None,
             })
             .collect())
@@ -364,14 +380,14 @@ where
         > {
             registry_id,
             definition_id,
-            name: String::from_utf8_lossy(&definition.name).to_string(),
+            name: String::from_utf8_lossy(&definition.name.into()).to_string(),
             definition_steps: Some(
                 definition_steps
                     .into_iter()
                     .map(
                         |(definition_step_index, definition_step)| DefinitionStepResponse {
                             definition_step_index,
-                            name: String::from_utf8_lossy(&definition_step.name).to_string(),
+                            name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
                             group_id: definition_step.group_id,
                             threshold: definition_step.threshold,
                         },
@@ -401,7 +417,7 @@ where
                     registry_id,
                     definition_id,
                     process_id,
-                    name: String::from_utf8_lossy(&process.name).to_string(),
+                    name: String::from_utf8_lossy(&process.name.into()).to_string(),
                     process_steps: None,
                     status: match process.status {
                         pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
@@ -435,7 +451,7 @@ where
             registry_id,
             definition_id,
             process_id,
-            name: String::from_utf8_lossy(&process.name).to_string(),
+            name: String::from_utf8_lossy(&process.name.into()).to_string(),
             process_steps: Some(
                 process_steps
                     .into_iter()
@@ -445,7 +461,7 @@ where
                             .attributes
                             .into_iter()
                             .map(|attribute| AttributeResponse {
-                                name: String::from_utf8_lossy(&attribute.name).to_string(),
+                                name: String::from_utf8_lossy(&attribute.name.into()).to_string(),
                                 fact: attribute.fact.into(),
                             })
                             .collect(),
@@ -486,7 +502,7 @@ where
                 .attributes
                 .into_iter()
                 .map(|attribute| AttributeResponse {
-                    name: String::from_utf8_lossy(&attribute.name).to_string(),
+                    name: String::from_utf8_lossy(&attribute.name.into()).to_string(),
                     fact: attribute.fact.into(),
                 })
                 .collect(),

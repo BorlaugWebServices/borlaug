@@ -4056,9 +4056,11 @@ name = "pallet-identity"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "extrinsic-extra",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-groups",
  "pallet-primitives",
  "pallet-randomness-collective-flip",
  "pallet-timestamp",
@@ -4147,9 +4149,7 @@ dependencies = [
  "pallet-groups",
  "pallet-identity",
  "pallet-primitives",
- "pallet-randomness-collective-flip",
  "pallet-settings",
- "pallet-timestamp",
  "parity-scale-codec",
  "serde",
  "sp-core",

@@ -2,7 +2,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::dispatch::Vec;
+use frame_support::parameter_types;
+use pallet_primitives::bounded_vec::BoundedVec;
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -43,12 +44,19 @@ pub type GroupId = u32;
 pub type ProposalId = u32;
 pub type MemberCount = u32;
 pub type CatalogId = u32;
+pub type ClaimId = u32;
 pub type RegistryId = u32;
 pub type DefinitionId = u32;
 pub type DefinitionStepIndex = u8;
 pub type ProcessId = u32;
 
-pub type BoundedString = Vec<u8>;
+parameter_types! {
+    pub const StringLimit: u32 = 50;
+    pub const PropertyLimit: u32 = 500;
+    pub const StatementLimit: u32 = 500;
+}
+
+pub type BoundedString = BoundedVec<u8, StringLimit>;
 // #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug)]
 // pub enum Module {
 //     Identity,

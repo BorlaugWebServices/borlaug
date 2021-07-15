@@ -3,11 +3,11 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub enum Fact {
+pub enum Fact<BoundedString> {
     /// true or false
     Bool(bool),
     /// char collection
-    Text(Vec<u8>),
+    Text(BoundedString),
     /// 0 - 255
     U8(u8),
     /// 0 - 65535
@@ -20,10 +20,4 @@ pub enum Fact {
     Date(u16, u8, u8),
     /// (Year, Month, Day, Hour, Minute, Second, Time Zone Offset)
     Iso8601(u16, u8, u8, u8, u8, u8, Vec<u8>),
-}
-
-impl Default for Fact {
-    fn default() -> Self {
-        Fact::Text(b"".to_vec())
-    }
 }

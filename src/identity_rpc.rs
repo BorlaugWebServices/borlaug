@@ -3,7 +3,7 @@ use codec::{Codec, Decode, Encode};
 use identity_runtime_api::IdentityApi as IdentityRuntimeApi;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_primitives::{DidDocument, DidProperty, Fact, Attestation, Statement};
+use pallet_primitives::{Attestation, DidDocument, DidProperty, Fact, Statement};
 use serde::{
     Deserialize, Serialize,
     {
@@ -19,18 +19,18 @@ use std::fmt;
 use std::sync::Arc;
 
 #[rpc]
-pub trait IdentityApi<BlockHash, AccountId, CatalogId> {
+pub trait IdentityApi<BlockHash, AccountId, CatalogId, GroupId, ClaimId, Moment> {
     #[rpc(name = "get_catalogs")]
     fn get_catalogs(
         &self,
-        owner_did: Did,
+        group_id: GroupId,
         at: Option<BlockHash>,
     ) -> Result<Vec<CatalogResponse<CatalogId>>>;
 
     #[rpc(name = "get_catalog")]
     fn get_catalog(
         &self,
-        owner_did: Did,
+        group_id: GroupId,
         catalog_id: CatalogId,
         at: Option<BlockHash>,
     ) -> Result<CatalogResponse<CatalogId>>;
@@ -48,10 +48,14 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId> {
         catalog_id: CatalogId,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<DidDocumentResponse<AccountId>>;
+    ) -> Result<DidDocumentResponse<AccountId, GroupId>>;
 
     #[rpc(name = "get_did")]
-    fn get_did(&self, did: Did, at: Option<BlockHash>) -> Result<DidDocumentResponse<AccountId>>;
+    fn get_did(
+        &self,
+        did: Did,
+        at: Option<BlockHash>,
+    ) -> Result<DidDocumentResponse<AccountId, GroupId>>;
 
     #[rpc(name = "get_dids_by_subject")]
     fn get_dids_by_subject(
@@ -63,7 +67,7 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId> {
     #[rpc(name = "get_dids_by_controller")]
     fn get_dids_by_controller(
         &self,
-        controller: AccountId,
+        group_id: GroupId,
         at: Option<BlockHash>,
     ) -> Result<Vec<DidDocumentBasicResponse>>;
 
@@ -72,7 +76,7 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId> {
         &self,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ClaimResponse>>;
+    ) -> Result<Vec<ClaimResponse<ClaimId, GroupId, Moment>>>;
 }
 
 #[derive(Encode, Default, Decode, Debug, Clone)]
@@ -88,8 +92,8 @@ impl From<Did> for pallet_primitives::Did {
 
 impl<'de> Deserialize<'de> for Did {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         struct DidVisitor;
 
@@ -101,8 +105,8 @@ impl<'de> Deserialize<'de> for Did {
             }
 
             fn visit_str<E>(self, value: &str) -> std::result::Result<Did, E>
-                where
-                    E: de::Error,
+            where
+                E: de::Error,
             {
                 if value.len() != 66 {
                     return Err(E::custom("Invalid DID".to_string()));
@@ -171,8 +175,8 @@ impl From<&[u8]> for Did {
 
 impl Serialize for Did {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
         serializer.serialize_str(&format!("0x{}", hex::encode(self.id)))
     }
@@ -191,46 +195,72 @@ pub struct DidDocumentBasicResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct DidDocumentResponse<AccountId> {
+pub struct DidDocumentResponse<AccountId, GroupId> {
     pub short_name: Option<String>,
     pub subject: AccountId,
-    pub controllers: Vec<AccountId>,
+    pub controller: GroupId,
     pub properties: Vec<DidPropertyResponse>,
 }
 
-impl From<(pallet_primitives::Did, Option<Vec<u8>>)> for DidDocumentBasicResponse {
-    fn from((did, short_name): (pallet_primitives::Did, Option<Vec<u8>>)) -> Self {
+impl<BoundedString> From<(pallet_primitives::Did, Option<BoundedString>)>
+    for DidDocumentBasicResponse
+where
+    BoundedString: Into<Vec<u8>>,
+{
+    fn from((did, short_name): (pallet_primitives::Did, Option<BoundedString>)) -> Self {
         let did: Did = did.into();
         DidDocumentBasicResponse {
             did: did.to_string(),
             short_name: short_name
-                .map(|short_name| String::from_utf8_lossy(&short_name).to_string()),
+                .map(|short_name| String::from_utf8_lossy(&short_name.into()).to_string()),
         }
     }
 }
 
-impl From<(u64, pallet_primitives::Claim<u64>)> for ClaimResponse {
-    fn from((_claim_index, claim): (u64, pallet_primitives::Claim<u64>)) -> Self {
+impl<ClaimId, GroupId, Moment, BoundedString>
+    From<(
+        ClaimId,
+        pallet_primitives::Claim<GroupId, Moment, BoundedString>,
+    )> for ClaimResponse<ClaimId, GroupId, Moment>
+where
+    BoundedString: Into<Vec<u8>>,
+{
+    fn from(
+        (claim_id, claim): (
+            ClaimId,
+            pallet_primitives::Claim<GroupId, Moment, BoundedString>,
+        ),
+    ) -> Self {
         ClaimResponse {
-            description: String::from_utf8_lossy(&claim.description).to_string(),
-            statements: claim.statements
-                .into_iter()
-                .map(|s| s.into())
-                .collect(),
-            created_by: Did::from(claim.created_by),
-            attestation: claim.attestation.map(|a|a.into())
+            claim_id,
+            description: String::from_utf8_lossy(&claim.description.into()).to_string(),
+            statements: claim.statements.into_iter().map(|s| s.into()).collect(),
+            created_by: claim.created_by,
+            attestation: claim.attestation.map(|a| a.into()),
         }
     }
 }
 
-impl<AccountId> From<(Option<Vec<u8>>, DidDocument<AccountId>)> for DidDocumentResponse<AccountId> {
-    fn from((short_name, did_document): (Option<Vec<u8>>, DidDocument<AccountId>)) -> Self {
+impl<AccountId, GroupId, BoundedString>
+    From<(
+        Option<BoundedString>,
+        DidDocument<AccountId, GroupId, BoundedString>,
+    )> for DidDocumentResponse<AccountId, GroupId>
+where
+    BoundedString: Clone + Into<Vec<u8>>,
+{
+    fn from(
+        (short_name, did_document): (
+            Option<BoundedString>,
+            DidDocument<AccountId, GroupId, BoundedString>,
+        ),
+    ) -> Self {
         DidDocumentResponse {
             short_name: short_name
                 .or_else(|| did_document.short_name.clone())
-                .map(|short_name| String::from_utf8_lossy(&short_name).to_string()),
+                .map(|short_name| String::from_utf8_lossy(&short_name.into()).to_string()),
             subject: did_document.subject,
-            controllers: did_document.controllers,
+            controller: did_document.controller,
             properties: did_document
                 .properties
                 .into_iter()
@@ -246,30 +276,36 @@ pub struct DidPropertyResponse {
     pub fact: FactResponse,
 }
 
-impl From<DidProperty> for DidPropertyResponse {
-    fn from(property: DidProperty) -> Self {
+impl<BoundedString> From<DidProperty<BoundedString>> for DidPropertyResponse
+where
+    BoundedString: Into<Vec<u8>>,
+{
+    fn from(property: DidProperty<BoundedString>) -> Self {
         DidPropertyResponse {
-            name: String::from_utf8_lossy(&property.name).to_string(),
+            name: String::from_utf8_lossy(&property.name.into()).to_string(),
             fact: property.fact.into(),
         }
     }
 }
 
-impl From<Attestation<u64>> for AttestationResponse {
-    fn from(attestation: Attestation<u64>) -> Self {
+impl<GroupId, Moment> From<Attestation<GroupId, Moment>> for AttestationResponse<GroupId, Moment> {
+    fn from(attestation: Attestation<GroupId, Moment>) -> Self {
         AttestationResponse {
-            attested_by: Did::from(attestation.attested_by),
-            valid_until: attestation.valid_until
+            attested_by: attestation.attested_by,
+            valid_until: attestation.valid_until,
         }
     }
 }
 
-impl From<Statement> for StatementResponse {
-    fn from(statement: Statement) -> Self {
+impl<BoundedString> From<Statement<BoundedString>> for StatementResponse
+where
+    BoundedString: Into<Vec<u8>>,
+{
+    fn from(statement: Statement<BoundedString>) -> Self {
         StatementResponse {
-            name: String::from_utf8_lossy(&statement.name).to_string(),
+            name: String::from_utf8_lossy(&statement.name.into()).to_string(),
             fact: statement.fact.into(),
-            for_issuer: statement.for_issuer
+            for_issuer: statement.for_issuer,
         }
     }
 }
@@ -281,8 +317,11 @@ pub struct FactResponse {
     pub value: String,
 }
 
-impl From<Fact> for FactResponse {
-    fn from(fact: Fact) -> Self {
+impl<BoundedString> From<Fact<BoundedString>> for FactResponse
+where
+    BoundedString: Into<Vec<u8>>,
+{
+    fn from(fact: Fact<BoundedString>) -> Self {
         match fact {
             Fact::Bool(value) => FactResponse {
                 data_type: String::from("Bool"),
@@ -290,7 +329,7 @@ impl From<Fact> for FactResponse {
             },
             Fact::Text(value) => FactResponse {
                 data_type: String::from("Text"),
-                value: String::from_utf8_lossy(&value).to_string(),
+                value: String::from_utf8_lossy(&value.into()).to_string(),
             },
             Fact::U8(value) => FactResponse {
                 data_type: String::from("U8"),
@@ -339,17 +378,18 @@ pub struct StatementResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AttestationResponse {
-    pub attested_by: Did,
-    pub valid_until: u64
+pub struct AttestationResponse<GroupId, Moment> {
+    pub attested_by: GroupId,
+    pub valid_until: Moment,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ClaimResponse {
+pub struct ClaimResponse<ClaimId, GroupId, Moment> {
+    pub claim_id: ClaimId,
     pub description: String,
     pub statements: Vec<StatementResponse>,
-    pub created_by: Did,
-    pub attestation: Option<AttestationResponse>
+    pub created_by: GroupId,
+    pub attestation: Option<AttestationResponse<GroupId, Moment>>,
 }
 
 pub struct Identity<C, M> {
@@ -386,40 +426,44 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, AccountId, CatalogId> IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId>
-for Identity<C, (Block, AccountId, CatalogId)>
-    where
-        Block: BlockT,
-        C: Send + Sync + 'static,
-        C: ProvideRuntimeApi<Block>,
-        C: HeaderBackend<Block>,
-        C::Api: IdentityRuntimeApi<Block, AccountId, CatalogId>,
-        AccountId: Codec + Send + Sync + 'static,
-        CatalogId: Codec + Copy + Send + Sync + 'static,
+impl<C, Block, AccountId, CatalogId, GroupId, ClaimId, Moment, BoundedString>
+    IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId, GroupId, ClaimId, Moment>
+    for Identity<C, (Block, AccountId, CatalogId, GroupId, ClaimId, BoundedString)>
+where
+    Block: BlockT,
+    C: Send + Sync + 'static,
+    C: ProvideRuntimeApi<Block>,
+    C: HeaderBackend<Block>,
+    C::Api:
+        IdentityRuntimeApi<Block, AccountId, CatalogId, GroupId, ClaimId, Moment, BoundedString>,
+    AccountId: Codec + Send + Sync + 'static,
+    CatalogId: Codec + Copy + Send + Sync + 'static,
+    GroupId: Codec + Copy + Send + Sync + 'static,
+    ClaimId: Codec + Copy + Send + Sync + 'static,
+    Moment: Codec + Copy + Send + Sync + 'static,
+    BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
     fn get_catalogs(
         &self,
-        owner_did: Did,
+        group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<Vec<CatalogResponse<CatalogId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let catalogs = api
-            .get_catalogs(&at, owner_did.into())
-            .map_err(convert_error!())?;
+        let catalogs = api.get_catalogs(&at, group_id).map_err(convert_error!())?;
         Ok(catalogs
             .into_iter()
             .map(|(catalog_id, catalog)| CatalogResponse::<CatalogId> {
                 catalog_id,
-                name: String::from_utf8_lossy(&catalog.name).to_string(),
+                name: String::from_utf8_lossy(&catalog.name.into()).to_string(),
             })
             .collect())
     }
 
     fn get_catalog(
         &self,
-        owner_did: Did,
+        group_id: GroupId,
         catalog_id: CatalogId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<CatalogResponse<CatalogId>> {
@@ -427,13 +471,13 @@ for Identity<C, (Block, AccountId, CatalogId)>
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let catalog = api
-            .get_catalog(&at, owner_did.into(), catalog_id)
+            .get_catalog(&at, group_id, catalog_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
         Ok(CatalogResponse::<CatalogId> {
             catalog_id,
-            name: String::from_utf8_lossy(&catalog.name).to_string(),
+            name: String::from_utf8_lossy(&catalog.name.into()).to_string(),
         })
     }
 
@@ -459,7 +503,7 @@ for Identity<C, (Block, AccountId, CatalogId)>
         catalog_id: CatalogId,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<DidDocumentResponse<AccountId>> {
+    ) -> Result<DidDocumentResponse<AccountId, GroupId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -474,7 +518,7 @@ for Identity<C, (Block, AccountId, CatalogId)>
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<DidDocumentResponse<AccountId>> {
+    ) -> Result<DidDocumentResponse<AccountId, GroupId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -504,14 +548,14 @@ for Identity<C, (Block, AccountId, CatalogId)>
 
     fn get_dids_by_controller(
         &self,
-        controller: AccountId,
+        group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let dids = api
-            .get_dids_by_controller(&at, controller)
+            .get_dids_by_controller(&at, group_id)
             .map_err(convert_error!())?;
         Ok(dids
             .into_iter()
@@ -523,7 +567,7 @@ for Identity<C, (Block, AccountId, CatalogId)>
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ClaimResponse>> {
+    ) -> Result<Vec<ClaimResponse<ClaimId, GroupId, Moment>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -532,7 +576,7 @@ for Identity<C, (Block, AccountId, CatalogId)>
             .map_err(convert_error!())?;
         Ok(claims
             .into_iter()
-            .map(|(claim_index, claim)| (claim_index, claim).into())
+            .map(|(claim_id, claim)| (claim_id, claim).into())
             .collect())
     }
 }

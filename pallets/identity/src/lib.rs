@@ -1,4 +1,4 @@
-//! # DidCatalog Module
+//! # Identity Module
 //!
 //! ## Overview
 //!
@@ -54,81 +54,87 @@ mod tests;
 pub mod pallet {
 
     use codec::Encode;
+    use core::convert::TryInto;
     use frame_support::{
         dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Randomness,
     };
     use frame_system::pallet_prelude::*;
-    use primitives::{
-        Attestation, Catalog, Claim, ClaimConsumer, ClaimIssuer, Did, DidDocument, DidProperty,
-        Statement,
-    };
+    use primitives::{bounded_vec::BoundedVec, *};
     use sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, One},
         DispatchResult,
     };
     use sp_std::prelude::*;
 
-    /// A claim index.
-    pub type ClaimIndex = u64;
-
-    /// Short name associated with Did.
-    pub type ShortName = Vec<u8>;
-
     /// Key used for DidProperty.
     pub type DidPropertyName = Vec<u8>;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + timestamp::Config {
+    pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         type CatalogId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+
+        type ClaimId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+
+        /// The maximum length of a name or symbol stored on-chain.
+        type StringLimit: Get<u32>;
+
+        /// The maximum number of properties a DID may have
+        type PropertyLimit: Get<u32>;
+
+        /// The maximum number of statements a Claim may have
+        type StatementLimit: Get<u32>;
     }
 
     #[pallet::event]
     #[pallet::metadata(
         T::AccountId = "AccountId",
         T::Moment = "Moment",
-        T::CatalogId = "CatalogId"
+        T::CatalogId = "CatalogId",
+        T::ClaimId = "ClaimId"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new DID was registered (Subject, Controller, DID)
-        Registered(T::AccountId, T::AccountId, Did),
+        Registered(T::AccountId, T::GroupId, Did),
         /// Did updated (Controller, DID)
-        DidUpdated(T::AccountId, Did),
+        DidUpdated(T::GroupId, Did),
         /// Did replaced (Controller, DID)
-        DidReplaced(T::AccountId, Did),
+        DidReplaced(T::GroupId, Did),
         /// Claim consumers added
-        ClaimConsumersAdded(Did, Vec<ClaimConsumer<T::Moment>>),
+        ClaimConsumersAdded(Did, Vec<ClaimConsumer<T::GroupId, T::Moment>>),
         /// Claim consumers removed
-        ClaimConsumersRemoved(Did, Vec<Did>),
+        ClaimConsumersRemoved(Did, Vec<T::GroupId>),
         /// Claim issuers added
-        ClaimIssuersAdded(Did, Vec<ClaimIssuer<T::Moment>>),
+        ClaimIssuersAdded(Did, Vec<ClaimIssuer<T::GroupId, T::Moment>>),
         /// Claim issuers removed
-        ClaimIssuersRemoved(Did, Vec<Did>),
-        /// Claim was made against a DID (target DID, index of claim, claim proposer DID)
-        ClaimMade(Did, ClaimIndex, Did),
-        /// Claim was attested (target DID, index of claim, claim issuer DID)
-        ClaimAttested(Did, ClaimIndex, Did),
-        /// Claim attestation revoked (target DID, index of claim, claim issuer DID)
-        ClaimAttestationRevoked(Did, ClaimIndex, Did),
+        ClaimIssuersRemoved(Did, Vec<T::GroupId>),
+        /// Claim was made against a DID (target DID, index of claim, group_id)
+        ClaimMade(Did, T::ClaimId, T::GroupId),
+        /// Claim was attested (target DID, index of claim, group_id)
+        ClaimAttested(Did, T::ClaimId, T::GroupId),
+        /// Claim attestation revoked (target DID, index of claim, group_id)
+        ClaimAttestationRevoked(Did, T::ClaimId, T::GroupId),
         /// Catalog added (Owner Did, Catalog Id)
-        CatalogCreated(Did, T::CatalogId),
+        CatalogCreated(T::GroupId, T::CatalogId),
         /// Catalog removed (Owner Did, Catalog Id)
-        CatalogRemoved(Did, T::CatalogId),
+        CatalogRemoved(T::GroupId, T::CatalogId),
         /// Dids added to catalog (Owner Did, Catalog Id)
-        CatalogDidsAdded(Did, T::CatalogId),
-        /// Dids removed from catalog (Owner Did, Catalog Id)
-        CatalogDidsRemoved(Did, T::CatalogId),
-        /// DID Controllers updated (Did, when Id)
-        DidControllersUpdated(T::AccountId, Did),
+        CatalogDidsAdded(T::GroupId, T::CatalogId),
+        /// Dids removed from catalog (group_id, catalog_id)
+        CatalogDidsRemoved(T::GroupId, T::CatalogId),
+        /// DID Controller updated (from_group_id, to_group_id, did)
+        DidControllerUpdated(T::GroupId, T::GroupId, Did),
     }
 
     #[pallet::error]
     pub enum Error<T> {
         /// Value was None
         NoneValue,
+        /// A string exceeds the maximum allowed length
+        BadString,
         /// Value was not found
         NotFound,
         /// A non-controller account attempted to  modify a DID
@@ -145,8 +151,8 @@ pub mod pallet {
     }
 
     #[pallet::type_value]
-    pub fn ZeroDefault<T: Config>() -> u64 {
-        0u64
+    pub fn ClaimIdDefault<T: Config>() -> T::ClaimId {
+        1u32.into()
     }
 
     #[pallet::type_value]
@@ -166,31 +172,42 @@ pub mod pallet {
     /// Incrementing nonce
     pub type Nonce<T> = StorageValue<_, u64, ValueQuery, UnitDefault<T>>;
 
-    /// An account can have multiple DIDs
-    /// AccountId => Vec<Did>
+    /// The next available claim index, aka the number of claims started so far.
     #[pallet::storage]
-    #[pallet::getter(fn dids)]
-    pub type DidCatalog<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Did>, OptionQuery>;
+    #[pallet::getter(fn claim_count)]
+    pub type NextClaimId<T: Config> = StorageValue<_, T::ClaimId, ValueQuery, ClaimIdDefault<T>>;
+
+    /// The next available catalog index
+    #[pallet::storage]
+    #[pallet::getter(fn next_catalog_id)]
+    pub type NextCatalogId<T: Config> =
+        StorageValue<_, T::CatalogId, ValueQuery, CatalogIdDefault<T>>;
+
+    /// An account can have multiple DIDs
+    /// AccountId , Did => ()
+    #[pallet::storage]
+    #[pallet::getter(fn dids_by_subject)]
+    pub type DidBySubject<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, Did, (), OptionQuery>;
+
+    /// Controller for DIDs.
+    /// Controller AccountId , Did => ()
+    #[pallet::storage]
+    #[pallet::getter(fn dids_by_controller)]
+    pub type DidByController<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::GroupId, Blake2_128Concat, Did, (), OptionQuery>;
 
     /// A DID has a DID Document
     /// Did => DidDocument
     #[pallet::storage]
     #[pallet::getter(fn did_document)]
-    pub type DidDocuments<T: Config> =
-        StorageMap<_, Blake2_128Concat, Did, DidDocument<T::AccountId>, OptionQuery>;
-
-    /// Controller for DIDs.
-    /// Controller AccountId => Collection of DIDs
-    #[pallet::storage]
-    #[pallet::getter(fn controller)]
-    pub type DidController<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::AccountId, Vec<Did>, OptionQuery>;
-
-    /// The next available claim index, aka the number of claims started so far.
-    #[pallet::storage]
-    #[pallet::getter(fn claim_count)]
-    pub type ClaimCount<T: Config> = StorageValue<_, ClaimIndex, ValueQuery, ZeroDefault<T>>;
+    pub type DidDocuments<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        Did,
+        DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::StringLimit>>,
+        OptionQuery,
+    >;
 
     /// Claim consumers request a claim to offer protected services    
     /// Subject DID => DIDs of claim consumers
@@ -201,8 +218,8 @@ pub mod pallet {
         Blake2_128Concat,
         Did,
         Blake2_128Concat,
-        Did,
-        ClaimConsumer<T::Moment>,
+        T::GroupId,
+        T::Moment,
         OptionQuery,
     >;
 
@@ -215,8 +232,8 @@ pub mod pallet {
         Blake2_128Concat,
         Did,
         Blake2_128Concat,
-        Did,
-        ClaimIssuer<T::Moment>,
+        T::GroupId,
+        T::Moment,
         OptionQuery,
     >;
 
@@ -229,16 +246,10 @@ pub mod pallet {
         Blake2_128Concat,
         Did,
         Blake2_128Concat,
-        ClaimIndex,
-        Claim<T::Moment>,
+        T::ClaimId,
+        Claim<T::GroupId, T::Moment, BoundedVec<u8, <T as Config>::StringLimit>>,
         OptionQuery,
     >;
-
-    /// The next available catalog index
-    #[pallet::storage]
-    #[pallet::getter(fn next_catalog_id)]
-    pub type NextCatalogId<T: Config> =
-        StorageValue<_, T::CatalogId, ValueQuery, CatalogIdDefault<T>>;
 
     /// Catalog ownership
     #[pallet::storage]
@@ -246,10 +257,10 @@ pub mod pallet {
     pub type CatalogOwnership<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
-        Did,
+        T::GroupId,
         Blake2_128Concat,
         T::CatalogId,
-        Catalog,
+        Catalog<BoundedVec<u8, <T as Config>::StringLimit>>,
         OptionQuery,
     >;
 
@@ -263,30 +274,53 @@ pub mod pallet {
         T::CatalogId,
         Blake2_128Concat,
         Did,
-        Option<ShortName>,
+        Option<BoundedVec<u8, <T as Config>::StringLimit>>,
         OptionQuery,
     >;
 
+    macro_rules! next_id {
+        ($id:ty,$t:ty) => {{
+            let current_id = <$id>::get();
+            let next_id = current_id
+                .checked_add(&One::one())
+                .ok_or(Error::<$t>::NoIdAvailable)?;
+            <$id>::put(next_id);
+            current_id
+        }};
+    }
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Register a new DID for caller. Subject calls to create a new DID.
-        ///
-        /// # <weight>
-        /// - O(1).
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn register_did(
-            origin: OriginFor<T>,
-            short_name: Option<Vec<u8>>,
-            properties: Option<Vec<DidProperty>>,
-        ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+        //TODO: Can a user create a DID without having a group?
 
-            Self::mint_did(sender.clone(), sender, short_name, properties);
-            Ok(().into())
-        }
+        // /// Register a new DID for caller. Subject calls to create a new DID.
+        // ///
+        // /// # <weight>
+        // /// - O(1).
+        // /// # </weight>
+        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        // pub fn register_did(
+        //     origin: OriginFor<T>,
+        //     short_name: Option<Vec<u8>>,
+        //     properties: Option<Vec<DidProperty<Vec<u8>>>>,
+        // ) -> DispatchResultWithPostInfo {
+        //     let (group_id, _yes_votes, _no_votes, group_account) =
+        //         T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
-        /// Register a new DID for caller. Subject calls to create a new DID.
+        //     let bounded_name = match short_name {
+        //         Some(name) => {
+        //             let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
+        //                 name.try_into().map_err(|_| Error::<T>::BadString)?;
+        //             Some(bounded_name)
+        //         }
+        //         None => None,
+        //     };
+
+        //     Self::mint_did(sender.clone(), sender, bounded_name, properties);
+        //     Ok(().into())
+        // }
+
+        /// Register a new DID for caller. A group calls to create a new DID.
         ///
         /// # <weight>
         /// - O(1).
@@ -296,11 +330,16 @@ pub mod pallet {
             origin: OriginFor<T>,
             subject: T::AccountId,
             short_name: Option<Vec<u8>>,
-            properties: Option<Vec<DidProperty>>,
+            properties: Option<Vec<DidProperty<Vec<u8>>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
-            Self::mint_did(subject, sender, short_name, properties);
+            let bounded_name = enforce_limit_option!(short_name);
+
+            let properties = enforce_limit_did_properties_option!(properties);
+
+            Self::mint_did(subject, group_id, bounded_name, properties);
             Ok(().into())
         }
 
@@ -315,20 +354,25 @@ pub mod pallet {
             origin: OriginFor<T>,
             did: Did,
             short_name: Option<Vec<u8>>,
-            add_properties: Option<Vec<DidProperty>>,
+            add_properties: Option<Vec<DidProperty<Vec<u8>>>>,
             remove_keys: Option<Vec<DidPropertyName>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
+
+            let bounded_short_name = enforce_limit_option!(short_name);
+
+            let add_properties = enforce_limit_did_properties_option!(add_properties);
 
             ensure!(
-                Self::is_controller(sender.clone(), did),
+                <DidByController<T>>::contains_key(&group_id, &did),
                 Error::<T>::NotController
             );
 
             <DidDocuments<T>>::try_mutate_exists(&did, |maybe_did_doc| -> DispatchResult {
                 let did_doc = maybe_did_doc.as_mut().ok_or(Error::<T>::NotFound)?;
                 //TODO: we cannot delete short_name?
-                if let Some(short_name) = short_name {
+                if let Some(short_name) = bounded_short_name {
                     did_doc.short_name = Some(short_name);
                 }
                 if let Some(remove_keys) = remove_keys {
@@ -343,7 +387,7 @@ pub mod pallet {
                 Ok(())
             })?;
 
-            Self::deposit_event(Event::DidUpdated(sender, did));
+            Self::deposit_event(Event::DidUpdated(group_id, did));
             Ok(().into())
         }
 
@@ -356,21 +400,25 @@ pub mod pallet {
         pub fn replace_did(
             origin: OriginFor<T>,
             did: Did,
-            properties: Vec<DidProperty>,
+            properties: Vec<DidProperty<Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender.clone(), did),
+                <DidByController<T>>::contains_key(&group_id, &did),
                 Error::<T>::NotController
             );
+
+            let properties = enforce_limit_did_properties!(properties);
+
             <DidDocuments<T>>::try_mutate_exists(&did, |maybe_did_doc| -> DispatchResult {
                 let did_doc = maybe_did_doc.as_mut().ok_or(Error::<T>::NotFound)?;
                 did_doc.properties = properties;
                 Ok(())
             })?;
 
-            Self::deposit_event(Event::DidReplaced(sender, did));
+            Self::deposit_event(Event::DidReplaced(group_id, did));
             Ok(().into())
         }
 
@@ -381,65 +429,33 @@ pub mod pallet {
         /// - `add` DIDs to be added as controllers
         /// - `remove` DIDs to be removed as controllers
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn manage_controllers(
+        pub fn change_controller(
             origin: OriginFor<T>,
-            did: Did,
-            add: Option<Vec<T::AccountId>>,
-            remove: Option<Vec<T::AccountId>>,
+            target_did: Did,
+            new_group_id: T::GroupId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
+
             ensure!(
-                Self::is_controller(sender.clone(), did),
+                <DidByController<T>>::contains_key(&group_id, &target_did),
                 Error::<T>::NotController
             );
-            <DidDocuments<T>>::try_mutate_exists(&did, |maybe_did_doc| -> DispatchResult {
+            <DidDocuments<T>>::try_mutate_exists(&target_did, |maybe_did_doc| -> DispatchResult {
                 let did_doc = maybe_did_doc.as_mut().ok_or(Error::<T>::NotFound)?;
-                if let Some(to_be_removed) = remove {
-                    to_be_removed
-                        .into_iter()
-                        .map(|remove_account| {
-                            <DidController<T>>::try_mutate_exists(
-                                &remove_account,
-                                |maybe_controlled| -> DispatchResult {
-                                    let controlled =
-                                        maybe_controlled.as_mut().ok_or(Error::<T>::NotFound)?;
-                                    {
-                                        controlled.retain(|c| *c != did);
-                                        Ok(())
-                                    }
-                                },
-                            )?;
-                            did_doc.controllers.retain(|c| *c != remove_account);
-                            Ok(())
-                        })
-                        .collect::<Result<Vec<_>, DispatchError>>()?;
-                }
+                did_doc.controller = new_group_id;
 
-                if let Some(mut to_be_added) = add {
-                    to_be_added
-                        .iter()
-                        .map(|add_account| {
-                            <DidController<T>>::try_mutate_exists(
-                                &add_account,
-                                |maybe_controlled| -> DispatchResult {
-                                    match maybe_controlled {
-                                        Some(controlled) => controlled.push(did),
-                                        None => <DidController<T>>::insert(&add_account, vec![did]),
-                                    }
-                                    Ok(())
-                                },
-                            )?;
-
-                            Ok(())
-                        })
-                        .collect::<Result<Vec<_>, DispatchError>>()?;
-                    did_doc.controllers.append(&mut to_be_added);
-                    did_doc.controllers.dedup();
-                }
                 Ok(())
             })?;
 
-            Self::deposit_event(Event::DidControllersUpdated(sender, did));
+            <DidByController<T>>::remove(group_id, target_did);
+            <DidByController<T>>::insert(new_group_id, target_did, ());
+
+            Self::deposit_event(Event::DidControllerUpdated(
+                group_id,
+                new_group_id,
+                target_did,
+            ));
             Ok(().into())
         }
 
@@ -452,23 +468,22 @@ pub mod pallet {
         pub fn authorize_claim_consumers(
             origin: OriginFor<T>,
             target_did: Did,
-            claim_consumers: Vec<ClaimConsumer<T::Moment>>,
+            claim_consumers: Vec<ClaimConsumer<T::GroupId, T::Moment>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, target_did),
+                <DidByController<T>>::contains_key(&group_id, &target_did),
                 Error::<T>::NotController
             );
 
             claim_consumers.iter().for_each(|claim_consumer| {
-                if !<ClaimConsumers<T>>::contains_key(&target_did, &claim_consumer.consumer) {
-                    <ClaimConsumers<T>>::insert(
-                        &target_did,
-                        &claim_consumer.consumer,
-                        claim_consumer,
-                    );
-                }
+                <ClaimConsumers<T>>::insert(
+                    &target_did,
+                    &claim_consumer.group_id,
+                    claim_consumer.expiration,
+                );
             });
 
             Self::deposit_event(Event::ClaimConsumersAdded(target_did, claim_consumers));
@@ -484,12 +499,13 @@ pub mod pallet {
         pub fn revoke_claim_consumers(
             origin: OriginFor<T>,
             target_did: Did,
-            claim_consumers: Vec<Did>,
+            claim_consumers: Vec<T::GroupId>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, target_did),
+                <DidByController<T>>::contains_key(&group_id, &target_did),
                 Error::<T>::NotController
             );
 
@@ -510,19 +526,22 @@ pub mod pallet {
         pub fn authorize_claim_issuers(
             origin: OriginFor<T>,
             target_did: Did,
-            claim_issuers: Vec<ClaimIssuer<T::Moment>>,
+            claim_issuers: Vec<ClaimIssuer<T::GroupId, T::Moment>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, target_did),
+                <DidByController<T>>::contains_key(&group_id, &target_did),
                 Error::<T>::NotController
             );
 
             claim_issuers.iter().for_each(|claim_issuer| {
-                if !<ClaimIssuers<T>>::contains_key(&target_did, &claim_issuer.issuer) {
-                    <ClaimIssuers<T>>::insert(&target_did, &claim_issuer.issuer, claim_issuer);
-                }
+                <ClaimIssuers<T>>::insert(
+                    &target_did,
+                    &claim_issuer.group_id,
+                    claim_issuer.expiration,
+                );
             });
 
             Self::deposit_event(Event::ClaimIssuersAdded(target_did, claim_issuers));
@@ -538,12 +557,13 @@ pub mod pallet {
         pub fn revoke_claim_issuers(
             origin: OriginFor<T>,
             target_did: Did,
-            claim_issuers: Vec<Did>,
+            claim_issuers: Vec<T::GroupId>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, target_did),
+                <DidByController<T>>::contains_key(&group_id, &target_did),
                 Error::<T>::NotController
             );
 
@@ -563,35 +583,43 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn make_claim(
             origin: OriginFor<T>,
-            claim_consumer: Did,
             target_did: Did,
             description: Vec<u8>,
-            statements: Vec<Statement>,
+            statements: Vec<Statement<Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, claim_consumer),
+                <DidByController<T>>::contains_key(&group_id, &target_did),
                 Error::<T>::NotController
             );
             ensure!(
-                Self::can_make_claim(target_did, claim_consumer),
+                <ClaimConsumers<T>>::contains_key(target_did, group_id),
                 Error::<T>::NotAuthorized
             );
 
-            let claim_index = Self::claim_count();
-            <ClaimCount<T>>::put(claim_index + 1u64);
-
             let claim = Claim {
-                description,
-                statements,
-                created_by: claim_consumer,
+                description: enforce_limit!(description),
+                statements: statements
+                    .into_iter()
+                    .map(|statement| {
+                        Ok(Statement {
+                            name: enforce_limit!(statement.name),
+                            fact: enforce_limit_fact!(statement.fact),
+                            for_issuer: statement.for_issuer,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, Error<T>>>()?,
+                created_by: group_id,
                 attestation: None,
             };
 
+            let claim_index = next_id!(NextClaimId<T>, T);
+
             <Claims<T>>::insert(&target_did, claim_index, claim);
 
-            Self::deposit_event(Event::ClaimMade(target_did, claim_index, claim_consumer));
+            Self::deposit_event(Event::ClaimMade(target_did, claim_index, group_id));
             Ok(().into())
         }
 
@@ -606,22 +634,29 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn attest_claim(
             origin: OriginFor<T>,
-            claim_issuer: Did,
             target_did: Did,
-            claim_index: ClaimIndex,
-            statements: Vec<Statement>,
+            claim_index: T::ClaimId,
+            statements: Vec<Statement<Vec<u8>>>,
             valid_until: T::Moment,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, claim_issuer),
-                Error::<T>::NotController
-            );
-            ensure!(
-                Self::can_attest_claim(target_did, claim_issuer),
+                Self::can_attest_claim(target_did, group_id),
                 Error::<T>::NotAuthorized
             );
+
+            let statements = statements
+                .into_iter()
+                .map(|statement| {
+                    Ok(Statement {
+                        name: enforce_limit!(statement.name),
+                        fact: enforce_limit_fact!(statement.fact),
+                        for_issuer: statement.for_issuer,
+                    })
+                })
+                .collect::<Result<Vec<_>, Error<T>>>()?;
 
             <Claims<T>>::try_mutate_exists(
                 &target_did,
@@ -635,7 +670,7 @@ pub mod pallet {
                     claim.statements.retain(|s| !names.contains(&s.name));
                     claim.statements.append(&mut stmts);
                     claim.attestation = Some(Attestation {
-                        attested_by: claim_issuer,
+                        attested_by: group_id,
                         valid_until,
                     });
 
@@ -643,7 +678,7 @@ pub mod pallet {
                 },
             )?;
 
-            Self::deposit_event(Event::ClaimAttested(target_did, claim_index, claim_issuer));
+            Self::deposit_event(Event::ClaimAttested(target_did, claim_index, group_id));
 
             Ok(().into())
         }
@@ -657,18 +692,14 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn revoke_attestation(
             origin: OriginFor<T>,
-            claim_issuer: Did,
             target_did: Did,
-            claim_index: ClaimIndex,
+            claim_index: T::ClaimId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, claim_issuer),
-                Error::<T>::NotController
-            );
-            ensure!(
-                Self::can_attest_claim(target_did, claim_issuer),
+                Self::can_attest_claim(target_did, group_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -685,7 +716,7 @@ pub mod pallet {
             Self::deposit_event(Event::ClaimAttestationRevoked(
                 target_did,
                 claim_index,
-                claim_issuer,
+                group_id,
             ));
             Ok(().into())
         }
@@ -695,27 +726,17 @@ pub mod pallet {
         /// Arguments:
         /// - `owner_did` DID of caller
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn create_catalog(
-            origin: OriginFor<T>,
-            owner_did: Did,
-            name: Vec<u8>,
-        ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+        pub fn create_catalog(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
-            ensure!(
-                Self::is_controller(sender, owner_did),
-                Error::<T>::NotController
-            );
+            let bounded_name = enforce_limit!(name);
 
-            let catalog_id = Self::next_catalog_id();
-            let next_id = catalog_id
-                .checked_add(&One::one())
-                .ok_or(Error::<T>::NoIdAvailable)?;
-            <NextCatalogId<T>>::put(next_id);
+            let catalog_id = next_id!(NextCatalogId<T>, T);
 
-            <CatalogOwnership<T>>::insert(owner_did, catalog_id, Catalog { name });
+            <CatalogOwnership<T>>::insert(group_id, catalog_id, Catalog { name: bounded_name });
 
-            Self::deposit_event(Event::CatalogCreated(owner_did, catalog_id));
+            Self::deposit_event(Event::CatalogCreated(group_id, catalog_id));
             Ok(().into())
         }
 
@@ -727,20 +748,20 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn remove_catalog(
             origin: OriginFor<T>,
-            owner_did: Did,
             catalog_id: T::CatalogId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, owner_did),
+                <CatalogOwnership<T>>::contains_key(group_id, catalog_id),
                 Error::<T>::NotController
             );
 
-            <CatalogOwnership<T>>::remove(owner_did, catalog_id);
+            <CatalogOwnership<T>>::remove(group_id, catalog_id);
             <Catalogs<T>>::remove_prefix(&catalog_id);
 
-            Self::deposit_event(Event::CatalogRemoved(owner_did, catalog_id));
+            Self::deposit_event(Event::CatalogRemoved(group_id, catalog_id));
             Ok(().into())
         }
 
@@ -753,22 +774,26 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn add_dids_to_catalog(
             origin: OriginFor<T>,
-            owner_did: Did,
             catalog_id: T::CatalogId,
-            dids: Vec<(Did, ShortName)>,
+            dids: Vec<(Did, Vec<u8>)>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, owner_did),
+                <CatalogOwnership<T>>::contains_key(group_id, catalog_id),
                 Error::<T>::NotController
             );
 
+            //TODO: check name lengths first before mutating any storage
+
             for (did, short_name) in dids.into_iter() {
-                <Catalogs<T>>::insert(catalog_id, did, Some(short_name));
+                let bounded_name: BoundedVec<u8, <T as Config>::StringLimit> =
+                    short_name.try_into().map_err(|_| Error::<T>::BadString)?;
+                <Catalogs<T>>::insert(catalog_id, did, Some(bounded_name));
             }
 
-            Self::deposit_event(Event::CatalogDidsAdded(owner_did, catalog_id));
+            Self::deposit_event(Event::CatalogDidsAdded(group_id, catalog_id));
             Ok(().into())
         }
 
@@ -781,14 +806,14 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn remove_dids_from_catalog(
             origin: OriginFor<T>,
-            owner_did: Did,
             catalog_id: T::CatalogId,
             dids: Vec<Did>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let (group_id, _yes_votes, _no_votes, _group_account) =
+                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
 
             ensure!(
-                Self::is_controller(sender, owner_did),
+                <CatalogOwnership<T>>::contains_key(group_id, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -796,7 +821,7 @@ pub mod pallet {
                 <Catalogs<T>>::remove(catalog_id, did);
             }
 
-            Self::deposit_event(Event::CatalogDidsRemoved(owner_did, catalog_id));
+            Self::deposit_event(Event::CatalogDidsRemoved(group_id, catalog_id));
             Ok(().into())
         }
     }
@@ -804,66 +829,94 @@ pub mod pallet {
     impl<T: Config> Module<T> {
         // -- rpc api functions --
 
-        pub fn get_catalogs(owner_did: Did) -> Vec<(T::CatalogId, Catalog)> {
+        pub fn get_catalogs(
+            group_id: T::GroupId,
+        ) -> Vec<(
+            T::CatalogId,
+            Catalog<BoundedVec<u8, <T as Config>::StringLimit>>,
+        )> {
             let mut catalogs = Vec::new();
-            <CatalogOwnership<T>>::iter_prefix(owner_did)
+            <CatalogOwnership<T>>::iter_prefix(group_id)
                 .for_each(|(catalog_id, catalog)| catalogs.push((catalog_id, catalog)));
             catalogs
         }
 
-        pub fn get_catalog(owner_did: Did, catalog_id: T::CatalogId) -> Option<Catalog> {
-            <CatalogOwnership<T>>::get(owner_did, catalog_id)
+        pub fn get_catalog(
+            group_id: T::GroupId,
+            catalog_id: T::CatalogId,
+        ) -> Option<Catalog<BoundedVec<u8, <T as Config>::StringLimit>>> {
+            <CatalogOwnership<T>>::get(group_id, catalog_id)
         }
 
-        pub fn get_dids_in_catalog(catalog_id: T::CatalogId) -> Vec<(Did, Option<Vec<u8>>)> {
+        pub fn get_dids_in_catalog(
+            catalog_id: T::CatalogId,
+        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::StringLimit>>)> {
             let mut dids = Vec::new();
-            <Catalogs<T>>::iter_prefix(catalog_id).for_each(|(did, name)| dids.push((did, name)));
+            <Catalogs<T>>::iter_prefix(catalog_id)
+                .for_each(|(did, name)| dids.push((did, name.map(|name| name.into()))));
             dids
         }
 
         pub fn get_did_in_catalog(
             catalog_id: T::CatalogId,
             did: Did,
-        ) -> Option<(Option<Vec<u8>>, DidDocument<T::AccountId>)> {
+        ) -> Option<(
+            Option<BoundedVec<u8, <T as Config>::StringLimit>>,
+            DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::StringLimit>>,
+        )> {
             <DidDocuments<T>>::get(did).map(|did_document| {
                 let short_name = <Catalogs<T>>::get(catalog_id, did).flatten();
                 (short_name, did_document)
             })
         }
 
-        pub fn get_did(did: Did) -> Option<DidDocument<T::AccountId>> {
+        pub fn get_did(
+            did: Did,
+        ) -> Option<DidDocument<T::AccountId, T::GroupId, BoundedVec<u8, <T as Config>::StringLimit>>>
+        {
             <DidDocuments<T>>::get(did)
         }
 
-        pub fn get_dids_by_subject(subject: T::AccountId) -> Vec<(Did, Option<Vec<u8>>)> {
-            let dids = <DidCatalog<T>>::get(subject).unwrap_or_else(|| Vec::new());
-            dids.into_iter()
-                .map(|did| {
-                    (
-                        did,
-                        <DidDocuments<T>>::get(did)
-                            .map(|did_document| did_document.short_name)
-                            .flatten(),
-                    )
-                })
-                .collect()
+        pub fn get_dids_by_subject(
+            subject: T::AccountId,
+        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::StringLimit>>)> {
+            let mut did_documents = Vec::new();
+            <DidBySubject<T>>::iter_prefix(subject).for_each(|(did, _)| {
+                did_documents.push((
+                    did,
+                    <DidDocuments<T>>::get(&did)
+                        .map(|did_document| did_document.short_name)
+                        .flatten(),
+                ))
+            });
+            did_documents
         }
 
-        pub fn get_dids_by_controller(controller: T::AccountId) -> Vec<(Did, Option<Vec<u8>>)> {
-            let dids = <DidController<T>>::get(controller).unwrap_or_else(|| Vec::new());
-            dids.into_iter()
-                .map(|did| {
-                    (
-                        did,
-                        <DidDocuments<T>>::get(did)
-                            .map(|did_document| did_document.short_name)
-                            .flatten(),
-                    )
-                })
-                .collect()
+        pub fn get_dids_by_controller(
+            group_id: T::GroupId,
+        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::StringLimit>>)> {
+            let mut did_documents = Vec::new();
+            <DidByController<T>>::iter_prefix(group_id).for_each(|(did, _)| {
+                did_documents.push((
+                    did,
+                    <DidDocuments<T>>::get(did)
+                        .map(|did_document| did_document.short_name)
+                        .flatten(),
+                ))
+            });
+            did_documents
         }
 
-        pub fn get_claims(did: Did) -> Vec<(u64, Claim<<T as timestamp::Config>::Moment>)> {
+        pub fn get_claims(
+            did: Did,
+        ) -> Vec<(
+            T::ClaimId,
+            Claim<
+                T::GroupId,
+                <T as timestamp::Config>::Moment,
+                BoundedVec<u8, <T as Config>::StringLimit>,
+            >,
+        )> {
             let mut claims = Vec::new();
             <Claims<T>>::iter_prefix(did)
                 .for_each(|(claim_index, claim)| claims.push((claim_index, claim)));
@@ -872,23 +925,8 @@ pub mod pallet {
 
         // -- private functions --
 
-        /// Returns true if a `account` can control `did`
-        pub fn is_controller(account: T::AccountId, did: Did) -> bool {
-            if <DidController<T>>::contains_key(&account) {
-                let dids = <DidController<T>>::get(account).unwrap();
-                dids.contains(&did)
-            } else {
-                false
-            }
-        }
-
-        /// Returns true if a `claim_consumer` can make a claim against `target_did`
-        pub fn can_make_claim(target_did: Did, claim_consumer: Did) -> bool {
-            <ClaimConsumers<T>>::contains_key(target_did, claim_consumer)
-        }
-
         /// Returns true if a `claim_issuer` can attest a claim against `target_did`
-        pub fn can_attest_claim(target_did: Did, claim_issuer: Did) -> bool {
+        pub fn can_attest_claim(target_did: Did, claim_issuer: T::GroupId) -> bool {
             <ClaimIssuers<T>>::contains_key(target_did, claim_issuer)
         }
 
@@ -903,9 +941,9 @@ pub mod pallet {
         /// Creates a Did with given properties
         fn mint_did(
             subject: T::AccountId,
-            controller: T::AccountId,
-            short_name: Option<Vec<u8>>,
-            properties: Option<Vec<DidProperty>>,
+            controller: T::GroupId,
+            short_name: Option<BoundedVec<u8, <T as Config>::StringLimit>>,
+            properties: Option<Vec<DidProperty<BoundedVec<u8, <T as Config>::StringLimit>>>>,
         ) {
             let nonce = Self::next_nonce();
             let random = <randomness::Module<T>>::random(&b"mint_did context"[..]);
@@ -914,12 +952,12 @@ pub mod pallet {
 
             let did = Did { id };
 
-            <DidCatalog<T>>::append(&subject, &did);
-            <DidController<T>>::append(&controller, &did);
+            <DidBySubject<T>>::insert(&subject, &did, ());
+            <DidByController<T>>::insert(&controller, &did, ());
             let did_doc = DidDocument {
                 short_name,
                 subject: subject.clone(),
-                controllers: vec![controller.clone()],
+                controller: controller,
                 properties: properties.unwrap_or_else(|| Vec::new()),
             };
             <DidDocuments<T>>::insert(&did, did_doc);

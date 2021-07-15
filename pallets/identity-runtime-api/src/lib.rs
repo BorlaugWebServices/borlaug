@@ -9,26 +9,30 @@ use primitives::{Catalog, Claim, Did, DidDocument};
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
 sp_api::decl_runtime_apis! {
-    pub trait IdentityApi<AccountId,CatalogId>
+    pub trait IdentityApi<AccountId,CatalogId,GroupId,ClaimId,Moment,BoundedString>
     where
     AccountId: Codec,
     CatalogId: Codec,
+    GroupId: Codec,
+    ClaimId: Codec,
+    Moment: Codec,
+    BoundedString: Codec + Into<Vec<u8>>
 
      {
-        fn get_catalogs(owner_did:Did) -> Vec<(CatalogId,Catalog)>;
+        fn get_catalogs(group_id: GroupId,) -> Vec<(CatalogId,Catalog<BoundedString>)>;
 
-        fn get_catalog(owner_did:Did,catalog_id:CatalogId) -> Option<Catalog>;
+        fn get_catalog(group_id: GroupId,catalog_id:CatalogId) -> Option<Catalog<BoundedString>>;
 
-        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,Option<Vec<u8>>)>;
+        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,Option<BoundedString>)>;
 
-        fn get_did_in_catalog(catalog_id:CatalogId, did:Did) -> Option<(Option<Vec<u8>>,  DidDocument<AccountId>)>;
+        fn get_did_in_catalog(catalog_id:CatalogId, did:Did) -> Option<(Option<BoundedString>,  DidDocument<AccountId,GroupId,BoundedString>)>;
 
-        fn get_did(did:Did) -> Option<DidDocument<AccountId>>;
+        fn get_did(did:Did) -> Option<DidDocument<AccountId,GroupId,BoundedString>>;
 
-        fn get_dids_by_subject( subject: AccountId) -> Vec<(Did, Option<Vec<u8>>)>;
+        fn get_dids_by_subject( subject: AccountId) -> Vec<(Did, Option<BoundedString>)>;
 
-        fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<Vec<u8>>)>;
+        fn get_dids_by_controller( group_id: GroupId,) -> Vec<(Did, Option<BoundedString>)>;
 
-        fn get_claims(owner_did:Did) -> Vec<(u64, Claim<u64>)>;
+        fn get_claims(did: Did) -> Vec<(ClaimId, Claim<GroupId,Moment,BoundedString>)>;
     }
 }

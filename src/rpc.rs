@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
 use runtime::primitives::{
-    AccountId, Balance, Block, BoundedString, DefinitionId, DefinitionStepIndex, ExtrinsicIndex,
-    GroupId, Hash, Index, MemberCount, ModuleIndex, ProcessId, ProposalId, RegistryId,
+    AccountId, Balance, Block, BoundedString, CatalogId, ClaimId, DefinitionId,
+    DefinitionStepIndex, ExtrinsicIndex, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment,
+    ProcessId, ProposalId, RegistryId,
 };
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
@@ -54,8 +55,17 @@ where
         GroupId,
         MemberCount,
         DefinitionStepIndex,
+        BoundedString,
     >,
-    C::Api: identity_runtime_api::IdentityApi<Block, AccountId, RegistryId>,
+    C::Api: identity_runtime_api::IdentityApi<
+        Block,
+        AccountId,
+        CatalogId,
+        GroupId,
+        ClaimId,
+        Moment,
+        BoundedString,
+    >,
     C::Api: settings_runtime_api::SettingsApi<Block, ModuleIndex, ExtrinsicIndex, Balance>,
     P: TransactionPool + 'static,
 {

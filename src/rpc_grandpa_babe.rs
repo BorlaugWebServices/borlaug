@@ -36,8 +36,9 @@ use grandpa::{
     FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
 use runtime::primitives::{
-    AccountId, Balance, Block, BlockNumber, DefinitionId, DefinitionStepIndex, ExtrinsicIndex,
-    GroupId, Hash, Index, MemberCount, ModuleIndex, ProcessId, RegistryId,
+    AccountId, Balance, Block, BlockNumber, BoundedString, CatalogId, ClaimId, DefinitionId,
+    DefinitionStepIndex, ExtrinsicIndex, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment,
+    ProcessId, ProposalId, RegistryId,
 };
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
@@ -127,7 +128,14 @@ where
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BabeApi<Block>,
     C::Api: BlockBuilder<Block>,
-    C::Api: groups_runtime_api::GroupsApi<Block, AccountId, GroupId, MemberCount>,
+    C::Api: groups_runtime_api::GroupsApi<
+        Block,
+        AccountId,
+        GroupId,
+        MemberCount,
+        ProposalId,
+        BoundedString,
+    >,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,
         RegistryId,
@@ -136,8 +144,17 @@ where
         GroupId,
         MemberCount,
         DefinitionStepIndex,
+        BoundedString,
     >,
-    C::Api: identity_runtime_api::IdentityApi<Block, AccountId, RegistryId>,
+    C::Api: identity_runtime_api::IdentityApi<
+        Block,
+        AccountId,
+        CatalogId,
+        GroupId,
+        ClaimId,
+        Moment,
+        BoundedString,
+    >,
     C::Api: settings_runtime_api::SettingsApi<Block, ModuleIndex, ExtrinsicIndex, Balance>,
     P: TransactionPool + 'static,
     SC: SelectChain<Block> + 'static,

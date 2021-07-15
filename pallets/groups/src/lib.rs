@@ -20,8 +20,8 @@ pub mod weights;
 
 #[frame_support::pallet]
 pub mod pallet {
-
     pub use super::weights::WeightInfo;
+    use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{
         codec::{Decode, Encode},
@@ -33,7 +33,7 @@ pub mod pallet {
     };
     use frame_system::{self as system, pallet_prelude::*};
     use group_info::GroupInfo;
-    use primitives::group::{Group, Votes};
+    use primitives::{bounded_vec::BoundedVec, *};
     use sp_io::hashing::blake2_256;
     use sp_runtime::{
         traits::{
@@ -208,6 +208,8 @@ pub mod pallet {
         MembersRequired,
         /// Invalid threshold provided when creating a group
         InvalidThreshold,
+        /// A string exceeds the maximum allowed length
+        BadString,
         /// Failed to give requested balance to group account
         AccountCreationFailed,
         /// Duplicate proposals not allowed
@@ -279,26 +281,15 @@ pub mod pallet {
     pub(super) type NextProposalId<T: Config> =
         StorageValue<_, T::ProposalId, ValueQuery, ProposalIdDefault<T>>;
 
-    macro_rules! next_id {
-        ($id:ty,$t:ty) => {{
-            let current_id = <$id>::get();
-            let next_id = current_id
-                .checked_add(&One::one())
-                .ok_or(Error::<$t>::NoIdAvailable)?;
-            <$id>::put(next_id);
-            current_id
-        }};
-    }
-
     /// Groups have some properties
     /// GroupId => Group
     #[pallet::storage]
     #[pallet::getter(fn groups)]
     pub(super) type Groups<T: Config> = StorageMap<
         _,
-        Identity,
+        Blake2_128Concat,
         T::GroupId,
-        Group<T::GroupId, T::AccountId, T::MemberCount, Vec<u8>>,
+        Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::StringLimit>>,
         OptionQuery,
     >;
 
@@ -307,7 +298,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn group_children)]
     pub(super) type GroupChildren<T: Config> =
-        StorageMap<_, Identity, T::GroupId, Vec<T::GroupId>, OptionQuery>;
+        StorageMap<_, Blake2_128Concat, T::GroupId, Vec<T::GroupId>, OptionQuery>;
 
     /// Groups may have proposals awaiting approval
     /// GroupId,ProposalId => Option<Proposal>
@@ -315,9 +306,9 @@ pub mod pallet {
     #[pallet::getter(fn proposals)]
     pub(super) type Proposals<T: Config> = StorageDoubleMap<
         _,
-        Identity,
+        Blake2_128Concat,
         T::GroupId,
-        Identity,
+        Blake2_128Concat,
         T::ProposalId,
         <T as Config>::Proposal,
         OptionQuery,
@@ -328,7 +319,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn proposal_hashes)]
     pub(super) type ProposalHashes<T: Config> =
-        StorageMap<_, Identity, T::GroupId, Vec<T::Hash>, OptionQuery>;
+        StorageMap<_, Blake2_128Concat, T::GroupId, Vec<T::Hash>, OptionQuery>;
 
     /// Votes on a given proposal, if it is ongoing.
     /// GroupId,ProposalId => Option<Votes>
@@ -336,9 +327,9 @@ pub mod pallet {
     #[pallet::getter(fn voting)]
     pub(super) type Voting<T: Config> = StorageDoubleMap<
         _,
-        Identity,
+        Blake2_128Concat,
         T::GroupId,
-        Identity,
+        Blake2_128Concat,
         T::ProposalId,
         Votes<T::AccountId, T::ProposalId, T::MemberCount>,
         OptionQuery,
@@ -379,6 +370,8 @@ pub mod pallet {
                 Error::<T>::InvalidThreshold
             );
 
+            let bounded_name = enforce_limit!(name);
+
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Group as u8),
@@ -402,7 +395,7 @@ pub mod pallet {
 
             let group = Group {
                 parent: None,
-                name,
+                name: bounded_name,
                 members,
                 threshold,
                 anonymous_account: anonymous_account.clone(),
@@ -447,6 +440,7 @@ pub mod pallet {
                     && threshold <= T::MemberCount::unique_saturated_from(members.len() as u128),
                 Error::<T>::InvalidThreshold
             );
+            let bounded_name = enforce_limit!(name);
 
             let mut admin_group = Self::groups(caller_group_id).ok_or(Error::<T>::GroupMissing)?;
             let mut admin_group_id = caller_group_id;
@@ -479,7 +473,7 @@ pub mod pallet {
 
             let group = Group {
                 parent: Some(caller_group_id),
-                name,
+                name: bounded_name,
                 members,
                 threshold,
                 anonymous_account: anonymous_account.clone(),
@@ -523,6 +517,8 @@ pub mod pallet {
             let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
+            let bounded_name = enforce_limit_option!(name);
+
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             let mut admin_group = group;
             let mut admin_group_id = group_id;
@@ -534,8 +530,8 @@ pub mod pallet {
 
             <Groups<T>>::mutate(group_id, |group_option| {
                 if let Some(group) = group_option {
-                    if let Some(name) = name {
-                        group.name = name;
+                    if let Some(bounded_name) = bounded_name {
+                        group.name = bounded_name;
                     }
                     if let Some(mut members) = members {
                         members.sort();
@@ -574,7 +570,7 @@ pub mod pallet {
             );
 
             ensure!(
-                <GroupChildren<T>>::get(&group_id).is_none()
+                !<GroupChildren<T>>::contains_key(&group_id)
                     || <GroupChildren<T>>::get(&group_id).unwrap().len() == 0,
                 Error::<T>::GroupHasChildren
             );
@@ -673,7 +669,8 @@ pub mod pallet {
                 !proposal_hashes.contains(&proposal_hash),
                 Error::<T>::DuplicateProposal
             );
-            let proposals_length = proposal_hashes.len();
+            //TODO: do we need this for proper weighting (benchmarking)
+            // let proposals_length = proposal_hashes.len();
 
             let proposal_id = next_id!(NextProposalId<T>, T);
 
@@ -923,7 +920,8 @@ pub mod pallet {
 
         pub fn get_group(
             group_id: T::GroupId,
-        ) -> Option<Group<T::GroupId, T::AccountId, T::MemberCount, Vec<u8>>> {
+        ) -> Option<Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::StringLimit>>>
+        {
             <Groups<T>>::get(group_id)
         }
         pub fn get_sub_groups(
@@ -931,7 +929,7 @@ pub mod pallet {
         ) -> Option<
             Vec<(
                 T::GroupId,
-                Group<T::GroupId, T::AccountId, T::MemberCount, Vec<u8>>,
+                Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::StringLimit>>,
             )>,
         > {
             let maybe_group_ids = <GroupChildren<T>>::get(group_id);

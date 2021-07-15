@@ -50,9 +50,9 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
-    AccountId, Balance, BlockNumber, BoundedString, CatalogId, DefinitionId, DefinitionStepIndex,
-    ExtrinsicIndex, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment, ProcessId, ProposalId,
-    RegistryId, Signature,
+    AccountId, Balance, BlockNumber, BoundedString, CatalogId, ClaimId, DefinitionId,
+    DefinitionStepIndex, ExtrinsicIndex, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment,
+    ProcessId, PropertyLimit, ProposalId, RegistryId, Signature, StatementLimit, StringLimit,
 };
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
@@ -774,9 +774,6 @@ impl settings::Config for Runtime {
     type Balance = Balance;
     type ExtrinsicIndex = ExtrinsicIndex;
 }
-parameter_types! {
-    pub const StringLimit: u32 = 50;
-}
 
 impl groups::Config for Runtime {
     type Origin = Origin;
@@ -796,8 +793,12 @@ impl groups::Config for Runtime {
 }
 
 impl identity::Config for Runtime {
-    type CatalogId = u32;
+    type CatalogId = CatalogId;
+    type ClaimId = ClaimId;
     type Event = Event;
+    type StringLimit = StringLimit;
+    type PropertyLimit = PropertyLimit;
+    type StatementLimit = StatementLimit;
 }
 
 impl asset_registry::Config for Runtime {
@@ -806,6 +807,7 @@ impl asset_registry::Config for Runtime {
     type LeaseId = u32;
     type Balance = Balance;
     type Event = Event;
+    type StringLimit = StringLimit;
 }
 
 impl audits::Config for Runtime {
@@ -814,6 +816,7 @@ impl audits::Config for Runtime {
     type EvidenceId = u32;
     type ObservationId = u32;
     type Event = Event;
+    type StringLimit = StringLimit;
 }
 
 impl provenance::Config for Runtime {
@@ -822,6 +825,7 @@ impl provenance::Config for Runtime {
     type DefinitionId = primitives::DefinitionId;
     type ProcessId = primitives::ProcessId;
     type Event = Event;
+    type StringLimit = StringLimit;
     type GetExtrinsicExtraSource = Settings;
 }
 #[cfg(feature = "grandpa_babe")]
@@ -1153,59 +1157,59 @@ impl_runtime_apis! {
         }
     }
 
-    impl provenance_runtime_api::ProvenanceApi<Block,RegistryId,DefinitionId,ProcessId,GroupId, MemberCount,DefinitionStepIndex> for Runtime {
-        fn get_registries(group_id: GroupId) -> Vec<(RegistryId,Registry)>  {
+    impl provenance_runtime_api::ProvenanceApi<Block,RegistryId,DefinitionId,ProcessId,GroupId, MemberCount,DefinitionStepIndex,BoundedString> for Runtime {
+        fn get_registries(group_id: GroupId) -> Vec<(RegistryId,Registry<BoundedString>)>  {
             Provenance::get_registries(group_id)
         }
-        fn get_registry(group_id: GroupId,registry_id:RegistryId) ->Option<Registry>  {
+        fn get_registry(group_id: GroupId,registry_id:RegistryId) ->Option<Registry<BoundedString>>  {
             Provenance::get_registry(group_id,registry_id)
         }
-        fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition)>  {
+        fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition<BoundedString>)>  {
             Provenance::get_definitions(registry_id)
         }
-        fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition>  {
+        fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition<BoundedString>>  {
             Provenance::get_definition(registry_id,definition_id)
         }
-        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId, MemberCount>)>  {
+        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId, MemberCount,BoundedString>)>  {
             Provenance::get_definition_steps(registry_id,definition_id)
         }
-        fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process)>  {
+        fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process<BoundedString>)>  {
             Provenance::get_processes(registry_id,definition_id)
         }
-        fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Option<Process>  {
+        fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Option<Process<BoundedString>>  {
             Provenance::get_process(registry_id,definition_id,process_id)
         }
-        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep>  {
+        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<BoundedString>>  {
             Provenance::get_process_steps(registry_id,definition_id,process_id)
         }
-        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep>  {
+        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<BoundedString>>  {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
     }
-    impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId> for Runtime {
-        fn get_catalogs(did:Did) -> Vec<(CatalogId,Catalog)> {
-            Identity::get_catalogs(did)
+    impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,GroupId,ClaimId,Moment,BoundedString> for Runtime {
+        fn get_catalogs(group_id:GroupId) -> Vec<(CatalogId,Catalog<BoundedString>)> {
+            Identity::get_catalogs(group_id)
         }
-        fn get_catalog(owner_did:Did,catalog_id:CatalogId) -> Option<Catalog> {
-            Identity::get_catalog(owner_did,catalog_id)
+        fn get_catalog(group_id:GroupId,catalog_id:CatalogId) -> Option<Catalog<BoundedString>> {
+            Identity::get_catalog(group_id,catalog_id)
         }
-        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,Option<Vec<u8>>)>  {
+        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,Option<BoundedString>)>  {
             Identity::get_dids_in_catalog(catalog_id)
         }
-        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<(Option<Vec<u8>>, DidDocument<AccountId>)>  {
+        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<(Option<BoundedString>, DidDocument<AccountId, GroupId, BoundedString>)>  {
             Identity::get_did_in_catalog(catalog_id,did)
         }
-        fn get_did(did:Did) -> Option<DidDocument<AccountId>>  {
+        fn get_did(did:Did) -> Option<DidDocument<AccountId, GroupId, BoundedString>>  {
             Identity::get_did(did)
         }
-        fn get_dids_by_subject( subject: AccountId) -> Vec<(Did, Option<Vec<u8>>)>  {
+        fn get_dids_by_subject( subject: AccountId) -> Vec<(Did, Option<BoundedString>)>  {
             Identity::get_dids_by_subject(subject)
         }
-        fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<Vec<u8>>)>  {
-            Identity::get_dids_by_controller(controller)
+        fn get_dids_by_controller( group_id:GroupId) -> Vec<(Did, Option<BoundedString>)>  {
+            Identity::get_dids_by_controller(group_id)
         }
-        fn get_claims( owner_did:Did) -> Vec<(u64, Claim<u64>)>  {
-            Identity::get_claims(owner_did)
+        fn get_claims( did: Did) -> Vec<(ClaimId, Claim<GroupId,Moment,BoundedString>)>  {
+            Identity::get_claims(did)
         }
     }
 
