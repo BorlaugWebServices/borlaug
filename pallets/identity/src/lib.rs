@@ -45,14 +45,18 @@
 
 pub use pallet::*;
 
+mod benchmarking;
+
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+
 #[frame_support::pallet]
 pub mod pallet {
-
+    pub use super::weights::WeightInfo;
     use codec::Encode;
     use core::convert::TryInto;
     use frame_support::{
@@ -74,16 +78,21 @@ pub mod pallet {
 
         type ClaimId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
 
-        /// The maximum length of a name or symbol stored on-chain.
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
+
+        /// The maximum length of a name or symbol stored on-chain.        
         type NameLimit: Get<u32>;
 
-        /// The maximum length of a name or symbol stored on-chain.
+        /// The maximum length of a name or symbol stored on-chain.        
         type FactStringLimit: Get<u32>;
 
         /// The maximum number of properties a DID may have
+        #[pallet::constant]
         type PropertyLimit: Get<u32>;
 
         /// The maximum number of statements a Claim may have
+        #[pallet::constant]
         type StatementLimit: Get<u32>;
     }
 
@@ -146,6 +155,8 @@ pub mod pallet {
         BadString,
         /// Value was not found
         NotFound,
+        /// Too many properties
+        PropertyLimitExceeded,
         /// A non-controller account attempted to  modify a DID
         NotController,
         /// The requested DID Document does not exist
@@ -336,9 +347,16 @@ pub mod pallet {
         /// Register a new DID for caller. Subject calls to create a new DID.
         ///
         /// # <weight>
-        /// - O(1).
+        /// -
         /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::register_did(
+            short_name.as_ref().map_or(0,|name|name.len()) as u32, // short_name_len
+            <T as Config>::NameLimit::get(), // property_name_len (max)
+            <T as Config>::FactStringLimit::get(), // (fact string max)
+            properties.as_ref().map_or(0,|properties|properties.len()) as u32,   // property count
+
+        ))]
+        // #[pallet::weight(10_000)]
         pub fn register_did(
             origin: OriginFor<T>,
             short_name: Option<Vec<u8>>,
@@ -349,6 +367,12 @@ pub mod pallet {
             let bounded_name = enforce_limit_option!(short_name);
 
             let properties = enforce_limit_did_properties_option!(properties);
+
+            ensure!(
+                properties.as_ref().map_or(0, |properties| properties.len())
+                    < T::PropertyLimit::get() as usize,
+                Error::<T>::PropertyLimitExceeded
+            );
 
             Self::mint_did(sender.clone(), sender, bounded_name, properties);
             Ok(().into())

@@ -799,6 +799,7 @@ impl identity::Config for Runtime {
     type CatalogId = CatalogId;
     type ClaimId = ClaimId;
     type Event = Event;
+    type WeightInfo = identity::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
     type FactStringLimit = FactStringLimit;
     type PropertyLimit = PropertyLimit;
@@ -1316,6 +1317,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 
             add_benchmark!(params, batches, pallet_groups, Groups);
+            add_benchmark!(params, batches, pallet_identity, Identity);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
