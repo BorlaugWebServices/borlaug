@@ -20,9 +20,9 @@ sp_api::decl_runtime_apis! {
     BoundedStringFact: Codec + Into<Vec<u8>>
 
      {
-        fn get_catalogs(group_id: GroupId,) -> Vec<(CatalogId,Catalog<BoundedStringName>)>;
+        fn get_catalogs(account: AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)>;
 
-        fn get_catalog(group_id: GroupId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>>;
+        fn get_catalog(account: AccountId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>>;
 
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>;
 

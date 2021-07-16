@@ -121,15 +121,15 @@ pub mod pallet {
         ClaimAttested(Did, T::ClaimId, T::GroupId),
         /// Claim attestation revoked (target DID, index of claim, group_id)
         ClaimAttestationRevoked(Did, T::ClaimId, T::GroupId),
-        /// Catalog added (Owner Did, Catalog Id)
-        CatalogCreated(T::GroupId, T::CatalogId),
-        /// Catalog removed (Owner Did, Catalog Id)
-        CatalogRemoved(T::GroupId, T::CatalogId),
-        /// Dids added to catalog (Owner Did, Catalog Id)
-        CatalogDidsAdded(T::GroupId, T::CatalogId),
-        /// Dids removed from catalog (group_id, catalog_id)
-        CatalogDidsRemoved(T::GroupId, T::CatalogId),
-        /// DID Controller updated (from_group_id, to_group_id, did)
+        /// Catalog added (account, Catalog Id)
+        CatalogCreated(T::AccountId, T::CatalogId),
+        /// Catalog removed (account, Catalog Id)
+        CatalogRemoved(T::AccountId, T::CatalogId),
+        /// Dids added to catalog (account, Catalog Id)
+        CatalogDidsAdded(T::AccountId, T::CatalogId),
+        /// Dids removed from catalog (account, catalog_id)
+        CatalogDidsRemoved(T::AccountId, T::CatalogId),
+        /// DID Controller updated (account, target_did, added_controllers,removed_controllers)
         DidControllerUpdated(
             T::AccountId,
             Did,
@@ -148,6 +148,8 @@ pub mod pallet {
         NotFound,
         /// A non-controller account attempted to  modify a DID
         NotController,
+        /// The requested DID Document does not exist
+        DidDocumentNotFound,
         /// Not authorized to make a claim or attest a claim
         NotAuthorized,
         /// Id out of bounds
@@ -297,7 +299,7 @@ pub mod pallet {
     pub type CatalogOwnership<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
-        T::GroupId,
+        T::AccountId,
         Blake2_128Concat,
         T::CatalogId,
         Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
@@ -465,7 +467,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Append given collection of Did properties provided the caller is a controller
+        /// Add or remove DID controllers for a DID. Subject cannot be removed.
         ///
         /// Arguments:
         /// - `did` subject
@@ -484,14 +486,20 @@ pub mod pallet {
                 <DidByController<T>>::contains_key(&sender, &target_did),
                 Error::<T>::NotController
             );
+
+            let did_document = <DidDocuments<T>>::try_get(&target_did)
+                .map_err(|_| Error::<T>::DidDocumentNotFound)?;
+
             if let Some(remove) = remove.clone() {
-                remove.iter().for_each(|remove| {
-                    <DidByController<T>>::remove(&remove, &target_did);
-                    <DidControllers<T>>::remove(&target_did, &remove);
+                remove.into_iter().for_each(|remove| {
+                    if did_document.subject != remove {
+                        <DidByController<T>>::remove(&remove, &target_did);
+                        <DidControllers<T>>::remove(&target_did, &remove);
+                    }
                 });
             }
             if let Some(add) = add.clone() {
-                add.iter().for_each(|add| {
+                add.into_iter().for_each(|add| {
                     <DidByController<T>>::insert(&add, &target_did, ());
                     <DidControllers<T>>::insert(&target_did, &add, ());
                 });
@@ -769,16 +777,40 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_catalog(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
-            let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             let bounded_name = enforce_limit!(name);
 
             let catalog_id = next_id!(NextCatalogId<T>, T);
 
-            <CatalogOwnership<T>>::insert(group_id, catalog_id, Catalog { name: bounded_name });
+            <CatalogOwnership<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
 
-            Self::deposit_event(Event::CatalogCreated(group_id, catalog_id));
+            Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
+            Ok(().into())
+        }
+
+        /// Rename a catalog
+        ///
+        /// Arguments:
+        /// - `owner_did` DID of caller
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn rename_catalog(
+            origin: OriginFor<T>,
+            catalog_id: T::CatalogId,
+            name: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_account_or_group!(origin);
+
+            ensure!(
+                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
+                Error::<T>::NotController
+            );
+
+            let bounded_name = enforce_limit!(name);
+
+            <CatalogOwnership<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
+
+            Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
             Ok(().into())
         }
 
@@ -792,18 +824,17 @@ pub mod pallet {
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
         ) -> DispatchResultWithPostInfo {
-            let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                <CatalogOwnership<T>>::contains_key(group_id, catalog_id),
+                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
 
-            <CatalogOwnership<T>>::remove(group_id, catalog_id);
+            <CatalogOwnership<T>>::remove(&sender, catalog_id);
             <Catalogs<T>>::remove_prefix(&catalog_id);
 
-            Self::deposit_event(Event::CatalogRemoved(group_id, catalog_id));
+            Self::deposit_event(Event::CatalogRemoved(sender, catalog_id));
             Ok(().into())
         }
 
@@ -819,23 +850,51 @@ pub mod pallet {
             catalog_id: T::CatalogId,
             dids: Vec<(Did, Vec<u8>)>,
         ) -> DispatchResultWithPostInfo {
-            let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                <CatalogOwnership<T>>::contains_key(group_id, catalog_id),
+                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
 
-            //TODO: check name lengths first before mutating any storage
+            let dids = dids
+                .into_iter()
+                .map(|(did, short_name)| Ok((did, enforce_limit!(short_name))))
+                .collect::<Result<Vec<_>, Error<T>>>()?;
 
             for (did, short_name) in dids.into_iter() {
-                let bounded_name = enforce_limit!(short_name);
-
-                <Catalogs<T>>::insert(catalog_id, did, bounded_name);
+                <Catalogs<T>>::insert(catalog_id, did, short_name);
             }
 
-            Self::deposit_event(Event::CatalogDidsAdded(group_id, catalog_id));
+            Self::deposit_event(Event::CatalogDidsAdded(sender, catalog_id));
+            Ok(().into())
+        }
+
+        /// Rename DID in catalog. Changes the short_name stored in the catalog.
+        ///
+        /// Arguments:
+        /// - `owner_did` DID of caller
+        /// - `catalog_id` Catalog to which DID are to be added
+        /// - `dids` DIDs are to be added
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn rename_did_in_catalog(
+            origin: OriginFor<T>,
+            catalog_id: T::CatalogId,
+            target_did: Did,
+            short_name: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_account_or_group!(origin);
+
+            ensure!(
+                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
+                Error::<T>::NotController
+            );
+
+            let bounded_name = enforce_limit!(short_name);
+
+            <Catalogs<T>>::insert(&catalog_id, &target_did, bounded_name);
+
+            Self::deposit_event(Event::CatalogDidsAdded(sender, catalog_id));
             Ok(().into())
         }
 
@@ -851,11 +910,10 @@ pub mod pallet {
             catalog_id: T::CatalogId,
             dids: Vec<Did>,
         ) -> DispatchResultWithPostInfo {
-            let (group_id, _yes_votes, _no_votes, _group_account) =
-                T::GroupsOriginByCallerThreshold::ensure_origin(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                <CatalogOwnership<T>>::contains_key(group_id, catalog_id),
+                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -863,7 +921,7 @@ pub mod pallet {
                 <Catalogs<T>>::remove(catalog_id, did);
             }
 
-            Self::deposit_event(Event::CatalogDidsRemoved(group_id, catalog_id));
+            Self::deposit_event(Event::CatalogDidsRemoved(sender, catalog_id));
             Ok(().into())
         }
     }
@@ -872,22 +930,22 @@ pub mod pallet {
         // -- rpc api functions --
 
         pub fn get_catalogs(
-            group_id: T::GroupId,
+            account: T::AccountId,
         ) -> Vec<(
             T::CatalogId,
             Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut catalogs = Vec::new();
-            <CatalogOwnership<T>>::iter_prefix(group_id)
+            <CatalogOwnership<T>>::iter_prefix(account)
                 .for_each(|(catalog_id, catalog)| catalogs.push((catalog_id, catalog)));
             catalogs
         }
 
         pub fn get_catalog(
-            group_id: T::GroupId,
+            account: T::AccountId,
             catalog_id: T::CatalogId,
         ) -> Option<Catalog<BoundedVec<u8, <T as Config>::NameLimit>>> {
-            <CatalogOwnership<T>>::get(group_id, catalog_id)
+            <CatalogOwnership<T>>::get(account, catalog_id)
         }
 
         pub fn get_dids_in_catalog(
@@ -1036,6 +1094,11 @@ pub mod pallet {
             <DidBySubject<T>>::insert(&subject, &did, ());
             <DidByController<T>>::insert(&controller, &did, ());
             <DidControllers<T>>::insert(&did, &controller, ());
+            if subject != controller {
+                <DidByController<T>>::insert(&subject, &did, ());
+                <DidControllers<T>>::insert(&did, &subject, ());
+            }
+
             let did_doc = DidDocument {
                 short_name,
                 subject: subject.clone(),

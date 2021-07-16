@@ -23,14 +23,14 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, GroupId, ClaimId, Moment>
     #[rpc(name = "get_catalogs")]
     fn get_catalogs(
         &self,
-        group_id: GroupId,
+        account: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<CatalogResponse<CatalogId>>>;
 
     #[rpc(name = "get_catalog")]
     fn get_catalog(
         &self,
-        group_id: GroupId,
+        account: AccountId,
         catalog_id: CatalogId,
         at: Option<BlockHash>,
     ) -> Result<CatalogResponse<CatalogId>>;
@@ -476,13 +476,13 @@ where
 {
     fn get_catalogs(
         &self,
-        group_id: GroupId,
+        account: AccountId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<Vec<CatalogResponse<CatalogId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let catalogs = api.get_catalogs(&at, group_id).map_err(convert_error!())?;
+        let catalogs = api.get_catalogs(&at, account).map_err(convert_error!())?;
         Ok(catalogs
             .into_iter()
             .map(|(catalog_id, catalog)| CatalogResponse::<CatalogId> {
@@ -494,7 +494,7 @@ where
 
     fn get_catalog(
         &self,
-        group_id: GroupId,
+        account: AccountId,
         catalog_id: CatalogId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<CatalogResponse<CatalogId>> {
@@ -502,7 +502,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let catalog = api
-            .get_catalog(&at, group_id, catalog_id)
+            .get_catalog(&at, account, catalog_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
