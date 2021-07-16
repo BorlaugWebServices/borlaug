@@ -24,15 +24,15 @@ sp_api::decl_runtime_apis! {
 
         fn get_catalog(group_id: GroupId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>>;
 
-        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,Option<BoundedStringName>)>;
+        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>;
 
-        fn get_did_in_catalog(catalog_id:CatalogId, did:Did) -> Option<(Option<BoundedStringName>,  DidDocument<AccountId,GroupId,BoundedStringName>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>)>;
+        fn get_did_in_catalog(catalog_id:CatalogId, did:Did) -> Option<(BoundedStringName,  DidDocument<AccountId,BoundedStringName>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>;
 
-        fn get_did(did:Did) -> Option<(DidDocument<AccountId,GroupId,BoundedStringName>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>)>;
+        fn get_did(did:Did) -> Option<(DidDocument<AccountId,BoundedStringName>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>;
 
         fn get_dids_by_subject( subject: AccountId) -> Vec<(Did, Option<BoundedStringName>)>;
 
-        fn get_dids_by_controller( group_id: GroupId,) -> Vec<(Did, Option<BoundedStringName>)>;
+        fn get_dids_by_controller( controller: AccountId,) -> Vec<(Did, Option<BoundedStringName>)>;
 
         fn get_claims(did: Did) -> Vec<(ClaimId, Claim<GroupId,Moment,BoundedStringName, BoundedStringFact>)>;
     }

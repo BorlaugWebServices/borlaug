@@ -48,14 +48,10 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, GroupId, ClaimId, Moment>
         catalog_id: CatalogId,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<DidDocumentResponse<AccountId, GroupId>>;
+    ) -> Result<DidDocumentResponse<AccountId>>;
 
     #[rpc(name = "get_did")]
-    fn get_did(
-        &self,
-        did: Did,
-        at: Option<BlockHash>,
-    ) -> Result<DidDocumentResponse<AccountId, GroupId>>;
+    fn get_did(&self, did: Did, at: Option<BlockHash>) -> Result<DidDocumentResponse<AccountId>>;
 
     #[rpc(name = "get_dids_by_subject")]
     fn get_dids_by_subject(
@@ -67,7 +63,7 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, GroupId, ClaimId, Moment>
     #[rpc(name = "get_dids_by_controller")]
     fn get_dids_by_controller(
         &self,
-        group_id: GroupId,
+        controller: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<DidDocumentBasicResponse>>;
 
@@ -195,10 +191,10 @@ pub struct DidDocumentBasicResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct DidDocumentResponse<AccountId, GroupId> {
+pub struct DidDocumentResponse<AccountId> {
     pub short_name: Option<String>,
     pub subject: AccountId,
-    pub controller: GroupId,
+    pub controllers: Vec<AccountId>,
     pub properties: Vec<DidPropertyResponse>,
 }
 
@@ -242,21 +238,23 @@ where
     }
 }
 
-impl<AccountId, GroupId, BoundedStringName, BoundedStringFact>
+impl<AccountId, BoundedStringName, BoundedStringFact>
     From<(
         Option<BoundedStringName>,
-        DidDocument<AccountId, GroupId, BoundedStringName>,
+        DidDocument<AccountId, BoundedStringName>,
         Vec<DidProperty<BoundedStringName, BoundedStringFact>>,
-    )> for DidDocumentResponse<AccountId, GroupId>
+        Vec<AccountId>,
+    )> for DidDocumentResponse<AccountId>
 where
     BoundedStringName: Clone + Into<Vec<u8>>,
     BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(
-        (short_name, did_document, properties): (
+        (short_name, did_document, properties, controllers): (
             Option<BoundedStringName>,
-            DidDocument<AccountId, GroupId, BoundedStringName>,
+            DidDocument<AccountId, BoundedStringName>,
             Vec<DidProperty<BoundedStringName, BoundedStringFact>>,
+            Vec<AccountId>,
         ),
     ) -> Self {
         DidDocumentResponse {
@@ -264,7 +262,7 @@ where
                 .or_else(|| did_document.short_name.clone())
                 .map(|short_name| String::from_utf8_lossy(&short_name.into()).to_string()),
             subject: did_document.subject,
-            controller: did_document.controller,
+            controllers,
             properties: properties.into_iter().map(|p| p.into()).collect(),
         }
     }
@@ -527,7 +525,7 @@ where
             .map_err(convert_error!())?;
         Ok(dids
             .into_iter()
-            .map(|(did, name)| (did, name).into())
+            .map(|(did, name)| (did, Some(name)).into())
             .collect())
     }
 
@@ -536,30 +534,30 @@ where
         catalog_id: CatalogId,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<DidDocumentResponse<AccountId, GroupId>> {
+    ) -> Result<DidDocumentResponse<AccountId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (name_maybe, did_document, properties) = api
+        let (name, did_document, properties, controllers) = api
             .get_did_in_catalog(&at, catalog_id, did.clone().into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((name_maybe, did_document, properties).into())
+        Ok((Some(name), did_document, properties, controllers).into())
     }
 
     fn get_did(
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<DidDocumentResponse<AccountId, GroupId>> {
+    ) -> Result<DidDocumentResponse<AccountId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (did_document, properties) = api
+        let (did_document, properties, controllers) = api
             .get_did(&at, did.clone().into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((None, did_document, properties).into())
+        Ok((None, did_document, properties, controllers).into())
     }
 
     fn get_dids_by_subject(
@@ -581,14 +579,14 @@ where
 
     fn get_dids_by_controller(
         &self,
-        group_id: GroupId,
+        controller: AccountId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let dids = api
-            .get_dids_by_controller(&at, group_id)
+            .get_dids_by_controller(&at, controller)
             .map_err(convert_error!())?;
         Ok(dids
             .into_iter()

@@ -168,3 +168,14 @@ macro_rules! enforce_limit_attributes {
             .collect::<Result<Vec<_>, Error<T>>>()?
     }};
 }
+
+#[macro_export]
+macro_rules! ensure_account_or_group {
+    ($origin:expr) => {{
+        let either = T::GroupsOriginAccountOrGroup::ensure_origin($origin)?;
+        match either {
+            Either::Left(account_id) => account_id,
+            Either::Right((_, _, _, group_account)) => group_account,
+        }
+    }};
+}

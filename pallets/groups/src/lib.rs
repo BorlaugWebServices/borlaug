@@ -40,7 +40,7 @@ pub mod pallet {
             AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Hash, One, Saturating,
             UniqueSaturatedFrom, Zero,
         },
-        DispatchResult,
+        DispatchResult, Either,
     };
     use sp_std::{prelude::*, vec};
 
@@ -88,6 +88,19 @@ pub mod pallet {
                 Option<Self::MemberCount>,
                 Self::AccountId,
             ),
+        >;
+
+        type GroupsOriginAccountOrGroup: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = Either<
+                Self::AccountId,
+                (
+                    Self::GroupId,
+                    Option<Self::MemberCount>,
+                    Option<Self::MemberCount>,
+                    Self::AccountId,
+                ),
+            >,
         >;
 
         type Proposal: Parameter
