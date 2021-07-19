@@ -9,11 +9,10 @@ use primitives::{Catalog, Claim, Did, DidDocument, DidProperty};
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
 sp_api::decl_runtime_apis! {
-    pub trait IdentityApi<AccountId,CatalogId,GroupId,ClaimId,Moment,BoundedStringName,BoundedStringFact>
+    pub trait IdentityApi<AccountId,CatalogId,ClaimId,Moment,BoundedStringName,BoundedStringFact>
     where
     AccountId: Codec,
     CatalogId: Codec,
-    GroupId: Codec,
     ClaimId: Codec,
     Moment: Codec,
     BoundedStringName: Codec + Into<Vec<u8>>,
@@ -34,6 +33,6 @@ sp_api::decl_runtime_apis! {
 
         fn get_dids_by_controller( controller: AccountId,) -> Vec<(Did, Option<BoundedStringName>)>;
 
-        fn get_claims(did: Did) -> Vec<(ClaimId, Claim<GroupId,Moment,BoundedStringName, BoundedStringFact>)>;
+        fn get_claims(did: Did) -> Vec<(ClaimId, Claim<AccountId,Moment,BoundedStringName, BoundedStringFact>)>;
     }
 }

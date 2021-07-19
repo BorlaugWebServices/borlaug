@@ -19,7 +19,7 @@ use std::fmt;
 use std::sync::Arc;
 
 #[rpc]
-pub trait IdentityApi<BlockHash, AccountId, CatalogId, GroupId, ClaimId, Moment> {
+pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, Moment> {
     #[rpc(name = "get_catalogs")]
     fn get_catalogs(
         &self,
@@ -72,7 +72,7 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, GroupId, ClaimId, Moment>
         &self,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ClaimResponse<ClaimId, GroupId, Moment>>>;
+    ) -> Result<Vec<ClaimResponse<ClaimId, AccountId, Moment>>>;
 }
 
 #[derive(Encode, Default, Decode, Debug, Clone)]
@@ -213,11 +213,11 @@ where
     }
 }
 
-impl<ClaimId, GroupId, Moment, BoundedStringName, BoundedStringFact>
+impl<ClaimId, AccountId, Moment, BoundedStringName, BoundedStringFact>
     From<(
         ClaimId,
-        pallet_primitives::Claim<GroupId, Moment, BoundedStringName, BoundedStringFact>,
-    )> for ClaimResponse<ClaimId, GroupId, Moment>
+        pallet_primitives::Claim<AccountId, Moment, BoundedStringName, BoundedStringFact>,
+    )> for ClaimResponse<ClaimId, AccountId, Moment>
 where
     BoundedStringName: Into<Vec<u8>>,
     BoundedStringFact: Into<Vec<u8>>,
@@ -225,7 +225,7 @@ where
     fn from(
         (claim_id, claim): (
             ClaimId,
-            pallet_primitives::Claim<GroupId, Moment, BoundedStringName, BoundedStringFact>,
+            pallet_primitives::Claim<AccountId, Moment, BoundedStringName, BoundedStringFact>,
         ),
     ) -> Self {
         ClaimResponse {
@@ -288,8 +288,10 @@ where
     }
 }
 
-impl<GroupId, Moment> From<Attestation<GroupId, Moment>> for AttestationResponse<GroupId, Moment> {
-    fn from(attestation: Attestation<GroupId, Moment>) -> Self {
+impl<AccountId, Moment> From<Attestation<AccountId, Moment>>
+    for AttestationResponse<AccountId, Moment>
+{
+    fn from(attestation: Attestation<AccountId, Moment>) -> Self {
         AttestationResponse {
             attested_by: attestation.attested_by,
             valid_until: attestation.valid_until,
@@ -380,18 +382,18 @@ pub struct StatementResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AttestationResponse<GroupId, Moment> {
-    pub attested_by: GroupId,
+pub struct AttestationResponse<AccountId, Moment> {
+    pub attested_by: AccountId,
     pub valid_until: Moment,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ClaimResponse<ClaimId, GroupId, Moment> {
+pub struct ClaimResponse<ClaimId, AccountId, Moment> {
     pub claim_id: ClaimId,
     pub description: String,
     pub statements: Vec<StatementResponse>,
-    pub created_by: GroupId,
-    pub attestation: Option<AttestationResponse<GroupId, Moment>>,
+    pub created_by: AccountId,
+    pub attestation: Option<AttestationResponse<AccountId, Moment>>,
 }
 
 pub struct Identity<C, M> {
@@ -428,24 +430,14 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<
-        C,
-        Block,
-        AccountId,
-        CatalogId,
-        GroupId,
-        ClaimId,
-        Moment,
-        BoundedStringName,
-        BoundedStringFact,
-    > IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId, GroupId, ClaimId, Moment>
+impl<C, Block, AccountId, CatalogId, ClaimId, Moment, BoundedStringName, BoundedStringFact>
+    IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId, ClaimId, Moment>
     for Identity<
         C,
         (
             Block,
             AccountId,
             CatalogId,
-            GroupId,
             ClaimId,
             BoundedStringName,
             BoundedStringFact,
@@ -460,7 +452,6 @@ where
         Block,
         AccountId,
         CatalogId,
-        GroupId,
         ClaimId,
         Moment,
         BoundedStringName,
@@ -468,7 +459,6 @@ where
     >,
     AccountId: Codec + Send + Sync + 'static,
     CatalogId: Codec + Copy + Send + Sync + 'static,
-    GroupId: Codec + Copy + Send + Sync + 'static,
     ClaimId: Codec + Copy + Send + Sync + 'static,
     Moment: Codec + Copy + Send + Sync + 'static,
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
@@ -598,7 +588,7 @@ where
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ClaimResponse<ClaimId, GroupId, Moment>>> {
+    ) -> Result<Vec<ClaimResponse<ClaimId, AccountId, Moment>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 

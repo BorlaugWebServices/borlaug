@@ -1193,7 +1193,7 @@ impl_runtime_apis! {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
     }
-    impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,GroupId,ClaimId,Moment,BoundedStringName,BoundedStringFact> for Runtime {
+    impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,Moment,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_catalogs(account:AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)> {
             Identity::get_catalogs(account)
         }
@@ -1215,7 +1215,7 @@ impl_runtime_apis! {
         fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<BoundedStringName>)>  {
             Identity::get_dids_by_controller(controller)
         }
-        fn get_claims( did: Did) -> Vec<(ClaimId, Claim<GroupId,Moment,BoundedStringName,BoundedStringFact>)>  {
+        fn get_claims( did: Did) -> Vec<(ClaimId, Claim<AccountId,Moment,BoundedStringName,BoundedStringFact>)>  {
             Identity::get_claims(did)
         }
     }

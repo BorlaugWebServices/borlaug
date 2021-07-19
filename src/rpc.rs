@@ -62,7 +62,6 @@ where
         Block,
         AccountId,
         CatalogId,
-        GroupId,
         ClaimId,
         Moment,
         BoundedStringName,
