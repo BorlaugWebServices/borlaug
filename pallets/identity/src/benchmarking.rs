@@ -35,8 +35,6 @@ use sp_std::{prelude::*, vec};
 #[allow(unused)]
 use crate::Pallet as IdentityPallet;
 
-const SEED: u32 = 0;
-
 //TODO: compare with collective pallet in substrate and see if we need to set maximums.
 
 type BalanceOf<T> =
@@ -48,7 +46,7 @@ fn create_properties(
     property_fact_len: u32,
 ) -> Vec<DidProperty<Vec<u8>, Vec<u8>>> {
     let mut properties = Vec::new();
-    for x in 1..property_count {
+    for _ in 1..property_count {
         properties.push(DidProperty {
             name: vec![42u8; property_name_len as usize],
             fact: Fact::Text(vec![42u8; property_fact_len as usize]),
@@ -80,7 +78,7 @@ benchmarks! {
         });
         assert_eq!(dids_by_controller.len(), 1);
         let mut dids_by_subject=Vec::new();
-        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+        <DidBySubject<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_subject.push(did);
         });
         assert_eq!(dids_by_subject.len(), 1);

@@ -33,8 +33,6 @@ parameter_types! {
 }
 
 type AccountId = u64;
-type GroupId = u32;
-type MemberCount = u32;
 type Balance = u64;
 
 impl system::Config for Test {

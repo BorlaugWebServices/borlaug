@@ -21,7 +21,7 @@ sp_api::decl_runtime_apis! {
      {
         fn get_catalogs(account: AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)>;
 
-        fn get_catalog(account: AccountId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>>;
+        fn get_catalog(catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>>;
 
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>;
 

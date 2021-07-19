@@ -30,7 +30,6 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, Moment> {
     #[rpc(name = "get_catalog")]
     fn get_catalog(
         &self,
-        account: AccountId,
         catalog_id: CatalogId,
         at: Option<BlockHash>,
     ) -> Result<CatalogResponse<CatalogId>>;
@@ -484,7 +483,6 @@ where
 
     fn get_catalog(
         &self,
-        account: AccountId,
         catalog_id: CatalogId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<CatalogResponse<CatalogId>> {
@@ -492,7 +490,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let catalog = api
-            .get_catalog(&at, account, catalog_id)
+            .get_catalog(&at, catalog_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 

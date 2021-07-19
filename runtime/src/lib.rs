@@ -1197,8 +1197,8 @@ impl_runtime_apis! {
         fn get_catalogs(account:AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)> {
             Identity::get_catalogs(account)
         }
-        fn get_catalog(account:AccountId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>> {
-            Identity::get_catalog(account,catalog_id)
+        fn get_catalog(catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>> {
+            Identity::get_catalog(catalog_id)
         }
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>  {
             Identity::get_dids_in_catalog(catalog_id)

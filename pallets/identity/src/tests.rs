@@ -2,12 +2,7 @@
 use crate::mock::*;
 use chrono::Utc;
 use frame_support::assert_ok;
-use primitives::{
-    claim::{ClaimConsumer, ClaimIssuer, Statement},
-    did_document::DidDocument,
-    did_property::DidProperty,
-    fact::Fact,
-};
+use primitives::*;
 
 #[test]
 fn register_did_should_work() {
@@ -27,150 +22,196 @@ fn register_did_should_work() {
             Some(vec![property])
         ));
 
-        let dids = dids_by_controller(&1);
-        assert_eq!(dids.len(), 1);
-        let did = dids[0];
+        let mut dids_by_controller = Vec::new();
+        super::DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let mut dids_by_subject = Vec::new();
+        super::DidBySubject::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_subject.push(did);
+        });
+        assert_eq!(dids_by_subject.len(), 1);
+
+        let did = dids_by_controller[0];
         assert_eq!(did.id.len(), 32);
 
-        let did_document = Identity::did_documents(&did);
+        let did_document = super::DidDocuments::<Test>::get(&did);
         assert!(did_document.is_some());
         let did_document = did_document.unwrap();
         assert!(did_document.short_name.is_some());
         assert_eq!(did_document.short_name.unwrap().len(), 5);
 
-        let properties = Identity::did_document_properties(&did);
-        assert_eq!(properties.len(), 5);
+        let mut stored_properties = Vec::new();
+        super::DidDocumentProperties::<Test>::iter_prefix(&did).for_each(|(_, property)| {
+            stored_properties.push(property);
+        });
+        assert_eq!(stored_properties.len(), 1);
+    });
+}
+#[test]
+fn register_did_for_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        let property = DidProperty {
+            name: vec![42u8; 5],
+            fact: Fact::Text(vec![42u8; 5]),
+        };
+
+        // 1 creates a DID for 2
+        assert_ok!(Identity::register_did_for(
+            Origin::signed(1),
+            2u64,
+            Some(vec![42u8; 5]),
+            Some(vec![property])
+        ));
+
+        let mut dids_by_controller = Vec::new();
+        super::DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let mut dids_by_subject = Vec::new();
+        super::DidBySubject::<Test>::iter_prefix(&2).for_each(|(did, _)| {
+            dids_by_subject.push(did);
+        });
+        assert_eq!(dids_by_subject.len(), 1);
+
+        let did = dids_by_controller[0];
+        assert_eq!(did.id.len(), 32);
+
+        let did_document = super::DidDocuments::<Test>::get(&did);
+        assert!(did_document.is_some());
+        let did_document = did_document.unwrap();
+        assert!(did_document.short_name.is_some());
+        assert_eq!(did_document.short_name.unwrap().len(), 5);
+
+        let mut stored_properties = Vec::new();
+        super::DidDocumentProperties::<Test>::iter_prefix(&did).for_each(|(_, property)| {
+            stored_properties.push(property);
+        });
+        assert_eq!(stored_properties.len(), 1);
     });
 }
 
-// fn register_did_for_should_work() {
-//     new_test_ext().execute_with(|| {
-//         //required for randomness_collective_flip module
-//         System::set_block_number(1);
+#[test]
+fn managing_controllers_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+        // 1 creates a DID for itself
+        assert_ok!(Identity::register_did(Origin::signed(1), None, None));
 
-//         // 1 creates a DID for 2
-//         assert_ok!(Identity::register_did_for(Origin::signed(1), 2u64, None));
+        let mut dids_by_controller = Vec::new();
+        super::DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
 
-//         let dids = Identity::dids(&2);
-//         let did_2 = dids[0];
+        let did = dids_by_controller[0];
 
-//         // 1 is the controller of both DIDs
-//         assert_eq!(Identity::controller(&1), vec![did_1, did_2]);
-//     });
-// }
+        // 1 adds 2 as controller
+        assert_ok!(Identity::manage_controllers(
+            Origin::signed(1),
+            did,
+            Some(vec![2]),
+            None
+        ));
+        assert!(super::DidByController::<Test>::get(&2, &did).is_some());
 
-// #[test]
-// fn managing_controllers_should_work() {
-//     new_test_ext().execute_with(|| {
-//         //required for randomness_collective_flip module
-//         System::set_block_number(1);
-//         // 1 creates a DID for itself
-//         assert_ok!(Identity::register_did(Origin::signed(1), None));
-//         let dids = Identity::dids(&1);
-//         let did_1 = dids[0];
+        // 1 removes 2 as controller
+        assert_ok!(Identity::manage_controllers(
+            Origin::signed(1),
+            did,
+            None,
+            Some(vec![2])
+        ));
+        assert!(super::DidByController::<Test>::get(&2, &did).is_none());
+    });
+}
 
-//         // 1 adds 2 as controller
-//         assert_ok!(Identity::manage_controllers(
-//             Origin::signed(1),
-//             did_1,
-//             Some(vec![2]),
-//             None
-//         ));
-//         assert_eq!(Identity::controller(&1), vec![did_1]);
-//         assert_eq!(Identity::controller(&2), vec![did_1]);
+#[test]
+fn update_did_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
 
-//         // 1 removes 2 as controller
-//         assert_ok!(Identity::manage_controllers(
-//             Origin::signed(1),
-//             did_1,
-//             None,
-//             Some(vec![2])
-//         ));
-//         assert_eq!(Identity::controller(&1), vec![did_1]);
-//         assert_eq!(Identity::controller(&2), vec![]);
-//     });
-// }
+        assert_ok!(Identity::register_did(Origin::signed(1), None));
 
-// #[test]
-// fn update_did_should_work() {
-//     new_test_ext().execute_with(|| {
-//         //required for randomness_collective_flip module
-//         System::set_block_number(1);
+        let dids = Identity::dids(&1);
+        let did_1 = dids[0];
 
-//         assert_ok!(Identity::register_did(Origin::signed(1), None));
+        assert_ok!(Identity::update_did(
+            Origin::signed(1),
+            did_1,
+            Some(vec![
+                DidProperty {
+                    name: b"name".to_vec(),
+                    fact: Fact::Text(b"John Doe".to_vec())
+                },
+                DidProperty {
+                    name: b"age".to_vec(),
+                    fact: Fact::U8(255)
+                }
+            ]),
+            Some(vec![])
+        ));
 
-//         let dids = Identity::dids(&1);
-//         let did_1 = dids[0];
+        assert_eq!(
+            Identity::did_document(did_1),
+            DidDocument {
+                properties: vec![
+                    DidProperty {
+                        name: b"name".to_vec(),
+                        fact: Fact::Text(b"John Doe".to_vec())
+                    },
+                    DidProperty {
+                        name: b"age".to_vec(),
+                        fact: Fact::U8(255)
+                    }
+                ]
+            }
+        );
 
-//         assert_ok!(Identity::update_did(
-//             Origin::signed(1),
-//             did_1,
-//             Some(vec![
-//                 DidProperty {
-//                     name: b"name".to_vec(),
-//                     fact: Fact::Text(b"John Doe".to_vec())
-//                 },
-//                 DidProperty {
-//                     name: b"age".to_vec(),
-//                     fact: Fact::U8(255)
-//                 }
-//             ]),
-//             Some(vec![])
-//         ));
+        assert_ok!(Identity::update_did(
+            Origin::signed(1),
+            did_1,
+            Some(vec![
+                DidProperty {
+                    name: b"birthday".to_vec(),
+                    fact: Fact::Date(1980, 1, 1)
+                },
+                DidProperty {
+                    name: b"citizen".to_vec(),
+                    fact: Fact::Bool(true)
+                }
+            ]),
+            Some(vec![b"age".to_vec()])
+        ));
 
-//         assert_eq!(
-//             Identity::did_document(did_1),
-//             DidDocument {
-//                 properties: vec![
-//                     DidProperty {
-//                         name: b"name".to_vec(),
-//                         fact: Fact::Text(b"John Doe".to_vec())
-//                     },
-//                     DidProperty {
-//                         name: b"age".to_vec(),
-//                         fact: Fact::U8(255)
-//                     }
-//                 ]
-//             }
-//         );
-
-//         assert_ok!(Identity::update_did(
-//             Origin::signed(1),
-//             did_1,
-//             Some(vec![
-//                 DidProperty {
-//                     name: b"birthday".to_vec(),
-//                     fact: Fact::Date(1980, 1, 1)
-//                 },
-//                 DidProperty {
-//                     name: b"citizen".to_vec(),
-//                     fact: Fact::Bool(true)
-//                 }
-//             ]),
-//             Some(vec![b"age".to_vec()])
-//         ));
-
-//         assert_eq!(
-//             Identity::did_document(did_1),
-//             DidDocument {
-//                 properties: vec![
-//                     DidProperty {
-//                         name: b"name".to_vec(),
-//                         fact: Fact::Text(b"John Doe".to_vec())
-//                     },
-//                     DidProperty {
-//                         name: b"birthday".to_vec(),
-//                         fact: Fact::Date(1980, 1, 1)
-//                     },
-//                     DidProperty {
-//                         name: b"citizen".to_vec(),
-//                         fact: Fact::Bool(true)
-//                     }
-//                 ]
-//             }
-//         );
-//     });
-// }
+        assert_eq!(
+            Identity::did_document(did_1),
+            DidDocument {
+                properties: vec![
+                    DidProperty {
+                        name: b"name".to_vec(),
+                        fact: Fact::Text(b"John Doe".to_vec())
+                    },
+                    DidProperty {
+                        name: b"birthday".to_vec(),
+                        fact: Fact::Date(1980, 1, 1)
+                    },
+                    DidProperty {
+                        name: b"citizen".to_vec(),
+                        fact: Fact::Bool(true)
+                    }
+                ]
+            }
+        );
+    });
+}
 
 // #[test]
 // fn replacing_properties_to_did_should_work() {

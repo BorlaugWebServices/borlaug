@@ -312,6 +312,18 @@ pub mod pallet {
         T::AccountId,
         Blake2_128Concat,
         T::CatalogId,
+        (),
+        OptionQuery,
+    >;
+
+    /// Catalog names
+    //TODO when BoundedVec gets fully implemented we can get rid of Catalog struct and store just BoundedVec
+    #[pallet::storage]
+    #[pallet::getter(fn catalog_name)]
+    pub type CatalogName<T: Config> = StorageMap<
+        _,        
+        Blake2_128Concat,
+        T::CatalogId,
         Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
@@ -819,7 +831,8 @@ pub mod pallet {
 
             let catalog_id = next_id!(NextCatalogId<T>, T);
 
-            <CatalogOwnership<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
+            <CatalogOwnership<T>>::insert(&sender, catalog_id, ());
+            <CatalogName<T>>::insert(catalog_id, Catalog { name: bounded_name });
 
             Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
             Ok(().into())
@@ -844,7 +857,7 @@ pub mod pallet {
 
             let bounded_name = enforce_limit!(name);
 
-            <CatalogOwnership<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
+            <CatalogName<T>>::insert(catalog_id, Catalog { name: bounded_name });
 
             Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
             Ok(().into())
@@ -868,6 +881,7 @@ pub mod pallet {
             );
 
             <CatalogOwnership<T>>::remove(&sender, catalog_id);
+            <CatalogName<T>>::remove(catalog_id);
             <Catalogs<T>>::remove_prefix(&catalog_id);
 
             Self::deposit_event(Event::CatalogRemoved(sender, catalog_id));
@@ -973,15 +987,17 @@ pub mod pallet {
         )> {
             let mut catalogs = Vec::new();
             <CatalogOwnership<T>>::iter_prefix(account)
-                .for_each(|(catalog_id, catalog)| catalogs.push((catalog_id, catalog)));
+                .for_each(|(catalog_id, _)| {
+                    let catalog=<CatalogName<T>>::get(catalog_id).unwrap();
+                    catalogs.push((catalog_id, catalog))}
+                );
             catalogs
         }
 
-        pub fn get_catalog(
-            account: T::AccountId,
+        pub fn get_catalog(            
             catalog_id: T::CatalogId,
         ) -> Option<Catalog<BoundedVec<u8, <T as Config>::NameLimit>>> {
-            <CatalogOwnership<T>>::get(account, catalog_id)
+            <CatalogName<T>>::get( catalog_id)
         }
 
         pub fn get_dids_in_catalog(
