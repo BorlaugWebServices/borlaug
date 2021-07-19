@@ -104,6 +104,7 @@ pub mod pallet {
         T::ClaimId = "ClaimId",      
         Vec<ClaimConsumer<T::AccountId, T::Moment>> = "ClaimConsumers",
         Vec<ClaimIssuer<T::AccountId, T::Moment>> = "ClaimIssuers",
+        Vec<T::AccountId> = "AccountIds",
         Option<Vec<T::AccountId>> = "Option<AccountIds>"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -227,7 +228,7 @@ pub mod pallet {
     /// A DID has a DID Document
     /// Did => DidDocument
     #[pallet::storage]
-    #[pallet::getter(fn did_document)]
+    #[pallet::getter(fn did_documents)]
     pub type DidDocuments<T: Config> = StorageMap<
         _,
         Blake2_128Concat,

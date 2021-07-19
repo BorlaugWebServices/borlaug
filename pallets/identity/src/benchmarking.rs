@@ -21,12 +21,12 @@
 
 use super::*;
 
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
+use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
 use frame_support::{
     dispatch::Vec,
-    traits::{Currency, EnsureOrigin, Get, UnfilteredDispatchable},
+    traits::{Currency, Get},
 };
-use frame_system::Call as SystemCall;
+// use frame_system::Call as SystemCall;
 use frame_system::{self, RawOrigin as SystemOrigin};
 use primitives::*;
 use sp_runtime::traits::Bounded;
@@ -150,9 +150,9 @@ benchmarks! {
 
     verify {
         let did_document=<DidDocuments<T>>::get(&did);
-        assert_eq!(did_document.is_some(),true);
+        assert!(did_document.is_some());
         let did_document=did_document.unwrap();
-        assert_eq!(did_document.short_name.is_some(),true);
+        assert!(did_document.short_name.is_some());
         assert_eq!(did_document.short_name.unwrap().len(),name.len());
 
         let mut stored_properties=Vec::new();

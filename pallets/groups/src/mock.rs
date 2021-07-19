@@ -36,8 +36,6 @@ parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub const SS58Prefix: u8 = 42;
     pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxMembers: u32 = 100;
     pub const ExistentialDeposit: u128 = 1;
 }
 
@@ -77,6 +75,11 @@ impl pallet_balances::Config for Test {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxMembers: u32 = 100;
 }
 
 impl pallet_groups::Config for Test {

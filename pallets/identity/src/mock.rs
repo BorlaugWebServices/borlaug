@@ -2,7 +2,7 @@
 
 use crate as pallet_identity;
 use frame_support::parameter_types;
-use frame_system as system;
+use frame_system::{self as system, EnsureOneOf, EnsureSigned};
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -20,6 +20,9 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
+        Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
+        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+        Groups: groups::{Module, Call, Storage, Event<T>, Origin<T>},
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
     }
 );
@@ -28,6 +31,11 @@ parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub const SS58Prefix: u8 = 42;
 }
+
+type AccountId = u64;
+type GroupId = u32;
+type MemberCount = u32;
+type Balance = u64;
 
 impl system::Config for Test {
     type BaseCallFilter = ();
@@ -40,18 +48,30 @@ impl system::Config for Test {
     type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
-    type AccountId = u64;
+    type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type Event = Event;
     type BlockHashCount = BlockHashCount;
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = ();
+    type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
+}
+parameter_types! {
+    pub const ExistentialDeposit: Balance = 1;
+}
+impl pallet_balances::Config for Test {
+    type MaxLocks = ();
+    type Balance = Balance;
+    type DustRemoval = ();
+    type Event = Event;
+    type ExistentialDeposit = ExistentialDeposit;
+    type AccountStore = System;
+    type WeightInfo = ();
 }
 
 pub const MILLISECS_PER_BLOCK: u64 = 5000;
@@ -68,9 +88,55 @@ impl timestamp::Config for Test {
     type WeightInfo = ();
 }
 
+impl settings::Config for Test {
+    type Event = Event;
+    type ChangeSettingOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type ModuleIndex = u8;
+    type ExtrinsicIndex = u8;
+    type Currency = Balances;
+    type Balance = Balance;
+}
+
+parameter_types! {
+    pub const NameLimit: u32 = 50;
+    pub const FactStringLimit: u32 = 500;
+    pub const PropertyLimit: u32 = 500;
+    pub const StatementLimit: u32 = 500;
+}
+
 impl pallet_identity::Config for Test {
     type CatalogId = u32;
+    type ClaimId = u32;
     type Event = Event;
+    type WeightInfo = ();
+    type NameLimit = NameLimit;
+    type FactStringLimit = FactStringLimit;
+    type PropertyLimit = PropertyLimit;
+    type StatementLimit = StatementLimit;
+}
+
+parameter_types! {
+    pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxMembers: u32 = 100;
+}
+
+impl groups::Config for Test {
+    type Origin = Origin;
+    type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Test>;
+    type GroupsOriginByCallerThreshold = groups::EnsureApproved<Test>;
+    type GroupsOriginAccountOrGroup =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Test>>;
+    type GetExtrinsicExtraSource = Settings;
+    type Proposal = Call;
+    type GroupId = u32;
+    type ProposalId = u32;
+    type MemberCount = u32;
+    type Currency = Balances;
+    type Event = Event;
+    type MaxProposals = GroupMaxProposals;
+    type MaxMembers = GroupMaxMembers;
+    type WeightInfo = ();
+    type NameLimit = NameLimit;
 }
 
 // Build genesis storage according to the mock runtime.

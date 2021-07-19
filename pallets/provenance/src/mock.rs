@@ -29,11 +29,12 @@ frame_support::construct_runtime!(
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub const SS58Prefix: u8 = 42;
-    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxMembers: u32 = 100;
-    pub const ExistentialDeposit: u128 = 1;
+    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;   
 }
+
+type AccountId = u64;
+type GroupId = u32;
+type MemberCount = u32;
 
 impl system::Config for Test {
     type BaseCallFilter = ();
@@ -46,14 +47,14 @@ impl system::Config for Test {
     type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
-    type AccountId = u64;
+    type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type Event = Event;
     type BlockHashCount = BlockHashCount;
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<u128>;
+    type AccountData = pallet_balances::AccountData<u64>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
@@ -74,10 +75,13 @@ impl identity::Config for Test {
     type CatalogId = u32;
     type Event = Event;
 }
+parameter_types! {
+    pub const ExistentialDeposit: u64 = 1;
+}
 
 impl pallet_balances::Config for Test {
     type MaxLocks = ();
-    type Balance = u128;
+    type Balance = u64;
     type DustRemoval = ();
     type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
@@ -85,14 +89,19 @@ impl pallet_balances::Config for Test {
     type WeightInfo = ();
 }
 
+parameter_types! {
+    pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxMembers: u32 = 100;
+}
+
 impl groups::Config for Test {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Test>;
-    type GroupsOriginByCallerThreshold = groups::EnsureApproved<AccountId, GroupId, MemberCount>;
+    type GroupsOriginByCallerThreshold = groups::EnsureApproved<Test>;
     type Proposal = Call;
-    type GroupId = u32;
+    type GroupId = GroupId;
     type ProposalId = u32;
-    type MemberCount = u32;
+    type MemberCount = MemberCount;
     type Currency = Balances;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
