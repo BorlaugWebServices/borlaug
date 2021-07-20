@@ -50,10 +50,11 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
-    AccountId, Balance, BlockNumber, BoundedStringFact, BoundedStringName, CatalogId, ClaimId,
-    DefinitionId, DefinitionStepIndex, ExtrinsicIndex, FactStringLimit, GroupId, Hash, Index,
-    MemberCount, ModuleIndex, Moment, NameLimit, ProcessId, PropertyLimit, ProposalId, RegistryId,
-    Signature, StatementLimit,
+    AccountId, Balance, BlockNumber, BoundedStringFact, BoundedStringName, CatalogId,
+    ClaimConsumerLimit, ClaimId, ClaimIssuerLimit, ControllerLimit, DefinitionId,
+    DefinitionStepIndex, ExtrinsicIndex, FactStringLimit, GroupId, Hash, Index, MemberCount,
+    ModuleIndex, Moment, NameLimit, ProcessId, PropertyLimit, ProposalId, RegistryId, Signature,
+    StatementLimit,
 };
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
@@ -804,6 +805,9 @@ impl identity::Config for Runtime {
     type FactStringLimit = FactStringLimit;
     type PropertyLimit = PropertyLimit;
     type StatementLimit = StatementLimit;
+    type ControllerLimit = ControllerLimit;
+    type ClaimConsumerLimit = ClaimConsumerLimit;
+    type ClaimIssuerLimit = ClaimIssuerLimit;
 }
 
 impl asset_registry::Config for Runtime {

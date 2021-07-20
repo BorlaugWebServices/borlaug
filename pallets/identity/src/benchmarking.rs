@@ -21,7 +21,7 @@
 
 use super::*;
 
-use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
 use frame_support::{
     dispatch::Vec,
     traits::{Currency, Get},
@@ -59,6 +59,14 @@ fn create_properties(
         });
     }
     properties
+}
+//provide different seed to get new unique set
+fn create_accounts<T: Config>(n: u32, seed: u32) -> Vec<T::AccountId> {
+    let mut accounts = vec![];
+    for i in 0..n {
+        accounts.push(account("account", i, seed));
+    }
+    accounts
 }
 
 benchmarks! {
@@ -209,6 +217,104 @@ benchmarks! {
         });
         assert_eq!(stored_properties.len(), replace_properties.len());
     }
+
+
+    manage_controllers {
+        let a in 1 .. (<T as Config>::ControllerLimit::get()-1); //origional controller count (will be removed)
+        let b in 1 .. (<T as Config>::ControllerLimit::get()-1); //add controller count
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        //these will be removed.
+        let origional_controllers=create_accounts::<T>(a,1);
+
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
+
+        IdentityPallet::<T>::manage_controllers(origin,did,Some(origional_controllers.clone()),None)?;
+
+        let add_controllers=create_accounts::<T>(b,2);
+
+    }: _(SystemOrigin::Signed(caller.clone()),did,  Some(add_controllers.clone()),Some(origional_controllers.clone()))
+
+    verify {
+        let mut stored_controllers=Vec::new();
+        <DidControllers<T>>::iter_prefix(&did).for_each(|(_, controller)| {
+            stored_controllers.push(controller);
+        });
+        assert_eq!(stored_controllers.len(), add_controllers.len()+1);
+    }
+
+    authorize_claim_consumers {
+        let a in 1 .. (<T as Config>::ClaimConsumerLimit::get()-1);
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
+
+        let claim_consumers=create_accounts::<T>(a,1);
+        let now= <timestamp::Module<T>>::get();
+        let claim_consumers:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now}).collect();
+
+    }: _(SystemOrigin::Signed(caller.clone()),did,  claim_consumers.clone())
+
+    verify {
+        let mut stored_consumers=Vec::new();
+        <ClaimConsumers<T>>::iter_prefix(&did).for_each(|(_, consumer)| {
+            stored_consumers.push(consumer);
+        });
+        assert_eq!(stored_consumers.len(), claim_consumers.len());
+    }
+
+    revoke_claim_consumers {
+        let a in 1 .. (<T as Config>::ClaimConsumerLimit::get()-1);
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
+
+        let claim_consumers=create_accounts::<T>(a,1);
+        let now= <timestamp::Module<T>>::get();
+        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now}).collect();
+
+        IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
+
+    }: _(SystemOrigin::Signed(caller.clone()),did,  claim_consumers)
+
+    verify {
+        let mut stored_consumers=Vec::new();
+        <ClaimConsumers<T>>::iter_prefix(&did).for_each(|(_, consumer)| {
+            stored_consumers.push(consumer);
+        });
+        assert_eq!(stored_consumers.len(), 0);
+    }
+
 
 }
 

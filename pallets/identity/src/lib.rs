@@ -94,6 +94,17 @@ pub mod pallet {
         /// The maximum number of statements a Claim may have
         #[pallet::constant]
         type StatementLimit: Get<u32>;
+
+        //TODO: if we add remove_did option then be sure to deal with cleanup of supporting storage carefully.
+        /// The maximum number of controllers you can add/remove at one time (does not limit total)
+        #[pallet::constant]
+        type ControllerLimit: Get<u32>;
+        /// The maximum number of claim consumers you can add/remove at one time (does not limit total)
+        #[pallet::constant]
+        type ClaimConsumerLimit: Get<u32>;
+        /// The maximum number of claim issuers you can add/remove at one time (does not limit total)
+        #[pallet::constant]
+        type ClaimIssuerLimit: Get<u32>;
     }
 
     #[pallet::event]
@@ -156,6 +167,12 @@ pub mod pallet {
         NotFound,
         /// Too many properties
         PropertyLimitExceeded,
+        /// Controller limit exceeded. Call extrinsic multiple times to add/remove more.
+        ControllerLimitExceeded,
+        /// Claim Consumer limit exceeded. Call extrinsic multiple times to add/remove more.
+        ClaimConsumerLimitExceeded,
+        /// Claim Issuer limit exceeded. Call extrinsic multiple times to add/remove more.
+        ClaimIssuerLimitExceeded,
         /// Too many statements
         StatementLimitExceeded,
         /// A non-controller account attempted to  modify a DID
@@ -582,7 +599,10 @@ pub mod pallet {
         /// - `did` subject
         /// - `add` DIDs to be added as controllers
         /// - `remove` DIDs to be removed as controllers
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::manage_controllers(     
+            add.as_ref().map_or(0,|a|a.len()) as u32,
+            remove.as_ref().map_or(0,|a|a.len()) as u32,             
+        ))]
         pub fn manage_controllers(
             origin: OriginFor<T>,
             target_did: Did,
@@ -595,6 +615,14 @@ pub mod pallet {
                 <DidByController<T>>::contains_key(&sender, &target_did),
                 Error::<T>::NotController
             );
+
+            let add_count = add.as_ref().map_or(0, |a| a.len());
+            let remove_count = remove.as_ref().map_or(0, |a| a.len());
+
+            ensure!(
+                add_count < T::ControllerLimit::get() as usize && remove_count< T::ControllerLimit::get() as usize,
+                Error::<T>::ControllerLimitExceeded
+            );  
 
             let did_document = <DidDocuments<T>>::try_get(&target_did)
                 .map_err(|_| Error::<T>::DidDocumentNotFound)?;
@@ -635,6 +663,11 @@ pub mod pallet {
                 Error::<T>::NotController
             );
 
+            ensure!(
+                claim_consumers.len() < T::ClaimConsumerLimit::get() as usize,
+                Error::<T>::ClaimConsumerLimitExceeded
+            );  
+
             claim_consumers.iter().for_each(|claim_consumer| {
                 <ClaimConsumers<T>>::insert(
                     &target_did,
@@ -670,6 +703,11 @@ pub mod pallet {
                 Error::<T>::NotController
             );
 
+            ensure!(
+                claim_consumers.len() < T::ClaimConsumerLimit::get() as usize,
+                Error::<T>::ClaimConsumerLimitExceeded
+            ); 
+
             claim_consumers.iter().for_each(|claim_consumer| {
                 <ClaimConsumers<T>>::remove(&target_did, claim_consumer);
                 <DidsByConsumer<T>>::remove(claim_consumer,&target_did );
@@ -696,6 +734,11 @@ pub mod pallet {
                 <DidByController<T>>::contains_key(&sender, &target_did),
                 Error::<T>::NotController
             );
+
+            ensure!(
+                claim_issuers.len() < T::ClaimIssuerLimit::get() as usize,
+                Error::<T>::ClaimIssuerLimitExceeded
+            ); 
 
             claim_issuers.iter().for_each(|claim_issuer| {
                 <ClaimIssuers<T>>::insert(
@@ -732,6 +775,11 @@ pub mod pallet {
                 Error::<T>::NotController
             );
 
+            ensure!(
+                claim_issuers.len() < T::ClaimIssuerLimit::get() as usize,
+                Error::<T>::ClaimIssuerLimitExceeded
+            ); 
+
             claim_issuers.iter().for_each(|claim_issuer| {
                 <ClaimIssuers<T>>::remove(&target_did, claim_issuer);
                 <DidsByIssuer<T>>::remove(claim_issuer,&target_did);
@@ -757,7 +805,7 @@ pub mod pallet {
             let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                Self::is_valid_issuer(&target_did, &sender),
+                Self::is_valid_consumer(&target_did, &sender),
                 Error::<T>::NotAuthorized
             );
 

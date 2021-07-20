@@ -55,6 +55,9 @@ parameter_types! {
     pub const FactStringLimit: u32 = 500;
     pub const PropertyLimit: u32 = 500;
     pub const StatementLimit: u32 = 500;
+    pub const ControllerLimit: u32 = 50;
+    pub const ClaimConsumerLimit: u32 = 50;
+    pub const ClaimIssuerLimit: u32 = 50;
 }
 
 pub type BoundedStringName = BoundedVec<u8, NameLimit>;
