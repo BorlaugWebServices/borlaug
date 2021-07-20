@@ -156,12 +156,16 @@ pub mod pallet {
         NotFound,
         /// Too many properties
         PropertyLimitExceeded,
+        /// Too many statements
+        StatementLimitExceeded,
         /// A non-controller account attempted to  modify a DID
         NotController,
         /// The requested DID Document does not exist
         DidDocumentNotFound,
         /// Not authorized to make a claim or attest a claim
         NotAuthorized,
+        /// The required threshold of votes to attest a claim was not met
+        ThresholdNotMet,
         /// Id out of bounds
         NoIdAvailable,
     }
@@ -270,6 +274,20 @@ pub mod pallet {
         OptionQuery,
     >;
 
+      /// Claim consumers request a claim to offer protected services    
+    /// Subject DID => DIDs of claim consumers
+    #[pallet::storage]
+    #[pallet::getter(fn dids_by_consumer)]
+    pub type DidsByConsumer<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        Blake2_128Concat,
+        Did,        
+        T::Moment,
+        OptionQuery,
+    >;
+
     /// Claim issuers provide verifiable claims
     /// Subject DID => (DIDs of claim issuers, Expiration time)
     #[pallet::storage]
@@ -280,6 +298,19 @@ pub mod pallet {
         Did,
         Blake2_128Concat,
         T::AccountId,
+        T::Moment,
+        OptionQuery,
+    >;
+    /// Claim issuers provide verifiable claims
+    /// Subject DID => (DIDs of claim issuers, Expiration time)
+    #[pallet::storage]
+    #[pallet::getter(fn dids_by_issuer)]
+    pub type DidsByIssuer<T: Config> = StorageDoubleMap<
+        _,       
+        Blake2_128Concat,
+        T::AccountId,
+        Blake2_128Concat,
+        Did,
         T::Moment,
         OptionQuery,
     >;
@@ -296,6 +327,7 @@ pub mod pallet {
         T::ClaimId,
         Claim<
             T::AccountId,
+            T::MemberCount,
             T::Moment,
             BoundedVec<u8, <T as Config>::NameLimit>,
             BoundedVec<u8, <T as Config>::FactStringLimit>,
@@ -359,8 +391,8 @@ pub mod pallet {
         ///        
         #[pallet::weight(<T as Config>::WeightInfo::register_did(
             short_name.as_ref().map_or(0,|name|name.len()) as u32,
-            get_max_property_name_len(properties),
-            get_max_property_fact_len(properties),
+            get_max_property_name_len_option(properties),
+            get_max_property_fact_len_option(properties),
             properties.as_ref().map_or(0,|properties|properties.len()) as u32, 
         ))]
         // #[pallet::weight(10_000)]
@@ -391,12 +423,11 @@ pub mod pallet {
         }
 
         /// Register a new DID for caller. A group calls to create a new DID.
-        ///
-        
+        ///        
         #[pallet::weight(<T as Config>::WeightInfo::register_did(
             short_name.as_ref().map_or(0,|name|name.len()) as u32,
-            get_max_property_name_len(properties),
-            get_max_property_fact_len(properties),
+            get_max_property_name_len_option(properties),
+            get_max_property_fact_len_option(properties),
             properties.as_ref().map_or(0,|properties|properties.len()) as u32, 
         ))]
         pub fn register_did_for(
@@ -428,7 +459,14 @@ pub mod pallet {
         /// - `did` DID to which properties are to be added
         /// - `add_properties` DID properties to be added
         /// - `remove_keys` Keys of DID properties to be removed
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::update_did(
+            short_name.as_ref().map_or(0,|name|name.len()) as u32,
+            get_max_property_name_len_option(add_properties),
+            get_max_property_fact_len_option(add_properties),
+            add_properties.as_ref().map_or(0,|properties|properties.len()) as u32, 
+            get_max_key_len(remove_keys),
+            remove_keys.as_ref().map_or(0,|keys|keys.len()) as u32, 
+        ))]
         pub fn update_did(
             origin: OriginFor<T>,
             did: Did,
@@ -501,7 +539,12 @@ pub mod pallet {
         /// Arguments:
         /// - `did` DID to which properties are to be added
         /// - `properties` DID properties to be added
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::replace_did(            
+            get_max_property_name_len(properties),
+            get_max_property_fact_len(properties),
+            properties.len() as u32, 
+            <T as Config>::PropertyLimit::get() //We don't know how many properties exist.
+        ))]
         pub fn replace_did(
             origin: OriginFor<T>,
             did: Did,
@@ -514,6 +557,11 @@ pub mod pallet {
                 Error::<T>::NotController
             );
 
+            ensure!(
+                properties.len() < T::PropertyLimit::get() as usize,
+                Error::<T>::PropertyLimitExceeded
+            );   
+
             let properties = enforce_limit_did_properties!(properties);
 
             <DidDocumentProperties<T>>::remove_prefix(&did);
@@ -524,7 +572,8 @@ pub mod pallet {
             });
 
             Self::deposit_event(Event::DidReplaced(sender, did));
-            Ok(().into())
+            //TODO: consider measuring how many properties were removed, and refund weight accordingly.
+            Ok(( ).into())
         }
 
         /// Add or remove DID controllers for a DID. Subject cannot be removed.
@@ -592,6 +641,11 @@ pub mod pallet {
                     &claim_consumer.consumer,
                     claim_consumer.expiration,
                 );
+                <DidsByConsumer<T>>::insert(
+                    &claim_consumer.consumer,
+                    &target_did,                    
+                    claim_consumer.expiration,
+                );
             });
 
             Self::deposit_event(Event::ClaimConsumersAdded(target_did, claim_consumers));
@@ -618,6 +672,7 @@ pub mod pallet {
 
             claim_consumers.iter().for_each(|claim_consumer| {
                 <ClaimConsumers<T>>::remove(&target_did, claim_consumer);
+                <DidsByConsumer<T>>::remove(claim_consumer,&target_did );
             });
 
             Self::deposit_event(Event::ClaimConsumersRemoved(target_did, claim_consumers));
@@ -638,7 +693,7 @@ pub mod pallet {
             let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                Self::is_valid_consumer(&target_did, &sender),
+                <DidByController<T>>::contains_key(&sender, &target_did),
                 Error::<T>::NotController
             );
 
@@ -646,6 +701,11 @@ pub mod pallet {
                 <ClaimIssuers<T>>::insert(
                     &target_did,
                     &claim_issuer.issuer,
+                    claim_issuer.expiration,
+                );
+                <DidsByIssuer<T>>::insert(
+                    &claim_issuer.issuer,
+                    &target_did,                    
                     claim_issuer.expiration,
                 );
             });
@@ -668,12 +728,13 @@ pub mod pallet {
             let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                Self::is_valid_consumer(&target_did, &sender),
+                <DidByController<T>>::contains_key(&sender, &target_did),
                 Error::<T>::NotController
             );
 
             claim_issuers.iter().for_each(|claim_issuer| {
                 <ClaimIssuers<T>>::remove(&target_did, claim_issuer);
+                <DidsByIssuer<T>>::remove(claim_issuer,&target_did);
             });
 
             Self::deposit_event(Event::ClaimIssuersRemoved(target_did, claim_issuers));
@@ -691,6 +752,7 @@ pub mod pallet {
             target_did: Did,
             description: Vec<u8>,
             statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
+            threshold: T::MemberCount
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_account_or_group!(origin);
 
@@ -698,6 +760,11 @@ pub mod pallet {
                 Self::is_valid_issuer(&target_did, &sender),
                 Error::<T>::NotAuthorized
             );
+
+            ensure!(
+                statements.len() < T::StatementLimit::get() as usize,
+                Error::<T>::StatementLimitExceeded
+            );   
 
             let claim = Claim {
                 description: enforce_limit!(description),
@@ -713,38 +780,50 @@ pub mod pallet {
                     .collect::<Result<Vec<_>, Error<T>>>()?,
                 created_by: sender.clone(),
                 attestation: None,
+                threshold,
             };
 
-            let claim_index = next_id!(NextClaimId<T>, T);
+            let claim_id = next_id!(NextClaimId<T>, T);
 
-            <Claims<T>>::insert(&target_did, claim_index, claim);
+            <Claims<T>>::insert(&target_did, claim_id, claim);
 
-            Self::deposit_event(Event::ClaimMade(target_did, claim_index, sender));
+            Self::deposit_event(Event::ClaimMade(target_did, claim_id, sender));
             Ok(().into())
         }
 
-        /// Claim issuer attests `claim_index` against `target_did` with given `statements`
+        /// Claim issuer attests `claim_id` against `target_did` with given `statements`
         ///
         /// Arguments:
         /// - `claim_issuer` DID of claim issuer
         /// - `target_did` DID against which claims are to be attested
-        /// - `claim_index` Claim to be attested
+        /// - `claim_id` Claim to be attested
         /// - `statements` Claim issuer overwrites these statements
         /// - `valid_until` Attestation expires
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn attest_claim(
             origin: OriginFor<T>,
             target_did: Did,
-            claim_index: T::ClaimId,
+            claim_id: T::ClaimId,
             statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
             valid_until: T::Moment,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let either = T::GroupsOriginAccountOrGroup::ensure_origin(origin)?;
+            let (sender,yes_votes) =  match either {
+                Either::Left(account_id) => (account_id,None),
+                Either::Right((_, yes_votes, _, group_account)) =>               
+                    (group_account,yes_votes)
+                ,
+            };           
 
             ensure!(
                 Self::is_valid_issuer(&target_did, &sender),
                 Error::<T>::NotAuthorized
             );
+
+            ensure!(
+                statements.len() < T::StatementLimit::get() as usize,
+                Error::<T>::StatementLimitExceeded
+            );   
 
             let statements = statements
                 .into_iter()
@@ -757,9 +836,15 @@ pub mod pallet {
                 })
                 .collect::<Result<Vec<_>, Error<T>>>()?;
 
+                if yes_votes.is_some() {
+                    let claim=<Claims<T>>::get(&target_did,claim_id);
+                    ensure! (claim.is_some(), Error::<T>::NotFound);
+                ensure!(yes_votes.unwrap()>=claim.unwrap().threshold,Error::<T>::ThresholdNotMet);
+                }
+
             <Claims<T>>::try_mutate_exists(
                 &target_did,
-                claim_index,
+                claim_id,
                 |maybe_claim| -> DispatchResult {
                     let mut claim = maybe_claim.as_mut().ok_or(Error::<T>::NotFound)?;
 
@@ -777,22 +862,22 @@ pub mod pallet {
                 },
             )?;
 
-            Self::deposit_event(Event::ClaimAttested(target_did, claim_index, sender));
+            Self::deposit_event(Event::ClaimAttested(target_did, claim_id, sender));
 
             Ok(().into())
         }
 
-        /// Claim issuer revokes `claim_index`
+        /// Claim issuer revokes `claim_id`
         ///
         /// Arguments:
         /// - `claim_issuer` DID of claim issuer
         /// - `target_did` DID against which claims are to be attested
-        /// - `claim_index` Claim to be attested
+        /// - `claim_id` Claim to be attested
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn revoke_attestation(
             origin: OriginFor<T>,
             target_did: Did,
-            claim_index: T::ClaimId,
+            claim_id: T::ClaimId,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_account_or_group!(origin);
 
@@ -803,7 +888,7 @@ pub mod pallet {
 
             <Claims<T>>::try_mutate_exists(
                 &target_did,
-                claim_index,
+                claim_id,
                 |maybe_claim| -> DispatchResult {
                     let mut claim = maybe_claim.as_mut().ok_or(Error::<T>::NotFound)?;
                     claim.attestation = None;
@@ -813,7 +898,7 @@ pub mod pallet {
 
             Self::deposit_event(Event::ClaimAttestationRevoked(
                 target_did,
-                claim_index,
+                claim_id,
                 sender,
             ));
             Ok(().into())
@@ -1096,16 +1181,56 @@ pub mod pallet {
             T::ClaimId,
             Claim<
                 T::AccountId,
-                <T as timestamp::Config>::Moment,
+                T::MemberCount,
+                <T as timestamp::Config>::Moment,               
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
             >,
         )> {
             let mut claims = Vec::new();
             <Claims<T>>::iter_prefix(did)
-                .for_each(|(claim_index, claim)| claims.push((claim_index, claim)));
+                .for_each(|(claim_id, claim)| claims.push((claim_id, claim)));
             claims
         }
+
+
+
+        pub fn get_claim(did: Did, claim_id:T::ClaimId) -> Option<Claim<T::AccountId,T::MemberCount,T::Moment,BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::FactStringLimit>>>
+            {
+                <Claims<T>>::get(did,claim_id)
+            }
+
+            pub fn get_claim_consumers(did: Did) -> Vec<(T::AccountId,T::Moment)>{           
+            let mut claim_consumers = Vec::new();
+            <ClaimConsumers<T>>::iter_prefix(did)
+                .for_each(|(account_id, expiry)| claim_consumers.push((account_id, expiry)));
+            claim_consumers
+        }
+        
+        pub fn get_claim_issuers(did: Did) -> Vec<(T::AccountId,T::Moment)>{
+            let mut claim_issuers = Vec::new();
+            <ClaimIssuers<T>>::iter_prefix(&did)
+                .for_each(|(account_id, expiry)| claim_issuers.push((account_id, expiry)));
+            claim_issuers
+        }
+
+        pub fn get_dids_by_consumer(account:T::AccountId) -> Vec<(Did,T::Moment)>{
+            let mut dids = Vec::new();
+            <DidsByConsumer<T>>::iter_prefix(account)
+                .for_each(|(did, expiry)| dids.push((did, expiry)));
+            dids
+        }
+
+        pub fn get_dids_by_issuer(account:T::AccountId) -> Vec<(Did,T::Moment)>{
+            let mut dids = Vec::new();
+            <DidsByIssuer<T>>::iter_prefix(account)
+                .for_each(|(did, expiry)| dids.push((did, expiry)));
+            dids
+        }
+
+
+
 
         // -- private functions --
 
@@ -1182,7 +1307,7 @@ pub mod pallet {
     }
     // -- for use in weights --
 
-    fn get_max_property_name_len(properties:&Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)->u32 {   
+    fn get_max_property_name_len_option(properties:&Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)->u32 {   
         let mut max_property_name_len = 0;     
         properties.as_ref().and_then(|properties| {
             Some({
@@ -1196,7 +1321,7 @@ pub mod pallet {
         max_property_name_len
     }
 
-    fn get_max_property_fact_len(properties:&Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)->u32{       
+    fn get_max_property_fact_len_option(properties:&Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)->u32{       
     
         let mut max_fact_len = 0;
         properties.as_ref().and_then(|properties| {
@@ -1214,5 +1339,44 @@ pub mod pallet {
             })
         });
         max_fact_len
+    }
+
+    fn get_max_property_name_len(properties:&Vec<DidProperty<Vec<u8>, Vec<u8>>>)->u32 {   
+        let mut max_property_name_len = 0;     
+        properties.into_iter().for_each(|property| {
+                    if property.name.len() as u32 > max_property_name_len {
+                        max_property_name_len = property.name.len() as u32;
+                    };             
+        });
+        max_property_name_len
+    }
+
+    fn get_max_property_fact_len(properties:&Vec<DidProperty<Vec<u8>, Vec<u8>>>)->u32{      
+    
+        let mut max_fact_len = 0;      
+                properties.into_iter().for_each(|property| {                
+                    let fact_len = match &property.fact {
+                        Fact::Text(string) => string.len() as u32,
+                        _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
+                    };
+                    if fact_len > max_fact_len {
+                        max_fact_len = fact_len;
+                    };             
+        });
+        max_fact_len
+    }
+
+    fn get_max_key_len(keys:&Option<Vec<Vec<u8>>>)->u32 {   
+        let mut max_keys_len = 0;     
+        keys.as_ref().and_then(|keys| {
+            Some({
+                keys.into_iter().for_each(|key| {
+                    if key.len() as u32 > max_keys_len {
+                        max_keys_len = key.len() as u32;
+                    };                  
+                })
+            })
+        });
+        max_keys_len
     }
 }

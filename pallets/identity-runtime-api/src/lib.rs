@@ -9,11 +9,12 @@ use primitives::{Catalog, Claim, Did, DidDocument, DidProperty};
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
 sp_api::decl_runtime_apis! {
-    pub trait IdentityApi<AccountId,CatalogId,ClaimId,Moment,BoundedStringName,BoundedStringFact>
+    pub trait IdentityApi<AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact>
     where
     AccountId: Codec,
     CatalogId: Codec,
     ClaimId: Codec,
+    MemberCount: Codec,
     Moment: Codec,
     BoundedStringName: Codec + Into<Vec<u8>>,
     BoundedStringFact: Codec + Into<Vec<u8>>
@@ -33,6 +34,18 @@ sp_api::decl_runtime_apis! {
 
         fn get_dids_by_controller( controller: AccountId,) -> Vec<(Did, Option<BoundedStringName>)>;
 
-        fn get_claims(did: Did) -> Vec<(ClaimId, Claim<AccountId,Moment,BoundedStringName, BoundedStringFact>)>;
+        fn get_claims(did: Did) -> Vec<(ClaimId, Claim<AccountId,MemberCount,Moment,BoundedStringName, BoundedStringFact>)>;
+
+        fn get_claim(did: Did, claim_id:ClaimId) -> Option<Claim<AccountId,MemberCount,Moment,BoundedStringName, BoundedStringFact>>;
+
+        fn get_claim_consumers(did: Did) -> Vec<(AccountId,Moment)>;
+
+        fn get_claim_issuers(did: Did) -> Vec<(AccountId,Moment)>;
+
+        fn get_dids_by_consumer(account:AccountId) -> Vec<(Did,Moment)>;
+
+        fn get_dids_by_issuer(account:AccountId) -> Vec<(Did,Moment)>;
+
+
     }
 }

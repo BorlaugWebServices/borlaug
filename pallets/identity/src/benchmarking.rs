@@ -44,11 +44,17 @@ fn create_properties(
     property_count: u32,
     property_name_len: u32,
     property_fact_len: u32,
+    property_set: u8, //make this unique over different calls to ensure unique property names.
 ) -> Vec<DidProperty<Vec<u8>, Vec<u8>>> {
     let mut properties = Vec::new();
-    for _ in 1..property_count {
+    assert!(property_name_len >= 5);
+    for x in 0..property_count {
+        //using x for first 4 chars ensures name is unique across returned vec
+        let mut name = x.to_le_bytes().to_vec();
+        name.push(property_set);
+        name.extend(vec![42u8; (property_name_len - 4) as usize]);
         properties.push(DidProperty {
-            name: vec![42u8; property_name_len as usize],
+            name,
             fact: Fact::Text(vec![42u8; property_fact_len as usize]),
         });
     }
@@ -58,7 +64,7 @@ fn create_properties(
 benchmarks! {
     register_did {
         let a in 1 .. (<T as Config>::NameLimit::get() -1);//short_name length
-        let b in 1 .. (<T as Config>::NameLimit::get()-1);//property name length
+        let b in 5 .. (<T as Config>::NameLimit::get()-1);//property name length
         let c in 1 .. (<T as Config>::FactStringLimit::get()-1);//property fact length
         let d in 1 .. (<T as Config>::PropertyLimit::get()-1);//property count
 
@@ -67,7 +73,7 @@ benchmarks! {
 
         let name = vec![42u8; a as usize];
 
-        let properties=create_properties(d,b,c);
+        let properties=create_properties(d,b,c,1);
 
     }: _(SystemOrigin::Signed(caller.clone()), Some(name), Some(properties))
 
@@ -86,7 +92,7 @@ benchmarks! {
 
     register_did_for {
         let a in 1 .. (<T as Config>::NameLimit::get() -1);//short_name length
-        let b in 1 .. (<T as Config>::NameLimit::get()-1);//property name length
+        let b in 5 .. (<T as Config>::NameLimit::get()-1);//property name length
         let c in 1 .. (<T as Config>::FactStringLimit::get()-1);//property fact length
         let d in 1 .. (<T as Config>::PropertyLimit::get()-1);//property count
 
@@ -97,7 +103,7 @@ benchmarks! {
 
         let name = vec![42u8; a as usize];
 
-        let properties=create_properties(d,b,c);
+        let properties=create_properties(d,b,c,1);
 
     }: _(SystemOrigin::Signed(caller.clone()),subject.clone(), Some(name), Some(properties))
 
@@ -114,12 +120,13 @@ benchmarks! {
         assert_eq!(dids_by_subject.len(), 1);
     }
 
+    //TODO: should we worry about None? Current weight may charge an extra read + write max.
     update_did {
         let a in 1 .. (<T as Config>::NameLimit::get() -1); //short_name length
-        let b in 1 .. (<T as Config>::NameLimit::get()-1); //add property name length
+        let b in 5 .. (<T as Config>::NameLimit::get()-1); //add property name length
         let c in 1 .. (<T as Config>::FactStringLimit::get()-1); //add property fact length
         let d in 1 .. (<T as Config>::PropertyLimit::get()-1); //add property count
-        let e in 1 .. (<T as Config>::NameLimit::get()-1); //remove_keys key length
+        let e in 5 .. (<T as Config>::NameLimit::get()-1); //remove_keys key length
         let f in 1 .. (<T as Config>::PropertyLimit::get()-1); //remove_keys count
 
 
@@ -127,7 +134,8 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let origional_name = vec![42u8; <T as Config>::NameLimit::get() as usize];
         //these will be removed
-        let origional_properties=create_properties(f,e,<T as Config>::FactStringLimit::get()-1);
+        let origional_properties=create_properties(f,e,<T as Config>::FactStringLimit::get()-1,1);
+        assert_eq!(origional_properties.len(),f as usize);
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin,Some(origional_name), Some(origional_properties.clone()))?;
@@ -139,7 +147,14 @@ benchmarks! {
         assert_eq!(dids_by_controller.len(), 1);
         let did=dids_by_controller[0];
 
-        let add_properties=create_properties(d,b,c);
+        let mut stored_properties=Vec::new();
+        <DidDocumentProperties<T>>::iter_prefix(&did).for_each(|(_, property)| {
+            stored_properties.push(property);
+        });
+        assert_eq!(stored_properties.len(), f as usize);
+
+        let add_properties=create_properties(d,b,c,2);
+        assert_eq!(add_properties.len(), d as usize);
 
         let remove_keys=origional_properties.into_iter().map(|property|property.name).collect();
 
@@ -158,6 +173,41 @@ benchmarks! {
             stored_properties.push(property);
         });
         assert_eq!(stored_properties.len(), add_properties.len());
+    }
+
+    replace_did {
+        let a in 5 .. (<T as Config>::NameLimit::get()-1); //replace property name length
+        let b in 1 .. (<T as Config>::FactStringLimit::get()-1); //replace property fact length
+        let c in 1 .. (<T as Config>::PropertyLimit::get()-1); //replace property count
+        let d in 1 .. (<T as Config>::PropertyLimit::get()-1); //origional_properties count
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        //these will be removed. Name length and fact length have no effect
+        let origional_properties=create_properties(d,<T as Config>::NameLimit::get()-1,<T as Config>::FactStringLimit::get()-1,1);
+
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin,None, Some(origional_properties.clone()))?;
+
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
+
+        let replace_properties=create_properties(c,a,b,2);
+
+    }: _(SystemOrigin::Signed(caller.clone()),did,  replace_properties.clone())
+
+    verify {
+
+        let mut stored_properties=Vec::new();
+        <DidDocumentProperties<T>>::iter_prefix(&did).for_each(|(_, property)| {
+            stored_properties.push(property);
+        });
+        assert_eq!(stored_properties.len(), replace_properties.len());
     }
 
 }

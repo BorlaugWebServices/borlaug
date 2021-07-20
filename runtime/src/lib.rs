@@ -1193,7 +1193,7 @@ impl_runtime_apis! {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
     }
-    impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,Moment,BoundedStringName,BoundedStringFact> for Runtime {
+    impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_catalogs(account:AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)> {
             Identity::get_catalogs(account)
         }
@@ -1215,9 +1215,22 @@ impl_runtime_apis! {
         fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<BoundedStringName>)>  {
             Identity::get_dids_by_controller(controller)
         }
-        fn get_claims( did: Did) -> Vec<(ClaimId, Claim<AccountId,Moment,BoundedStringName,BoundedStringFact>)>  {
+        fn get_claims( did: Did) -> Vec<(ClaimId, Claim<AccountId,MemberCount,Moment,BoundedStringName,BoundedStringFact>)>  {
             Identity::get_claims(did)
         }
+        fn get_claim(did: Did, claim_id:ClaimId) -> Option<Claim<AccountId,MemberCount,Moment,BoundedStringName, BoundedStringFact>>{
+            Identity::get_claim(did,claim_id)
+        }
+
+        fn get_claim_consumers(did: Did) -> Vec<(AccountId,Moment)>{Identity::get_claim_consumers(did)}
+
+        fn get_claim_issuers(did: Did) -> Vec<(AccountId,Moment)>{Identity::get_claim_issuers(did)}
+
+        fn get_dids_by_consumer(account:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_consumer(account)}
+
+        fn get_dids_by_issuer(account:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_issuer(account)}
+
+
     }
 
     impl settings_runtime_api::SettingsApi<Block,ModuleIndex,ExtrinsicIndex,Balance> for Runtime {

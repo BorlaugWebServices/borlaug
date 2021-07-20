@@ -5,7 +5,7 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Claim<AccountId, Moment, BoundedStringName, BoundedStringFact> {
+pub struct Claim<AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact> {
     /// A claim description
     pub description: BoundedStringName,
     /// Statements contained in this claim
@@ -14,6 +14,8 @@ pub struct Claim<AccountId, Moment, BoundedStringName, BoundedStringFact> {
     pub created_by: AccountId,
     /// Attesttation by claim verifier
     pub attestation: Option<Attestation<AccountId, Moment>>,
+    /// Minimum number of votes required for attestation
+    pub threshold: MemberCount,
 }
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]

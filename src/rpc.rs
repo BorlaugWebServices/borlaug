@@ -63,6 +63,7 @@ where
         AccountId,
         CatalogId,
         ClaimId,
+        MemberCount,
         Moment,
         BoundedStringName,
         BoundedStringFact,
