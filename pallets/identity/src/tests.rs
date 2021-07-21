@@ -51,6 +51,7 @@ fn register_did_should_work() {
         assert_eq!(stored_properties.len(), 1);
     });
 }
+
 #[test]
 fn register_did_for_should_work() {
     new_test_ext().execute_with(|| {
@@ -361,5 +362,292 @@ fn rename_catalog_should_work() {
         let name: BoundedVec<u8, <Test as Config>::NameLimit> =
             b"updated name".to_vec().try_into().unwrap();
         assert_eq!(catalog.unwrap().name, name);
+    });
+}
+
+#[test]
+fn add_dids_to_catalog_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        assert_ok!(Identity::create_catalog(
+            Origin::signed(1),
+            b"name".to_vec()
+        ));
+
+        let mut catalogs = Vec::new();
+        CatalogOwnership::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
+            catalogs.push(catalog_id);
+        });
+        assert_eq!(catalogs.len(), 1);
+
+        let catalog_id = catalogs[0];
+
+        assert_ok!(Identity::register_did(
+            Origin::signed(1),
+            None,
+            Some(vec![DidProperty {
+                name: b"name".to_vec(),
+                fact: Fact::Text(b"John Doe".to_vec())
+            }])
+        ));
+
+        let mut dids_by_controller = Vec::new();
+        DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did = dids_by_controller[0];
+
+        assert_ok!(Identity::add_dids_to_catalog(
+            Origin::signed(1),
+            catalog_id,
+            vec![(did, b"test_did".to_vec())]
+        ));
+
+        assert!(Catalogs::<Test>::get(&catalog_id, &did).is_some());
+
+        let did_name = Catalogs::<Test>::get(&catalog_id, &did).unwrap();
+        assert_eq!(did_name, b"test_did".to_vec());
+    })
+}
+
+#[test]
+fn authorize_claim_consumer_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        assert_ok!(Identity::register_did(
+            Origin::signed(1),
+            None,
+            Some(vec![DidProperty {
+                name: b"name".to_vec(),
+                fact: Fact::Text(b"John Doe".to_vec())
+            }])
+        ));
+
+        let mut dids_by_controller = Vec::new();
+        DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did = dids_by_controller[0];
+
+        let now = Utc::now().timestamp() as u64;
+        assert_ok!(Identity::authorize_claim_consumers(
+            Origin::signed(1),
+            did,
+            vec![ClaimConsumer {
+                    consumer: 2u64,
+                    expiration: now + 8640000
+            }]
+        ));
+
+        assert!(ClaimConsumers::<Test>::get(&did, &2).is_some());
+
+        let expiry = ClaimConsumers::<Test>::get(&did, &2).unwrap();
+        assert_eq!(expiry, now + 8640000);
+    })
+}
+
+#[test]
+fn authorize_claim_issuer_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        assert_ok!(Identity::register_did(
+            Origin::signed(1),
+            None,
+            Some(vec![DidProperty {
+                name: b"name".to_vec(),
+                fact: Fact::Text(b"John Doe".to_vec())
+            }])
+        ));
+
+        let mut dids_by_controller = Vec::new();
+        DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did = dids_by_controller[0];
+
+        let now = Utc::now().timestamp() as u64;
+        assert_ok!(Identity::authorize_claim_issuers(
+            Origin::signed(1),
+            did,
+            vec![ClaimIssuer {
+                    issuer: 2u64,
+                    expiration: now + 8640000
+            }]
+        ));
+
+        assert!(ClaimIssuers::<Test>::get(&did, &2).is_some());
+
+        let expiry = ClaimIssuers::<Test>::get(&did, &2).unwrap();
+        assert_eq!(expiry, now + 8640000);
+    })
+}
+
+#[test]
+fn make_claim_without_proposal_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        assert_ok!(Identity::register_did(
+            Origin::signed(1),
+            None,
+            Some(vec![DidProperty {
+                name: b"name".to_vec(),
+                fact: Fact::Text(b"John Doe".to_vec())
+            }])
+        ));
+
+        let mut dids_by_controller = Vec::new();
+        DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did = dids_by_controller[0];
+
+        let now = Utc::now().timestamp() as u64;
+        assert_ok!(Identity::authorize_claim_consumers(
+            Origin::signed(1),
+            did,
+            vec![ClaimConsumer {
+                    consumer: 2u64,
+                    expiration: now + 8640000
+            }]
+        ));
+
+        let mut claim_consumers = Vec::new();
+        ClaimConsumers::<Test>::iter_prefix(&did).for_each(|(claim_consumer, _)| {
+            claim_consumers.push(claim_consumer);
+        });
+        assert_eq!(claim_consumers.len(), 1);
+
+        assert!(ClaimConsumers::<Test>::get(&did, &2).is_some());
+
+        assert_ok!(Identity::make_claim(
+            Origin::signed(2),
+            did,
+            b"some desc".to_vec(),
+            vec![Statement {
+                name: b"name".to_vec(),
+                fact: Fact::Text(b"John Doe".to_vec()),
+                for_issuer: false
+            }],
+            1u32
+        ));
+
+        assert!(Claims::<Test>::get(&did, &1).is_some());
+
+        let claim = Claims::<Test>::get(&did, &1).unwrap();
+
+        assert_eq!(claim.description, b"some desc".to_vec());
+        assert_eq!(claim.statements, vec![Statement {
+            name: b"name".to_vec().try_into().unwrap(),
+            fact: Fact::Text(b"John Doe".to_vec().try_into().unwrap()),
+            for_issuer: false
+        }]);
+        assert_eq!(claim.threshold, 1u32);
+    });
+}
+
+#[test]
+fn attest_claim_without_proposal_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        assert_ok!(Identity::register_did(
+            Origin::signed(1),
+            None,
+            Some(vec![DidProperty {
+                name: b"name".to_vec(),
+                fact: Fact::Text(b"John Doe".to_vec())
+            }])
+        ));
+
+        let mut dids_by_controller = Vec::new();
+        DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did = dids_by_controller[0];
+
+        let now = Utc::now().timestamp() as u64;
+        assert_ok!(Identity::authorize_claim_consumers(
+            Origin::signed(1),
+            did,
+            vec![ClaimConsumer {
+                    consumer: 2u64,
+                    expiration: now + 8640000
+            }]
+        ));
+
+        let mut claim_consumers = Vec::new();
+        ClaimConsumers::<Test>::iter_prefix(&did).for_each(|(claim_consumer, _)| {
+            claim_consumers.push(claim_consumer);
+        });
+        assert_eq!(claim_consumers.len(), 1);
+
+        assert!(ClaimConsumers::<Test>::get(&did, &2).is_some());
+
+        assert_ok!(Identity::make_claim(
+            Origin::signed(2),
+            did,
+            b"some desc".to_vec(),
+            vec![Statement {
+                name: b"name".to_vec(),
+                fact: Fact::Text(b"John Doe".to_vec()),
+                for_issuer: false
+            }],
+            1u32
+        ));
+
+        assert!(Claims::<Test>::get(&did, &1).is_some());
+
+        let claim = Claims::<Test>::get(&did, &1).unwrap();
+
+        assert_eq!(claim.description, b"some desc".to_vec());
+        assert_eq!(claim.statements, vec![Statement {
+            name: b"name".to_vec().try_into().unwrap(),
+            fact: Fact::Text(b"John Doe".to_vec().try_into().unwrap()),
+            for_issuer: false
+        }]);
+        assert_eq!(claim.threshold, 1u32);
+        assert!(claim.attestation.is_none());
+
+        let now = Utc::now().timestamp() as u64;
+        assert_ok!(Identity::authorize_claim_issuers(
+            Origin::signed(1),
+            did,
+            vec![ClaimIssuer {
+                    issuer: 3u64,
+                    expiration: now + 8640000
+            }]
+        ));
+
+        assert!(ClaimIssuers::<Test>::get(&did, &3).is_some());
+
+        assert_ok!(Identity::attest_claim(
+            Origin::signed(3),
+            did,
+            1u32,
+            vec![Statement {
+                name: b"name".to_vec(),
+                fact: Fact::Text(b"John Doe".to_vec()),
+                for_issuer: true
+            }],
+            now + 8640000
+        ));
+
+        let claim_after_attestation = Claims::<Test>::get(&did, &1).unwrap();
+
+        assert!(claim_after_attestation.attestation.is_some());
     });
 }

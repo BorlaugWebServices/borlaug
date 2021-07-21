@@ -72,6 +72,14 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         did: Did,
         at: Option<BlockHash>,
     ) -> Result<Vec<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>>;
+
+    #[rpc(name = "get_claim")]
+    fn get_claim(
+        &self,
+        did: Did,
+        claim_id: ClaimId,
+        at: Option<BlockHash>,
+    ) -> Result<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>;
 }
 
 #[derive(Encode, Default, Decode, Debug, Clone)]
@@ -623,5 +631,21 @@ where
             .into_iter()
             .map(|(claim_id, claim)| (claim_id, claim).into())
             .collect())
+    }
+
+    fn get_claim(
+        &self,
+        did: Did,
+        claim_id: ClaimId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let claim = api
+            .get_claim(&at, did.into(), claim_id.into())
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok((claim_id, claim).into())
     }
 }

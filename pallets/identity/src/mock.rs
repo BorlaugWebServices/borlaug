@@ -24,6 +24,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         Groups: groups::{Module, Call, Storage, Event<T>, Origin<T>},
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
+        Timestamp: timestamp::{Module, Call, Storage, Inherent},
     }
 );
 
@@ -100,6 +101,9 @@ parameter_types! {
     pub const FactStringLimit: u32 = 500;
     pub const PropertyLimit: u32 = 500;
     pub const StatementLimit: u32 = 500;
+    pub const ControllerLimit: u32 = 500;
+    pub const ClaimConsumerLimit: u32 = 500;
+    pub const ClaimIssuerLimit: u32 = 500;
 }
 
 impl pallet_identity::Config for Test {
@@ -111,6 +115,9 @@ impl pallet_identity::Config for Test {
     type FactStringLimit = FactStringLimit;
     type PropertyLimit = PropertyLimit;
     type StatementLimit = StatementLimit;
+    type ControllerLimit = ControllerLimit;
+    type ClaimConsumerLimit = ClaimConsumerLimit;
+    type ClaimIssuerLimit = ClaimIssuerLimit;
 }
 
 parameter_types! {
@@ -139,8 +146,15 @@ impl groups::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    system::GenesisConfig::default()
+    let mut t = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
-        .unwrap()
-        .into()
+        .unwrap();
+    pallet_balances::GenesisConfig::<Test> {
+        balances: vec![(1, 2_000_000_000u64)],
+    }
+        .assimilate_storage(&mut t)
+        .unwrap();
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext.execute_with(|| System::set_block_number(1));
+    ext
 }
