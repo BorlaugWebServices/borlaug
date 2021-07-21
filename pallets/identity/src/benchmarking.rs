@@ -29,7 +29,7 @@ use frame_support::{
 // use frame_system::Call as SystemCall;
 use frame_system::{self, RawOrigin as SystemOrigin};
 use primitives::*;
-use sp_runtime::traits::Bounded;
+use sp_runtime::traits::{Bounded, UniqueSaturatedFrom};
 use sp_std::{prelude::*, vec};
 
 #[allow(unused)]
@@ -59,6 +59,28 @@ fn create_properties(
         });
     }
     properties
+}
+
+fn create_statements(
+    statement_count: u32,
+    statement_name_len: u32,
+    statement_fact_len: u32,
+    statement_set: u8, //make this unique over different calls to ensure unique statement names.
+) -> Vec<Statement<Vec<u8>, Vec<u8>>> {
+    let mut statements = Vec::new();
+    assert!(statement_name_len >= 5);
+    for x in 0..statement_count {
+        //using x for first 4 chars ensures name is unique across returned vec
+        let mut name = x.to_le_bytes().to_vec();
+        name.push(statement_set);
+        name.extend(vec![42u8; (statement_name_len - 4) as usize]);
+        statements.push(Statement {
+            name,
+            fact: Fact::Text(vec![42u8; statement_fact_len as usize]),
+            for_issuer: true,
+        });
+    }
+    statements
 }
 //provide different seed to get new unique set
 fn create_accounts<T: Config>(n: u32, seed: u32) -> Vec<T::AccountId> {
@@ -315,6 +337,175 @@ benchmarks! {
         assert_eq!(stored_consumers.len(), 0);
     }
 
+    authorize_claim_issuers {
+        let a in 1 .. (<T as Config>::ClaimIssuerLimit::get()-1);
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
+
+        let claim_issuers=create_accounts::<T>(a,1);
+        let now= <timestamp::Module<T>>::get();
+        let claim_issuers:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now}).collect();
+
+    }: _(SystemOrigin::Signed(caller.clone()),did,  claim_issuers.clone())
+
+    verify {
+        let mut stored_issuers=Vec::new();
+        <ClaimIssuers<T>>::iter_prefix(&did).for_each(|(_, issuer)| {
+            stored_issuers.push(issuer);
+        });
+        assert_eq!(stored_issuers.len(), claim_issuers.len());
+    }
+
+    revoke_claim_issuers {
+        let a in 1 .. (<T as Config>::ClaimIssuerLimit::get()-1);
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
+
+        let claim_issuers=create_accounts::<T>(a,1);
+        let now= <timestamp::Module<T>>::get();
+        let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now}).collect();
+
+        IdentityPallet::<T>::authorize_claim_issuers(origin.clone(),did,  claim_issuers_to_add)?;
+
+    }: _(SystemOrigin::Signed(caller.clone()),did,  claim_issuers)
+
+    verify {
+        let mut stored_issuers=Vec::new();
+        <ClaimIssuers<T>>::iter_prefix(&did).for_each(|(_, issuer)| {
+            stored_issuers.push(issuer);
+        });
+        assert_eq!(stored_issuers.len(), 0);
+    }
+
+    make_claim {
+        let a in 1 .. (<T as Config>::NameLimit::get()-1);
+        let b in 1 .. (<T as Config>::StatementLimit::get()-1);
+        let c in 5 .. (<T as Config>::NameLimit::get()-1);
+        let d in 1 .. (<T as Config>::FactStringLimit::get()-1);
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
+
+        let consumer:T::AccountId = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        let claim_consumers=vec![consumer.clone()];
+        let now_plus= <timestamp::Module<T>>::get()+T::Moment::unique_saturated_from(1_000_000u32);
+        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
+
+        IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
+
+        let description=vec![42u8; a as usize];
+
+        let statements=create_statements(b,c,d,1);
+
+        let threshold=T::MemberCount::unique_saturated_from(1u32);
+
+    }: _(SystemOrigin::Signed(consumer.clone()),did,  description,statements,threshold)
+
+    verify {
+        let mut claims=Vec::new();
+        <Claims<T>>::iter_prefix(&did).for_each(|(claim_id,claim)| {
+            claims.push(claim);
+        });
+        assert_eq!(claims.len(), 1);
+        let claim=&claims[0];
+        assert_eq!(claim.description.len() , a as usize );
+        assert_eq!(claim.statements.len(), b as usize);
+    }
+
+
+
+    attest_claim {
+        let a in 1 .. (<T as Config>::StatementLimit::get()-1);   //existing statement
+        let b in 1 .. (<T as Config>::StatementLimit::get()-1);   //additional statements
+        let c in 5 .. (<T as Config>::NameLimit::get()-1);
+        let d in 1 .. (<T as Config>::FactStringLimit::get()-1);
+
+        //TODO:test with group attestation as that has an extra db read
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
+
+        let consumer = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+        let claim_consumers=vec![consumer];
+        let now_plus= <timestamp::Module<T>>::get()+T::Moment::unique_saturated_from(1_000_000u32);
+        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
+        IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
+
+        let existing_statements=create_statements(a,5,5,1);
+        let threshold=T::MemberCount::unique_saturated_from(1u32);
+
+        IdentityPallet::<T>::make_claim(origin.clone(),did,vec![42u8],  existing_statements,threshold)?;
+
+        let mut claims=Vec::new();
+        <Claims<T>>::iter_prefix(&did).for_each(|(claim_id,claim)| {
+            claims.push((claim_id,claim));
+        });
+        assert_eq!(claims.len(), 1);
+        let (claim_id,claim)=claims[0].clone();
+
+        let issuer:T::AccountId = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+        let claim_issuers=vec![issuer.clone()];
+        let now_plus= <timestamp::Module<T>>::get()+T::Moment::unique_saturated_from(1_000_000u32);
+        let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
+        IdentityPallet::<T>::authorize_claim_issuers(origin.clone(),did,  claim_issuers_to_add)?;
+
+        let attester_statements=create_statements(b,c,d,2);
+
+    }: _(SystemOrigin::Signed(issuer.clone()),did, claim_id, attester_statements,now_plus)
+
+    verify {
+        let claim=<Claims<T>>::get(did, claim_id);
+        assert!(claim.is_some());
+        let claim=claim.unwrap();
+        assert_eq!(claim.statements.len(), (a+b) as usize);
+        assert!(claim.attestation.is_some());
+    }
 
 }
 

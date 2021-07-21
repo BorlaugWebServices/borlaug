@@ -65,12 +65,13 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use primitives::{bounded_vec::BoundedVec, *};
     use sp_runtime::{
-        traits::{AtLeast32Bit, CheckedAdd, Hash, One},
+        traits::{AtLeast32Bit,Saturating,UniqueSaturatedFrom,CheckedAdd, Hash, One},
         DispatchResult, Either,
     };
     use sp_std::prelude::*;
     #[pallet::config]
-    pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
+    pub trait Config: frame_system::Config + timestamp::Config + groups::Config 
+    {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -650,7 +651,9 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_consumers` DIDs of claim consumer
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::authorize_claim_consumers(            
+            claim_consumers.len() as u32
+        ))]
         pub fn authorize_claim_consumers(
             origin: OriginFor<T>,
             target_did: Did,
@@ -690,7 +693,9 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_consumers` DIDs of claim consumers to be revoked
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::revoke_claim_consumers(            
+            claim_consumers.len() as u32
+        ))]
         pub fn revoke_claim_consumers(
             origin: OriginFor<T>,
             target_did: Did,
@@ -722,7 +727,9 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_issuers` DIDs of claim issuer
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::authorize_claim_issuers(            
+            claim_issuers.len() as u32
+        ))]
         pub fn authorize_claim_issuers(
             origin: OriginFor<T>,
             target_did: Did,
@@ -762,7 +769,9 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_issuers` DIDs of claim issuers to be revoked
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::revoke_claim_issuers(            
+            claim_issuers.len() as u32
+        ))]
         pub fn revoke_claim_issuers(
             origin: OriginFor<T>,
             target_did: Did,
@@ -794,7 +803,13 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_consumer` DID of claim consumer
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::make_claim(            
+            description.len() as u32,
+            statements.len() as u32,
+            get_max_statement_name_len(statements),
+            get_max_statement_fact_len(statements),
+
+        ))]
         pub fn make_claim(
             origin: OriginFor<T>,
             target_did: Did,
@@ -1286,8 +1301,8 @@ pub mod pallet {
         pub fn is_valid_consumer(target_did: &Did, account: &T::AccountId) -> bool {
             <ClaimConsumers<T>>::contains_key(target_did, account) && {
                 let expiry = <ClaimConsumers<T>>::get(target_did, account).unwrap();
-                let now = <timestamp::Module<T>>::get();
-                expiry > now
+                let now = <timestamp::Module<T>>::get();                 
+                expiry.saturating_mul(T::Moment::unique_saturated_from(1_000u32)) > now
             }
         }
 
@@ -1296,7 +1311,7 @@ pub mod pallet {
             <ClaimIssuers<T>>::contains_key(target_did, account) && {
                 let expiry = <ClaimIssuers<T>>::get(target_did, account).unwrap();
                 let now = <timestamp::Module<T>>::get();
-                expiry > now
+                expiry.saturating_mul(T::Moment::unique_saturated_from(1_000u32)) > now
             }
         }
 
@@ -1354,6 +1369,18 @@ pub mod pallet {
         
     }
     // -- for use in weights --
+    
+    macro_rules! max_fact_len {
+        ($fact:expr,$max_fact_len:ident) => {{
+            let fact_len = match &$fact {
+                Fact::Text(string) => string.len() as u32,
+                _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
+            };
+            if fact_len > $max_fact_len {
+                $max_fact_len = fact_len;
+            };
+        }};
+    }
 
     fn get_max_property_name_len_option(properties:&Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)->u32 {   
         let mut max_property_name_len = 0;     
@@ -1369,20 +1396,12 @@ pub mod pallet {
         max_property_name_len
     }
 
-    fn get_max_property_fact_len_option(properties:&Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)->u32{       
-    
+    fn get_max_property_fact_len_option(properties:&Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)->u32{  
         let mut max_fact_len = 0;
         properties.as_ref().and_then(|properties| {
             Some({
-                properties.into_iter().for_each(|property| {
-                
-                    let fact_len = match &property.fact {
-                        Fact::Text(string) => string.len() as u32,
-                        _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
-                    };
-                    if fact_len > max_fact_len {
-                        max_fact_len = fact_len;
-                    };
+                properties.into_iter().for_each(|property| {   
+                    max_fact_len!(property.fact,max_fact_len);   
                 })
             })
         });
@@ -1392,24 +1411,35 @@ pub mod pallet {
     fn get_max_property_name_len(properties:&Vec<DidProperty<Vec<u8>, Vec<u8>>>)->u32 {   
         let mut max_property_name_len = 0;     
         properties.into_iter().for_each(|property| {
-                    if property.name.len() as u32 > max_property_name_len {
-                        max_property_name_len = property.name.len() as u32;
-                    };             
+            if property.name.len() as u32 > max_property_name_len {
+                max_property_name_len = property.name.len() as u32;
+            };             
         });
         max_property_name_len
     }
 
-    fn get_max_property_fact_len(properties:&Vec<DidProperty<Vec<u8>, Vec<u8>>>)->u32{      
-    
+    fn get_max_property_fact_len(properties:&Vec<DidProperty<Vec<u8>, Vec<u8>>>)->u32{
         let mut max_fact_len = 0;      
-                properties.into_iter().for_each(|property| {                
-                    let fact_len = match &property.fact {
-                        Fact::Text(string) => string.len() as u32,
-                        _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
-                    };
-                    if fact_len > max_fact_len {
-                        max_fact_len = fact_len;
-                    };             
+        properties.into_iter().for_each(|property| {                
+            max_fact_len!(property.fact,max_fact_len);              
+        });
+        max_fact_len
+    }
+
+    fn get_max_statement_name_len(statements:&Vec<Statement<Vec<u8>, Vec<u8>>>)->u32 {   
+        let mut max_statement_name_len = 0;     
+        statements.into_iter().for_each(|statement| {
+            if statement.name.len() as u32 > max_statement_name_len {
+                max_statement_name_len = statement.name.len() as u32;
+            };             
+        });
+        max_statement_name_len
+    }
+
+    fn get_max_statement_fact_len(statements:&Vec<Statement<Vec<u8>, Vec<u8>>>)->u32{         
+        let mut max_fact_len = 0;      
+        statements.into_iter().for_each(|statement| {                
+            max_fact_len!(statement.fact,max_fact_len);              
         });
         max_fact_len
     }
