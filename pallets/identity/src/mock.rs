@@ -104,6 +104,7 @@ parameter_types! {
     pub const ControllerLimit: u32 = 500;
     pub const ClaimConsumerLimit: u32 = 500;
     pub const ClaimIssuerLimit: u32 = 500;
+    pub const CatalogDidLimit: u32 = 500;
 }
 
 impl pallet_identity::Config for Test {
@@ -118,6 +119,7 @@ impl pallet_identity::Config for Test {
     type ControllerLimit = ControllerLimit;
     type ClaimConsumerLimit = ClaimConsumerLimit;
     type ClaimIssuerLimit = ClaimIssuerLimit;
+    type CatalogDidLimit = CatalogDidLimit;
 }
 
 parameter_types! {
@@ -152,8 +154,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     pallet_balances::GenesisConfig::<Test> {
         balances: vec![(1, 2_000_000_000u64)],
     }
-        .assimilate_storage(&mut t)
-        .unwrap();
+    .assimilate_storage(&mut t)
+    .unwrap();
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
     ext

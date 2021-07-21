@@ -58,6 +58,7 @@ parameter_types! {
     pub const ControllerLimit: u32 = 50;
     pub const ClaimConsumerLimit: u32 = 50;
     pub const ClaimIssuerLimit: u32 = 50;
+    pub const CatalogDidLimit: u32 = 500;
 }
 
 pub type BoundedStringName = BoundedVec<u8, NameLimit>;

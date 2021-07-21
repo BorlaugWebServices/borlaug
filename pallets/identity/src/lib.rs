@@ -106,6 +106,9 @@ pub mod pallet {
         /// The maximum number of claim issuers you can add/remove at one time (does not limit total)
         #[pallet::constant]
         type ClaimIssuerLimit: Get<u32>;
+        /// The maximum number of dids you can add/remove to a catalog at one time (does not limit total)
+        #[pallet::constant]
+        type CatalogDidLimit: Get<u32>;
     }
 
     #[pallet::event]
@@ -147,6 +150,8 @@ pub mod pallet {
         CatalogRemoved(T::AccountId, T::CatalogId),
         /// Dids added to catalog (account, Catalog Id)
         CatalogDidsAdded(T::AccountId, T::CatalogId),
+        /// Did short_name in catalog changed (account, catalog_id, did)
+        CatalogDidRenamed(T::AccountId, T::CatalogId, Did),
         /// Dids removed from catalog (account, catalog_id)
         CatalogDidsRemoved(T::AccountId, T::CatalogId),
         /// DID Controller updated (account, target_did, added_controllers,removed_controllers)
@@ -176,6 +181,8 @@ pub mod pallet {
         ClaimIssuerLimitExceeded,
         /// Too many statements
         StatementLimitExceeded,
+        /// Did limit exceeded. Call extrinsic multiple times to add/remove more.
+        CatalogDidLimitExceeded,
         /// A non-controller account attempted to  modify a DID
         NotController,
         /// The requested DID Document does not exist
@@ -346,7 +353,7 @@ pub mod pallet {
         Claim<
             T::AccountId,
             T::MemberCount,
-            T::Moment,
+            T::Moment,           
             BoundedVec<u8, <T as Config>::NameLimit>,
             BoundedVec<u8, <T as Config>::FactStringLimit>,
         >,
@@ -802,7 +809,9 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
-        /// - `claim_consumer` DID of claim consumer
+        /// - `description` description of claim
+        /// - `statements` statements of claim
+        /// - `threshold` threshold required to attest claim if group makes attestation
         #[pallet::weight(<T as Config>::WeightInfo::make_claim(            
             description.len() as u32,
             statements.len() as u32,
@@ -829,18 +838,20 @@ pub mod pallet {
                 Error::<T>::StatementLimitExceeded
             );   
 
+            let statements=statements
+            .into_iter()
+            .map(|statement| {
+                Ok(Statement {
+                    name: enforce_limit!(statement.name),
+                    fact: enforce_limit_fact!(statement.fact),
+                    for_issuer: statement.for_issuer,
+                })
+            })
+            .collect::<Result<Vec<_>, Error<T>>>()?;          
+
             let claim = Claim {
                 description: enforce_limit!(description),
-                statements: statements
-                    .into_iter()
-                    .map(|statement| {
-                        Ok(Statement {
-                            name: enforce_limit!(statement.name),
-                            fact: enforce_limit_fact!(statement.fact),
-                            for_issuer: statement.for_issuer,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, Error<T>>>()?,
+                statements,
                 created_by: sender.clone(),
                 attestation: None,
                 threshold,
@@ -856,13 +867,18 @@ pub mod pallet {
 
         /// Claim issuer attests `claim_id` against `target_did` with given `statements`
         ///
-        /// Arguments:
-        /// - `claim_issuer` DID of claim issuer
+        /// Arguments:        
         /// - `target_did` DID against which claims are to be attested
         /// - `claim_id` Claim to be attested
         /// - `statements` Claim issuer overwrites these statements
         /// - `valid_until` Attestation expires
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::attest_claim(
+            statements.len() as u32,
+            <T as Config>::StatementLimit::get() as u32,
+            get_max_statement_name_len(statements),
+            get_max_statement_fact_len(statements),
+
+        ))]
         pub fn attest_claim(
             origin: OriginFor<T>,
             target_did: Did,
@@ -886,9 +902,14 @@ pub mod pallet {
             ensure!(
                 statements.len() < T::StatementLimit::get() as usize,
                 Error::<T>::StatementLimitExceeded
-            );   
+            );  
+            
+            let statements_len=statements.len();
 
-            let statements = statements
+            let max_statement_name_len= get_max_statement_name_len(&statements);
+            let max_statement_fact_len=     get_max_statement_fact_len(&statements);
+
+            let bounded_statements = statements
                 .into_iter()
                 .map(|statement| {
                     Ok(Statement {
@@ -905,14 +926,21 @@ pub mod pallet {
                 ensure!(yes_votes.unwrap()>=claim.unwrap().threshold,Error::<T>::ThresholdNotMet);
                 }
 
+                
+
+                let mut existing_statements_len=0;
+
             <Claims<T>>::try_mutate_exists(
                 &target_did,
                 claim_id,
                 |maybe_claim| -> DispatchResult {
                     let mut claim = maybe_claim.as_mut().ok_or(Error::<T>::NotFound)?;
 
-                    let mut stmts = statements.clone();
-                    let names = statements.into_iter().map(|s| s.name).collect::<Vec<_>>();
+                    existing_statements_len=claim.statements.len();
+
+                    let mut stmts = bounded_statements.clone();
+                    
+                    let names = bounded_statements.into_iter().map(|s| s.name).collect::<Vec<_>>();
 
                     claim.statements.retain(|s| !names.contains(&s.name));
                     claim.statements.append(&mut stmts);
@@ -927,16 +955,25 @@ pub mod pallet {
 
             Self::deposit_event(Event::ClaimAttested(target_did, claim_id, sender));
 
-            Ok(().into())
+            Ok(Some(<T as Config>::WeightInfo::attest_claim(
+                statements_len as u32,
+                existing_statements_len as u32,
+                max_statement_name_len,
+                max_statement_fact_len
+                
+            )).into())
         }
 
         /// Claim issuer revokes `claim_id`
         ///
-        /// Arguments:
-        /// - `claim_issuer` DID of claim issuer
+        /// Arguments:        
         /// - `target_did` DID against which claims are to be attested
         /// - `claim_id` Claim to be attested
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::revoke_attestation(            
+            <T as Config>::StatementLimit::get() as u32,
+            <T as Config>::NameLimit::get() as u32,
+            <T as Config>::FactStringLimit::get() as u32,
+        ))]
         pub fn revoke_attestation(
             origin: OriginFor<T>,
             target_did: Did,
@@ -949,11 +986,21 @@ pub mod pallet {
                 Error::<T>::NotAuthorized
             );
 
+            let mut existing_statements_len=0;
+            let mut max_statement_name_len=0;
+            let mut max_statement_fact_len=0;
+
             <Claims<T>>::try_mutate_exists(
                 &target_did,
                 claim_id,
                 |maybe_claim| -> DispatchResult {
                     let mut claim = maybe_claim.as_mut().ok_or(Error::<T>::NotFound)?;
+                    
+                    //for correct weight calculation
+                    existing_statements_len=claim.statements.len();
+                    max_statement_name_len=get_max_statement_name_bounded_len::<T>(&claim.statements);
+                    max_statement_fact_len=get_max_statement_fact_bounded_len::<T>(&claim.statements);
+
                     claim.attestation = None;
                     Ok(())
                 },
@@ -964,14 +1011,20 @@ pub mod pallet {
                 claim_id,
                 sender,
             ));
-            Ok(().into())
+            Ok(Some(<T as Config>::WeightInfo::revoke_attestation(                
+                existing_statements_len as u32,
+                max_statement_name_len as u32,
+                max_statement_fact_len as u32,
+            )).into())
         }
 
         /// Add a new catalog
         ///
         /// Arguments:
-        /// - `owner_did` DID of caller
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `name` name of the catalog
+        #[pallet::weight(<T as Config>::WeightInfo::create_catalog(   
+            name.len() as u32
+        ))]
         pub fn create_catalog(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
             let sender = ensure_account_or_group!(origin);
 
@@ -989,8 +1042,11 @@ pub mod pallet {
         /// Rename a catalog
         ///
         /// Arguments:
-        /// - `owner_did` DID of caller
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `catalog_id` id of catalog
+        /// - `name` new name of catalog
+        #[pallet::weight(<T as Config>::WeightInfo::rename_catalog(   
+            name.len() as u32
+        ))]
         pub fn rename_catalog(
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
@@ -1013,10 +1069,9 @@ pub mod pallet {
 
         /// Remove a catalog
         ///
-        /// Arguments:
-        /// - `owner_did` DID of caller
+        /// Arguments:        
         /// - `catalog_id` Catalog to be removed
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::remove_catalog())]
         pub fn remove_catalog(
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
@@ -1038,11 +1093,13 @@ pub mod pallet {
 
         /// Add DIDs to a catalog
         ///
-        /// Arguments:
-        /// - `owner_did` DID of caller
+        /// Arguments:       
         /// - `catalog_id` Catalog to which DID are to be added
         /// - `dids` DIDs are to be added
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::add_dids_to_catalog(   
+            dids.len() as u32,       
+            get_max_did_short_name_len(dids)     
+        ))]
         pub fn add_dids_to_catalog(
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
@@ -1054,6 +1111,11 @@ pub mod pallet {
                 <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
+
+            ensure!(
+                dids.len() < T::CatalogDidLimit::get() as usize,
+                Error::<T>::CatalogDidLimitExceeded
+            );              
 
             let dids = dids
                 .into_iter()
@@ -1070,11 +1132,13 @@ pub mod pallet {
 
         /// Rename DID in catalog. Changes the short_name stored in the catalog.
         ///
-        /// Arguments:
-        /// - `owner_did` DID of caller
-        /// - `catalog_id` Catalog to which DID are to be added
-        /// - `dids` DIDs are to be added
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// Arguments:       
+        /// - `catalog_id` Catalog if DID
+        /// - `target_did` DID to be renamed
+        /// - `short_name` new short_name of did in catalog
+        #[pallet::weight(<T as Config>::WeightInfo::rename_did_in_catalog(   
+            short_name.len() as u32,
+        ))]
         pub fn rename_did_in_catalog(
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
@@ -1092,17 +1156,18 @@ pub mod pallet {
 
             <Catalogs<T>>::insert(&catalog_id, &target_did, bounded_name);
 
-            Self::deposit_event(Event::CatalogDidsAdded(sender, catalog_id));
+            Self::deposit_event(Event::CatalogDidRenamed(sender, catalog_id,target_did));
             Ok(().into())
         }
 
         /// Remove DIDs from a catalog
         ///
-        /// Arguments:
-        /// - `owner_did` DID of caller
+        /// Arguments:        
         /// - `catalog_id` Catalog to which DID are to be removed
         /// - `dids` DIDs are to be removed
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::remove_dids_from_catalog(   
+            dids.len() as u32,
+        ))]
         pub fn remove_dids_from_catalog(
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
@@ -1113,6 +1178,11 @@ pub mod pallet {
             ensure!(
                 <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
+            );
+
+            ensure!(
+                dids.len() < T::CatalogDidLimit::get() as usize,
+                Error::<T>::CatalogDidLimitExceeded
             );
 
             for did in dids.into_iter() {
@@ -1426,7 +1496,7 @@ pub mod pallet {
         max_fact_len
     }
 
-    fn get_max_statement_name_len(statements:&Vec<Statement<Vec<u8>, Vec<u8>>>)->u32 {   
+    fn get_max_statement_name_len(statements:&Vec<Statement<Vec<u8>, Vec<u8>>>)->u32   {   
         let mut max_statement_name_len = 0;     
         statements.into_iter().for_each(|statement| {
             if statement.name.len() as u32 > max_statement_name_len {
@@ -1436,7 +1506,25 @@ pub mod pallet {
         max_statement_name_len
     }
 
-    fn get_max_statement_fact_len(statements:&Vec<Statement<Vec<u8>, Vec<u8>>>)->u32{         
+    fn get_max_statement_fact_len(statements:&Vec<Statement<Vec<u8>, Vec<u8>>>)->u32   {  
+        let mut max_fact_len = 0;      
+        statements.into_iter().for_each(|statement| {                
+            max_fact_len!(statement.fact,max_fact_len);              
+        });
+        max_fact_len
+    }
+
+    fn get_max_statement_name_bounded_len<T:Config>(statements:&Vec<Statement<BoundedVec<u8, <T as Config>::NameLimit>, BoundedVec<u8, <T as Config>::FactStringLimit>>>)->u32   {   
+        let mut max_statement_name_len = 0;     
+        statements.into_iter().for_each(|statement| {
+            if statement.name.len() as u32 > max_statement_name_len {
+                max_statement_name_len = statement.name.len() as u32;
+            };             
+        });
+        max_statement_name_len
+    }
+
+    fn get_max_statement_fact_bounded_len<T:Config>(statements:&Vec<Statement<BoundedVec<u8, <T as Config>::NameLimit>, BoundedVec<u8, <T as Config>::FactStringLimit>>>)->u32   {   
         let mut max_fact_len = 0;      
         statements.into_iter().for_each(|statement| {                
             max_fact_len!(statement.fact,max_fact_len);              
@@ -1457,4 +1545,15 @@ pub mod pallet {
         });
         max_keys_len
     }
+    fn get_max_did_short_name_len(catalog_dids:&Vec<(Did,Vec<u8>)>)->u32 {   
+        let mut max_did_short_name_len = 0;     
+        
+        catalog_dids.into_iter().for_each(|(_,short_name)| {
+            if short_name.len() as u32 > max_did_short_name_len {
+                max_did_short_name_len = short_name.len() as u32;
+            };
+        });
+        max_did_short_name_len
+    }
+
 }
