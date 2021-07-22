@@ -80,6 +80,34 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         claim_id: ClaimId,
         at: Option<BlockHash>,
     ) -> Result<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>;
+
+    #[rpc(name = "get_claim_consumers")]
+    fn get_claim_consumers(
+        &self,
+        did: Did,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuthorizationsResponse<AccountId, Moment>>>;
+
+    #[rpc(name = "get_claim_issuers")]
+    fn get_claim_issuers(
+        &self,
+        did: Did,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuthorizationsResponse<AccountId, Moment>>>;
+
+    #[rpc(name = "get_dids_by_consumer")]
+    fn get_dids_by_consumer(
+        &self,
+        consumer: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
+
+    #[rpc(name = "get_dids_by_issuer")]
+    fn get_dids_by_issuer(
+        &self,
+        consumer: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
 }
 
 #[derive(Encode, Default, Decode, Debug, Clone)]
@@ -95,8 +123,8 @@ impl From<Did> for pallet_primitives::Did {
 
 impl<'de> Deserialize<'de> for Did {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
     {
         struct DidVisitor;
 
@@ -108,8 +136,8 @@ impl<'de> Deserialize<'de> for Did {
             }
 
             fn visit_str<E>(self, value: &str) -> std::result::Result<Did, E>
-            where
-                E: de::Error,
+                where
+                    E: de::Error,
             {
                 if value.len() != 66 {
                     return Err(E::custom("Invalid DID".to_string()));
@@ -178,8 +206,8 @@ impl From<&[u8]> for Did {
 
 impl Serialize for Did {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where
+            S: Serializer,
     {
         serializer.serialize_str(&format!("0x{}", hex::encode(self.id)))
     }
@@ -206,9 +234,9 @@ pub struct DidDocumentResponse<AccountId> {
 }
 
 impl<BoundedString> From<(pallet_primitives::Did, Option<BoundedString>)>
-    for DidDocumentBasicResponse
-where
-    BoundedString: Into<Vec<u8>>,
+for DidDocumentBasicResponse
+    where
+        BoundedString: Into<Vec<u8>>,
 {
     fn from((did, short_name): (pallet_primitives::Did, Option<BoundedString>)) -> Self {
         let did: Did = did.into();
@@ -221,19 +249,19 @@ where
 }
 
 impl<ClaimId, AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact>
-    From<(
-        ClaimId,
-        pallet_primitives::Claim<
-            AccountId,
-            MemberCount,
-            Moment,
-            BoundedStringName,
-            BoundedStringFact,
-        >,
-    )> for ClaimResponse<ClaimId, AccountId, MemberCount, Moment>
-where
-    BoundedStringName: Into<Vec<u8>>,
-    BoundedStringFact: Into<Vec<u8>>,
+From<(
+    ClaimId,
+    pallet_primitives::Claim<
+        AccountId,
+        MemberCount,
+        Moment,
+        BoundedStringName,
+        BoundedStringFact,
+    >,
+)> for ClaimResponse<ClaimId, AccountId, MemberCount, Moment>
+    where
+        BoundedStringName: Into<Vec<u8>>,
+        BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(
         (claim_id, claim): (
@@ -259,15 +287,15 @@ where
 }
 
 impl<AccountId, BoundedStringName, BoundedStringFact>
-    From<(
-        Option<BoundedStringName>,
-        DidDocument<AccountId, BoundedStringName>,
-        Vec<DidProperty<BoundedStringName, BoundedStringFact>>,
-        Vec<AccountId>,
-    )> for DidDocumentResponse<AccountId>
-where
-    BoundedStringName: Clone + Into<Vec<u8>>,
-    BoundedStringFact: Into<Vec<u8>>,
+From<(
+    Option<BoundedStringName>,
+    DidDocument<AccountId, BoundedStringName>,
+    Vec<DidProperty<BoundedStringName, BoundedStringFact>>,
+    Vec<AccountId>,
+)> for DidDocumentResponse<AccountId>
+    where
+        BoundedStringName: Clone + Into<Vec<u8>>,
+        BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(
         (short_name, did_document, properties, controllers): (
@@ -295,10 +323,10 @@ pub struct DidPropertyResponse {
 }
 
 impl<BoundedStringName, BoundedStringFact> From<DidProperty<BoundedStringName, BoundedStringFact>>
-    for DidPropertyResponse
-where
-    BoundedStringName: Into<Vec<u8>>,
-    BoundedStringFact: Into<Vec<u8>>,
+for DidPropertyResponse
+    where
+        BoundedStringName: Into<Vec<u8>>,
+        BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(property: DidProperty<BoundedStringName, BoundedStringFact>) -> Self {
         DidPropertyResponse {
@@ -309,7 +337,7 @@ where
 }
 
 impl<AccountId, Moment> From<Attestation<AccountId, Moment>>
-    for AttestationResponse<AccountId, Moment>
+for AttestationResponse<AccountId, Moment>
 {
     fn from(attestation: Attestation<AccountId, Moment>) -> Self {
         AttestationResponse {
@@ -320,10 +348,10 @@ impl<AccountId, Moment> From<Attestation<AccountId, Moment>>
 }
 
 impl<BoundedStringName, BoundedStringFact> From<Statement<BoundedStringName, BoundedStringFact>>
-    for StatementResponse
-where
-    BoundedStringName: Into<Vec<u8>>,
-    BoundedStringFact: Into<Vec<u8>>,
+for StatementResponse
+    where
+        BoundedStringName: Into<Vec<u8>>,
+        BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(statement: Statement<BoundedStringName, BoundedStringFact>) -> Self {
         StatementResponse {
@@ -342,8 +370,8 @@ pub struct FactResponse {
 }
 
 impl<BoundedString> From<Fact<BoundedString>> for FactResponse
-where
-    BoundedString: Into<Vec<u8>>,
+    where
+        BoundedString: Into<Vec<u8>>,
 {
     fn from(fact: Fact<BoundedString>) -> Self {
         match fact {
@@ -417,6 +445,30 @@ pub struct ClaimResponse<ClaimId, AccountId, MemberCount, Moment> {
     pub threshold: MemberCount,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct AuthorizationsResponse<AccountId, Moment> {
+    pub account: AccountId,
+    pub valid_until: Moment,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AuthorizedDidResponse<Moment> {
+    pub did: String,
+    pub valid_until: Moment,
+}
+
+impl<Moment> From<(pallet_primitives::Did,Moment)>
+for AuthorizedDidResponse<Moment>
+{
+    fn from((did, expiry): (pallet_primitives::Did, Moment)) -> Self {
+        let did: Did = did.into();
+        AuthorizedDidResponse {
+            did: did.to_string(),
+            valid_until: expiry
+        }
+    }
+}
+
 pub struct Identity<C, M> {
     client: Arc<C>,
     _marker: std::marker::PhantomData<M>,
@@ -452,50 +504,50 @@ macro_rules! not_found_error {
 }
 
 impl<
-        C,
+    C,
+    Block,
+    AccountId,
+    CatalogId,
+    ClaimId,
+    MemberCount,
+    Moment,
+    BoundedStringName,
+    BoundedStringFact,
+> IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId, ClaimId, MemberCount, Moment>
+for Identity<
+    C,
+    (
         Block,
         AccountId,
         CatalogId,
         ClaimId,
         MemberCount,
-        Moment,
         BoundedStringName,
         BoundedStringFact,
-    > IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId, ClaimId, MemberCount, Moment>
-    for Identity<
-        C,
-        (
+    ),
+>
+    where
+        Block: BlockT,
+        C: Send + Sync + 'static,
+        C: ProvideRuntimeApi<Block>,
+        C: HeaderBackend<Block>,
+        C::Api: IdentityRuntimeApi<
             Block,
             AccountId,
             CatalogId,
             ClaimId,
             MemberCount,
+            Moment,
             BoundedStringName,
             BoundedStringFact,
-        ),
-    >
-where
-    Block: BlockT,
-    C: Send + Sync + 'static,
-    C: ProvideRuntimeApi<Block>,
-    C: HeaderBackend<Block>,
-    C::Api: IdentityRuntimeApi<
-        Block,
-        AccountId,
-        CatalogId,
-        ClaimId,
-        MemberCount,
-        Moment,
-        BoundedStringName,
-        BoundedStringFact,
-    >,
-    AccountId: Codec + Send + Sync + 'static,
-    CatalogId: Codec + Copy + Send + Sync + 'static,
-    ClaimId: Codec + Copy + Send + Sync + 'static,
-    MemberCount: Codec + Copy + Send + Sync + 'static,
-    Moment: Codec + Copy + Send + Sync + 'static,
-    BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
-    BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+        >,
+        AccountId: Codec + Send + Sync + 'static,
+        CatalogId: Codec + Copy + Send + Sync + 'static,
+        ClaimId: Codec + Copy + Send + Sync + 'static,
+        MemberCount: Codec + Copy + Send + Sync + 'static,
+        Moment: Codec + Copy + Send + Sync + 'static,
+        BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+        BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
     fn get_catalogs(
         &self,
@@ -647,5 +699,71 @@ where
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((claim_id, claim).into())
+    }
+
+    fn get_claim_consumers(
+        &self,
+        did: Did,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuthorizationsResponse<AccountId, Moment>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let claim_consumers = api.get_claim_consumers(&at, did.into()).map_err(convert_error!())?;
+        Ok(claim_consumers
+            .into_iter()
+            .map(|(account, valid_until)| AuthorizationsResponse::<AccountId, Moment> {
+                account,
+                valid_until,
+            })
+            .collect())
+    }
+
+    fn get_claim_issuers(
+        &self,
+        did: Did,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuthorizationsResponse<AccountId, Moment>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let claim_issuers = api.get_claim_issuers(&at, did.into()).map_err(convert_error!())?;
+        Ok(claim_issuers
+            .into_iter()
+            .map(|(account, valid_until)| AuthorizationsResponse::<AccountId, Moment> {
+                account,
+                valid_until,
+            })
+            .collect())
+    }
+
+    fn get_dids_by_consumer(
+        &self,
+        consumer: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuthorizedDidResponse<Moment>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api.get_dids_by_consumer(&at, consumer).map_err(convert_error!())?;
+        Ok(dids
+            .into_iter()
+            .map(|(did, expiry)| (did, expiry).into())
+            .collect())
+    }
+
+    fn get_dids_by_issuer(
+        &self,
+        issuer: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuthorizedDidResponse<Moment>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api.get_dids_by_issuer(&at, issuer).map_err(convert_error!())?;
+        Ok(dids
+            .into_iter()
+            .map(|(did, expiry)| (did, expiry).into())
+            .collect())
     }
 }
