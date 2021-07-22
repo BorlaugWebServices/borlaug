@@ -50,11 +50,11 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
-    AccountId, Balance, BlockNumber, BoundedStringFact, BoundedStringName, CatalogDidLimit,
-    CatalogId, ClaimConsumerLimit, ClaimId, ClaimIssuerLimit, ControllerLimit, DefinitionId,
-    DefinitionStepIndex, ExtrinsicIndex, FactStringLimit, GroupId, Hash, Index, MemberCount,
-    ModuleIndex, Moment, NameLimit, ProcessId, PropertyLimit, ProposalId, RegistryId, Signature,
-    StatementLimit,
+    AccountId, AuditId, Balance, BlockNumber, BoundedStringFact, BoundedStringName,
+    CatalogDidLimit, CatalogId, ClaimConsumerLimit, ClaimId, ClaimIssuerLimit, ControlPointId,
+    ControllerLimit, DefinitionId, DefinitionStepIndex, EvidenceId, ExtrinsicIndex,
+    FactStringLimit, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment, NameLimit,
+    ObservationId, ProcessId, PropertyLimit, ProposalId, RegistryId, Signature, StatementLimit,
 };
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
@@ -822,10 +822,10 @@ impl asset_registry::Config for Runtime {
 }
 
 impl audits::Config for Runtime {
-    type AuditId = u32;
-    type ControlPointId = u32;
-    type EvidenceId = u32;
-    type ObservationId = u32;
+    type AuditId = AuditId;
+    type ControlPointId = ControlPointId;
+    type EvidenceId = EvidenceId;
+    type ObservationId = ObservationId;
     type Event = Event;
     type NameLimit = NameLimit;
 }
@@ -1226,16 +1226,19 @@ impl_runtime_apis! {
         fn get_claim(did: Did, claim_id:ClaimId) -> Option<Claim<AccountId,MemberCount,Moment,BoundedStringName, BoundedStringFact>>{
             Identity::get_claim(did,claim_id)
         }
-
         fn get_claim_consumers(did: Did) -> Vec<(AccountId,Moment)>{Identity::get_claim_consumers(did)}
-
         fn get_claim_issuers(did: Did) -> Vec<(AccountId,Moment)>{Identity::get_claim_issuers(did)}
-
         fn get_dids_by_consumer(account:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_consumer(account)}
-
         fn get_dids_by_issuer(account:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_issuer(account)}
+    }
 
-
+    impl audits_runtime_api::AuditsApi<Block,AccountId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {
+        fn get_audits_by_creator(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+            Audits::get_audits_by_creator(account_id)
+        }
+        fn get_audits_by_auditor(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+            Audits::get_audits_by_auditor(account_id)
+        }
     }
 
     impl settings_runtime_api::SettingsApi<Block,ModuleIndex,ExtrinsicIndex,Balance> for Runtime {

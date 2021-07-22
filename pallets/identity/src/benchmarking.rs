@@ -26,7 +26,6 @@ use frame_support::{
     dispatch::Vec,
     traits::{Currency, Get},
 };
-// use frame_system::Call as SystemCall;
 use frame_system::{self, RawOrigin as SystemOrigin};
 use primitives::*;
 use sp_runtime::traits::{Bounded, UniqueSaturatedFrom};

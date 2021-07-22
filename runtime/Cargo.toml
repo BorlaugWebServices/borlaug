@@ -64,6 +64,7 @@ hex-literal = {version = "0.3.1", optional = true}
 # Borlaug Dependencies
 asset-registry = {package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false}
 audits = {package = "pallet-audits", path = "../pallets/audits", default-features = false}
+audits-runtime-api = {path = "../pallets/audits-runtime-api", default-features = false}
 groups = {package = "pallet-groups", path = "../pallets/groups", default-features = false}
 groups-runtime-api = {path = "../pallets/groups-runtime-api", default-features = false}
 identity = {package = "pallet-identity", path = "../pallets/identity", default-features = false}
@@ -125,6 +126,7 @@ std = [
   "settings/std",
   "asset-registry/std",
   "audits/std",
+  "audits-runtime-api/std",
   "groups/std",
   "groups-runtime-api/std",
   "provenance-runtime-api/std",

@@ -75,9 +75,9 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-        type CatalogId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        type CatalogId: Parameter + AtLeast32Bit + Copy + PartialEq;
 
-        type ClaimId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        type ClaimId: Parameter + AtLeast32Bit + Copy + PartialEq;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;

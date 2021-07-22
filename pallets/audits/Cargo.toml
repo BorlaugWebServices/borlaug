@@ -15,6 +15,8 @@ timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features =
 
 frame-benchmarking = {default-features = false, version = "3.1.0", optional = true}
 
+extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
+groups = {package = "pallet-groups", path = "../groups", default-features = false}
 primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
 
 [dev-dependencies]
@@ -35,4 +37,6 @@ std = [
   'randomness/std',
   "timestamp/std",
   "primitives/std",
+  "groups/std",
+  "extrinsic-extra/std",
 ]

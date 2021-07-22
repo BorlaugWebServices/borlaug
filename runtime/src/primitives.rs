@@ -39,16 +39,23 @@ pub type Hash = sp_core::H256;
 /// `u64` is enough to represent a duration of half a billion years, when the
 /// time scale is milliseconds.
 pub type Timestamp = u64;
-
+//groups
 pub type GroupId = u32;
 pub type ProposalId = u32;
 pub type MemberCount = u32;
+//identity
 pub type CatalogId = u32;
 pub type ClaimId = u32;
+//provenance
 pub type RegistryId = u32;
 pub type DefinitionId = u32;
 pub type DefinitionStepIndex = u8;
 pub type ProcessId = u32;
+//audits
+pub type AuditId = u32;
+pub type ControlPointId = u32;
+pub type EvidenceId = u32;
+pub type ObservationId = u32;
 
 parameter_types! {
     pub const NameLimit: u32 = 50;

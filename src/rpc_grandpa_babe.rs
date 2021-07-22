@@ -150,10 +150,20 @@ where
         Block,
         AccountId,
         CatalogId,
-        GroupId,
         ClaimId,
+        MemberCount,
         Moment,
-        BoundedString,
+        BoundedStringName,
+        BoundedStringFact,
+    >,
+    C::Api: audits_runtime_api::AuditsApi<
+        Block,
+        AccountId,
+        AuditId,
+        ControlPointId,
+        EvidenceId,
+        ObservationId,
+        BoundedStringName,
     >,
     C::Api: settings_runtime_api::SettingsApi<Block, ModuleIndex, ExtrinsicIndex, Balance>,
     P: TransactionPool + 'static,
@@ -187,6 +197,10 @@ where
     // Add the identity api
     io.extend_with(crate::identity_rpc::IdentityApi::to_delegate(
         crate::identity_rpc::Identity::new(client.clone()),
+    ));
+    // Add the audits api
+    io.extend_with(crate::audits_rpc::AuditsApi::to_delegate(
+        crate::audits_rpc::Audits::new(client.clone()),
     ));
     // Add the settings api
     io.extend_with(crate::settings_rpc::SettingsApi::to_delegate(

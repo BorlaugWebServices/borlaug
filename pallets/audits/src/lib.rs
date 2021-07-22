@@ -15,6 +15,8 @@
 
 pub use pallet::*;
 
+mod benchmarking;
+
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -31,14 +33,13 @@ pub mod pallet {
     use sp_std::prelude::*;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         type AuditId: Parameter
             + Member
             + AtLeast32Bit
-            + Default
             + Copy
             + MaybeSerializeDeserialize
             + PartialEq;
@@ -46,7 +47,6 @@ pub mod pallet {
         type ControlPointId: Parameter
             + Member
             + AtLeast32Bit
-            + Default
             + Copy
             + MaybeSerializeDeserialize
             + PartialEq;
@@ -54,7 +54,6 @@ pub mod pallet {
         type EvidenceId: Parameter
             + Member
             + AtLeast32Bit
-            + Default
             + Copy
             + MaybeSerializeDeserialize
             + PartialEq;
@@ -62,7 +61,6 @@ pub mod pallet {
         type ObservationId: Parameter
             + Member
             + AtLeast32Bit
-            + Default
             + Copy
             + MaybeSerializeDeserialize
             + PartialEq;
@@ -170,6 +168,30 @@ pub mod pallet {
     /// Audits
     pub type Audits<T: Config> =
         StorageMap<_, Blake2_128Concat, T::AuditId, Audit<T::AccountId>, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn audits_by_creator)]
+    pub type AuditsByCreator<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        Blake2_128Concat,
+        T::AuditId,
+        (),
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn audits_by_auditor)]
+    pub type AuditsByAuditor<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        Blake2_128Concat,
+        T::AuditId,
+        (),
+        OptionQuery,
+    >;
 
     #[pallet::storage]
     #[pallet::getter(fn observation_of)]
@@ -577,8 +599,33 @@ pub mod pallet {
         }
     }
 
-    // private functions
     impl<T: Config> Module<T> {
+        // -- rpc api functions --
+
+        pub fn get_audits_by_creator(
+            account: T::AccountId,
+        ) -> Vec<(T::AuditId, Audit<T::AccountId>)> {
+            let mut audits = Vec::new();
+            <AuditsByCreator<T>>::iter_prefix(account).for_each(|(audit_id, _)| {
+                let audit = <Audits<T>>::get(audit_id).unwrap();
+                audits.push((audit_id, audit))
+            });
+            audits
+        }
+
+        pub fn get_audits_by_auditor(
+            account: T::AccountId,
+        ) -> Vec<(T::AuditId, Audit<T::AccountId>)> {
+            let mut audits = Vec::new();
+            <AuditsByAuditor<T>>::iter_prefix(account).for_each(|(audit_id, _)| {
+                let audit = <Audits<T>>::get(audit_id).unwrap();
+                audits.push((audit_id, audit))
+            });
+            audits
+        }
+
+        // -- private functions --
+
         fn is_audit_in_this_status(audit_id: T::AuditId, status: AuditStatus) -> bool {
             if <Audits<T>>::contains_key(audit_id) {
                 let audit = <Audits<T>>::get(audit_id).unwrap();

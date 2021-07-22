@@ -6,6 +6,7 @@ version = 3
 name = "Borlaug"
 version = "0.0.1"
 dependencies = [
+ "audits-runtime-api",
  "borlaug-runtime",
  "chrono",
  "frame-benchmarking",
@@ -463,6 +464,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "audits-runtime-api"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "pallet-primitives",
+ "parity-scale-codec",
+ "serde_json",
+ "sp-api",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -675,6 +687,7 @@ dependencies = [
 name = "borlaug-runtime"
 version = "2.0.0"
 dependencies = [
+ "audits-runtime-api",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -3903,9 +3916,11 @@ name = "pallet-audits"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "extrinsic-extra",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-groups",
  "pallet-primitives",
  "pallet-randomness-collective-flip",
  "pallet-timestamp",
