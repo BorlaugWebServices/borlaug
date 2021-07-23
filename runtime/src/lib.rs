@@ -827,6 +827,7 @@ impl audits::Config for Runtime {
     type EvidenceId = EvidenceId;
     type ObservationId = ObservationId;
     type Event = Event;
+    type WeightInfo = audits::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
 }
 

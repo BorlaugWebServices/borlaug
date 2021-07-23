@@ -419,8 +419,7 @@ pub mod pallet {
             get_max_property_name_len_option(properties),
             get_max_property_fact_len_option(properties),
             properties.as_ref().map_or(0,|properties|properties.len()) as u32, 
-        ))]
-        // #[pallet::weight(10_000)]
+        ))]        
         pub fn register_did(
             origin: OriginFor<T>,
             short_name: Option<Vec<u8>>,
