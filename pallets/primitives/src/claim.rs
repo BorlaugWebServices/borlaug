@@ -1,43 +1,43 @@
-use crate::{Attestation, Did, Fact};
+use crate::{Attestation, Fact};
 
 use codec::{Decode, Encode};
 use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Claim<Timestamp> {
+#[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct Claim<AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact> {
     /// A claim description
-    pub description: Vec<u8>,
+    pub description: BoundedStringName,
     /// Statements contained in this claim
-    pub statements: Vec<Statement>,
+    pub statements: Vec<Statement<BoundedStringName, BoundedStringFact>>,
     /// Claim consumer creates a claim
-    pub created_by: Did,
+    pub created_by: AccountId,
     /// Attesttation by claim verifier
-    pub attestation: Option<Attestation<Timestamp>>,
+    pub attestation: Option<Attestation<AccountId, Moment>>,
+    /// Minimum number of votes required for attestation
+    pub threshold: MemberCount,
 }
 
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Statement {
+#[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+pub struct Statement<BoundedStringName, BoundedStringFact> {
     /// Name of the property
-    pub name: Vec<u8>,
+    pub name: BoundedStringName,
     /// Fact in question
-    pub fact: Fact,
+    pub fact: Fact<BoundedStringFact>,
     /// To be completed by verifier
     pub for_issuer: bool,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug)]
-pub struct ClaimConsumer<Moment> {
-    /// Did of claim issuer
-    pub consumer: Did,
+pub struct ClaimConsumer<AccountId, Moment> {
+    pub consumer: AccountId,
     /// Expiration time
     pub expiration: Moment,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug)]
-pub struct ClaimIssuer<Moment> {
-    /// Did of claim issuer
-    pub issuer: Did,
+pub struct ClaimIssuer<AccountId, Moment> {
+    pub issuer: AccountId,
     /// Expiration time
     pub expiration: Moment,
 }

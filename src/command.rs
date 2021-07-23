@@ -13,7 +13,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
-
 use crate::service::new_partial;
 use crate::{
     chain_spec,
@@ -61,9 +60,7 @@ impl SubstrateCli for Cli {
                         .into(),
                 )
             }
-
             "dev" => Box::new(chain_spec::development_config()),
-            "borlaug_aztec" => Box::new(chain_spec::aztec_config()),
             path => Box::new(chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),

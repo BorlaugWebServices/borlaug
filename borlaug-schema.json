@@ -1,6 +1,6 @@
 {
-  "Address": "AccountId",
-  "LookupSource": "AccountId",
+  "Address": "MultiAddress",
+  "LookupSource": "MultiAddress",
   "Balance": "u128",
   "Timestamp": "u64",
   "Moment": "u64",
@@ -8,9 +8,9 @@
   "RegistryId": "u32",
   "AssetId": "u32",
   "LeaseId": "u32",
-  "TemplateId": "u32",
-  "TemplateStepIndex": "u8",
-  "SequenceId": "u32",
+  "DefinitionId": "u32",
+  "DefinitionStepIndex": "u8",
+  "ProcessId": "u32",
   "Did": {
     "id": "[u8; 32]"
   },
@@ -103,7 +103,7 @@
       "InProgress",
       "Completed"
     ]
-  }, 
+  },
   "AuditorId": "AccountId",
   "Audit": {
     "status": "AuditStatus",
@@ -130,32 +130,49 @@
     "url": "Option<Vec<u8>>",
     "hash": "Vec<u8>"
   },
-  "Attestor": {
-    "short_name": "Vec<u8>",
-    "did": "Did"
-  },
-  "Attribute": {
+  "Process": {
     "name": "Vec<u8>",
-    "fact": "Fact"
+    "status": "ProcessStatus"
   },
-  "Sequence": {
-    "name": "Vec<u8>",
-    "status": "SequenceStatus"
+  "Definition": {
+    "name": "Vec<u8>"
   },
-  "SequenceStatus": {
+  "DefinitionStep": {
+    "name": "Vec<u8>"
+  },
+  "ProcessStatus": {
     "_enum": [
       "InProgress",
       "Completed"
     ]
   },
-  "SequenceStep": {
-    "attested_by": "Did",
+  "ProcessStep": {
+    "attested_by": "Account",
     "attributes": "Vec<Attribute>"
   },
-  "Template": {
+  "Attribute": {
+    "name": "Vec<u8>",
+    "fact": "Fact"
+  },
+  "GroupId": "u32",
+  "ProposalId": "u32",
+  "MemberCount": "u32",
+  "Group": {
+    "name": "Vec<u8>",
+    "members": "Vec<AccountId>",
+    "threshold": "MemberCount",
+    "anonymous_account": "AccountId",
+    "parent": "Option<GroupId>"
+  },
+  "Votes": {
+    "proposal_id": "ProposalId",
+    "threshold": "MemberCount",
+    "ayes": "Vec<AccountId>",
+    "nays": "Vec<AccountId>"
+  },
+  "Registry": {
     "name": "Vec<u8>"
   },
-  "TemplateStep": {
-    "name": "Vec<u8>"
-  }
+  "ModuleIndex": "u8",
+  "ExtrinsicIndex": "u8"
 }

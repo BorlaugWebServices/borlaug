@@ -2,6 +2,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::parameter_types;
+use pallet_primitives::bounded_vec::BoundedVec;
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -37,6 +39,53 @@ pub type Hash = sp_core::H256;
 /// `u64` is enough to represent a duration of half a billion years, when the
 /// time scale is milliseconds.
 pub type Timestamp = u64;
+//groups
+pub type GroupId = u32;
+pub type ProposalId = u32;
+pub type MemberCount = u32;
+//identity
+pub type CatalogId = u32;
+pub type ClaimId = u32;
+//provenance
+pub type RegistryId = u32;
+pub type DefinitionId = u32;
+pub type DefinitionStepIndex = u8;
+pub type ProcessId = u32;
+//audits
+pub type AuditId = u32;
+pub type ControlPointId = u32;
+pub type EvidenceId = u32;
+pub type ObservationId = u32;
+
+parameter_types! {
+    pub const NameLimit: u32 = 50;
+    pub const FactStringLimit: u32 = 500;
+    pub const PropertyLimit: u32 = 500;
+    pub const StatementLimit: u32 = 500;
+    pub const ControllerLimit: u32 = 50;
+    pub const ClaimConsumerLimit: u32 = 50;
+    pub const ClaimIssuerLimit: u32 = 50;
+    pub const CatalogDidLimit: u32 = 500;
+}
+
+pub type BoundedStringName = BoundedVec<u8, NameLimit>;
+pub type BoundedStringFact = BoundedVec<u8, FactStringLimit>;
+// #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug)]
+// pub enum Module {
+//     Identity,
+//     Provenance,
+//     Groups,
+//     AssetRegistry,
+//     Audits,
+// }
+
+/// Groups=1
+/// Identity=2
+/// Provenance=3
+/// AssetRegistry=4
+/// Audits=5
+pub type ModuleIndex = u8;
+pub type ExtrinsicIndex = u8;
 
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;
@@ -50,6 +99,7 @@ pub type BlockId = generic::BlockId<Block>;
 /// App-specific crypto used for reporting equivocation/misbehavior in BABE and
 /// GRANDPA. Any rewards for misbehavior reporting will be paid out to this
 /// account.
+#[cfg(feature = "grandpa_babe")]
 pub mod report {
     use super::{Signature, Verify};
     use frame_system::offchain::AppCrypto;
