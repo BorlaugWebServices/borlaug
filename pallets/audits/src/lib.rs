@@ -37,7 +37,7 @@ pub mod pallet {
     use sp_std::prelude::*;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
+    pub trait Config: frame_system::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -238,7 +238,7 @@ pub mod pallet {
         T::EvidenceId,
         Blake2_128Concat,
         T::ObservationId,
-        T::EvidenceId,
+        (),
         OptionQuery,
     >;
 
@@ -526,20 +526,16 @@ pub mod pallet {
                 audit.auditor == sender.clone(),
                 <Error<T>>::AuditorIsNotValid
             );
-
-            //TODO: combine these to avoid multiple reads.
-
             ensure!(
                 <Observations<T>>::contains_key((audit_id, control_point_id), observation_id),
                 <Error<T>>::NoObservationAvailable
             );
-
             ensure!(
                 <Evidences<T>>::contains_key(audit_id, evidence_id),
                 <Error<T>>::NoEvidenceAvailable
             );
 
-            <EvidenceLinks<T>>::insert(&evidence_id, &observation_id, evidence_id);
+            <EvidenceLinks<T>>::insert(&evidence_id, &observation_id, ());
 
             Self::deposit_event(Event::EvidenceLinked(audit_id, evidence_id, observation_id));
             Ok(().into())
