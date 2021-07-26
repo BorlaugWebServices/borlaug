@@ -84,6 +84,7 @@ impl settings::Config for Test {
 
 parameter_types! {
     pub const NameLimit: u32 = 50;
+    pub const MaxLinkRemove: u32 = 50;
 
 }
 impl pallet_audits::Config for Test {
@@ -94,6 +95,7 @@ impl pallet_audits::Config for Test {
     type Event = Event;
     type WeightInfo = ();
     type NameLimit = NameLimit;
+    type MaxLinkRemove = MaxLinkRemove;
 }
 
 parameter_types! {

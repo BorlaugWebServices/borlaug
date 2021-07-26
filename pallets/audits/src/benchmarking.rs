@@ -246,7 +246,8 @@ benchmarks! {
     }: _(SystemOrigin::Signed(auditor.clone()), audit_id,control_point_id,observation_id,evidence_id)
 
     verify {
-        assert!(<EvidenceLinks<T>>::contains_key(evidence_id,observation_id));
+        assert!(<EvidenceLinksByEvidence<T>>::contains_key(evidence_id,observation_id));
+        assert!(<EvidenceLinksByObservation<T>>::contains_key(observation_id,evidence_id));
     }
 
     unlink_evidence {
@@ -284,15 +285,19 @@ benchmarks! {
 
         AuditsPallet::<T>::link_evidence(auditor_origin,audit_id,control_point_id,observation_id,evidence_id)?;
 
-        assert!(<EvidenceLinks<T>>::contains_key(evidence_id,observation_id));
+        assert!(<EvidenceLinksByEvidence<T>>::contains_key(evidence_id,observation_id));
+        assert!(<EvidenceLinksByObservation<T>>::contains_key(observation_id,evidence_id));
 
     }: _(SystemOrigin::Signed(auditor.clone()), audit_id,control_point_id,observation_id,evidence_id)
 
     verify {
-        assert!(!<EvidenceLinks<T>>::contains_key(evidence_id,observation_id));
+        assert!(!<EvidenceLinksByEvidence<T>>::contains_key(evidence_id,observation_id));
+        assert!(!<EvidenceLinksByObservation<T>>::contains_key(observation_id,evidence_id));
     }
 
     delete_evidence {
+
+        let a in 1 .. (<T as Config>::MaxLinkRemove::get() -1);
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -312,27 +317,29 @@ benchmarks! {
             url:Some(vec![42u8;<T as Config>::NameLimit::get() as usize]),
             hash:vec![42u8;<T as Config>::NameLimit::get() as usize]
         };
-
-        AuditsPallet::<T>::create_evidence(auditor_origin.clone(),audit_id,evidence.clone())?;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
 
-        let observation = Observation{
-            compliance:Some(Compliance::Compliant),
-            procedural_note:Some([42u8;32])
-        };
+        for i in 1..a+1 {
+            AuditsPallet::<T>::create_evidence(auditor_origin.clone(),audit_id,evidence.clone())?;
+            let observation = Observation{
+                compliance:Some(Compliance::Compliant),
+                procedural_note:Some([42u8;32])
+            };
+            AuditsPallet::<T>::create_observation(auditor_origin.clone(),audit_id,control_point_id,observation.clone())?;
+            let observation_id=T::ObservationId::unique_saturated_from(i);
+            AuditsPallet::<T>::link_evidence(auditor_origin.clone(),audit_id,control_point_id,observation_id,evidence_id)?;
+            assert!(<EvidenceLinksByEvidence<T>>::contains_key(evidence_id,observation_id));
+            assert!(<EvidenceLinksByObservation<T>>::contains_key(observation_id,evidence_id));
+        }
 
-        AuditsPallet::<T>::create_observation(auditor_origin.clone(),audit_id,control_point_id,observation.clone())?;
-        let observation_id=T::ObservationId::unique_saturated_from(1u32);
-
-
-        AuditsPallet::<T>::link_evidence(auditor_origin,audit_id,control_point_id,observation_id,evidence_id)?;
-
-        assert!(<EvidenceLinks<T>>::contains_key(evidence_id,observation_id));
-
-    }: _(SystemOrigin::Signed(auditor.clone()), audit_id,evidence_id)
+    }: _(SystemOrigin::Signed(auditor.clone()), audit_id,evidence_id,a)
 
     verify {
-        assert!(!<EvidenceLinks<T>>::contains_key(evidence_id,observation_id));
+        for i in 1..a+1 {
+            let observation_id=T::ObservationId::unique_saturated_from(i);
+            assert!(!<EvidenceLinksByEvidence<T>>::contains_key(evidence_id,observation_id));
+            assert!(!<EvidenceLinksByObservation<T>>::contains_key(observation_id,evidence_id));
+        }
         assert!(!<Evidences<T>>::contains_key(audit_id,evidence_id));
     }
 }

@@ -50,11 +50,10 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
-    AccountId, AuditId, Balance, BlockNumber, BoundedStringFact, BoundedStringName,
-    CatalogDidLimit, CatalogId, ClaimConsumerLimit, ClaimId, ClaimIssuerLimit, ControlPointId,
-    ControllerLimit, DefinitionId, DefinitionStepIndex, EvidenceId, ExtrinsicIndex,
+    AccountId, AuditId, Balance, BlockNumber, BoundedStringFact, BoundedStringName, CatalogId,
+    ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId, ExtrinsicIndex,
     FactStringLimit, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment, NameLimit,
-    ObservationId, ProcessId, PropertyLimit, ProposalId, RegistryId, Signature, StatementLimit,
+    ObservationId, ProcessId, ProposalId, RegistryId, Signature,
 };
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
@@ -796,6 +795,14 @@ impl groups::Config for Runtime {
     type NameLimit = NameLimit;
 }
 
+parameter_types! {
+    pub const PropertyLimit: u32 = 500;
+    pub const StatementLimit: u32 = 500;
+    pub const ControllerLimit: u32 = 50;
+    pub const ClaimConsumerLimit: u32 = 50;
+    pub const ClaimIssuerLimit: u32 = 50;
+    pub const CatalogDidLimit: u32 = 500;
+}
 impl identity::Config for Runtime {
     type CatalogId = CatalogId;
     type ClaimId = ClaimId;
@@ -821,6 +828,9 @@ impl asset_registry::Config for Runtime {
     type FactStringLimit = FactStringLimit;
 }
 
+parameter_types! {
+    pub const MaxLinkRemove: u32 = 50;
+}
 impl audits::Config for Runtime {
     type AuditId = AuditId;
     type ControlPointId = ControlPointId;
@@ -829,6 +839,7 @@ impl audits::Config for Runtime {
     type Event = Event;
     type WeightInfo = audits::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
+    type MaxLinkRemove = MaxLinkRemove;
 }
 
 impl provenance::Config for Runtime {
@@ -1240,6 +1251,28 @@ impl_runtime_apis! {
         fn get_audits_by_auditor(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
             Audits::get_audits_by_auditor(account_id)
         }
+        fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>{
+            Audits::get_observation(audit_id,control_point_id,observation_id)
+        }
+
+        fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation)>{
+            Audits::get_observation_by_control_point(audit_id,control_point_id)
+        }
+
+        fn get_evidence(audit_id:AuditId,evidence_id:EvidenceId)->Option<Evidence<BoundedStringName>>{
+            Audits::get_evidence(audit_id,evidence_id)
+        }
+
+        fn get_evidence_by_audit(audit_id:AuditId)->Vec<(EvidenceId,Evidence<BoundedStringName>)>{
+            Audits::get_evidence_by_audit(audit_id)
+        }
+
+        fn get_evidence_links_by_evidence(evidence_id:EvidenceId)->Vec<ObservationId>{
+            Audits::get_evidence_links_by_evidence(evidence_id)
+        }
+        fn get_evidence_links_by_observation(observation_id:ObservationId)->Vec<EvidenceId>{
+            Audits::get_evidence_links_by_observation(observation_id)
+        }
     }
 
     impl settings_runtime_api::SettingsApi<Block,ModuleIndex,ExtrinsicIndex,Balance> for Runtime {
@@ -1301,12 +1334,8 @@ impl_runtime_apis! {
             {
             None
             }
+        }
     }
-
-
-    }
-
-
 
     #[cfg(feature = "runtime-benchmarks")]
     impl frame_benchmarking::Benchmark<Block> for Runtime {

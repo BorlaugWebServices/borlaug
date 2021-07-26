@@ -3,7 +3,7 @@
 use super::*;
 use crate::mock::*;
 use core::convert::TryInto;
-use frame_support::assert_ok;
+use frame_support::{assert_err, assert_ok};
 use primitives::*;
 use sp_core::blake2_256;
 
@@ -382,9 +382,13 @@ fn link_evidence_should_work() {
             observation_id,
             evidence_id
         ));
-        assert!(EvidenceLinks::<Test>::contains_key(
+        assert!(EvidenceLinksByEvidence::<Test>::contains_key(
             evidence_id,
             observation_id
+        ));
+        assert!(EvidenceLinksByObservation::<Test>::contains_key(
+            observation_id,
+            evidence_id
         ));
     });
 }
@@ -479,9 +483,13 @@ fn unlink_evidence_should_work() {
             observation_id,
             evidence_id
         ));
-        assert!(EvidenceLinks::<Test>::contains_key(
+        assert!(EvidenceLinksByEvidence::<Test>::contains_key(
             evidence_id,
             observation_id
+        ));
+        assert!(EvidenceLinksByObservation::<Test>::contains_key(
+            observation_id,
+            evidence_id
         ));
         //unlink evidence
         assert_ok!(AuditsModule::unlink_evidence(
@@ -491,15 +499,19 @@ fn unlink_evidence_should_work() {
             observation_id,
             evidence_id
         ));
-        assert!(!EvidenceLinks::<Test>::contains_key(
+        assert!(!EvidenceLinksByEvidence::<Test>::contains_key(
             evidence_id,
             observation_id
+        ));
+        assert!(!EvidenceLinksByObservation::<Test>::contains_key(
+            observation_id,
+            evidence_id
         ));
     });
 }
 
 #[test]
-fn delete_evidence() {
+fn delete_evidence_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
@@ -588,32 +600,135 @@ fn delete_evidence() {
             observation_id,
             evidence_id
         ));
-        assert!(EvidenceLinks::<Test>::contains_key(
+        assert!(EvidenceLinksByEvidence::<Test>::contains_key(
             evidence_id,
             observation_id
         ));
-        //unlink evidence
-        assert_ok!(AuditsModule::unlink_evidence(
-            Origin::signed(2),
-            audit_id,
-            control_point_id,
+        assert!(EvidenceLinksByObservation::<Test>::contains_key(
             observation_id,
             evidence_id
-        ));
-        assert!(!EvidenceLinks::<Test>::contains_key(
-            evidence_id,
-            observation_id
         ));
         //delete evidence
         assert_ok!(AuditsModule::delete_evidence(
             Origin::signed(2),
             audit_id,
             evidence_id,
+            1
         ));
         assert!(!Evidences::<Test>::contains_key(audit_id, evidence_id,));
-        assert!(!EvidenceLinks::<Test>::contains_key(
+        assert!(!EvidenceLinksByEvidence::<Test>::contains_key(
             evidence_id,
             observation_id
         ));
+        assert!(!EvidenceLinksByObservation::<Test>::contains_key(
+            observation_id,
+            evidence_id
+        ));
+    });
+}
+
+#[test]
+fn delete_evidence_should_have_link_limit() {
+    new_test_ext().execute_with(|| {
+        //create audit
+        let audit_creator = 1;
+        let auditor = 2;
+        assert_ok!(AuditsModule::create_audit(
+            Origin::signed(audit_creator),
+            auditor
+        ));
+        let audit_id = 1u32;
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert_eq!(audit.audit_creator, audit_creator);
+        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.status, AuditStatus::Requested);
+        //accept audit
+        assert_ok!(AuditsModule::accept_audit(
+            Origin::signed(auditor),
+            audit_id
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert_eq!(audit.status, AuditStatus::Accepted);
+
+        //create evidence
+        let evidence = Evidence {
+            name: b"name".to_vec(),
+            content_type: b"image/png".to_vec(),
+            url: Some(b"url".to_vec()),
+            hash: b"hash".to_vec(),
+        };
+        assert_ok!(AuditsModule::create_evidence(
+            Origin::signed(2),
+            audit_id,
+            evidence,
+        ));
+        let evidence_id = 1;
+
+        let evidence = Evidences::<Test>::get(&audit_id, &evidence_id);
+        assert!(evidence.is_some());
+        let evidence = evidence.unwrap();
+        assert_eq!(
+            evidence,
+            Evidence {
+                name: b"name".to_vec().try_into().unwrap(),
+                content_type: b"image/png".to_vec().try_into().unwrap(),
+                url: Some(b"url".to_vec().try_into().unwrap()),
+                hash: b"hash".to_vec().try_into().unwrap(),
+            }
+        );
+        let control_point_id = 1;
+        for i in 0..<Test as Config>::MaxLinkRemove::get() + 2 {
+            //create observation
+            let observation = Observation {
+                compliance: Some(Compliance::Compliant),
+                procedural_note: Some(blake2_256(b"test note")),
+            };
+            assert_ok!(AuditsModule::create_observation(
+                Origin::signed(auditor),
+                audit_id,
+                control_point_id,
+                observation,
+            ));
+            let observation_id = i + 1;
+            //link evidence
+            assert_ok!(AuditsModule::link_evidence(
+                Origin::signed(2),
+                audit_id,
+                control_point_id,
+                observation_id,
+                evidence_id
+            ));
+            assert!(EvidenceLinksByEvidence::<Test>::contains_key(
+                evidence_id,
+                observation_id
+            ));
+            assert!(EvidenceLinksByObservation::<Test>::contains_key(
+                observation_id,
+                evidence_id
+            ));
+        }
+        // try to delete evidence with high link_count
+        assert_err!(
+            AuditsModule::delete_evidence(
+                Origin::signed(2),
+                audit_id,
+                evidence_id,
+                <Test as Config>::MaxLinkRemove::get() + 1
+            ),
+            Error::<Test>::RemoveLinkLimitExceeded
+        );
+        // try to delete evidence with link_count below actual
+        assert_ok!(AuditsModule::delete_evidence(
+            Origin::signed(2),
+            audit_id,
+            evidence_id,
+            <Test as Config>::MaxLinkRemove::get()
+        ));
+        //check that evidence was not actually deleted
+        assert!(Evidences::<Test>::contains_key(audit_id, evidence_id));
     });
 }
