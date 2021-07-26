@@ -12,22 +12,22 @@ use primitives::{
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
 sp_api::decl_runtime_apis! {
-    pub trait ProvenanceApi<RegistryId,DefinitionId,ProcessId,GroupId,MemberCount,DefinitionStepIndex,BoundedStringName, BoundedStringFact>
+    pub trait ProvenanceApi<AccountId,RegistryId,DefinitionId,ProcessId,MemberCount,DefinitionStepIndex,BoundedStringName, BoundedStringFact>
     where
+    AccountId: Codec,
     RegistryId: Codec,
     DefinitionId: Codec,
     ProcessId: Codec,
-    GroupId: Codec,
     MemberCount: Codec,
     DefinitionStepIndex: Codec,
     BoundedStringName: Codec + Into<Vec<u8>>,
     BoundedStringFact: Codec + Into<Vec<u8>>
      {
-        fn get_registries(group_id: GroupId) -> Vec<(RegistryId, Registry<BoundedStringName>)>;
-        fn get_registry(group_id: GroupId,registry_id:RegistryId) -> Option<Registry<BoundedStringName>>;
+        fn get_registries(account_id: AccountId) -> Vec<(RegistryId, Registry<BoundedStringName>)>;
+        fn get_registry(account_id: AccountId,registry_id:RegistryId) -> Option<Registry<BoundedStringName>>;
         fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition<BoundedStringName>)>;
         fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition<BoundedStringName>>;
-        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId,MemberCount,BoundedStringName>)>;
+        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<AccountId,MemberCount,BoundedStringName>)>;
         fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process<BoundedStringName>)>;
         fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Option<Process<BoundedStringName>>;
         fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Vec<ProcessStep<BoundedStringName, BoundedStringFact>>;

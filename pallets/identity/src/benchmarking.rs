@@ -503,9 +503,9 @@ benchmarks! {
         let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
         IdentityPallet::<T>::authorize_claim_issuers(origin.clone(),did,  claim_issuers_to_add)?;
 
-        let attester_statements=create_statements(b,c,d,2);
+        let attestor_statements=create_statements(b,c,d,2);
 
-    }: _(SystemOrigin::Signed(issuer.clone()),did, claim_id, attester_statements,now_plus)
+    }: _(SystemOrigin::Signed(issuer.clone()),did, claim_id, attestor_statements,now_plus)
 
     verify {
         let claim=<Claims<T>>::get(did, claim_id);
@@ -564,8 +564,8 @@ benchmarks! {
         let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
         IdentityPallet::<T>::authorize_claim_issuers(origin.clone(),did,  claim_issuers_to_add)?;
 
-        let attester_origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(issuer.clone()).into();
-        IdentityPallet::<T>::attest_claim(attester_origin.clone(),did,  claim_id, vec![],now_plus)?;
+        let attestor_origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(issuer.clone()).into();
+        IdentityPallet::<T>::attest_claim(attestor_origin.clone(),did,  claim_id, vec![],now_plus)?;
 
         let claim=<Claims<T>>::get(did, claim_id);
         assert!(claim.is_some());
@@ -586,7 +586,7 @@ benchmarks! {
 
 
     create_catalog {
-        let a in 5 .. (<T as Config>::NameLimit::get()-1);
+        let a in 1 .. (<T as Config>::NameLimit::get()-1);
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -609,7 +609,7 @@ benchmarks! {
     }
 
     rename_catalog {
-        let a in 5 .. (<T as Config>::NameLimit::get()-1);
+        let a in 1 .. (<T as Config>::NameLimit::get()-1);
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());

@@ -1181,12 +1181,12 @@ impl_runtime_apis! {
         }
     }
 
-    impl provenance_runtime_api::ProvenanceApi<Block,RegistryId,DefinitionId,ProcessId,GroupId, MemberCount,DefinitionStepIndex,BoundedStringName,BoundedStringFact> for Runtime {
-        fn get_registries(group_id: GroupId) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
-            Provenance::get_registries(group_id)
+    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId, MemberCount,DefinitionStepIndex,BoundedStringName,BoundedStringFact> for Runtime {
+        fn get_registries(account_id: AccountId) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
+            Provenance::get_registries(account_id)
         }
-        fn get_registry(group_id: GroupId,registry_id:RegistryId) ->Option<Registry<BoundedStringName>>  {
-            Provenance::get_registry(group_id,registry_id)
+        fn get_registry(account_id: AccountId,registry_id:RegistryId) ->Option<Registry<BoundedStringName>>  {
+            Provenance::get_registry(account_id,registry_id)
         }
         fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition<BoundedStringName>)>  {
             Provenance::get_definitions(registry_id)
@@ -1194,7 +1194,7 @@ impl_runtime_apis! {
         fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition<BoundedStringName>>  {
             Provenance::get_definition(registry_id,definition_id)
         }
-        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<GroupId, MemberCount,BoundedStringName>)>  {
+        fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<AccountId, MemberCount,BoundedStringName>)>  {
             Provenance::get_definition_steps(registry_id,definition_id)
         }
         fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process<BoundedStringName>)>  {
@@ -1211,11 +1211,11 @@ impl_runtime_apis! {
         }
     }
     impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
-        fn get_catalogs(account:AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)> {
-            Identity::get_catalogs(account)
+        fn get_catalogs(account_id:AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)> {
+            Identity::get_catalogs(account_id)
         }
-        fn get_catalog(catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>> {
-            Identity::get_catalog(catalog_id)
+        fn get_catalog(account_id:AccountId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>> {
+            Identity::get_catalog(account_id,catalog_id)
         }
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>  {
             Identity::get_dids_in_catalog(catalog_id)
@@ -1240,8 +1240,8 @@ impl_runtime_apis! {
         }
         fn get_claim_consumers(did: Did) -> Vec<(AccountId,Moment)>{Identity::get_claim_consumers(did)}
         fn get_claim_issuers(did: Did) -> Vec<(AccountId,Moment)>{Identity::get_claim_issuers(did)}
-        fn get_dids_by_consumer(account:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_consumer(account)}
-        fn get_dids_by_issuer(account:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_issuer(account)}
+        fn get_dids_by_consumer(consumer:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_consumer(consumer)}
+        fn get_dids_by_issuer(issuer:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_issuer(issuer)}
     }
 
     impl audits_runtime_api::AuditsApi<Block,AccountId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {
@@ -1370,6 +1370,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_groups, Groups);
             add_benchmark!(params, batches, pallet_identity, Identity);
             add_benchmark!(params, batches, pallet_audits, Audits);
+            add_benchmark!(params, batches, pallet_provenance, Provenance);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

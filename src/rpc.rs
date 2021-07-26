@@ -49,10 +49,10 @@ where
     >,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,
+        AccountId,
         RegistryId,
         DefinitionId,
         ProcessId,
-        GroupId,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,

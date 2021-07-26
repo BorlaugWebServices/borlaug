@@ -128,7 +128,7 @@ macro_rules! enforce_limit_definition_steps_option {
                     .map(|definition_step| {
                         Ok(DefinitionStep {
                             name: enforce_limit!(definition_step.name),
-                            group_id: definition_step.group_id,
+                            attestor: definition_step.attestor,
                             threshold: definition_step.threshold,
                         })
                     })
@@ -146,7 +146,7 @@ macro_rules! enforce_limit_definition_steps {
             .map(|definition_step| {
                 Ok(DefinitionStep {
                     name: enforce_limit!(definition_step.name),
-                    group_id: definition_step.group_id,
+                    attestor: definition_step.attestor,
                     threshold: definition_step.threshold,
                 })
             })
