@@ -841,15 +841,21 @@ impl audits::Config for Runtime {
     type NameLimit = NameLimit;
     type MaxLinkRemove = MaxLinkRemove;
 }
-
+parameter_types! {
+    pub const DefinitionStepLimit: u32 = 500;
+    pub const AttributeLimit: u32 = 500;
+}
 impl provenance::Config for Runtime {
-    type Origin = Origin;
     type RegistryId = primitives::RegistryId;
     type DefinitionId = primitives::DefinitionId;
+    type DefinitionStepIndex = primitives::DefinitionStepIndex;
     type ProcessId = primitives::ProcessId;
     type Event = Event;
+    type WeightInfo = provenance::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
     type FactStringLimit = FactStringLimit;
+    type DefinitionStepLimit = DefinitionStepLimit;
+    type AttributeLimit = AttributeLimit;
     type GetExtrinsicExtraSource = Settings;
 }
 #[cfg(feature = "grandpa_babe")]

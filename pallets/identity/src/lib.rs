@@ -360,10 +360,10 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// Catalog ownership
+    /// Catalogs
     #[pallet::storage]
-    #[pallet::getter(fn catalog_ownership)]
-    pub type CatalogOwnership<T: Config> = StorageDoubleMap<
+    #[pallet::getter(fn catalogs)]
+    pub type Catalogs<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::AccountId,
@@ -373,11 +373,11 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// Catalogs
+    /// DidsByCatalog
     /// For each catalog index, we keep a mapping of `Did` an index name
     #[pallet::storage]
-    #[pallet::getter(fn catalogs)]
-    pub type Catalogs<T: Config> = StorageDoubleMap<
+    #[pallet::getter(fn dids_by_catalog)]
+    pub type DidsByCatalog<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::CatalogId,
@@ -430,8 +430,7 @@ pub mod pallet {
 
             Self::mint_did(sender.clone(), sender, bounded_name, properties);
 
-            Ok(()
-            .into())
+            Ok(().into())
         }
 
         /// Register a new DID for caller. A group calls to create a new DID.
@@ -585,7 +584,7 @@ pub mod pallet {
 
             Self::deposit_event(Event::DidReplaced(sender, did));
             //TODO: consider measuring how many properties were removed, and refund weight accordingly.
-            Ok(( ).into())
+            Ok(().into())
         }
 
         /// Add or remove DID controllers for a DID. Subject cannot be removed.
@@ -944,8 +943,7 @@ pub mod pallet {
                 statements_len as u32,
                 existing_statements_len as u32,
                 max_statement_name_len,
-                max_statement_fact_len
-                
+                max_statement_fact_len                
             )).into())
         }
 
@@ -1017,7 +1015,7 @@ pub mod pallet {
 
             let catalog_id = next_id!(NextCatalogId<T>, T);
 
-            <CatalogOwnership<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
+            <Catalogs<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
 
             Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
             Ok(().into())
@@ -1039,13 +1037,13 @@ pub mod pallet {
             let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
 
             let bounded_name = enforce_limit!(name);
 
-            <CatalogOwnership<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });            
+            <Catalogs<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });            
 
             Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
             Ok(().into())
@@ -1063,12 +1061,12 @@ pub mod pallet {
             let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
 
-            <CatalogOwnership<T>>::remove(&sender, catalog_id);            
-            <Catalogs<T>>::remove_prefix(&catalog_id);
+            <Catalogs<T>>::remove(&sender, catalog_id);            
+            <DidsByCatalog<T>>::remove_prefix(&catalog_id);
 
             Self::deposit_event(Event::CatalogRemoved(sender, catalog_id));
             Ok(().into())
@@ -1091,7 +1089,7 @@ pub mod pallet {
             let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -1106,7 +1104,7 @@ pub mod pallet {
                 .collect::<Result<Vec<_>, Error<T>>>()?;
 
             for (did, short_name) in dids.into_iter() {
-                <Catalogs<T>>::insert(catalog_id, did, short_name);
+                <DidsByCatalog<T>>::insert(catalog_id, did, short_name);
             }
 
             Self::deposit_event(Event::CatalogDidsAdded(sender, catalog_id));
@@ -1131,13 +1129,13 @@ pub mod pallet {
             let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
 
             let bounded_name = enforce_limit!(short_name);
 
-            <Catalogs<T>>::insert(&catalog_id, &target_did, bounded_name);
+            <DidsByCatalog<T>>::insert(&catalog_id, &target_did, bounded_name);
 
             Self::deposit_event(Event::CatalogDidRenamed(sender, catalog_id,target_did));
             Ok(().into())
@@ -1159,7 +1157,7 @@ pub mod pallet {
             let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                <CatalogOwnership<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&sender, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -1169,7 +1167,7 @@ pub mod pallet {
             );
 
             for did in dids.into_iter() {
-                <Catalogs<T>>::remove(catalog_id, did);
+                <DidsByCatalog<T>>::remove(catalog_id, did);
             }
 
             Self::deposit_event(Event::CatalogDidsRemoved(sender, catalog_id));
@@ -1187,7 +1185,7 @@ pub mod pallet {
             Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut catalogs = Vec::new();
-            <CatalogOwnership<T>>::iter_prefix(account_id)
+            <Catalogs<T>>::iter_prefix(account_id)
                 .for_each(|(catalog_id, catalog)| {                   
                     catalogs.push((catalog_id, catalog))}
                 );
@@ -1198,14 +1196,14 @@ pub mod pallet {
             account_id: T::AccountId,        
             catalog_id: T::CatalogId,
         ) -> Option<Catalog<BoundedVec<u8, <T as Config>::NameLimit>>> {
-            <CatalogOwnership<T>>::get( account_id,catalog_id)
+            <Catalogs<T>>::get( account_id,catalog_id)
         }
 
         pub fn get_dids_in_catalog(
             catalog_id: T::CatalogId,
         ) -> Vec<(Did, BoundedVec<u8, <T as Config>::NameLimit>)> {
             let mut dids = Vec::new();
-            <Catalogs<T>>::iter_prefix(catalog_id)
+            <DidsByCatalog<T>>::iter_prefix(catalog_id)
                 .for_each(|(did, name)| dids.push((did, name.into())));
             dids
         }
@@ -1224,7 +1222,7 @@ pub mod pallet {
             >,
             Vec<T::AccountId>,
         )> {
-            let short_name = <Catalogs<T>>::get(catalog_id, did);
+            let short_name = <DidsByCatalog<T>>::get(catalog_id, did);
             short_name.and_then(|short_name| {
                 <DidDocuments<T>>::get(did).map(|did_document| {
                     let mut properties = Vec::new();

@@ -312,7 +312,7 @@ fn create_catalog_should_work() {
         ));
 
         let mut catalogs = Vec::new();
-        CatalogOwnership::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
+        Catalogs::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
             catalogs.push(catalog_id);
         });
         assert_eq!(catalogs.len(), 1);
@@ -339,7 +339,7 @@ fn rename_catalog_should_work() {
         ));
 
         let mut catalogs = Vec::new();
-        CatalogOwnership::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
+        Catalogs::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
             catalogs.push(catalog_id);
         });
         assert_eq!(catalogs.len(), 1);
@@ -377,7 +377,7 @@ fn add_dids_to_catalog_should_work() {
         ));
 
         let mut catalogs = Vec::new();
-        CatalogOwnership::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
+        Catalogs::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
             catalogs.push(catalog_id);
         });
         assert_eq!(catalogs.len(), 1);
@@ -406,9 +406,9 @@ fn add_dids_to_catalog_should_work() {
             vec![(did, b"test_did".to_vec())]
         ));
 
-        assert!(Catalogs::<Test>::get(&catalog_id, &did).is_some());
+        assert!(DidsByCatalog::<Test>::get(&catalog_id, &did).is_some());
 
-        let did_name = Catalogs::<Test>::get(&catalog_id, &did).unwrap();
+        let did_name = DidsByCatalog::<Test>::get(&catalog_id, &did).unwrap();
         assert_eq!(did_name, b"test_did".to_vec());
     })
 }

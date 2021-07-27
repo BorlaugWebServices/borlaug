@@ -9,7 +9,7 @@
   "AssetId": "u32",
   "LeaseId": "u32",
   "DefinitionId": "u32",
-  "DefinitionStepIndex": "u8",
+  "DefinitionStepIndex": "u32",
   "ProcessId": "u32",
   "Did": {
     "id": "[u8; 32]"

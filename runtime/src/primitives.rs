@@ -49,7 +49,7 @@ pub type ClaimId = u32;
 //provenance
 pub type RegistryId = u32;
 pub type DefinitionId = u32;
-pub type DefinitionStepIndex = u8;
+pub type DefinitionStepIndex = u32;
 pub type ProcessId = u32;
 //audits
 pub type AuditId = u32;

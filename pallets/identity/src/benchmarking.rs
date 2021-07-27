@@ -583,8 +583,6 @@ benchmarks! {
         assert!(claim.attestation.is_none());
     }
 
-
-
     create_catalog {
         let a in 1 .. (<T as Config>::NameLimit::get()-1);
 
@@ -596,14 +594,8 @@ benchmarks! {
     }: _(SystemOrigin::Signed(caller.clone()),name.clone())
 
     verify {
-        let mut catalogs=Vec::new();
-        <CatalogOwnership<T>>::iter_prefix(&caller).for_each(|( catalog_id,_)| {
-            catalogs.push(catalog_id);
-        });
-        assert_eq!(catalogs.len(),1 as usize);
-        let catalog_id=catalogs[0];
-
-        let catalog=<CatalogName<T>>::get(catalog_id);
+        let catalog_id=T::CatalogId::unique_saturated_from(1u32);
+        let catalog=<Catalogs<T>>::get(caller,catalog_id);
         assert!(catalog.is_some());
         assert_eq!(catalog.unwrap().name.len(),name.len());
     }
@@ -617,22 +609,19 @@ benchmarks! {
         let origional_name = vec![42u8];
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::create_catalog(origin.clone(), origional_name)?;
+        IdentityPallet::<T>::create_catalog(origin.clone(), origional_name.clone())?;
 
-        let mut catalogs=Vec::new();
-        <CatalogOwnership<T>>::iter_prefix(&caller).for_each(|( catalog_id,_)| {
-            catalogs.push(catalog_id);
-        });
-        assert_eq!(catalogs.len(),1 as usize);
-        let catalog_id=catalogs[0];
+        let catalog_id=T::CatalogId::unique_saturated_from(1u32);
+        let catalog=<Catalogs<T>>::get(caller.clone(),catalog_id);
+        assert!(catalog.is_some());
+        assert_eq!(catalog.unwrap().name.len(),origional_name.len());
 
         let name = vec![42u8; a as usize];
 
     }: _(SystemOrigin::Signed(caller.clone()),catalog_id,name.clone())
 
     verify {
-
-        let catalog=<CatalogName<T>>::get(catalog_id);
+        let catalog=<Catalogs<T>>::get(caller,catalog_id);
         assert!(catalog.is_some());
         assert_eq!(catalog.unwrap().name.len(),name.len());
     }
@@ -647,24 +636,13 @@ benchmarks! {
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::create_catalog(origin.clone(), origional_name)?;
 
-        let mut catalogs=Vec::new();
-        <CatalogOwnership<T>>::iter_prefix(&caller).for_each(|( catalog_id,_)| {
-            catalogs.push(catalog_id);
-        });
-        assert_eq!(catalogs.len(),1 as usize);
-        let catalog_id=catalogs[0];
+        let catalog_id=T::CatalogId::unique_saturated_from(1u32);
+        assert!(<Catalogs<T>>::contains_key(caller.clone(),catalog_id));
 
     }: _(SystemOrigin::Signed(caller.clone()),catalog_id)
 
     verify {
-        let mut catalogs=Vec::new();
-        <CatalogOwnership<T>>::iter_prefix(&caller).for_each(|( catalog_id,_)| {
-            catalogs.push(catalog_id);
-        });
-        assert_eq!(catalogs.len(),0 as usize);
-
-        let catalog=<CatalogName<T>>::get(catalog_id);
-        assert!(catalog.is_none());
+        assert!(!<Catalogs<T>>::contains_key(caller,catalog_id));
     }
 
     add_dids_to_catalog {
@@ -678,12 +656,7 @@ benchmarks! {
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::create_catalog(origin.clone(), vec![42u8])?;
 
-        let mut catalogs=Vec::new();
-        <CatalogOwnership<T>>::iter_prefix(&caller).for_each(|( catalog_id,_)| {
-            catalogs.push(catalog_id);
-        });
-        assert_eq!(catalogs.len(),1 as usize);
-        let catalog_id=catalogs[0];
+        let catalog_id=T::CatalogId::unique_saturated_from(1u32);
 
         for _ in 0..a {
             IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
@@ -700,7 +673,7 @@ benchmarks! {
 
     verify {
         let mut catalog_dids=Vec::new();
-        <Catalogs<T>>::iter_prefix(&catalog_id).for_each(|(did, short_name)| {
+        <DidsByCatalog<T>>::iter_prefix(&catalog_id).for_each(|(did, short_name)| {
             assert_eq!(short_name.len(),b as usize);
             catalog_dids.push((did, short_name));
         });
@@ -717,12 +690,7 @@ benchmarks! {
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::create_catalog(origin.clone(), vec![42u8])?;
 
-        let mut catalogs=Vec::new();
-        <CatalogOwnership<T>>::iter_prefix(&caller).for_each(|( catalog_id,_)| {
-            catalogs.push(catalog_id);
-        });
-        assert_eq!(catalogs.len(),1 as usize);
-        let catalog_id=catalogs[0];
+        let catalog_id=T::CatalogId::unique_saturated_from(1u32);
 
         IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
 
@@ -741,7 +709,7 @@ benchmarks! {
     }: _(SystemOrigin::Signed(caller.clone()),catalog_id,did,name)
 
     verify {
-        let short_name=  <Catalogs<T>>::get(&catalog_id,&did);
+        let short_name=  <DidsByCatalog<T>>::get(&catalog_id,&did);
         assert!(short_name.is_some());
         assert_eq!(short_name.unwrap().len(),a as usize);
     }
@@ -756,12 +724,7 @@ benchmarks! {
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::create_catalog(origin.clone(), vec![42u8])?;
 
-        let mut catalogs=Vec::new();
-        <CatalogOwnership<T>>::iter_prefix(&caller).for_each(|( catalog_id,_)| {
-            catalogs.push(catalog_id);
-        });
-        assert_eq!(catalogs.len(),1 as usize);
-        let catalog_id=catalogs[0];
+        let catalog_id=T::CatalogId::unique_saturated_from(1u32);
 
         for _ in 0..a {
             IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
@@ -782,7 +745,7 @@ benchmarks! {
 
     verify {
         let mut dids_in_catalog=Vec::new();
-        <Catalogs<T>>::iter_prefix(&catalog_id).for_each(|(did, _)| {
+        <DidsByCatalog<T>>::iter_prefix(&catalog_id).for_each(|(did, _)| {
             dids_in_catalog.push(did);
         });
         assert_eq!(dids_in_catalog.len(), 0 as usize);
