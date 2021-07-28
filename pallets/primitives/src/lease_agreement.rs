@@ -4,12 +4,12 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct LeaseAgreement<RegistryId, AssetId, Timestamp, BoundedString> {
+pub struct LeaseAgreement<RegistryId, AssetId, Moment, BoundedString> {
     pub contract_number: BoundedString,
     pub lessor: Did,
     pub lessee: Did,
-    pub effective_ts: Timestamp,
-    pub expiry_ts: Timestamp,
+    pub effective_ts: Moment,
+    pub expiry_ts: Moment,
     pub allocations: Vec<AssetAllocation<RegistryId, AssetId>>,
 }
 

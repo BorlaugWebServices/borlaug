@@ -1193,10 +1193,35 @@ impl_runtime_apis! {
         }
     }
 
-    impl asset_registry_runtime_api::AssetRegistryApi<Block,AccountId,RegistryId,AssetId,LeaseId,BoundedStringName> for Runtime {
+    impl asset_registry_runtime_api::AssetRegistryApi<Block,AccountId,RegistryId,AssetId,LeaseId,Moment,Balance,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_registries(did: Did) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
             AssetRegistry::get_registries(did)
         }
+
+        fn get_registry(did: Did,registry_id:RegistryId) -> Option<Registry<BoundedStringName>>{
+            AssetRegistry::get_registry(did,registry_id)
+        }
+
+        fn get_assets(registry_id:RegistryId) -> Vec<(AssetId,Asset<Moment,Balance,BoundedStringName,BoundedStringFact>)>{
+            AssetRegistry::get_assets(registry_id)
+        }
+
+        fn get_asset(registry_id:RegistryId, asset_id:AssetId) -> Option<Asset<Moment,Balance,BoundedStringName,BoundedStringFact>>{
+            AssetRegistry::get_asset(registry_id,asset_id)
+        }
+
+        fn get_leases(lessor: Did) -> Vec<(LeaseId,LeaseAgreement<RegistryId,AssetId,Moment,BoundedStringName>)>{
+            AssetRegistry::get_leases(lessor)
+        }
+
+        fn get_lease(lessor: Did, lease_id:LeaseId) -> Option<LeaseAgreement<RegistryId,AssetId,Moment,BoundedStringName>>{
+            AssetRegistry::get_lease(lessor,lease_id)
+        }
+
+        fn get_lease_allocations(registry_id:RegistryId, asset_id:AssetId) -> Option<Vec<(LeaseId, u64, Moment)>>{
+            AssetRegistry::get_lease_allocations(registry_id,asset_id)
+        }
+
     }
 
     impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId, MemberCount,DefinitionStepIndex,BoundedStringName,BoundedStringFact> for Runtime {

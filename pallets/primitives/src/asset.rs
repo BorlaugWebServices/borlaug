@@ -4,7 +4,7 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct Asset<Timestamp, Balance, BoundedStringName, BoundedStringFact> {
+pub struct Asset<Moment, Balance, BoundedStringName, BoundedStringFact> {
     pub properties: Vec<AssetProperty<BoundedStringName, BoundedStringFact>>,
     pub name: BoundedStringName,
     pub asset_number: Option<BoundedStringName>,
@@ -13,7 +13,7 @@ pub struct Asset<Timestamp, Balance, BoundedStringName, BoundedStringFact> {
     pub total_shares: u64,
     pub residual_value: Option<Balance>,
     pub purchase_value: Option<Balance>,
-    pub acquired_date: Option<Timestamp>,
+    pub acquired_date: Option<Moment>,
 }
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
