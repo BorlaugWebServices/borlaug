@@ -6,6 +6,7 @@ mod chain_spec;
 #[macro_use]
 #[cfg_attr(feature = "grandpa_babe", path = "service_grandpa_babe.rs")]
 mod service;
+mod asset_registry_rpc;
 mod audits_rpc;
 mod cli;
 #[cfg_attr(feature = "grandpa_babe", path = "command_grandpa_babe.rs")]

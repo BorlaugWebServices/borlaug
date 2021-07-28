@@ -4,9 +4,10 @@ use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
 use runtime::primitives::{
-    AccountId, AuditId, Balance, Block, BoundedStringFact, BoundedStringName, CatalogId, ClaimId,
-    ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId, ExtrinsicIndex, GroupId, Hash,
-    Index, MemberCount, ModuleIndex, Moment, ObservationId, ProcessId, ProposalId, RegistryId,
+    AccountId, AssetId, AuditId, Balance, Block, BoundedStringFact, BoundedStringName, CatalogId,
+    ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId, ExtrinsicIndex,
+    GroupId, Hash, Index, LeaseId, MemberCount, ModuleIndex, Moment, ObservationId, ProcessId,
+    ProposalId, RegistryId,
 };
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
@@ -77,6 +78,14 @@ where
         ObservationId,
         BoundedStringName,
     >,
+    C::Api: asset_registry_runtime_api::AssetRegistryApi<
+        Block,
+        AccountId,
+        RegistryId,
+        AssetId,
+        LeaseId,
+        BoundedStringName,
+    >,
     C::Api: settings_runtime_api::SettingsApi<Block, ModuleIndex, ExtrinsicIndex, Balance>,
     P: TransactionPool + 'static,
 {
@@ -102,6 +111,10 @@ where
     // Add the audits api
     io.extend_with(crate::audits_rpc::AuditsApi::to_delegate(
         crate::audits_rpc::Audits::new(client.clone()),
+    ));
+    // Add the asset_registry api
+    io.extend_with(crate::asset_registry_rpc::AssetRegistryApi::to_delegate(
+        crate::asset_registry_rpc::AssetRegistry::new(client.clone()),
     ));
     // Add the settings api
     io.extend_with(crate::settings_rpc::SettingsApi::to_delegate(

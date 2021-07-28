@@ -6,6 +6,7 @@ version = 3
 name = "Borlaug"
 version = "0.0.1"
 dependencies = [
+ "asset-registry-runtime-api",
  "audits-runtime-api",
  "borlaug-runtime",
  "chrono",
@@ -270,6 +271,17 @@ name = "assert_matches"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
+
+[[package]]
+name = "asset-registry-runtime-api"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "pallet-primitives",
+ "parity-scale-codec",
+ "serde_json",
+ "sp-api",
+]
 
 [[package]]
 name = "async-channel"
@@ -687,6 +699,7 @@ dependencies = [
 name = "borlaug-runtime"
 version = "2.0.0"
 dependencies = [
+ "asset-registry-runtime-api",
  "audits-runtime-api",
  "frame-benchmarking",
  "frame-executive",
@@ -3896,12 +3909,16 @@ name = "pallet-asset-registry"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "extrinsic-extra",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-balances",
+ "pallet-groups",
  "pallet-identity",
  "pallet-primitives",
  "pallet-randomness-collective-flip",
+ "pallet-settings",
  "pallet-timestamp",
  "parity-scale-codec",
  "serde",

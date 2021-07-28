@@ -387,17 +387,6 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    macro_rules! next_id {
-        ($id:ty,$t:ty) => {{
-            let current_id = <$id>::get();
-            let next_id = current_id
-                .checked_add(&One::one())
-                .ok_or(Error::<$t>::NoIdAvailable)?;
-            <$id>::put(next_id);
-            current_id
-        }};
-    }
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Register a new DID for caller. Subject calls to create a new DID.
@@ -1065,7 +1054,8 @@ pub mod pallet {
                 Error::<T>::NotController
             );
 
-            <Catalogs<T>>::remove(&sender, catalog_id);            
+            <Catalogs<T>>::remove(&sender, catalog_id);  
+            //TODO: fix this for weights          
             <DidsByCatalog<T>>::remove_prefix(&catalog_id);
 
             Self::deposit_event(Event::CatalogRemoved(sender, catalog_id));

@@ -18,7 +18,6 @@ primitives = {package = "pallet-primitives", path = "../primitives", default-fea
 
 [dev-dependencies]
 chrono = "0.4"
-
 identity = {package = "pallet-identity", path = "../identity", default-features = false}
 pallet-balances = "3.0.0"
 serde = "1.0"

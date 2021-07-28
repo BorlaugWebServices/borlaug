@@ -56,6 +56,9 @@ pub type AuditId = u32;
 pub type ControlPointId = u32;
 pub type EvidenceId = u32;
 pub type ObservationId = u32;
+//asset_registry
+pub type AssetId = u32;
+pub type LeaseId = u32;
 
 parameter_types! {
     pub const NameLimit: u32 = 50;

@@ -29,7 +29,7 @@ pub mod pallet {
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::{fail,dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use primitives::{bounded_vec::BoundedVec, *};
     use sp_runtime::{
@@ -302,17 +302,6 @@ pub mod pallet {
     pub(super) type NextProcessId<T: Config> =
         StorageValue<_, T::ProcessId, ValueQuery, ProcessIdDefault<T>>;
 
-    macro_rules! next_id {
-        ($id:ty,$t:ty) => {{
-            let current_id = <$id>::get();
-            let next_id = current_id
-                .checked_add(&One::one())
-                .ok_or(Error::<$t>::NoIdAvailable)?;
-            <$id>::put(next_id);
-            current_id
-        }};
-    }
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Add a new registry
@@ -392,10 +381,8 @@ pub mod pallet {
                 Error::<T>::NotAuthorized
             );
 
-           for  _ in <Definitions<T>>::iter_prefix(registry_id) {
-                fail!(Error::<T>::RegistryNotEmpty);
-            };
-
+            ensure!(<Definitions<T>>::iter_prefix(registry_id).next().is_none(),Error::<T>::RegistryNotEmpty);
+         
             <Registries<T>>::remove(&sender, registry_id);
 
             Self::deposit_event(Event::RegistryRemoved(sender, registry_id));
@@ -588,9 +575,10 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            for  _ in <Processes<T>>::iter_prefix((registry_id, definition_id)) {
-                fail!(Error::<T>::ProcessesExist);
-            };
+            ensure!(
+                <Processes<T>>::iter_prefix((registry_id, definition_id)).next().is_none(),
+                Error::<T>::ProcessesExist
+            );            
 
             let step_count = <DefinitionSteps<T>>::drain_prefix((registry_id, definition_id)).count() as u32   ;
 

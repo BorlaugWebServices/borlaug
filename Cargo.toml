@@ -78,6 +78,7 @@ frame-benchmarking-cli = {version = "3.0.0"}
 
 runtime = {package = "borlaug-runtime", path = "runtime", optional = true}
 
+asset-registry-runtime-api = {path = "pallets/asset-registry-runtime-api"}
 audits-runtime-api = {path = "pallets/audits-runtime-api"}
 groups-runtime-api = {path = "pallets/groups-runtime-api"}
 identity-runtime-api = {path = "pallets/identity-runtime-api"}

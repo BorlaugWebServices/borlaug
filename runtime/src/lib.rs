@@ -50,10 +50,10 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
-    AccountId, AuditId, Balance, BlockNumber, BoundedStringFact, BoundedStringName, CatalogId,
-    ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId, ExtrinsicIndex,
-    FactStringLimit, GroupId, Hash, Index, MemberCount, ModuleIndex, Moment, NameLimit,
-    ObservationId, ProcessId, ProposalId, RegistryId, Signature,
+    AccountId, AssetId, AuditId, Balance, BlockNumber, BoundedStringFact, BoundedStringName,
+    CatalogId, ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId,
+    ExtrinsicIndex, FactStringLimit, GroupId, Hash, Index, LeaseId, MemberCount, ModuleIndex,
+    Moment, NameLimit, ObservationId, ProcessId, ProposalId, RegistryId, Signature,
 };
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
@@ -817,15 +817,21 @@ impl identity::Config for Runtime {
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
 }
-
+parameter_types! {
+    pub const AssetPropertyLimit: u32 = 500;
+    pub const LeaseAssetLimit: u32 = 500;
+}
 impl asset_registry::Config for Runtime {
     type RegistryId = RegistryId;
-    type AssetId = u32;
-    type LeaseId = u32;
+    type AssetId = AssetId;
+    type LeaseId = LeaseId;
     type Balance = Balance;
     type Event = Event;
+    type WeightInfo = asset_registry::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
     type FactStringLimit = FactStringLimit;
+    type AssetPropertyLimit = AssetPropertyLimit;
+    type LeaseAssetLimit = LeaseAssetLimit;
 }
 
 parameter_types! {
@@ -1187,6 +1193,12 @@ impl_runtime_apis! {
         }
     }
 
+    impl asset_registry_runtime_api::AssetRegistryApi<Block,AccountId,RegistryId,AssetId,LeaseId,BoundedStringName> for Runtime {
+        fn get_registries(did: Did) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
+            AssetRegistry::get_registries(did)
+        }
+    }
+
     impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId, MemberCount,DefinitionStepIndex,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_registries(account_id: AccountId) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
             Provenance::get_registries(account_id)
@@ -1377,6 +1389,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_identity, Identity);
             add_benchmark!(params, batches, pallet_audits, Audits);
             add_benchmark!(params, batches, pallet_provenance, Provenance);
+            add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

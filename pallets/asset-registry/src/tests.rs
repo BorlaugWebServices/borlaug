@@ -11,8 +11,8 @@ use primitives::{
 };
 
 fn create_did() -> Did {
-    let _ = Identity::register_did(Origin::signed(1), None);
-    let dids = Identity::dids(&1);
+    let _ = Identity::register_did(Origin::signed(1), None, None);
+    let dids = Identity::dids_by_controller(&1);
     *dids.last().unwrap()
 }
 
