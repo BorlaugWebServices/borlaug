@@ -24,6 +24,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         Groups: groups::{Module, Call, Storage, Event<T>, Origin<T>},
         Identity: identity::{Module, Call, Storage, Event<T>},
+        Timestamp: timestamp::{Module, Call, Storage, Inherent},
         AssetRegistry: pallet_asset_registry::{Module, Call, Storage, Event<T>},
     }
 );

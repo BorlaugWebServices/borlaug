@@ -389,7 +389,7 @@ benchmarks! {
             allocations: allocations,
         };
 
-        AssetRegistryPallet::<T>::create_asset(origin.clone(), lease.clone())?;
+        AssetRegistryPallet::<T>::new_lease(origin.clone(), lease.clone())?;
         let lease_id=T::LeaseId::unique_saturated_from(1u32);
 
     }: _(SystemOrigin::Signed(caller.clone()),did,lease_id)

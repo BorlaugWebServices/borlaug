@@ -3,45 +3,51 @@
 use super::*;
 use crate::mock::*;
 use chrono::Utc;
-use frame_support::assert_ok;
-use primitives::{
-    asset::{Asset, AssetStatus},
-    did::Did,
-    lease_agreement::{AssetAllocation, LeaseAgreement},
-};
+use core::convert::TryInto;
+use frame_support::{assert_err, assert_ok};
+use primitives::{bounded_vec::BoundedVec, *};
 
 fn create_did() -> Did {
     let _ = Identity::register_did(Origin::signed(1), None, None);
-    let dids = Identity::dids_by_controller(&1);
-    *dids.last().unwrap()
+    let mut dids_by_controller = Vec::new();
+    identity::DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+        dids_by_controller.push(did);
+    });
+    dids_by_controller[0]
 }
 
 fn create_registry(did: Did) -> u32 {
-    let _ = AssetRegistry::create_registry(Origin::signed(1), did);
-    *AssetRegistry::registries(&did).last().unwrap()
+    let name = b"name".to_vec();
+    assert_ok!(AssetRegistry::create_registry(Origin::signed(1), did, name));
+    let registry_id = 1u32;
+    registry_id
 }
 
-//warning this function doesn't work if called multiple times.
 fn create_asset(did: Did, registry_id: u32) {
     let now = Utc::now().timestamp() as u64;
     let asset = Asset {
-        properties: None,
-        name: Some(b"Cat".to_vec()),
+        properties: vec![],
+        name: b"Cat".to_vec(),
         asset_number: Some(b"CAR_001".to_vec()),
-        status: Some(AssetStatus::Active),
+        status: AssetStatus::Active,
         serial_number: Some(b"1234567890".to_vec()),
-        total_shares: Some(100),
+        total_shares: 100,
         residual_value: Some(1_000_000),
         purchase_value: Some(1_000_000),
         acquired_date: Some(now),
     };
-    let _ = AssetRegistry::create_asset(Origin::signed(1), did, registry_id, asset);
+    assert_ok!(AssetRegistry::create_asset(
+        Origin::signed(1),
+        did,
+        registry_id,
+        asset
+    ));
 }
 
 fn create_lease(did_lessor: Did, did_lessee: Did) {
     let registry_id = create_registry(did_lessor);
     create_asset(did_lessor, registry_id);
-    let asset_id = 0u32;
+    let asset_id = 1u32;
     let now = Utc::now().timestamp() as u64;
     let next_week = (Utc::now().timestamp() + 60 * 60 * 24 * 7) as u64;
     let lease = LeaseAgreement {
@@ -56,7 +62,7 @@ fn create_lease(did_lessor: Did, did_lessee: Did) {
         effective_ts: now,
         expiry_ts: next_week,
     };
-    let _ = AssetRegistry::new_lease(Origin::signed(1), lease);
+    assert_ok!(AssetRegistry::new_lease(Origin::signed(1), lease));
 }
 
 #[test]
@@ -66,13 +72,54 @@ fn creating_registry_should_work() {
         System::set_block_number(1);
 
         // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
+        let did_1 = create_did();
 
-        let dids = Identity::dids(&1);
-        let did_1 = dids[0];
+        let name = b"name".to_vec();
 
-        assert_ok!(AssetRegistry::create_registry(Origin::signed(1), did_1));
-        assert_eq!(AssetRegistry::registries(&did_1), vec![1u32]);
+        assert_ok!(AssetRegistry::create_registry(
+            Origin::signed(1),
+            did_1,
+            name
+        ));
+        let registry_id = 1u32;
+        let limited_name: BoundedVec<u8, <Test as Config>::NameLimit> =
+            b"name".to_vec().try_into().unwrap();
+        assert!(Registries::<Test>::contains_key(&did_1, registry_id));
+        let registry = Registries::<Test>::get(&did_1, registry_id).unwrap();
+        assert_eq!(registry, Registry { name: limited_name });
+    });
+}
+
+#[test]
+fn updating_registry_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        // 1 creates a DID for itself
+        let did_1 = create_did();
+
+        let name = b"name".to_vec();
+        assert_ok!(AssetRegistry::create_registry(
+            Origin::signed(1),
+            did_1,
+            name
+        ));
+        let registry_id = 1u32;
+
+        let new_name = b"new name".to_vec();
+        assert_ok!(AssetRegistry::update_registry(
+            Origin::signed(1),
+            did_1,
+            registry_id,
+            new_name
+        ));
+
+        let limited_name: BoundedVec<u8, <Test as Config>::NameLimit> =
+            b"new name".to_vec().try_into().unwrap();
+        assert!(Registries::<Test>::contains_key(&did_1, registry_id));
+        let registry = Registries::<Test>::get(&did_1, registry_id).unwrap();
+        assert_eq!(registry, Registry { name: limited_name });
     });
 }
 
@@ -83,25 +130,28 @@ fn deleting_registry_should_work() {
         System::set_block_number(1);
 
         // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
+        let did_1 = create_did();
 
-        let dids = Identity::dids(&1);
-        let did_1 = dids[0];
-
-        assert_ok!(AssetRegistry::create_registry(Origin::signed(1), did_1));
-        assert_eq!(AssetRegistry::registries(&did_1), vec![1u32]);
+        let name = b"name".to_vec();
+        assert_ok!(AssetRegistry::create_registry(
+            Origin::signed(1),
+            did_1,
+            name
+        ));
+        let registry_id = 1u32;
 
         assert_ok!(AssetRegistry::delete_registry(
             Origin::signed(1),
             did_1,
-            1u32
+            registry_id,
         ));
+
+        assert!(!Registries::<Test>::contains_key(&did_1, registry_id));
     });
 }
 
-//TODO: add asset properties
 #[test]
-fn creating_assets_should_work() {
+fn creating_asset_should_work() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -111,13 +161,19 @@ fn creating_assets_should_work() {
         let registry_id = create_registry(did_1);
 
         let now = Utc::now().timestamp() as u64;
+
+        let properties = vec![AssetProperty {
+            name: b"property name".to_vec(),
+            fact: Fact::Text(b"fact text".to_vec()),
+        }];
+
         let asset = Asset {
-            properties: None,
-            name: Some(b"Cat".to_vec()),
+            properties: properties,
+            name: b"Cat".to_vec(),
             asset_number: Some(b"CAR_001".to_vec()),
-            status: Some(AssetStatus::Active),
+            status: AssetStatus::Active,
             serial_number: Some(b"1234567890".to_vec()),
-            total_shares: Some(100),
+            total_shares: 100,
             residual_value: Some(1_000_000),
             purchase_value: Some(1_000_000),
             acquired_date: Some(now),
@@ -129,9 +185,9 @@ fn creating_assets_should_work() {
             asset.clone()
         ));
 
-        let created_asset = AssetRegistry::assets(registry_id, 1u32);
+        let asset_id = 1u32;
 
-        assert_eq!(created_asset, asset);
+        assert!(Assets::<Test>::contains_key(registry_id, asset_id));
     });
 }
 
@@ -152,12 +208,12 @@ fn updating_asset_should_work() {
         let now = Utc::now().timestamp() as u64;
 
         let new_asset = Asset {
-            properties: None,
-            name: Some(b"Dog".to_vec()),
+            properties: vec![],
+            name: b"Dog".to_vec(),
             asset_number: Some(b"CAR_002".to_vec()),
-            status: Some(AssetStatus::Active),
+            status: AssetStatus::Active,
             serial_number: Some(b"1234567890".to_vec()),
-            total_shares: Some(200),
+            total_shares: 200,
             residual_value: Some(1_000_000),
             purchase_value: Some(1_000_000),
             acquired_date: Some(now),
@@ -171,7 +227,9 @@ fn updating_asset_should_work() {
             new_asset.clone()
         ));
 
-        assert_eq!(AssetRegistry::assets(registry_id, 0u32), new_asset);
+        assert!(Assets::<Test>::contains_key(registry_id, asset_id));
+        let stored_asset = Assets::<Test>::get(registry_id, asset_id).unwrap();
+        assert_eq!(stored_asset.total_shares, 200);
     });
 }
 
@@ -196,7 +254,7 @@ fn deleting_asset_should_work() {
             asset_id
         ));
 
-        assert_eq!(Assets::<Test>::contains_key(registry_id, 1u32), false);
+        assert!(!Assets::<Test>::contains_key(registry_id, 1u32));
     });
 }
 
@@ -225,7 +283,7 @@ fn creating_lease_should_work() {
 
         let lease = LeaseAgreement {
             contract_number: b"001".to_vec(),
-            lessor: did_lessor,
+            lessor: did_lessor.clone(),
             lessee: did_lessee,
             allocations: vec![AssetAllocation {
                 registry_id,
@@ -237,11 +295,18 @@ fn creating_lease_should_work() {
         };
 
         assert_ok!(AssetRegistry::new_lease(Origin::signed(1), lease));
+
+        let lease_id = 1u32;
+
+        assert!(LeaseAgreements::<Test>::contains_key(
+            &did_lessor,
+            &lease_id
+        ));
     });
 }
 
 #[test]
-fn lease_asset_over_allocation() {
+fn lease_asset_over_allocation_should_fail() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -278,6 +343,13 @@ fn lease_asset_over_allocation() {
 
         assert_ok!(AssetRegistry::new_lease(Origin::signed(1), lease1));
 
+        let lease_id = 1u32;
+
+        assert!(LeaseAgreements::<Test>::contains_key(
+            &did_lessor,
+            &lease_id
+        ));
+
         let lease2 = LeaseAgreement {
             contract_number: b"002".to_vec(),
             lessor: did_lessor,
@@ -291,7 +363,12 @@ fn lease_asset_over_allocation() {
             expiry_ts: next_week,
         };
 
-        assert_ok!(AssetRegistry::new_lease(Origin::signed(1), lease2));
+        assert_err!(
+            AssetRegistry::new_lease(Origin::signed(1), lease2),
+            Error::<Test>::AssetAllocationFailed
+        );
+
+        assert!(!LeaseAgreements::<Test>::contains_key(&did_lessor, 2u32));
     });
 }
 
@@ -304,10 +381,14 @@ fn voiding_lease_should_work() {
         let did_lessor = create_did();
         let did_lessee = create_did();
         create_lease(did_lessor, did_lessee);
-        let lease_id = 0u32;
+        let lease_id = 1u32;
         assert_ok!(AssetRegistry::void_lease(
             Origin::signed(1),
             did_lessor,
+            lease_id
+        ));
+        assert!(!LeaseAgreements::<Test>::contains_key(
+            &did_lessor,
             lease_id
         ));
     });

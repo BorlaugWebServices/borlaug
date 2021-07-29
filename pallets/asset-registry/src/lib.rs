@@ -139,6 +139,8 @@ pub mod pallet {
         RegistryNotEmpty,
         /// Id out of bounds
         NoIdAvailable,
+ /// Some assets could not be allocated
+        AssetAllocationFailed
     }
 
     #[pallet::type_value]
@@ -508,7 +510,7 @@ pub mod pallet {
             .into_iter()
             .any(Self::check_allocation);
 
-            ensure!(can_allocate, "Cannot allocate some assets");
+            ensure!(can_allocate, Error::<T>::AssetAllocationFailed);
 
             let lease_id = next_id!(NextLeaseId<T>, T);
 
