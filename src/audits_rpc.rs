@@ -2,7 +2,7 @@ use audits_runtime_api::AuditsApi as AuditsRuntimeApi;
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_primitives::{AuditStatus, Compliance, Evidence, Observation};
+use pallet_primitives::{Audit, AuditStatus, Compliance, Evidence, Observation};
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
@@ -33,6 +33,13 @@ pub trait AuditsApi<
         account: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<AuditResponse<AccountId, AuditId>>>;
+
+    #[rpc(name = "get_audit")]
+    fn get_audit(
+        &self,
+        audit_id: AuditId,
+        at: Option<BlockHash>,
+    ) -> Result<AuditResponse<AccountId, AuditId>>;
 
     #[rpc(name = "get_observation")]
     fn get_observation(
@@ -88,7 +95,22 @@ pub struct AuditResponse<AccountId, AuditId> {
     pub audit_creator: AccountId,
     pub auditor: AccountId,
 }
-
+impl<AccountId, AuditId> From<(AuditId, Audit<AccountId>)> for AuditResponse<AccountId, AuditId> {
+    fn from((audit_id, audit): (AuditId, Audit<AccountId>)) -> Self {
+        AuditResponse::<AccountId, AuditId> {
+            audit_id,
+            audit_creator: audit.audit_creator,
+            auditor: audit.auditor,
+            status: match audit.status {
+                AuditStatus::Requested => "Requested".to_string(),
+                AuditStatus::Accepted => "Accepted".to_string(),
+                AuditStatus::Rejected => "Rejected".to_string(),
+                AuditStatus::InProgress => "InProgress".to_string(),
+                AuditStatus::Completed => "Completed".to_string(),
+            },
+        }
+    }
+}
 #[derive(Serialize, Deserialize)]
 pub struct ObservationResponse<ObservationId> {
     pub observation_id: ObservationId,
@@ -237,19 +259,7 @@ where
             .map_err(convert_error!())?;
         Ok(audits
             .into_iter()
-            .map(|(audit_id, audit)| AuditResponse::<AccountId, AuditId> {
-                audit_id,
-                audit_creator: audit.audit_creator,
-                auditor: audit.auditor,
-                //TODO: can this be done neater?
-                status: match audit.status {
-                    AuditStatus::Requested => "Requested".to_string(),
-                    AuditStatus::Accepted => "Accepted".to_string(),
-                    AuditStatus::Rejected => "Rejected".to_string(),
-                    AuditStatus::InProgress => "InProgress".to_string(),
-                    AuditStatus::Completed => "Completed".to_string(),
-                },
-            })
+            .map(|(audit_id, audit)| (audit_id, audit).into())
             .collect())
     }
 
@@ -266,19 +276,23 @@ where
             .map_err(convert_error!())?;
         Ok(audits
             .into_iter()
-            .map(|(audit_id, audit)| AuditResponse::<AccountId, AuditId> {
-                audit_id,
-                audit_creator: audit.audit_creator,
-                auditor: audit.auditor,
-                status: match audit.status {
-                    AuditStatus::Requested => "Requested".to_string(),
-                    AuditStatus::Accepted => "Accepted".to_string(),
-                    AuditStatus::Rejected => "Rejected".to_string(),
-                    AuditStatus::InProgress => "InProgress".to_string(),
-                    AuditStatus::Completed => "Completed".to_string(),
-                },
-            })
+            .map(|(audit_id, audit)| (audit_id, audit).into())
             .collect())
+    }
+
+    fn get_audit(
+        &self,
+        audit_id: AuditId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<AuditResponse<AccountId, AuditId>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let audit = api
+            .get_audit(&at, audit_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok((audit_id, audit).into())
     }
 
     fn get_observation(

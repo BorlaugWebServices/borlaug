@@ -690,6 +690,10 @@ pub mod pallet {
             audits
         }
 
+        pub fn get_audit(audit_id: T::AuditId) -> Option<Audit<T::AccountId>> {
+            <Audits<T>>::get(audit_id)
+        }
+
         pub fn get_observation(
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,

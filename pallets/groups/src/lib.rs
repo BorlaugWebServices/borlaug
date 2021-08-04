@@ -40,7 +40,7 @@ pub mod pallet {
             AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Hash, One, Saturating,
             UniqueSaturatedFrom, Zero,
         },
-        DispatchResult, Either,
+         Either,
     };
     use sp_std::{prelude::*, vec};
 
@@ -728,8 +728,7 @@ pub mod pallet {
          /// - `group_id`: Group executing the extrinsic
         /// - `proposal`: Proposal to be executed
         /// - `threshold`: Declaration of the threshold required - will be checked by the extrinsic after approval.
-        /// - `length_bound`: The length of the Proposal for weight estimation
-        //  #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `length_bound`: The length of the Proposal for weight estimation        
 
         #[pallet::weight(
             if *threshold < 2u32.into() {
@@ -904,8 +903,20 @@ pub mod pallet {
 
         /// Close a Proposal. Caller of vote should check if the vote will be approved/disaproved and call close if it will
         ///
-       //TODO: params docs
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `group_id`: Group executing the extrinsic
+        /// - `proposal_id`: Proposal to be closed
+        /// - `proposal_weight_bound`: maximum expected weight of the proposal.
+        /// - `length_bound`: length of the proposal.
+        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(	{
+            let a = *length_bound;
+            let m = T::MaxMembers::get().into();
+            let p1 = *proposal_weight_bound;
+            let p2 = T::MaxProposals::get();   
+                T::WeightInfo::close_approved(a, m, p2)
+                .max(T::WeightInfo::close_disapproved(m, p2))
+                .saturating_add(p1)
+        })]
         pub fn close(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -916,11 +927,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             ensure!(group.members.contains(&sender), Error::<T>::NotMember);
-            let proposal =
-                Self::proposals(group_id, proposal_id).ok_or(Error::<T>::ProposalMissing)?;
-                let proposal_len = proposal.using_encoded(|x| x.len());
-                ensure!(proposal_len <= length_bound as usize, Error::<T>::WrongProposalLength);
-            let proposal_hash = T::Hashing::hash_of(&proposal);
+            
             let voting = Self::voting(group_id, proposal_id).ok_or(Error::<T>::VoteMissing)?;           
            
             let yes_votes = T::MemberCount::unique_saturated_from(voting.ayes.len() as u128);
@@ -929,8 +936,20 @@ pub mod pallet {
             let seats = T::MemberCount::unique_saturated_from(group.members.len() as u128);
             let approved = yes_votes >= voting.threshold;
             let disapproved = seats.saturating_sub(no_votes) < voting.threshold;
+
+            let proposal =
+            Self::proposals(group_id, proposal_id).ok_or(Error::<T>::ProposalMissing)?;
+          
+        let proposal_hash = T::Hashing::hash_of(&proposal);
          
-            if approved {
+            if approved {   
+                
+                let proposal_len = proposal.using_encoded(|x| x.len());
+                ensure!(proposal_len <= length_bound as usize, Error::<T>::WrongProposalLength);
+                
+                let dispatch_weight = proposal.get_dispatch_info().weight;
+		ensure!(dispatch_weight <= proposal_weight_bound, Error::<T>::WrongProposalWeight);
+
                 let result = proposal.dispatch(
                     RawOrigin::ProposalApproved(
                         group_id,
@@ -946,33 +965,57 @@ pub mod pallet {
                     yes_votes,
                     no_votes,
                     result.is_ok(),
-                ));                
+                )); 
+
+                let  proposal_count= Self::remove_proposal(group_id, proposal_id, proposal_hash);   
+                
+                let proposal_weight = Self::get_result_weight(result).unwrap_or(dispatch_weight); 
+
+                return Ok((
+					Some(T::WeightInfo::close_approved(proposal_len as u32, seats.into(), proposal_count)
+					.saturating_add(proposal_weight)),
+					Pays::Yes,
+				).into());
+                
+                
             } else if disapproved {
                 Self::deposit_event(Event::Disapproved(
                     group_id,
                     proposal_id,
                     yes_votes,
                     no_votes,
-                ));                
+                ));
+
+                let  proposal_count=Self::remove_proposal(group_id, proposal_id, proposal_hash);
+
+                return Ok((
+					Some(T::WeightInfo::close_disapproved(seats.into(), proposal_count)),
+					Pays::No,
+				).into());           
             } else {
                 ensure!(false, Error::<T>::VotingIncomplete);
-            };
-            Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
+            };          
             //TODO: do we remove votes?
 
-            //TODO: weight calculation
+          //this never happens
             Ok(().into())
         }
 
         /// Veto a Proposal
         ///
-       //TODO: params docs
+       /// - `group_id`: Group executing the extrinsic
+        /// - `proposal_id`: Proposal to be closed
+         /// - `approve`: approval.
+        /// - `proposal_weight_bound`: maximum expected weight of the proposal.
+        /// - `length_bound`: length of the proposal.
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn veto(
             origin: OriginFor<T>,
             group_id: T::GroupId,
             proposal_id: T::ProposalId,
             approve: bool,
+            proposal_weight_bound: Weight, 
+            length_bound: u32     
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
@@ -1011,7 +1054,7 @@ pub mod pallet {
                     no_votes,
                     result.is_ok(),
                 ));
-                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
+                let  proposal_count=Self::remove_proposal(group_id, proposal_id, proposal_hash);
             } else {
                 Self::deposit_event(Event::DisapprovedByVeto(
                     sender,
@@ -1020,7 +1063,7 @@ pub mod pallet {
                     yes_votes,
                     no_votes,
                 ));
-                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
+                let  proposal_count=Self::remove_proposal(group_id, proposal_id, proposal_hash);
             };
 
             Ok(().into())
@@ -1122,17 +1165,19 @@ pub mod pallet {
             group_id: T::GroupId,
             proposal_id: T::ProposalId,
             proposal_hash: T::Hash,
-        ) -> DispatchResult {
+        ) -> u32 {
             <Proposals<T>>::remove(group_id, proposal_id);
+            let mut proposal_count=0;
             <ProposalHashes<T>>::mutate_exists(
                 group_id,
                 |maybe_proposals| {
-                    if let Some(ref mut proposals )= maybe_proposals{                      
+                    if let Some(ref mut proposals )= maybe_proposals{   
+                        proposal_count=        proposals.len()           as u32;
                     proposals.retain(|h| h != &proposal_hash);
                     }                   
                 },
             );
-            Ok(())
+            proposal_count
         }
     }
 
