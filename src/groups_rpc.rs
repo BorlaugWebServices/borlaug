@@ -75,11 +75,10 @@ pub struct VoteResponse<AccountId, ProposalId, MemberCount> {
     pub ayes: Vec<AccountId>,
     pub nays: Vec<AccountId>,
 }
-impl<AccountId, ProposalId, MemberCount>
-    From<(ProposalId, Votes<AccountId, ProposalId, MemberCount>)>
+impl<AccountId, ProposalId, MemberCount> From<(ProposalId, Votes<AccountId, MemberCount>)>
     for VoteResponse<AccountId, ProposalId, MemberCount>
 {
-    fn from((proposal_id, vote): (ProposalId, Votes<AccountId, ProposalId, MemberCount>)) -> Self {
+    fn from((proposal_id, vote): (ProposalId, Votes<AccountId, MemberCount>)) -> Self {
         VoteResponse {
             proposal_id,
             threshold: vote.threshold,

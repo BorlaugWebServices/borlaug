@@ -2,8 +2,7 @@
 
 use crate as pallet_groups;
 use frame_support::{ord_parameter_types, parameter_types};
-use frame_system as system;
-use frame_system::EnsureSignedBy;
+use frame_system::{self as system, EnsureOneOf, EnsureSigned};
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -79,13 +78,18 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
     pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxProposalLength: u32 = 1000;
     pub const GroupMaxMembers: u32 = 100;
+    pub const GroupChainLimit: u32 = 100;
+    pub const NameLimit: u32 = 100;
 }
 
 impl pallet_groups::Config for Test {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = pallet_groups::EnsureThreshold<Test>;
     type GroupsOriginByCallerThreshold = pallet_groups::EnsureApproved<Test>;
+    type GroupsOriginAccountOrGroup =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, pallet_groups::EnsureApproved<Test>>;
     type Proposal = Call;
     type GroupId = u32;
     type ProposalId = u32;
@@ -93,9 +97,12 @@ impl pallet_groups::Config for Test {
     type Currency = Balances;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
+    type MaxProposalLength = GroupMaxProposalLength;
     type MaxMembers = GroupMaxMembers;
     type WeightInfo = pallet_groups::weights::SubstrateWeight<Test>;
     type GetExtrinsicExtraSource = Settings;
+    type NameLimit = NameLimit;
+    type GroupChainLimit = GroupChainLimit;
 }
 
 ord_parameter_types! {
@@ -105,7 +112,7 @@ ord_parameter_types! {
 
 impl settings::Config for Test {
     type Event = Event;
-    type ChangeSettingOrigin = EnsureSignedBy<One, AccountId>;
+    type ChangeSettingOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type ModuleIndex = ModuleIndex;
     type Currency = Balances;
     type Balance = Balance;

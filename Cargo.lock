@@ -4186,6 +4186,7 @@ dependencies = [
  "pallet-identity",
  "pallet-primitives",
  "pallet-settings",
+ "pallet-timestamp",
  "parity-scale-codec",
  "serde",
  "sp-core",

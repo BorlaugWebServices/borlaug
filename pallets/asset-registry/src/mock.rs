@@ -104,6 +104,7 @@ impl settings::Config for Test {
 }
 
 parameter_types! {
+    //Note, benchmarking assumes this is < 256
     pub const GroupMaxProposals: u32 = 100;
     pub const GroupMaxMembers: u32 = 100;
 }

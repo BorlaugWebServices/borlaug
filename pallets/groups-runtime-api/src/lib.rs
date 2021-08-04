@@ -19,7 +19,7 @@ sp_api::decl_runtime_apis! {
     {
         fn member_of(account:AccountId) -> Vec<GroupId>;
         fn get_group(group:GroupId) -> Option<Group<GroupId, AccountId, MemberCount,BoundedString>>;
-        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, ProposalId, MemberCount>>;
+        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>;
         fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedString>)>>;
     }
 }

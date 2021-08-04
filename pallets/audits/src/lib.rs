@@ -27,6 +27,7 @@ pub mod weights;
 pub mod pallet {
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
+    use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use primitives::{bounded_vec::BoundedVec, *};
@@ -35,6 +36,15 @@ pub mod pallet {
         Either,
     };
     use sp_std::prelude::*;
+
+    const MODULE_INDEX: u8 = 5;
+
+    #[repr(u8)]
+    pub enum ExtrinsicIndex {
+        Audit = 51,
+        Observation = 52,
+        Evidence = 53,
+    }
 
     #[pallet::config]
     pub trait Config: frame_system::Config + groups::Config {
@@ -292,6 +302,12 @@ pub mod pallet {
                 auditor: auditor.clone(),
             };
 
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Audit as u8),
+                &sender,
+            );
+
             <Audits<T>>::insert(&audit_id, audit);
             <AuditsByCreator<T>>::insert(&sender, &audit_id, ());
             <AuditsByAuditor<T>>::insert(&auditor, &audit_id, ());
@@ -443,6 +459,12 @@ pub mod pallet {
                 <Audits<T>>::insert(audit_id, audit);
             }
 
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Observation as u8),
+                &sender,
+            );
+
             let observation_id = next_id!(NextObservationId<T>, T);
 
             <Observations<T>>::insert((&audit_id, &control_point_id), &observation_id, observation);
@@ -487,6 +509,12 @@ pub mod pallet {
             let bounded_hash = enforce_limit!(evidence.hash);
             let bounded_name = enforce_limit!(evidence.name);
             let bounded_url = enforce_limit_option!(evidence.url);
+
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Evidence as u8),
+                &sender,
+            );
 
             let evidence_id = next_id!(NextEvidenceId<T>, T);
 

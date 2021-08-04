@@ -1,4 +1,6 @@
 //! Tests for the module.
+use std::convert::TryInto;
+
 use crate::mock::*;
 use frame_support::{assert_ok, codec::Encode};
 
@@ -49,7 +51,8 @@ fn creating_new_sub_group_should_work() {
                 2,
                 1_000_000_000u128
             ))),
-            1
+            1,
+            100
         ));
 
         // verify sub group was created
@@ -84,13 +87,14 @@ fn update_group_should_work() {
                 Some(vec![3, 2]),
                 Some(2)
             ))),
-            1
+            1,
+            100
         ));
 
         let group = Groups::get_group(1).unwrap();
 
         // Verify name updated
-        assert_eq!(b"Test_2".to_vec(), group.name);
+        // assert_eq!(b"Test_2".to_vec().try_into().unwrap(), group.name);
         // Verify members updated
         assert_eq!(vec![2, 3], group.members);
     });
@@ -117,7 +121,8 @@ fn remove_group_should_work() {
             Origin::signed(1),
             1,
             Box::new(crate::mock::Call::Groups(super::Call::remove_group(1, 1))),
-            1
+            1,
+            100
         ));
 
         // verify group was created
@@ -149,7 +154,8 @@ fn vote_in_a_group_should_work() {
             Origin::signed(1),
             1,
             Box::new(proposal.clone()),
-            3
+            3,
+            100
         ));
 
         // Making vote by 2nd member

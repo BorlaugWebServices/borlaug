@@ -758,11 +758,6 @@ impl pallet_proxy::Config for Runtime {
     type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
-parameter_types! {
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxMembers: u32 = 100;
-}
-
 impl settings::Config for Runtime {
     type Event = Event;
     type ChangeSettingOrigin = EnsureOneOf<
@@ -774,6 +769,13 @@ impl settings::Config for Runtime {
     type Currency = Balances;
     type Balance = Balance;
     type ExtrinsicIndex = ExtrinsicIndex;
+}
+
+parameter_types! {
+    pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxProposalLength: u32 = 1000;
+    pub const GroupMaxMembers: u32 = 100;
+    pub const GroupChainLimit: u32 = 100;
 }
 
 impl groups::Config for Runtime {
@@ -789,10 +791,12 @@ impl groups::Config for Runtime {
     type Currency = Balances;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
+    type MaxProposalLength = GroupMaxProposalLength;
     type MaxMembers = GroupMaxMembers;
     type WeightInfo = groups::weights::SubstrateWeight<Runtime>;
     type GetExtrinsicExtraSource = Settings;
     type NameLimit = NameLimit;
+    type GroupChainLimit = GroupChainLimit;
 }
 
 parameter_types! {
@@ -1188,7 +1192,7 @@ impl_runtime_apis! {
         fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>)>>{
             Groups::get_sub_groups(group)
         }
-        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, ProposalId, MemberCount>>{
+        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
             Groups::get_voting(group, proposal)
         }
     }

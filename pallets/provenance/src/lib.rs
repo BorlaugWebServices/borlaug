@@ -81,6 +81,7 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::metadata(
+        T::AccountId = "AccountId",
         T::RegistryId = "RegistryId",
         T::DefinitionId = "DefinitionId",
         T::ProcessId = "ProcessId",       

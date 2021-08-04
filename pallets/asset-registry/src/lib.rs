@@ -40,9 +40,19 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use primitives::{bounded_vec::BoundedVec, *};
     use sp_runtime::{
-        traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},        
+        traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},        Either,
     };
     use sp_std::prelude::*;
+    use extrinsic_extra::GetExtrinsicExtra;
+
+    const MODULE_INDEX: u8 = 4;
+
+    #[repr(u8)]
+    pub enum ExtrinsicIndex {
+        Registry = 41,
+        Asset = 42,
+        Lease = 43,
+    }
 
     #[pallet::config]
     /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -266,7 +276,7 @@ pub mod pallet {
             owner_did: Did,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             let bounded_name = enforce_limit!(name);
 
@@ -274,6 +284,12 @@ pub mod pallet {
                 <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
                 Error::<T>::NotDidSubject
             );
+
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Registry as u8),
+                &sender,
+            ); 
 
             let registry_id = next_id!(NextRegistryId<T>, T);
 
@@ -298,7 +314,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             let bounded_name = enforce_limit!(name);
 
@@ -328,7 +344,7 @@ pub mod pallet {
             owner_did: Did,
             registry_id: T::RegistryId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             ensure!(
                 <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
@@ -370,7 +386,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
             asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             ensure!(
                 <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
@@ -380,9 +396,7 @@ pub mod pallet {
             ensure!(
                 <Registries<T>>::contains_key(&owner_did, registry_id),
                 <Error<T>>::NotRegistryOwner
-            );
-
-            let asset_id = next_id!(NextAssetId<T>, T);
+            );            
 
             let asset = Asset {
                 properties: asset
@@ -405,6 +419,14 @@ pub mod pallet {
                 acquired_date: asset.acquired_date,
             };
 
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Asset as u8),
+                &sender,
+            ); 
+
+            let asset_id = next_id!(NextAssetId<T>, T);
+
             <Assets<T>>::insert(&registry_id, &asset_id, asset);
             Self::deposit_event(Event::AssetCreated(registry_id, asset_id));
 
@@ -426,7 +448,7 @@ pub mod pallet {
             asset_id: T::AssetId,
             asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
             ensure!(
                 <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
                 Error::<T>::NotDidSubject
@@ -472,7 +494,7 @@ pub mod pallet {
             registry_id: T::RegistryId,
             asset_id: T::AssetId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
             ensure!(
                 <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
                 Error::<T>::NotDidSubject
@@ -496,43 +518,47 @@ pub mod pallet {
             origin: OriginFor<T>,
             lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
             ensure!(
                 <identity::DidBySubject<T>>::contains_key(&sender, &lease.lessor),
                 Error::<T>::NotDidSubject
-            );
-
-            //TODO: don't clone allocations.
+            );           
 
             let can_allocate = !lease
-            .allocations
-            .clone()
-            .into_iter()
+            .allocations            
+            .iter()
             .any(Self::check_allocation);
 
             ensure!(can_allocate, Error::<T>::AssetAllocationFailed);
 
-            let lease_id = next_id!(NextLeaseId<T>, T);
+            let contract_number_limited=enforce_limit!(lease.contract_number.clone());
+
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Lease as u8),
+                &sender,
+            );            
 
             let lessor = lease.lessor;
             let lessee = lease.lessee;
 
+            let lease_id = next_id!(NextLeaseId<T>, T);
+
             lease
-                .allocations
-                .clone()
-                .into_iter()
+                .allocations                
+                .iter()
                 .for_each(|allocation| {
                     Self::make_allocation(lease_id, allocation, lease.expiry_ts)
                 });
 
             let lease = LeaseAgreement {
-                contract_number: enforce_limit!(lease.contract_number),
+                contract_number: contract_number_limited,
                 lessor: lease.lessor,
                 lessee: lease.lessee,
                 effective_ts: lease.effective_ts,
                 expiry_ts: lease.expiry_ts,
                 allocations: lease.allocations,
-            };
+            };            
 
             <LeaseAgreements<T>>::insert(&lessor, &lease_id, lease);
 
@@ -554,7 +580,7 @@ pub mod pallet {
             lessor: Did,
             lease_id: T::LeaseId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
             ensure!(
                 <identity::DidBySubject<T>>::contains_key(&sender, &lessor),
                 Error::<T>::NotDidSubject
@@ -633,7 +659,7 @@ pub mod pallet {
         // -- private functions --
 
         ///should return false if allocation is possible.
-        fn check_allocation(asset_allocation: AssetAllocation<T::RegistryId, T::AssetId>) -> bool {            
+        fn check_allocation(asset_allocation: &AssetAllocation<T::RegistryId, T::AssetId>) -> bool {            
             let asset =<Assets<T>>::get(asset_allocation.registry_id, asset_allocation.asset_id);  
             if asset.is_none()              {
                 return true;
@@ -677,7 +703,7 @@ pub mod pallet {
         }
         fn make_allocation(
             lease_id: T::LeaseId,
-            asset_allocation: AssetAllocation<T::RegistryId, T::AssetId>,
+            asset_allocation: &AssetAllocation<T::RegistryId, T::AssetId>,
             lease_expiry: T::Moment,
         ) {
             <LeaseAllocations<T>>::append(

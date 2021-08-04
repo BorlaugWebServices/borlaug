@@ -189,7 +189,7 @@ benchmarks! {
         let remove_keys=origional_properties.into_iter().map(|property|property.name).collect();
 
         let name = vec![42u8; a as usize];
-    }: _(SystemOrigin::Signed(caller.clone()),did, Some(name.clone()),  Some(add_properties.clone()),Some(remove_keys))
+    }: _(SystemOrigin::Signed(caller.clone()),did, Some(Some(name.clone())),  Some(add_properties.clone()),Some(remove_keys))
 
     verify {
         let did_document=<DidDocuments<T>>::get(&did);

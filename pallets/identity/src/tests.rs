@@ -319,7 +319,7 @@ fn create_catalog_should_work() {
 
         let catalog_id = catalogs[0];
 
-        let catalog = CatalogName::<Test>::get(catalog_id);
+        let catalog = Catalogs::<Test>::get(1, catalog_id);
         assert!(catalog.is_some());
         let name: BoundedVec<u8, <Test as Config>::NameLimit> =
             b"name".to_vec().try_into().unwrap();
@@ -346,7 +346,7 @@ fn rename_catalog_should_work() {
 
         let catalog_id = catalogs[0];
 
-        let catalog = CatalogName::<Test>::get(catalog_id);
+        let catalog = Catalogs::<Test>::get(1, catalog_id);
         assert!(catalog.is_some());
         let name: BoundedVec<u8, <Test as Config>::NameLimit> =
             b"name".to_vec().try_into().unwrap();
@@ -357,7 +357,7 @@ fn rename_catalog_should_work() {
             catalog_id,
             b"updated name".to_vec()
         ));
-        let catalog = CatalogName::<Test>::get(catalog_id);
+        let catalog = Catalogs::<Test>::get(1, catalog_id);
         assert!(catalog.is_some());
         let name: BoundedVec<u8, <Test as Config>::NameLimit> =
             b"updated name".to_vec().try_into().unwrap();
@@ -440,8 +440,8 @@ fn authorize_claim_consumer_should_work() {
             Origin::signed(1),
             did,
             vec![ClaimConsumer {
-                    consumer: 2u64,
-                    expiration: now + 8640000
+                consumer: 2u64,
+                expiration: now + 8640000
             }]
         ));
 
@@ -479,8 +479,8 @@ fn authorize_claim_issuer_should_work() {
             Origin::signed(1),
             did,
             vec![ClaimIssuer {
-                    issuer: 2u64,
-                    expiration: now + 8640000
+                issuer: 2u64,
+                expiration: now + 8640000
             }]
         ));
 
@@ -518,8 +518,8 @@ fn make_claim_without_proposal_should_work() {
             Origin::signed(1),
             did,
             vec![ClaimConsumer {
-                    consumer: 2u64,
-                    expiration: now + 8640000
+                consumer: 2u64,
+                expiration: now + 8640000
             }]
         ));
 
@@ -548,11 +548,14 @@ fn make_claim_without_proposal_should_work() {
         let claim = Claims::<Test>::get(&did, &1).unwrap();
 
         assert_eq!(claim.description, b"some desc".to_vec());
-        assert_eq!(claim.statements, vec![Statement {
-            name: b"name".to_vec().try_into().unwrap(),
-            fact: Fact::Text(b"John Doe".to_vec().try_into().unwrap()),
-            for_issuer: false
-        }]);
+        assert_eq!(
+            claim.statements,
+            vec![Statement {
+                name: b"name".to_vec().try_into().unwrap(),
+                fact: Fact::Text(b"John Doe".to_vec().try_into().unwrap()),
+                for_issuer: false
+            }]
+        );
         assert_eq!(claim.threshold, 1u32);
     });
 }
@@ -584,8 +587,8 @@ fn attest_claim_without_proposal_should_work() {
             Origin::signed(1),
             did,
             vec![ClaimConsumer {
-                    consumer: 2u64,
-                    expiration: now + 8640000
+                consumer: 2u64,
+                expiration: now + 8640000
             }]
         ));
 
@@ -614,11 +617,14 @@ fn attest_claim_without_proposal_should_work() {
         let claim = Claims::<Test>::get(&did, &1).unwrap();
 
         assert_eq!(claim.description, b"some desc".to_vec());
-        assert_eq!(claim.statements, vec![Statement {
-            name: b"name".to_vec().try_into().unwrap(),
-            fact: Fact::Text(b"John Doe".to_vec().try_into().unwrap()),
-            for_issuer: false
-        }]);
+        assert_eq!(
+            claim.statements,
+            vec![Statement {
+                name: b"name".to_vec().try_into().unwrap(),
+                fact: Fact::Text(b"John Doe".to_vec().try_into().unwrap()),
+                for_issuer: false
+            }]
+        );
         assert_eq!(claim.threshold, 1u32);
         assert!(claim.attestation.is_none());
 
@@ -627,8 +633,8 @@ fn attest_claim_without_proposal_should_work() {
             Origin::signed(1),
             did,
             vec![ClaimIssuer {
-                    issuer: 3u64,
-                    expiration: now + 8640000
+                issuer: 3u64,
+                expiration: now + 8640000
             }]
         ));
 

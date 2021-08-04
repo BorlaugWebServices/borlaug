@@ -66,9 +66,19 @@ pub mod pallet {
     use primitives::{bounded_vec::BoundedVec, *};
     use sp_runtime::{
         traits::{AtLeast32Bit,Saturating,UniqueSaturatedFrom,CheckedAdd, Hash, One},
-        DispatchResult, Either,
+         Either,
     };
     use sp_std::prelude::*;
+    use extrinsic_extra::GetExtrinsicExtra;
+
+    const MODULE_INDEX: u8 = 2;
+
+    #[repr(u8)]
+    pub enum ExtrinsicIndex {
+        Catalog = 21,
+        Did = 22,
+        Claim = 23,
+    }
     #[pallet::config]
     pub trait Config: frame_system::Config + timestamp::Config + groups::Config 
     {
@@ -415,7 +425,11 @@ pub mod pallet {
 
             let properties = enforce_limit_did_properties_option!(properties);
 
-                   
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Did as u8),
+                &sender,
+            );     
 
             Self::mint_did(sender.clone(), sender, bounded_name, properties);
 
@@ -449,6 +463,12 @@ pub mod pallet {
 
             let properties = enforce_limit_did_properties_option!(properties);
 
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Did as u8),
+                &sender,
+            );  
+
             Self::mint_did(subject, sender, bounded_name, properties);
             Ok(().into())
         }
@@ -460,7 +480,7 @@ pub mod pallet {
         /// - `add_properties` DID properties to be added
         /// - `remove_keys` Keys of DID properties to be removed
         #[pallet::weight(<T as Config>::WeightInfo::update_did(
-            short_name.as_ref().map_or(0,|name|name.len()) as u32,
+            short_name.as_ref().map_or(0,|name|name.as_ref().map_or(0,|name|name.len())) as u32,
             get_max_property_name_len_option(add_properties),
             get_max_property_fact_len_option(add_properties),
             add_properties.as_ref().map_or(0,|properties|properties.len()) as u32, 
@@ -470,13 +490,16 @@ pub mod pallet {
         pub fn update_did(
             origin: OriginFor<T>,
             did: Did,
-            short_name: Option<Vec<u8>>,
+            short_name: Option<Option<Vec<u8>>>,
             add_properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
             remove_keys: Option<Vec<Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_account_or_group!(origin);
-
-            let bounded_short_name = enforce_limit_option!(short_name);
+           
+            let bounded_short_name = match short_name{
+                Some(short_name)=>Some(enforce_limit_option!(short_name)),
+            None=>None
+            };           
 
             let add_properties_count = add_properties.as_ref().map_or(0, |p| p.len());
 
@@ -508,14 +531,14 @@ pub mod pallet {
                 Error::<T>::NotController
             );
 
-            <DidDocuments<T>>::try_mutate_exists(&did, |maybe_did_doc| -> DispatchResult {
-                let did_doc = maybe_did_doc.as_mut().ok_or(Error::<T>::NotFound)?;
-                //TODO: we cannot delete short_name?
-                if let Some(short_name) = bounded_short_name {
-                    did_doc.short_name = Some(short_name);
+            <DidDocuments<T>>::mutate_exists(&did, |maybe_did_doc|  {
+                if let Some(ref mut  did_doc )= maybe_did_doc{                
+                if let Some(bounded_short_name) = bounded_short_name {
+                    did_doc.short_name = bounded_short_name;
                 }
-                Ok(())
-            })?;
+            }
+               
+            });
 
             if let Some(remove_keys) = remove_keys {
                 remove_keys.into_iter().for_each(|remove_key| {
@@ -832,6 +855,12 @@ pub mod pallet {
                 threshold,
             };
 
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Claim as u8),
+                &sender,
+            );  
+
             let claim_id = next_id!(NextClaimId<T>, T);
 
             <Claims<T>>::insert(&target_did, claim_id, claim);
@@ -903,11 +932,11 @@ pub mod pallet {
 
             let mut existing_statements_len=0;
 
-            <Claims<T>>::try_mutate_exists(
+            <Claims<T>>::mutate_exists(
                 &target_did,
                 claim_id,
-                |maybe_claim| -> DispatchResult {
-                    let mut claim = maybe_claim.as_mut().ok_or(Error::<T>::NotFound)?;
+                |maybe_claim| {
+                    if let Some(ref mut claim )= maybe_claim{
 
                     existing_statements_len=claim.statements.len();
 
@@ -919,12 +948,11 @@ pub mod pallet {
                     claim.statements.append(&mut stmts);
                     claim.attestation = Some(Attestation {
                         attested_by: sender.clone(),
-                        valid_until,
+                        valid_until, 
                     });
-
-                    Ok(())
+                }
                 },
-            )?;
+            );
 
             Self::deposit_event(Event::ClaimAttested(target_did, claim_id, sender));
 
@@ -962,11 +990,11 @@ pub mod pallet {
             let mut max_statement_name_len=0;
             let mut max_statement_fact_len=0;
 
-            <Claims<T>>::try_mutate_exists(
+            <Claims<T>>::mutate_exists(
                 &target_did,
                 claim_id,
-                |maybe_claim| -> DispatchResult {
-                    let mut claim = maybe_claim.as_mut().ok_or(Error::<T>::NotFound)?;
+                |maybe_claim|  {
+                    if let Some(ref mut  claim )= maybe_claim{
                     
                     //for correct weight calculation
                     existing_statements_len=claim.statements.len();
@@ -974,9 +1002,10 @@ pub mod pallet {
                     max_statement_fact_len=get_max_statement_fact_bounded_len::<T>(&claim.statements);
 
                     claim.attestation = None;
-                    Ok(())
-                },
-            )?;
+                   
+                }
+            }
+            );
 
             Self::deposit_event(Event::ClaimAttestationRevoked(
                 target_did,
@@ -1002,7 +1031,13 @@ pub mod pallet {
 
             let bounded_name = enforce_limit!(name);
 
-            let catalog_id = next_id!(NextCatalogId<T>, T);
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Catalog as u8),
+                &sender,
+            ); 
+
+            let catalog_id = next_id!(NextCatalogId<T>, T);            
 
             <Catalogs<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
 
