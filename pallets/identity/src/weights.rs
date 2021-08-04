@@ -37,384 +37,386 @@
 // --output=./pallets/identity/src/weights.rs
 // --template=./.maintain/frame-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_identity.
 pub trait WeightInfo {
-	fn register_did(a: u32, b: u32, c: u32, d: u32, ) -> Weight;
-	fn register_did_for(a: u32, b: u32, c: u32, d: u32, ) -> Weight;
-	fn update_did(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, ) -> Weight;
-	fn replace_did(a: u32, b: u32, c: u32, d: u32, ) -> Weight;
-	fn manage_controllers(a: u32, b: u32, ) -> Weight;
-	fn authorize_claim_consumers(a: u32, ) -> Weight;
-	fn revoke_claim_consumers(a: u32, ) -> Weight;
-	fn authorize_claim_issuers(a: u32, ) -> Weight;
-	fn revoke_claim_issuers(a: u32, ) -> Weight;
-	fn make_claim(a: u32, b: u32, c: u32, d: u32, ) -> Weight;
-	fn attest_claim(a: u32, b: u32, c: u32, d: u32, ) -> Weight;
-	fn revoke_attestation(a: u32, b: u32, c: u32, ) -> Weight;
-	fn create_catalog(a: u32, ) -> Weight;
-	fn rename_catalog(a: u32, ) -> Weight;
-	fn remove_catalog() -> Weight;
-	fn add_dids_to_catalog(a: u32, b: u32, ) -> Weight;
-	fn rename_did_in_catalog(a: u32, ) -> Weight;
-	fn remove_dids_from_catalog(a: u32, ) -> Weight;
+    fn register_did(a: u32, b: u32, c: u32, d: u32) -> Weight;
+    fn register_did_for(a: u32, b: u32, c: u32, d: u32) -> Weight;
+    fn update_did(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> Weight;
+    fn replace_did(a: u32, b: u32, c: u32, d: u32) -> Weight;
+    fn manage_controllers(a: u32, b: u32) -> Weight;
+    fn authorize_claim_consumers(a: u32) -> Weight;
+    fn revoke_claim_consumers(a: u32) -> Weight;
+    fn authorize_claim_issuers(a: u32) -> Weight;
+    fn revoke_claim_issuers(a: u32) -> Weight;
+    fn make_claim(a: u32, b: u32, c: u32, d: u32) -> Weight;
+    fn attest_claim(a: u32, b: u32, c: u32, d: u32) -> Weight;
+    fn revoke_attestation(a: u32, b: u32, c: u32) -> Weight;
+    fn create_catalog(a: u32) -> Weight;
+    fn rename_catalog(a: u32) -> Weight;
+    fn remove_catalog() -> Weight;
+    fn add_dids_to_catalog(a: u32, b: u32) -> Weight;
+    fn rename_did_in_catalog(a: u32) -> Weight;
+    fn remove_dids_from_catalog(a: u32) -> Weight;
 }
 
 /// Weights for pallet_identity using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn register_did(_a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 1_316_000
-			.saturating_add((6_696_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 109_000
-			.saturating_add((648_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 109_000
-			.saturating_add((9_000_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
-	}
-	fn register_did_for(a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 895_000
-			.saturating_add((638_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 1_001_000
-			.saturating_add((5_020_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 83_000
-			.saturating_add((802_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 83_000
-			.saturating_add((8_970_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
-	}
-	fn update_did(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 1_020_000
-			.saturating_add((324_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 1_145_000
-			.saturating_add((11_074_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 93_000
-			.saturating_add((1_217_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 93_000
-			.saturating_add((10_394_000 as Weight).saturating_mul(d as Weight))
-			// Standard Error: 1_145_000
-			.saturating_add((1_376_000 as Weight).saturating_mul(e as Weight))
-			// Standard Error: 93_000
-			.saturating_add((6_075_000 as Weight).saturating_mul(f as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(f as Weight)))
-	}
-	fn replace_did(a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 807_000
-			.saturating_add((2_149_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 66_000
-			.saturating_add((1_027_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 66_000
-			.saturating_add((10_044_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 66_000
-			.saturating_add((1_269_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(c as Weight)))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
-	}
-	fn manage_controllers(a: u32, b: u32, ) -> Weight {
-		(20_180_000 as Weight)
-			// Standard Error: 180_000
-			.saturating_add((10_064_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 180_000
-			.saturating_add((10_042_000 as Weight).saturating_mul(b as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(b as Weight)))
-	}
-	fn authorize_claim_consumers(a: u32, ) -> Weight {
-		(36_070_000 as Weight)
-			// Standard Error: 79_000
-			.saturating_add((9_471_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
-	fn revoke_claim_consumers(a: u32, ) -> Weight {
-		(35_910_000 as Weight)
-			// Standard Error: 49_000
-			.saturating_add((9_595_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
-	fn authorize_claim_issuers(a: u32, ) -> Weight {
-		(34_309_000 as Weight)
-			// Standard Error: 82_000
-			.saturating_add((9_548_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
-	fn revoke_claim_issuers(a: u32, ) -> Weight {
-		(35_130_000 as Weight)
-			// Standard Error: 58_000
-			.saturating_add((9_729_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
-	fn make_claim(a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 108_000
-			.saturating_add((917_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 10_000
-			.saturating_add((1_323_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 121_000
-			.saturating_add((1_589_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 10_000
-			.saturating_add((886_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	fn attest_claim(a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 27_000
-			.saturating_add((1_471_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 27_000
-			.saturating_add((3_607_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 335_000
-			.saturating_add((353_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 27_000
-			.saturating_add((1_623_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	fn revoke_attestation(a: u32, b: u32, c: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 18_000
-			.saturating_add((3_350_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 217_000
-			.saturating_add((3_668_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 18_000
-			.saturating_add((2_418_000 as Weight).saturating_mul(c as Weight))
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	fn create_catalog(a: u32, ) -> Weight {
-		(35_860_000 as Weight)
-			// Standard Error: 30_000
-			.saturating_add((106_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
-	}
-	fn rename_catalog(_a: u32, ) -> Weight {
-		(36_797_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	fn remove_catalog() -> Weight {
-		(43_400_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	fn add_dids_to_catalog(a: u32, b: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 45_000
-			.saturating_add((5_341_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 483_000
-			.saturating_add((3_762_000 as Weight).saturating_mul(b as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
-	}
-	fn rename_did_in_catalog(_a: u32, ) -> Weight {
-		(38_137_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	fn remove_dids_from_catalog(a: u32, ) -> Weight {
-		(44_219_000 as Weight)
-			// Standard Error: 12_000
-			.saturating_add((4_243_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
-	}
+    fn register_did(_a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 1_316_000
+            .saturating_add((6_696_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 109_000
+            .saturating_add((648_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 109_000
+            .saturating_add((9_000_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(T::DbWeight::get().reads(2 as Weight))
+            .saturating_add(T::DbWeight::get().writes(5 as Weight))
+            .saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
+    }
+    fn register_did_for(a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 895_000
+            .saturating_add((638_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 1_001_000
+            .saturating_add((5_020_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 83_000
+            .saturating_add((802_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 83_000
+            .saturating_add((8_970_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(T::DbWeight::get().reads(2 as Weight))
+            .saturating_add(T::DbWeight::get().writes(5 as Weight))
+            .saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
+    }
+    fn update_did(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 1_020_000
+            .saturating_add((324_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 1_145_000
+            .saturating_add((11_074_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 93_000
+            .saturating_add((1_217_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 93_000
+            .saturating_add((10_394_000 as Weight).saturating_mul(d as Weight))
+            // Standard Error: 1_145_000
+            .saturating_add((1_376_000 as Weight).saturating_mul(e as Weight))
+            // Standard Error: 93_000
+            .saturating_add((6_075_000 as Weight).saturating_mul(f as Weight))
+            .saturating_add(T::DbWeight::get().reads(2 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
+            .saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(f as Weight)))
+    }
+    fn replace_did(a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 807_000
+            .saturating_add((2_149_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 66_000
+            .saturating_add((1_027_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 66_000
+            .saturating_add((10_044_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 66_000
+            .saturating_add((1_269_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(c as Weight)))
+            .saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
+    }
+    fn manage_controllers(a: u32, b: u32) -> Weight {
+        (20_180_000 as Weight)
+            // Standard Error: 180_000
+            .saturating_add((10_064_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 180_000
+            .saturating_add((10_042_000 as Weight).saturating_mul(b as Weight))
+            .saturating_add(T::DbWeight::get().reads(2 as Weight))
+            .saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+            .saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(b as Weight)))
+    }
+    fn authorize_claim_consumers(a: u32) -> Weight {
+        (36_070_000 as Weight)
+            // Standard Error: 79_000
+            .saturating_add((9_471_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
+    fn revoke_claim_consumers(a: u32) -> Weight {
+        (35_910_000 as Weight)
+            // Standard Error: 49_000
+            .saturating_add((9_595_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
+    fn authorize_claim_issuers(a: u32) -> Weight {
+        (34_309_000 as Weight)
+            // Standard Error: 82_000
+            .saturating_add((9_548_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
+    fn revoke_claim_issuers(a: u32) -> Weight {
+        (35_130_000 as Weight)
+            // Standard Error: 58_000
+            .saturating_add((9_729_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
+    fn make_claim(a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 108_000
+            .saturating_add((917_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 10_000
+            .saturating_add((1_323_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 121_000
+            .saturating_add((1_589_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 10_000
+            .saturating_add((886_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(T::DbWeight::get().reads(3 as Weight))
+            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+    }
+    fn attest_claim(a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 27_000
+            .saturating_add((1_471_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 27_000
+            .saturating_add((3_607_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 335_000
+            .saturating_add((353_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 27_000
+            .saturating_add((1_623_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(T::DbWeight::get().reads(3 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn revoke_attestation(a: u32, b: u32, c: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 18_000
+            .saturating_add((3_350_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 217_000
+            .saturating_add((3_668_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 18_000
+            .saturating_add((2_418_000 as Weight).saturating_mul(c as Weight))
+            .saturating_add(T::DbWeight::get().reads(3 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn create_catalog(a: u32) -> Weight {
+        (35_860_000 as Weight)
+            // Standard Error: 30_000
+            .saturating_add((106_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(3 as Weight))
+    }
+    fn rename_catalog(_a: u32) -> Weight {
+        (36_797_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn remove_catalog() -> Weight {
+        (43_400_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+    }
+    fn add_dids_to_catalog(a: u32, b: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 45_000
+            .saturating_add((5_341_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 483_000
+            .saturating_add((3_762_000 as Weight).saturating_mul(b as Weight))
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
+    }
+    fn rename_did_in_catalog(_a: u32) -> Weight {
+        (38_137_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn remove_dids_from_catalog(a: u32) -> Weight {
+        (44_219_000 as Weight)
+            // Standard Error: 12_000
+            .saturating_add((4_243_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
+    }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn register_did(_a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 1_316_000
-			.saturating_add((6_696_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 109_000
-			.saturating_add((648_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 109_000
-			.saturating_add((9_000_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
-	}
-	fn register_did_for(a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 895_000
-			.saturating_add((638_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 1_001_000
-			.saturating_add((5_020_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 83_000
-			.saturating_add((802_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 83_000
-			.saturating_add((8_970_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
-	}
-	fn update_did(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 1_020_000
-			.saturating_add((324_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 1_145_000
-			.saturating_add((11_074_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 93_000
-			.saturating_add((1_217_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 93_000
-			.saturating_add((10_394_000 as Weight).saturating_mul(d as Weight))
-			// Standard Error: 1_145_000
-			.saturating_add((1_376_000 as Weight).saturating_mul(e as Weight))
-			// Standard Error: 93_000
-			.saturating_add((6_075_000 as Weight).saturating_mul(f as Weight))
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(f as Weight)))
-	}
-	fn replace_did(a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 807_000
-			.saturating_add((2_149_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 66_000
-			.saturating_add((1_027_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 66_000
-			.saturating_add((10_044_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 66_000
-			.saturating_add((1_269_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(c as Weight)))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
-	}
-	fn manage_controllers(a: u32, b: u32, ) -> Weight {
-		(20_180_000 as Weight)
-			// Standard Error: 180_000
-			.saturating_add((10_064_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 180_000
-			.saturating_add((10_042_000 as Weight).saturating_mul(b as Weight))
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(b as Weight)))
-	}
-	fn authorize_claim_consumers(a: u32, ) -> Weight {
-		(36_070_000 as Weight)
-			// Standard Error: 79_000
-			.saturating_add((9_471_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
-	fn revoke_claim_consumers(a: u32, ) -> Weight {
-		(35_910_000 as Weight)
-			// Standard Error: 49_000
-			.saturating_add((9_595_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
-	fn authorize_claim_issuers(a: u32, ) -> Weight {
-		(34_309_000 as Weight)
-			// Standard Error: 82_000
-			.saturating_add((9_548_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
-	fn revoke_claim_issuers(a: u32, ) -> Weight {
-		(35_130_000 as Weight)
-			// Standard Error: 58_000
-			.saturating_add((9_729_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
-	fn make_claim(a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 108_000
-			.saturating_add((917_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 10_000
-			.saturating_add((1_323_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 121_000
-			.saturating_add((1_589_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 10_000
-			.saturating_add((886_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-	}
-	fn attest_claim(a: u32, b: u32, c: u32, d: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 27_000
-			.saturating_add((1_471_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 27_000
-			.saturating_add((3_607_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 335_000
-			.saturating_add((353_000 as Weight).saturating_mul(c as Weight))
-			// Standard Error: 27_000
-			.saturating_add((1_623_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	fn revoke_attestation(a: u32, b: u32, c: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 18_000
-			.saturating_add((3_350_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 217_000
-			.saturating_add((3_668_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 18_000
-			.saturating_add((2_418_000 as Weight).saturating_mul(c as Weight))
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	fn create_catalog(a: u32, ) -> Weight {
-		(35_860_000 as Weight)
-			// Standard Error: 30_000
-			.saturating_add((106_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-	}
-	fn rename_catalog(_a: u32, ) -> Weight {
-		(36_797_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	fn remove_catalog() -> Weight {
-		(43_400_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-	}
-	fn add_dids_to_catalog(a: u32, b: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 45_000
-			.saturating_add((5_341_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 483_000
-			.saturating_add((3_762_000 as Weight).saturating_mul(b as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
-	}
-	fn rename_did_in_catalog(_a: u32, ) -> Weight {
-		(38_137_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	fn remove_dids_from_catalog(a: u32, ) -> Weight {
-		(44_219_000 as Weight)
-			// Standard Error: 12_000
-			.saturating_add((4_243_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
-	}
+    fn register_did(_a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 1_316_000
+            .saturating_add((6_696_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 109_000
+            .saturating_add((648_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 109_000
+            .saturating_add((9_000_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(5 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
+    }
+    fn register_did_for(a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 895_000
+            .saturating_add((638_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 1_001_000
+            .saturating_add((5_020_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 83_000
+            .saturating_add((802_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 83_000
+            .saturating_add((8_970_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(5 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
+    }
+    fn update_did(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 1_020_000
+            .saturating_add((324_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 1_145_000
+            .saturating_add((11_074_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 93_000
+            .saturating_add((1_217_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 93_000
+            .saturating_add((10_394_000 as Weight).saturating_mul(d as Weight))
+            // Standard Error: 1_145_000
+            .saturating_add((1_376_000 as Weight).saturating_mul(e as Weight))
+            // Standard Error: 93_000
+            .saturating_add((6_075_000 as Weight).saturating_mul(f as Weight))
+            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
+            .saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(f as Weight)))
+    }
+    fn replace_did(a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 807_000
+            .saturating_add((2_149_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 66_000
+            .saturating_add((1_027_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 66_000
+            .saturating_add((10_044_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 66_000
+            .saturating_add((1_269_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(c as Weight)))
+            .saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(d as Weight)))
+    }
+    fn manage_controllers(a: u32, b: u32) -> Weight {
+        (20_180_000 as Weight)
+            // Standard Error: 180_000
+            .saturating_add((10_064_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 180_000
+            .saturating_add((10_042_000 as Weight).saturating_mul(b as Weight))
+            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+            .saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(b as Weight)))
+    }
+    fn authorize_claim_consumers(a: u32) -> Weight {
+        (36_070_000 as Weight)
+            // Standard Error: 79_000
+            .saturating_add((9_471_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
+    fn revoke_claim_consumers(a: u32) -> Weight {
+        (35_910_000 as Weight)
+            // Standard Error: 49_000
+            .saturating_add((9_595_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
+    fn authorize_claim_issuers(a: u32) -> Weight {
+        (34_309_000 as Weight)
+            // Standard Error: 82_000
+            .saturating_add((9_548_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
+    fn revoke_claim_issuers(a: u32) -> Weight {
+        (35_130_000 as Weight)
+            // Standard Error: 58_000
+            .saturating_add((9_729_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
+    fn make_claim(a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 108_000
+            .saturating_add((917_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 10_000
+            .saturating_add((1_323_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 121_000
+            .saturating_add((1_589_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 10_000
+            .saturating_add((886_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(RocksDbWeight::get().reads(3 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+    }
+    fn attest_claim(a: u32, b: u32, c: u32, d: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 27_000
+            .saturating_add((1_471_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 27_000
+            .saturating_add((3_607_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 335_000
+            .saturating_add((353_000 as Weight).saturating_mul(c as Weight))
+            // Standard Error: 27_000
+            .saturating_add((1_623_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(RocksDbWeight::get().reads(3 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn revoke_attestation(a: u32, b: u32, c: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 18_000
+            .saturating_add((3_350_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 217_000
+            .saturating_add((3_668_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 18_000
+            .saturating_add((2_418_000 as Weight).saturating_mul(c as Weight))
+            .saturating_add(RocksDbWeight::get().reads(3 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn create_catalog(a: u32) -> Weight {
+        (35_860_000 as Weight)
+            // Standard Error: 30_000
+            .saturating_add((106_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(3 as Weight))
+    }
+    fn rename_catalog(_a: u32) -> Weight {
+        (36_797_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn remove_catalog() -> Weight {
+        (43_400_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+    }
+    fn add_dids_to_catalog(a: u32, b: u32) -> Weight {
+        (0 as Weight)
+            // Standard Error: 45_000
+            .saturating_add((5_341_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 483_000
+            .saturating_add((3_762_000 as Weight).saturating_mul(b as Weight))
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
+    }
+    fn rename_did_in_catalog(_a: u32) -> Weight {
+        (38_137_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn remove_dids_from_catalog(a: u32) -> Weight {
+        (44_219_000 as Weight)
+            // Standard Error: 12_000
+            .saturating_add((4_243_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
+    }
 }

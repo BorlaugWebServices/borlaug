@@ -560,39 +560,44 @@ benchmarks! {
         assert_last_event::<T>(Event::Approved(group_id,proposal_id,m.into(),0u32.into(),false).into());
     }
 
-    veto_approved {
-        let a in 1 .. T::MaxProposalLength::get();
+    veto_disapproved {
         //start at 2 so that a vote is always required
         let m in 2 .. T::MaxMembers::get().unique_saturated_into();
         let p in 1 .. T::MaxProposals::get();
 
-        let bytes_in_storage = a + size_of::<u32>() as u32;
+        let bytes = 100;
+        let bytes_in_storage = bytes + size_of::<u32>() as u32;
 
 
-        // Construct `members`.
-        let mut members = vec![];
-        for i in 0 .. m - 1 {
-            let member = account("member", i, SEED);
-            members.push(member);
-        }
-        let caller: T::AccountId = whitelisted_caller();
-        members.push(caller.clone());
-
-        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members.clone(), m.into(),1_000_000u32.into())?;
+        let admin: T::AccountId = whitelisted_caller();
+        T::Currency::make_free_balance_be(&admin, BalanceOf::<T>::max_value());
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(admin.clone()).into(),vec![42u8; 2 as usize],vec![], 1u32.into(),1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
-        // Threshold is two, so any two ayes will pass the vote
+        // Construct `members`.
+        let mut members = vec![];
+        for i in 0 .. m  {
+            let member = account("member", i, SEED);
+            members.push(member);
+        }
+
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let call = Call::<T>::create_sub_group(vec![42u8; 2 as usize],members.clone(),m.into(),1_000u32.into());
+        call.dispatch_bypass_filter(origin)? ;
+        let sub_group_id:T::GroupId=2u32.into();
+        assert!(Groups::<T>::contains_key(sub_group_id));
+
         let threshold = m.into();
 
         // Add proposals
         for i in 0 .. p {
             // Proposals should be different so that different proposal hashes are generated
-            let proposal: T::Proposal = SystemCall::<T>::remark(vec![i as u8; a as usize]).into();
+            let proposal: T::Proposal = SystemCall::<T>::remark(vec![i as u8; bytes as usize]).into();
+            let proposer=&members[0 as usize];
             GroupPallet::<T>::propose(
-                SystemOrigin::Signed(caller.clone()).into(),
-                group_id,
+                SystemOrigin::Signed(proposer.clone()).into(),
+                sub_group_id,
                 Box::new(proposal.clone()),
                 threshold,
                 bytes_in_storage,
@@ -601,34 +606,109 @@ benchmarks! {
 
         for i in 0 .. p {
             let p_id:T::ProposalId=(i+1).into();
-            assert!(Proposals::<T>::contains_key(group_id,p_id));
+            assert!(Proposals::<T>::contains_key(sub_group_id,p_id));
         }
 
         let proposal_id:T::ProposalId=p.into();
 
-         // Everyone except proposer votes no
-         for j in 0 .. m - 1  {
+        // Everyone except proposer votes yes
+        for j in 1 .. m  {
             let voter = &members[j as usize];
-            let approve = false;
+            let approve = true;
             GroupPallet::<T>::vote(
                 SystemOrigin::Signed(voter.clone()).into(),
-                group_id,
+                sub_group_id,
                 proposal_id,
                 approve,
             )?;
         }
 
-        let votes=Voting::<T>::get(group_id,proposal_id);
+        let votes=Voting::<T>::get(sub_group_id,proposal_id);
         assert!(votes.is_some());
         let votes=votes.unwrap();
         assert_eq!(votes.ayes.len(),m as usize);
 
-
-    }: close(SystemOrigin::Signed(caller), group_id, proposal_id, Weight::max_value(), bytes_in_storage)
+    }: veto(SystemOrigin::Signed(admin.clone()), sub_group_id, proposal_id, false,Weight::max_value(), bytes_in_storage)
 
     verify {
-        assert!(!Proposals::<T>::contains_key(group_id,proposal_id));
-        assert_last_event::<T>(Event::Approved(group_id,proposal_id,m.into(),0u32.into(),false).into());
+        assert!(!Proposals::<T>::contains_key(sub_group_id,proposal_id));
+        assert_last_event::<T>(Event::DisapprovedByVeto(admin,sub_group_id,proposal_id,m.into(),0u32.into()).into());
+    }
+
+    veto_approved {
+        let a in 1 .. T::MaxProposalLength::get();
+        //start at 2 so that a vote is always required
+        let m in 2 .. T::MaxMembers::get().unique_saturated_into();
+        let p in 1 .. T::MaxProposals::get();
+
+        let bytes_in_storage = a + size_of::<u32>() as u32;
+
+        let admin: T::AccountId = whitelisted_caller();
+        T::Currency::make_free_balance_be(&admin, BalanceOf::<T>::max_value());
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(admin.clone()).into(),vec![42u8; 2 as usize],vec![], 1u32.into(),1_000_000u32.into())?;
+        let group_id:T::GroupId=1u32.into();
+        assert!(Groups::<T>::contains_key(group_id));
+
+        // Construct `members`.
+        let mut members = vec![];
+        for i in 0 .. m {
+            let member = account("member", i, SEED);
+            members.push(member);
+        }
+
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let call = Call::<T>::create_sub_group(vec![42u8; 2 as usize],members.clone(),m.into(),1_000u32.into());
+        call.dispatch_bypass_filter(origin)? ;
+        let sub_group_id:T::GroupId=2u32.into();
+        assert!(Groups::<T>::contains_key(sub_group_id));
+
+        // Threshold is two, so any two ayes will pass the vote
+        let threshold = m.into();
+
+        // Add proposals
+        for i in 0 .. p {
+            // Proposals should be different so that different proposal hashes are generated
+            let proposal: T::Proposal = SystemCall::<T>::remark(vec![i as u8; a as usize]).into();
+            let proposer=&members[0 as usize];
+            GroupPallet::<T>::propose(
+                SystemOrigin::Signed(proposer.clone()).into(),
+                sub_group_id,
+                Box::new(proposal.clone()),
+                threshold,
+                bytes_in_storage,
+            )?;
+        }
+
+        for i in 0 .. p {
+            let p_id:T::ProposalId=(i+1).into();
+            assert!(Proposals::<T>::contains_key(sub_group_id,p_id));
+        }
+
+        let proposal_id:T::ProposalId=p.into();
+
+         // Everyone except proposer votes no
+         for j in 1 .. m  {
+            let voter = &members[j as usize];
+            let approve = false;
+            GroupPallet::<T>::vote(
+                SystemOrigin::Signed(voter.clone()).into(),
+                sub_group_id,
+                proposal_id,
+                approve,
+            )?;
+        }
+
+        let votes=Voting::<T>::get(sub_group_id,proposal_id);
+        assert!(votes.is_some());
+        let votes=votes.unwrap();
+        assert_eq!(votes.nays.len(),(m-1) as usize);
+
+
+    }: veto(SystemOrigin::Signed(admin.clone()), sub_group_id, proposal_id, true,Weight::max_value(), bytes_in_storage)
+
+    verify {
+        assert!(!Proposals::<T>::contains_key(sub_group_id,proposal_id));
+        assert_last_event::<T>(Event::ApprovedByVeto(admin,sub_group_id,proposal_id,1u32.into(),(m-1).into(),false).into());
     }
 
 

@@ -37,152 +37,154 @@
 // --output=./pallets/audits/src/weights.rs
 // --template=./.maintain/frame-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_audits.
 pub trait WeightInfo {
-	fn create_audit() -> Weight;
-	fn delete_audit() -> Weight;
-	fn accept_audit() -> Weight;
-	fn reject_audit() -> Weight;
-	fn complete_audit() -> Weight;
-	fn create_observation() -> Weight;
-	fn create_evidence(a: u32, b: u32, c: u32, d: u32, ) -> Weight;
-	fn link_evidence() -> Weight;
-	fn unlink_evidence() -> Weight;
-	fn delete_evidence(a: u32, ) -> Weight;
+    fn create_audit() -> Weight;
+    fn delete_audit() -> Weight;
+    fn accept_audit() -> Weight;
+    fn reject_audit() -> Weight;
+    fn complete_audit() -> Weight;
+    fn create_observation() -> Weight;
+    fn create_evidence(a: u32, b: u32, c: u32, d: u32) -> Weight;
+    fn link_evidence() -> Weight;
+    fn unlink_evidence() -> Weight;
+    fn delete_evidence(a: u32) -> Weight;
 }
 
 /// Weights for pallet_audits using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn create_audit() -> Weight {
-		(36_900_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
-	}
-	fn delete_audit() -> Weight {
-		(38_700_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
-	}
-	fn accept_audit() -> Weight {
-		(29_100_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	fn reject_audit() -> Weight {
-		(28_600_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	fn complete_audit() -> Weight {
-		(29_100_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-	}
-	fn create_observation() -> Weight {
-		(38_800_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
-	}
-	fn create_evidence(a: u32, b: u32, _c: u32, d: u32, ) -> Weight {
-		(40_002_000 as Weight)
-			// Standard Error: 36_000
-			.saturating_add((7_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 36_000
-			.saturating_add((2_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 36_000
-			.saturating_add((5_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	fn link_evidence() -> Weight {
-		(44_300_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	fn unlink_evidence() -> Weight {
-		(47_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	fn delete_evidence(a: u32, ) -> Weight {
-		(45_368_000 as Weight)
-			// Standard Error: 381_000
-			.saturating_add((24_210_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(a as Weight)))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
+    fn create_audit() -> Weight {
+        (36_900_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(4 as Weight))
+    }
+    fn delete_audit() -> Weight {
+        (38_700_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(3 as Weight))
+    }
+    fn accept_audit() -> Weight {
+        (29_100_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn reject_audit() -> Weight {
+        (28_600_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn complete_audit() -> Weight {
+        (29_100_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn create_observation() -> Weight {
+        (38_800_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(2 as Weight))
+            .saturating_add(T::DbWeight::get().writes(3 as Weight))
+    }
+    fn create_evidence(a: u32, b: u32, _c: u32, d: u32) -> Weight {
+        (40_002_000 as Weight)
+            // Standard Error: 36_000
+            .saturating_add((7_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 36_000
+            .saturating_add((2_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 36_000
+            .saturating_add((5_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(T::DbWeight::get().reads(2 as Weight))
+            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+    }
+    fn link_evidence() -> Weight {
+        (44_300_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(3 as Weight))
+            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+    }
+    fn unlink_evidence() -> Weight {
+        (47_000_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(3 as Weight))
+            .saturating_add(T::DbWeight::get().writes(2 as Weight))
+    }
+    fn delete_evidence(a: u32) -> Weight {
+        (45_368_000 as Weight)
+            // Standard Error: 381_000
+            .saturating_add((24_210_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(T::DbWeight::get().reads(3 as Weight))
+            .saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(a as Weight)))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+            .saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn create_audit() -> Weight {
-		(36_900_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
-	}
-	fn delete_audit() -> Weight {
-		(38_700_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-	}
-	fn accept_audit() -> Weight {
-		(29_100_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	fn reject_audit() -> Weight {
-		(28_600_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	fn complete_audit() -> Weight {
-		(29_100_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	fn create_observation() -> Weight {
-		(38_800_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-	}
-	fn create_evidence(a: u32, b: u32, _c: u32, d: u32, ) -> Weight {
-		(40_002_000 as Weight)
-			// Standard Error: 36_000
-			.saturating_add((7_000 as Weight).saturating_mul(a as Weight))
-			// Standard Error: 36_000
-			.saturating_add((2_000 as Weight).saturating_mul(b as Weight))
-			// Standard Error: 36_000
-			.saturating_add((5_000 as Weight).saturating_mul(d as Weight))
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-	}
-	fn link_evidence() -> Weight {
-		(44_300_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-	}
-	fn unlink_evidence() -> Weight {
-		(47_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-	}
-	fn delete_evidence(a: u32, ) -> Weight {
-		(45_368_000 as Weight)
-			// Standard Error: 381_000
-			.saturating_add((24_210_000 as Weight).saturating_mul(a as Weight))
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(a as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
-	}
+    fn create_audit() -> Weight {
+        (36_900_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(4 as Weight))
+    }
+    fn delete_audit() -> Weight {
+        (38_700_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(3 as Weight))
+    }
+    fn accept_audit() -> Weight {
+        (29_100_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn reject_audit() -> Weight {
+        (28_600_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn complete_audit() -> Weight {
+        (29_100_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn create_observation() -> Weight {
+        (38_800_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(3 as Weight))
+    }
+    fn create_evidence(a: u32, b: u32, _c: u32, d: u32) -> Weight {
+        (40_002_000 as Weight)
+            // Standard Error: 36_000
+            .saturating_add((7_000 as Weight).saturating_mul(a as Weight))
+            // Standard Error: 36_000
+            .saturating_add((2_000 as Weight).saturating_mul(b as Weight))
+            // Standard Error: 36_000
+            .saturating_add((5_000 as Weight).saturating_mul(d as Weight))
+            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+    }
+    fn link_evidence() -> Weight {
+        (44_300_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(3 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+    }
+    fn unlink_evidence() -> Weight {
+        (47_000_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(3 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
+    }
+    fn delete_evidence(a: u32) -> Weight {
+        (45_368_000 as Weight)
+            // Standard Error: 381_000
+            .saturating_add((24_210_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(RocksDbWeight::get().reads(3 as Weight))
+            .saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(a as Weight)))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+            .saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(a as Weight)))
+    }
 }
