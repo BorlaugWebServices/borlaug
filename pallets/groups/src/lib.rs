@@ -109,6 +109,19 @@ pub mod pallet {
             >,
         >;
 
+        type GroupsOriginAccountOrThreshold: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = Either<
+                Self::AccountId,
+                (
+                    Self::GroupId,
+                    Option<Self::MemberCount>,
+                    Option<Self::MemberCount>,
+                    Self::AccountId,
+                ),
+            >,
+        >;
+
         type Proposal: Parameter
             + Dispatchable<Origin = <Self as Config>::Origin, PostInfo = PostDispatchInfo>
             + GetDispatchInfo

@@ -20,7 +20,9 @@ sp_api::decl_runtime_apis! {
      {
         fn get_audits_by_creator(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
 
-        fn get_audits_by_auditor(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
+        fn get_audits_by_auditing_org(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
+
+        fn get_audits_by_auditors(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
 
         fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId>>;
 

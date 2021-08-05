@@ -784,6 +784,8 @@ impl groups::Config for Runtime {
     type GroupsOriginByCallerThreshold = groups::EnsureApproved<Runtime>;
     type GroupsOriginAccountOrGroup =
         EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Runtime>>;
+    type GroupsOriginAccountOrThreshold =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureThreshold<Runtime>>;
     type Proposal = Call;
     type GroupId = GroupId;
     type ProposalId = ProposalId;
@@ -1295,8 +1297,11 @@ impl_runtime_apis! {
         fn get_audits_by_creator(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
             Audits::get_audits_by_creator(account_id)
         }
-        fn get_audits_by_auditor(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
-            Audits::get_audits_by_auditor(account_id)
+        fn get_audits_by_auditing_org(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+            Audits::get_audits_by_auditing_org(account_id)
+        }
+        fn get_audits_by_auditors(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+            Audits::get_audits_by_auditors(account_id)
         }
         fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId>>{
             Audits::get_audit(audit_id)

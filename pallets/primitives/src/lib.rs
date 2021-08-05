@@ -179,3 +179,14 @@ macro_rules! ensure_account_or_group {
         }
     }};
 }
+
+#[macro_export]
+macro_rules! ensure_account_or_threshold {
+    ($origin:expr) => {{
+        let either = T::GroupsOriginAccountOrThreshold::ensure_origin($origin)?;
+        match either {
+            Either::Left(account_id) => account_id,
+            Either::Right((_, _, _, group_account)) => group_account,
+        }
+    }};
+}

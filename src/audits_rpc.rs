@@ -27,8 +27,15 @@ pub trait AuditsApi<
         at: Option<BlockHash>,
     ) -> Result<Vec<AuditResponse<AccountId, AuditId>>>;
 
-    #[rpc(name = "get_audits_by_auditor")]
-    fn get_audits_by_auditor(
+    #[rpc(name = "get_audits_by_auditing_org")]
+    fn get_audits_by_auditing_org(
+        &self,
+        account: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuditResponse<AccountId, AuditId>>>;
+
+    #[rpc(name = "get_audits_by_auditors")]
+    fn get_audits_by_auditors(
         &self,
         account: AccountId,
         at: Option<BlockHash>,
@@ -93,14 +100,13 @@ pub struct AuditResponse<AccountId, AuditId> {
     pub audit_id: AuditId,
     pub status: String,
     pub audit_creator: AccountId,
-    pub auditor: AccountId,
+    pub auditing_org: AccountId,
+    pub auditors: Option<AccountId>,
 }
 impl<AccountId, AuditId> From<(AuditId, Audit<AccountId>)> for AuditResponse<AccountId, AuditId> {
     fn from((audit_id, audit): (AuditId, Audit<AccountId>)) -> Self {
         AuditResponse::<AccountId, AuditId> {
             audit_id,
-            audit_creator: audit.audit_creator,
-            auditor: audit.auditor,
             status: match audit.status {
                 AuditStatus::Requested => "Requested".to_string(),
                 AuditStatus::Accepted => "Accepted".to_string(),
@@ -108,6 +114,9 @@ impl<AccountId, AuditId> From<(AuditId, Audit<AccountId>)> for AuditResponse<Acc
                 AuditStatus::InProgress => "InProgress".to_string(),
                 AuditStatus::Completed => "Completed".to_string(),
             },
+            audit_creator: audit.audit_creator,
+            auditing_org: audit.auditing_org,
+            auditors: audit.auditors,
         }
     }
 }
@@ -263,7 +272,7 @@ where
             .collect())
     }
 
-    fn get_audits_by_auditor(
+    fn get_audits_by_auditing_org(
         &self,
         account: AccountId,
         at: Option<<Block as BlockT>::Hash>,
@@ -272,7 +281,24 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let audits = api
-            .get_audits_by_auditor(&at, account)
+            .get_audits_by_auditing_org(&at, account)
+            .map_err(convert_error!())?;
+        Ok(audits
+            .into_iter()
+            .map(|(audit_id, audit)| (audit_id, audit).into())
+            .collect())
+    }
+
+    fn get_audits_by_auditors(
+        &self,
+        account: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuditResponse<AccountId, AuditId>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let audits = api
+            .get_audits_by_auditors(&at, account)
             .map_err(convert_error!())?;
         Ok(audits
             .into_iter()
