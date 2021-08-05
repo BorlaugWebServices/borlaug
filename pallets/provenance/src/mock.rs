@@ -92,7 +92,9 @@ impl timestamp::Config for Test {
 
 parameter_types! {
     pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxProposalLength: u32 = 1000;
     pub const GroupMaxMembers: u32 = 100;
+    pub const GroupChainLimit: u32 = 100;
 }
 
 impl groups::Config for Test {
@@ -101,6 +103,8 @@ impl groups::Config for Test {
     type GroupsOriginByCallerThreshold = groups::EnsureApproved<Test>;
     type GroupsOriginAccountOrGroup =
         EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Test>>;
+    type GroupsOriginAccountOrThreshold =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureThreshold<Test>>;
     type GetExtrinsicExtraSource = Settings;
     type Proposal = Call;
     type GroupId = u32;
@@ -109,9 +113,11 @@ impl groups::Config for Test {
     type Currency = Balances;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
+    type MaxProposalLength = GroupMaxProposalLength;
     type MaxMembers = GroupMaxMembers;
     type WeightInfo = ();
     type NameLimit = NameLimit;
+    type GroupChainLimit = GroupChainLimit;
 }
 
 parameter_types! {

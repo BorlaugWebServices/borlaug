@@ -2,14 +2,48 @@
 //!
 //! ## Overview
 //!
-//! An audit
+//! Audits are created by an Organization which then requests and Auditing Organization to carry out the Audit.
+//! The Auditing Organization then assigns one or more Auditors to the audit.
+//! All routes may be called by either an individual account or a group from the Groups module. When groups are used, the group threshold is used.
 //!
 //! ## Interface
 //!
 //! ### Dispatchable Functions
 //!
-//! #### For general users
-//! * `create_audit` - Creates a new audit
+//! * `create_audit` - Creates a new audit. Assigning an Auditing Organization is done as part of creation. Auditing Organization cannot be changed.
+//!     Used by: Audit Creator
+//! * `delete_audit` - Delete an audit. Audits can only be deleted before they have been accepted by an Auditing Organization
+//!     Used by: Audit Creator
+//! * `accept_audit` - The Auditing Organization accepts an Audit
+//!     Used by: Auditing Organization
+//! * `assign_auditors` - The Auditing Organization assigns and auditor or auditors. Use a group or subgroup when assigning multiple auditors.
+//!     Used by: Auditing Organization
+//! * `reject_audit` - The Auditing Organization rejects an Audit
+//!     Used by: Auditing Organization
+//! * `complete_audit` - The Auditing Organization completes an Audit
+//!     Used by: Auditing Organization
+//! * `create_observation` - An Auditor creates an observation
+//!     Used by: Auditors
+//! * `create_evidence` - An Auditor creates an item of evidence
+//!     Used by: Auditors
+//! * `link_evidence` - An Auditor links evidence to an observation
+//!     Used by: Auditors
+//! * `unlink_evidence` - An Auditor removes a link between evidence and an observation
+//!     Used by: Auditors
+//! * `delete_evidence` - An Auditor removes a link between evidence and an observation
+//!     Used by: Auditors
+//!
+//! ### RPC Methods
+//!
+//! * `get_audits_by_creator` - Get the collection of audits by Audit Creator
+//! * `get_audits_by_auditing_org` - Get the collection of audits by Auditing Organization
+//! * `get_audits_by_auditors` - Get the collection of audits by Auditors
+//! * `get_audit` - Get an audit by Audit Id
+//! * `get_observation_by_control_point` - Get the collection of observations by Control Point
+//! * `get_evidence` - Get the collection of evidence for an Audit
+//! * `get_observation_by_control_point` - Get the collection of observations by Control Point
+//! * `get_evidence_links_by_evidence` - Get the collection of observations linked to an item of evidence
+//! * `get_evidence_links_by_observation` - Get the collection of evidence linked to an observation
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -399,8 +433,8 @@ pub mod pallet {
         /// Arguments:
         /// - `audit_id` the Audit
         /// - `auditors` the account or group account of the auditors that will create observations/evidence
-        //TODO: add to benchmarking
-        #[pallet::weight(<T as Config>::WeightInfo::accept_audit())]
+
+        #[pallet::weight(<T as Config>::WeightInfo::assign_auditors_initial_assign().max(<T as Config>::WeightInfo::assign_auditors_replace()))]
         pub fn assign_auditors(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
@@ -417,7 +451,8 @@ pub mod pallet {
             );
             ensure!(audit.auditing_org == sender.clone(), <Error<T>>::NotAuditor);
 
-            if audit.auditors.is_some() {
+            let replacing = audit.auditors.is_some();
+            if replacing {
                 <AuditsByAuditors<T>>::remove(&audit.auditors.unwrap(), &audit_id);
             }
 
@@ -428,7 +463,13 @@ pub mod pallet {
             <AuditsByAuditors<T>>::insert(&auditors, &audit_id, ());
 
             Self::deposit_event(Event::AuditorsAssigned(sender, audit_id, auditors));
-            Ok(().into())
+
+            Ok((Some(if replacing {
+                <T as Config>::WeightInfo::assign_auditors_replace()
+            } else {
+                <T as Config>::WeightInfo::assign_auditors_initial_assign()
+            }))
+            .into())
         }
 
         /// Auditor Rejects Audit
@@ -701,6 +742,7 @@ pub mod pallet {
         /// Arguments:
         /// - `audit_id` id of audit created on chain
         /// - `evidence_id` id of evidence created on chain
+        /// - `link_count` a declaration of how many links the evidence has (for weight estimation)
         #[pallet::weight(<T as Config>::WeightInfo::delete_evidence(*link_count))]
         pub fn delete_evidence(
             origin: OriginFor<T>,

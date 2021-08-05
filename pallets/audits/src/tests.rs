@@ -11,49 +11,50 @@ use sp_core::blake2_256;
 fn create_audit_should_work() {
     new_test_ext().execute_with(|| {
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         assert!(<AuditsByCreator<Test>>::contains_key(
             audit.audit_creator,
             audit_id
         ));
-        assert!(<AuditsByAuditor<Test>>::contains_key(
-            audit.auditor,
+        assert!(<AuditsByAuditingOrg<Test>>::contains_key(
+            audit.auditing_org,
             audit_id
         ));
     });
 }
+
 #[test]
 fn delete_audit_should_work() {
     new_test_ext().execute_with(|| {
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert!(<AuditsByCreator<Test>>::contains_key(
             audit.audit_creator,
             audit_id
         ));
-        assert!(<AuditsByAuditor<Test>>::contains_key(
-            audit.auditor,
+        assert!(<AuditsByAuditingOrg<Test>>::contains_key(
+            audit.auditing_org,
             audit_id
         ));
         assert_ok!(AuditsModule::delete_audit(
@@ -65,7 +66,10 @@ fn delete_audit_should_work() {
             audit_creator,
             audit_id
         ));
-        assert!(!<AuditsByAuditor<Test>>::contains_key(auditor, audit_id));
+        assert!(!<AuditsByAuditingOrg<Test>>::contains_key(
+            auditing_org,
+            audit_id
+        ));
     });
 }
 
@@ -74,21 +78,21 @@ fn accept_audit_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //accept audit
         assert_ok!(AuditsModule::accept_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
@@ -97,26 +101,123 @@ fn accept_audit_should_work() {
         assert_eq!(audit.status, AuditStatus::Accepted);
     });
 }
+
 #[test]
-fn reject_audit_should_work() {
+fn assign_auditors_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
+        let auditors = 3;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
+        assert_eq!(audit.status, AuditStatus::Requested);
+        //accept audit
+        assert_ok!(AuditsModule::accept_audit(
+            Origin::signed(auditing_org),
+            audit_id
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert_eq!(audit.status, AuditStatus::Accepted);
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
+    });
+}
+
+#[test]
+fn reassign_auditors_should_work() {
+    new_test_ext().execute_with(|| {
+        //create audit
+        let audit_creator = 1;
+        let auditing_org = 2;
+        let auditors = 3;
+        let new_auditors = 4;
+        assert_ok!(AuditsModule::create_audit(
+            Origin::signed(audit_creator),
+            auditing_org
+        ));
+        let audit_id = 1u32;
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert_eq!(audit.audit_creator, audit_creator);
+        assert_eq!(audit.auditing_org, auditing_org);
+        assert_eq!(audit.status, AuditStatus::Requested);
+        //accept audit
+        assert_ok!(AuditsModule::accept_audit(
+            Origin::signed(auditing_org),
+            audit_id
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert_eq!(audit.status, AuditStatus::Accepted);
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            new_auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(new_auditors));
+        assert!(!<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
+        assert!(<AuditsByAuditors<Test>>::contains_key(
+            new_auditors,
+            audit_id
+        ));
+    });
+}
+#[test]
+fn reject_audit_should_work() {
+    new_test_ext().execute_with(|| {
+        //create audit
+        let audit_creator = 1;
+        let auditing_org = 2;
+        assert_ok!(AuditsModule::create_audit(
+            Origin::signed(audit_creator),
+            auditing_org
+        ));
+        let audit_id = 1u32;
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert_eq!(audit.audit_creator, audit_creator);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //reject audit
         assert_ok!(AuditsModule::reject_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
@@ -130,27 +231,40 @@ fn complete_audit_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
+        let auditors = 3;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //accept audit
         assert_ok!(AuditsModule::accept_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.status, AuditStatus::Accepted);
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
+
         //create observation
         let observation = Observation {
             compliance: Some(Compliance::Compliant),
@@ -158,7 +272,7 @@ fn complete_audit_should_work() {
         };
         let control_point_id = 1;
         assert_ok!(AuditsModule::create_observation(
-            Origin::signed(auditor),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation,
@@ -169,7 +283,7 @@ fn complete_audit_should_work() {
         assert_eq!(audit.status, AuditStatus::InProgress);
         //complete audit
         assert_ok!(AuditsModule::complete_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id,
         ));
         let audit = Audits::<Test>::get(audit_id);
@@ -184,27 +298,39 @@ fn creating_observation_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
+        let auditors = 3;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //accept audit
         assert_ok!(AuditsModule::accept_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.status, AuditStatus::Accepted);
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
         //create observation
         let observation = Observation {
             compliance: Some(Compliance::Compliant),
@@ -212,7 +338,7 @@ fn creating_observation_should_work() {
         };
         let control_point_id = 1;
         assert_ok!(AuditsModule::create_observation(
-            Origin::signed(auditor),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation,
@@ -243,27 +369,39 @@ fn creating_evidence_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
+        let auditors = 3;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //accept audit
         assert_ok!(AuditsModule::accept_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.status, AuditStatus::Accepted);
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
         //create evidence
         let evidence = Evidence {
             name: b"name".to_vec(),
@@ -272,7 +410,7 @@ fn creating_evidence_should_work() {
             hash: b"hash".to_vec(),
         };
         assert_ok!(AuditsModule::create_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             evidence,
         ));
@@ -297,27 +435,39 @@ fn link_evidence_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
+        let auditors = 3;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //accept audit
         assert_ok!(AuditsModule::accept_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.status, AuditStatus::Accepted);
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
         //create observation
         let observation = Observation {
             compliance: Some(Compliance::Compliant),
@@ -325,7 +475,7 @@ fn link_evidence_should_work() {
         };
         let control_point_id = 1;
         assert_ok!(AuditsModule::create_observation(
-            Origin::signed(auditor),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation,
@@ -356,7 +506,7 @@ fn link_evidence_should_work() {
             hash: b"hash".to_vec(),
         };
         assert_ok!(AuditsModule::create_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             evidence,
         ));
@@ -376,7 +526,7 @@ fn link_evidence_should_work() {
         );
         //link evidence
         assert_ok!(AuditsModule::link_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation_id,
@@ -398,27 +548,39 @@ fn unlink_evidence_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
+        let auditors = 3;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //accept audit
         assert_ok!(AuditsModule::accept_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.status, AuditStatus::Accepted);
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
         //create observation
         let observation = Observation {
             compliance: Some(Compliance::Compliant),
@@ -426,7 +588,7 @@ fn unlink_evidence_should_work() {
         };
         let control_point_id = 1;
         assert_ok!(AuditsModule::create_observation(
-            Origin::signed(auditor),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation,
@@ -457,7 +619,7 @@ fn unlink_evidence_should_work() {
             hash: b"hash".to_vec(),
         };
         assert_ok!(AuditsModule::create_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             evidence,
         ));
@@ -477,7 +639,7 @@ fn unlink_evidence_should_work() {
         );
         //link evidence
         assert_ok!(AuditsModule::link_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation_id,
@@ -493,7 +655,7 @@ fn unlink_evidence_should_work() {
         ));
         //unlink evidence
         assert_ok!(AuditsModule::unlink_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation_id,
@@ -515,27 +677,39 @@ fn delete_evidence_should_work() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
+        let auditors = 3;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //accept audit
         assert_ok!(AuditsModule::accept_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.status, AuditStatus::Accepted);
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
         //create observation
         let observation = Observation {
             compliance: Some(Compliance::Compliant),
@@ -543,7 +717,7 @@ fn delete_evidence_should_work() {
         };
         let control_point_id = 1;
         assert_ok!(AuditsModule::create_observation(
-            Origin::signed(auditor),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation,
@@ -574,7 +748,7 @@ fn delete_evidence_should_work() {
             hash: b"hash".to_vec(),
         };
         assert_ok!(AuditsModule::create_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             evidence,
         ));
@@ -594,7 +768,7 @@ fn delete_evidence_should_work() {
         );
         //link evidence
         assert_ok!(AuditsModule::link_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             control_point_id,
             observation_id,
@@ -610,7 +784,7 @@ fn delete_evidence_should_work() {
         ));
         //delete evidence
         assert_ok!(AuditsModule::delete_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             evidence_id,
             1
@@ -632,28 +806,39 @@ fn delete_evidence_should_have_link_limit() {
     new_test_ext().execute_with(|| {
         //create audit
         let audit_creator = 1;
-        let auditor = 2;
+        let auditing_org = 2;
+        let auditors = 3;
         assert_ok!(AuditsModule::create_audit(
             Origin::signed(audit_creator),
-            auditor
+            auditing_org
         ));
         let audit_id = 1u32;
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.audit_creator, audit_creator);
-        assert_eq!(audit.auditor, auditor);
+        assert_eq!(audit.auditing_org, auditing_org);
         assert_eq!(audit.status, AuditStatus::Requested);
         //accept audit
         assert_ok!(AuditsModule::accept_audit(
-            Origin::signed(auditor),
+            Origin::signed(auditing_org),
             audit_id
         ));
         let audit = Audits::<Test>::get(audit_id);
         assert!(audit.is_some());
         let audit = audit.unwrap();
         assert_eq!(audit.status, AuditStatus::Accepted);
-
+        //assign auditors
+        assert_ok!(AuditsModule::assign_auditors(
+            Origin::signed(auditing_org),
+            audit_id,
+            auditors
+        ));
+        let audit = Audits::<Test>::get(audit_id);
+        assert!(audit.is_some());
+        let audit = audit.unwrap();
+        assert!(audit.auditors == Some(auditors));
+        assert!(<AuditsByAuditors<Test>>::contains_key(auditors, audit_id));
         //create evidence
         let evidence = Evidence {
             name: b"name".to_vec(),
@@ -662,7 +847,7 @@ fn delete_evidence_should_have_link_limit() {
             hash: b"hash".to_vec(),
         };
         assert_ok!(AuditsModule::create_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             evidence,
         ));
@@ -688,7 +873,7 @@ fn delete_evidence_should_have_link_limit() {
                 procedural_note: Some(blake2_256(b"test note")),
             };
             assert_ok!(AuditsModule::create_observation(
-                Origin::signed(auditor),
+                Origin::signed(auditors),
                 audit_id,
                 control_point_id,
                 observation,
@@ -696,7 +881,7 @@ fn delete_evidence_should_have_link_limit() {
             let observation_id = i + 1;
             //link evidence
             assert_ok!(AuditsModule::link_evidence(
-                Origin::signed(2),
+                Origin::signed(auditors),
                 audit_id,
                 control_point_id,
                 observation_id,
@@ -714,7 +899,7 @@ fn delete_evidence_should_have_link_limit() {
         // try to delete evidence with high link_count
         assert_err!(
             AuditsModule::delete_evidence(
-                Origin::signed(2),
+                Origin::signed(auditors),
                 audit_id,
                 evidence_id,
                 <Test as Config>::MaxLinkRemove::get() + 1
@@ -723,7 +908,7 @@ fn delete_evidence_should_have_link_limit() {
         );
         // try to delete evidence with link_count below actual
         assert_ok!(AuditsModule::delete_evidence(
-            Origin::signed(2),
+            Origin::signed(auditors),
             audit_id,
             evidence_id,
             <Test as Config>::MaxLinkRemove::get()
