@@ -20,9 +20,9 @@ sp_api::decl_runtime_apis! {
     BoundedStringFact: Codec + Into<Vec<u8>>
 
      {
-        fn get_catalogs(account: AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)>;
+        fn get_catalogs(account_id: AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)>;
 
-        fn get_catalog(catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>>;
+        fn get_catalog(account_id: AccountId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>>;
 
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>;
 
@@ -42,9 +42,9 @@ sp_api::decl_runtime_apis! {
 
         fn get_claim_issuers(did: Did) -> Vec<(AccountId,Moment)>;
 
-        fn get_dids_by_consumer(account:AccountId) -> Vec<(Did,Moment)>;
+        fn get_dids_by_consumer(consumer:AccountId) -> Vec<(Did,Moment)>;
 
-        fn get_dids_by_issuer(account:AccountId) -> Vec<(Did,Moment)>;
+        fn get_dids_by_issuer(issuer:AccountId) -> Vec<(Did,Moment)>;
 
 
     }

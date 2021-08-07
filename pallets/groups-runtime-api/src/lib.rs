@@ -9,17 +9,19 @@ use primitives::group::{Group, Votes};
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
 sp_api::decl_runtime_apis! {
-    pub trait GroupsApi<AccountId,GroupId,MemberCount,ProposalId,BoundedString>
+    pub trait GroupsApi<AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedString>
     where
     AccountId: Codec,
     GroupId: Codec,
     MemberCount: Codec,
     ProposalId: Codec,
+    Hash: Codec + AsRef<[u8]>,
     BoundedString: Codec + Into<Vec<u8>>
     {
         fn member_of(account:AccountId) -> Vec<GroupId>;
         fn get_group(group:GroupId) -> Option<Group<GroupId, AccountId, MemberCount,BoundedString>>;
-        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, ProposalId, MemberCount>>;
         fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedString>)>>;
+        fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash)>;
+        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>;
     }
 }

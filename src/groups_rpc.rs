@@ -10,21 +10,31 @@ use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 
 #[rpc]
-pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId> {
+pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash> {
     #[rpc(name = "member_of")]
     fn member_of(&self, account: AccountId, at: Option<BlockHash>) -> Result<Vec<GroupId>>;
+
     #[rpc(name = "get_group")]
     fn get_group(
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
     ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>>;
+
     #[rpc(name = "get_sub_groups")]
     fn get_sub_groups(
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
     ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
+
+    #[rpc(name = "get_proposals")]
+    fn get_proposals(
+        &self,
+        group_id: GroupId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<ProposalResponse<ProposalId>>>;
+
     #[rpc(name = "get_voting")]
     fn get_voting(
         &self,
@@ -69,17 +79,33 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct ProposalResponse<ProposalId> {
+    pub proposal_id: ProposalId,
+    pub hash: String,
+}
+impl<ProposalId, Hash> From<(ProposalId, Hash)> for ProposalResponse<ProposalId>
+where
+    Hash: AsRef<[u8]>,
+{
+    fn from((proposal_id, hash): (ProposalId, Hash)) -> Self {
+        ProposalResponse {
+            proposal_id,
+            hash: String::from_utf8_lossy(hash.as_ref()).to_string(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct VoteResponse<AccountId, ProposalId, MemberCount> {
     pub proposal_id: ProposalId,
     pub threshold: MemberCount,
     pub ayes: Vec<AccountId>,
     pub nays: Vec<AccountId>,
 }
-impl<AccountId, ProposalId, MemberCount>
-    From<(ProposalId, Votes<AccountId, ProposalId, MemberCount>)>
+impl<AccountId, ProposalId, MemberCount> From<(ProposalId, Votes<AccountId, MemberCount>)>
     for VoteResponse<AccountId, ProposalId, MemberCount>
 {
-    fn from((proposal_id, vote): (ProposalId, Votes<AccountId, ProposalId, MemberCount>)) -> Self {
+    fn from((proposal_id, vote): (ProposalId, Votes<AccountId, MemberCount>)) -> Self {
         VoteResponse {
             proposal_id,
             threshold: vote.threshold,
@@ -123,8 +149,8 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, BoundedString>
-    GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId>
+impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString>
+    GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId, Hash>
     for Groups<
         C,
         (
@@ -133,6 +159,7 @@ impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, BoundedString>
             GroupId,
             MemberCount,
             ProposalId,
+            Hash,
             BoundedString,
         ),
     >
@@ -141,11 +168,13 @@ where
     C: Send + Sync + 'static,
     C: ProvideRuntimeApi<Block>,
     C: HeaderBackend<Block>,
-    C::Api: GroupsRuntimeApi<Block, AccountId, GroupId, MemberCount, ProposalId, BoundedString>,
+    C::Api:
+        GroupsRuntimeApi<Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString>,
     GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     AccountId: Codec + Send + Sync + 'static,
     ProposalId: Codec + Copy + Send + Sync + 'static,
+    Hash: Codec + Clone + Send + Sync + 'static + AsRef<[u8]>,
     BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
     fn member_of(
@@ -194,6 +223,22 @@ where
         Ok(groups
             .into_iter()
             .map(|(sub_group_id, group)| (sub_group_id, group).into())
+            .collect())
+    }
+
+    fn get_proposals(
+        &self,
+        group_id: GroupId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<ProposalResponse<ProposalId>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let proposals = api.get_proposals(&at, group_id).map_err(convert_error!())?;
+
+        Ok(proposals
+            .into_iter()
+            .map(|(proposal_id, hash)| (proposal_id, hash).into())
             .collect())
     }
 

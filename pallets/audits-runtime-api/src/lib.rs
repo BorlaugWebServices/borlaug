@@ -17,14 +17,25 @@ sp_api::decl_runtime_apis! {
     EvidenceId: Codec,
     ObservationId: Codec,
     BoundedStringName: Codec + Into<Vec<u8>>,
-
      {
         fn get_audits_by_creator(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
 
-        fn get_audits_by_auditor(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
+        fn get_audits_by_auditing_org(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
 
+        fn get_audits_by_auditors(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
 
+        fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId>>;
 
+        fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>;
 
+        fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation)>;
+
+        fn get_evidence(audit_id:AuditId,evidence_id:EvidenceId)->Option<Evidence<BoundedStringName>>;
+
+        fn get_evidence_by_audit(audit_id:AuditId)->Vec<(EvidenceId,Evidence<BoundedStringName>)>;
+
+        fn get_evidence_links_by_evidence(evidence_id:EvidenceId)->Vec<ObservationId>;
+
+        fn get_evidence_links_by_observation(observation_id:ObservationId)->Vec<EvidenceId>;
     }
 }

@@ -1,8 +1,8 @@
-use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use crate::identity_rpc::FactResponse;
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_primitives::Fact;
+use pallet_primitives::Registry;
 use provenance_runtime_api::ProvenanceApi as ProvenanceRuntimeApi;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
@@ -13,10 +13,10 @@ use std::sync::Arc;
 #[rpc]
 pub trait ProvenanceApi<
     BlockHash,
+    AccountId,
     RegistryId,
     DefinitionId,
     ProcessId,
-    GroupId,
     MemberCount,
     DefinitionStepIndex,
 >
@@ -24,14 +24,14 @@ pub trait ProvenanceApi<
     #[rpc(name = "get_registries")]
     fn get_registries(
         &self,
-        group_id: GroupId,
+        account_id: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<RegistryResponse<RegistryId>>>;
 
     #[rpc(name = "get_registry")]
     fn get_registry(
         &self,
-        group_id: GroupId,
+        account_id: AccountId,
         registry_id: RegistryId,
         at: Option<BlockHash>,
     ) -> Result<RegistryResponse<RegistryId>>;
@@ -43,7 +43,13 @@ pub trait ProvenanceApi<
         at: Option<BlockHash>,
     ) -> Result<
         Vec<
-            DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex>,
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
         >,
     >;
 
@@ -54,7 +60,7 @@ pub trait ProvenanceApi<
         definition_id: DefinitionId,
         at: Option<BlockHash>,
     ) -> Result<
-        DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex>,
+        DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     >;
 
     #[rpc(name = "get_processes")]
@@ -90,19 +96,33 @@ pub struct RegistryResponse<RegistryId> {
     pub name: String,
 }
 
+impl<RegistryId, BoundedStringName> From<(RegistryId, Registry<BoundedStringName>)>
+    for RegistryResponse<RegistryId>
+where
+    BoundedStringName: Into<Vec<u8>>,
+{
+    fn from((registry_id, registry): (RegistryId, Registry<BoundedStringName>)) -> Self {
+        RegistryResponse {
+            registry_id,
+            name: String::from_utf8_lossy(&registry.name.into()).to_string(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
-pub struct DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex> {
+pub struct DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>
+{
     pub registry_id: RegistryId,
     pub definition_id: DefinitionId,
     pub name: String,
     pub definition_steps:
-        Option<Vec<DefinitionStepResponse<GroupId, MemberCount, DefinitionStepIndex>>>,
+        Option<Vec<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>>>,
 }
 #[derive(Serialize, Deserialize)]
-pub struct DefinitionStepResponse<GroupId, MemberCount, DefinitionStepIndex> {
+pub struct DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex> {
     pub definition_step_index: DefinitionStepIndex,
     pub name: String,
-    pub group_id: Option<GroupId>,
+    pub attestor: Option<AccountId>,
     pub threshold: MemberCount,
 }
 #[derive(Serialize, Deserialize)]
@@ -124,65 +144,6 @@ pub struct ProcessStepResponse {
 pub struct AttributeResponse {
     pub name: String,
     pub fact: FactResponse,
-}
-#[derive(Serialize, Deserialize)]
-pub struct FactResponse {
-    #[serde(rename = "type")]
-    pub data_type: String,
-    pub value: String,
-}
-
-impl<BoundedString> From<Fact<BoundedString>> for FactResponse
-where
-    BoundedString: Into<Vec<u8>>,
-{
-    fn from(fact: Fact<BoundedString>) -> Self {
-        match fact {
-            Fact::Bool(value) => FactResponse {
-                data_type: String::from("Bool"),
-                value: value.to_string(),
-            },
-            Fact::Text(value) => FactResponse {
-                data_type: String::from("Text"),
-                value: String::from_utf8_lossy(&value.into()).to_string(),
-            },
-            Fact::U8(value) => FactResponse {
-                data_type: String::from("U8"),
-                value: value.to_string(),
-            },
-            Fact::U16(value) => FactResponse {
-                data_type: String::from("U16"),
-                value: value.to_string(),
-            },
-            Fact::U32(value) => FactResponse {
-                data_type: String::from("U32"),
-                value: value.to_string(),
-            },
-            Fact::U128(value) => FactResponse {
-                data_type: String::from("U128"),
-                value: value.to_string(),
-            },
-            Fact::Date(year, month, day) => {
-                let date = NaiveDate::from_ymd(i32::from(year), u32::from(month), u32::from(day));
-                FactResponse {
-                    data_type: String::from("Date"),
-                    value: date.to_string(),
-                }
-            }
-            //TODO: check that this conversion is correct
-            Fact::Iso8601(year, month, day, hour, minute, second, timezone) => {
-                let timezone = String::from_utf8_lossy(&timezone).to_string();
-                let date = NaiveDate::from_ymd(i32::from(year), u32::from(month), u32::from(day));
-                let time =
-                    NaiveTime::from_hms(u32::from(hour), u32::from(minute), u32::from(second));
-                let dt = NaiveDateTime::new(date, time);
-                FactResponse {
-                    data_type: String::from("Iso8601"),
-                    value: format!("{}{}", dt, timezone),
-                }
-            }
-        }
-    }
 }
 
 pub struct Provenance<C, M> {
@@ -222,10 +183,10 @@ macro_rules! not_found_error {
 impl<
         C,
         Block,
+        AccountId,
         RegistryId,
         DefinitionId,
         ProcessId,
-        GroupId,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,
@@ -233,10 +194,10 @@ impl<
     >
     ProvenanceApi<
         <Block as BlockT>::Hash,
+        AccountId,
         RegistryId,
         DefinitionId,
         ProcessId,
-        GroupId,
         MemberCount,
         DefinitionStepIndex,
     >
@@ -244,10 +205,10 @@ impl<
         C,
         (
             Block,
+            AccountId,
             RegistryId,
             DefinitionId,
             ProcessId,
-            GroupId,
             MemberCount,
             DefinitionStepIndex,
             BoundedStringName,
@@ -261,20 +222,19 @@ where
     C: HeaderBackend<Block>,
     C::Api: ProvenanceRuntimeApi<
         Block,
+        AccountId,
         RegistryId,
         DefinitionId,
         ProcessId,
-        GroupId,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,
         BoundedStringFact,
     >,
-
+    AccountId: Codec + Send + Sync + 'static,
     RegistryId: Codec + Copy + Send + Sync + 'static,
     DefinitionId: Codec + Copy + Send + Sync + 'static,
     ProcessId: Codec + Copy + Send + Sync + 'static,
-    GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     DefinitionStepIndex: Codec + Copy + Send + Sync + 'static,
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
@@ -282,7 +242,7 @@ where
 {
     fn get_registries(
         &self,
-        group_id: GroupId,
+        account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<Vec<RegistryResponse<RegistryId>>> {
         let api = self.client.runtime_api();
@@ -291,20 +251,17 @@ where
             self.client.info().best_hash));
 
         let registries = api
-            .get_registries(&at, group_id)
+            .get_registries(&at, account_id)
             .map_err(convert_error!())?;
         Ok(registries
             .into_iter()
-            .map(|(registry_id, registry)| RegistryResponse::<RegistryId> {
-                registry_id,
-                name: String::from_utf8_lossy(&registry.name.into()).to_string(),
-            })
+            .map(|(registry_id, registry)| (registry_id, registry).into())
             .collect())
     }
 
     fn get_registry(
         &self,
-        group_id: GroupId,
+        account_id: AccountId,
         registry_id: RegistryId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<RegistryResponse<RegistryId>> {
@@ -312,14 +269,11 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let registry = api
-            .get_registry(&at, group_id, registry_id)
+            .get_registry(&at, account_id, registry_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
-        Ok(RegistryResponse::<RegistryId> {
-            registry_id,
-            name: String::from_utf8_lossy(&registry.name.into()).to_string(),
-        })
+        Ok((registry_id, registry).into())
     }
 
     fn get_definitions(
@@ -328,7 +282,13 @@ where
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<
         Vec<
-            DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex>,
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
         >,
     > {
         let api = self.client.runtime_api();
@@ -341,9 +301,9 @@ where
         Ok(definitions
             .into_iter()
             .map(|(definition_id, definition)| DefinitionResponse::<
+                AccountId,
                 RegistryId,
                 DefinitionId,
-                GroupId,
                 MemberCount,
                 DefinitionStepIndex,
             > {
@@ -361,7 +321,7 @@ where
         definition_id: DefinitionId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<
-        DefinitionResponse<RegistryId, DefinitionId, GroupId, MemberCount, DefinitionStepIndex>,
+        DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
@@ -376,9 +336,9 @@ where
             .map_err(convert_error!())?;
 
         Ok(DefinitionResponse::<
+            AccountId,
             RegistryId,
             DefinitionId,
-            GroupId,
             MemberCount,
             DefinitionStepIndex,
         > {
@@ -392,7 +352,7 @@ where
                         |(definition_step_index, definition_step)| DefinitionStepResponse {
                             definition_step_index,
                             name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
-                            group_id: definition_step.group_id,
+                            attestor: definition_step.attestor,
                             threshold: definition_step.threshold,
                         },
                     )

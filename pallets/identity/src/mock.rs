@@ -124,15 +124,22 @@ impl pallet_identity::Config for Test {
 
 parameter_types! {
     pub const GroupMaxProposals: u32 = 100;
+    pub const GroupMaxProposalLength: u32 = 1000;
     pub const GroupMaxMembers: u32 = 100;
+    pub const GroupChainLimit: u32 = 100;
 }
 
 impl groups::Config for Test {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Test>;
     type GroupsOriginByCallerThreshold = groups::EnsureApproved<Test>;
-    type GroupsOriginAccountOrGroup =
+    type GroupsOriginExecuted = groups::EnsureExecuted<Test>;
+    type GroupsOriginAccountOrThreshold =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureThreshold<Test>>;
+    type GroupsOriginAccountOrApproved =
         EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Test>>;
+    type GroupsOriginAccountOrExecuted =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureExecuted<Test>>;
     type GetExtrinsicExtraSource = Settings;
     type Proposal = Call;
     type GroupId = u32;
@@ -141,9 +148,11 @@ impl groups::Config for Test {
     type Currency = Balances;
     type Event = Event;
     type MaxProposals = GroupMaxProposals;
+    type MaxProposalLength = GroupMaxProposalLength;
     type MaxMembers = GroupMaxMembers;
     type WeightInfo = ();
     type NameLimit = NameLimit;
+    type GroupChainLimit = GroupChainLimit;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -11,16 +11,28 @@
 //! ### Dispatchable Functions
 //!
 //! #### For general users
-//! * `create_registry` - Creates a new asset registry
-//! * `create_asset` - Creates a new asset within a registry
-//! * `update_asset` - Updates a properties of an asset within a registry
-//! * `delete_asset` - Delete an asset
-//! * `new_lease` - Creates a new lease agreement between lessor and lessee for a set of assets
-//! * `void_lease` - Void a lease and release assets from lease
+//! * `create_registry` - Creates a new **Asset Registry**
+//! * `create_asset` - Creates a new asset within an **Asset Registry**
+//! * `update_asset` - Updates a properties of an **Asset** within an **Asset Registry**
+//! * `delete_asset` - Delete an **Asset**
+//! * `new_lease` - Creates a new **Lease Agreement** between lessor and lessee for a set of assets
+//! * `void_lease` - Void a **Lease Agreement** and release assets from lease
+//!
+//! ### RPC Methods
+//!
+//! * `get_registries` - Get the collection of **Asset Registries** owned by a DID
+//! * `get_registry` - Get a specific **Asset Registry**
+//! * `get_assets` - Get the collection of **Assets** in an **Asset Registry**
+//! * `get_asset` - Get a specific **Asset**
+//! * `get_leases` - Get the collection of **Lease Agreements** for a given lessor
+//! * `get_lease` - Get a specific **Lease Agreement**
+//! * `get_lease_allocations` - Get the lease allocations for a specific **Asset**
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
+
+mod benchmarking;
 
 #[cfg(test)]
 mod mock;
@@ -28,22 +40,36 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+
 #[frame_support::pallet]
 pub mod pallet {
-
+    pub use super::weights::WeightInfo;
     use core::convert::TryInto;
+    use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use primitives::{bounded_vec::BoundedVec, *};
     use sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
-        DispatchResult,
+        Either,
     };
     use sp_std::prelude::*;
 
+    const MODULE_INDEX: u8 = 4;
+
+    #[repr(u8)]
+    pub enum ExtrinsicIndex {
+        Registry = 41,
+        Asset = 42,
+        Lease = 43,
+    }
+
     #[pallet::config]
     /// Configure the pallet by specifying the parameters and types on which it depends.
-    pub trait Config: frame_system::Config + timestamp::Config {
+    pub trait Config:
+        frame_system::Config + timestamp::Config + groups::Config + identity::Config
+    {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -79,11 +105,19 @@ pub mod pallet {
             + MaybeSerializeDeserialize
             + PartialEq;
 
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
+
         /// The maximum length of a name or symbol stored on-chain.
         type NameLimit: Get<u32>;
 
         /// The maximum length of a name or symbol stored on-chain.
         type FactStringLimit: Get<u32>;
+
+        /// The maximum number of properties an asset can have.
+        type AssetPropertyLimit: Get<u32>;
+        /// The maximum number of assets a lease can have.
+        type LeaseAssetLimit: Get<u32>;
     }
 
     #[pallet::event]
@@ -94,16 +128,18 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// New registry created (owner, registry id)
+        /// New registry created (owner_did, registry_id)
         RegistryCreated(Did, T::RegistryId),
-
-        RegistryDeleted(T::RegistryId),
-        /// New asset created in registry (registry id, asset id)
+        /// A registry was renamed (owner_did, registry_id)
+        RegistryRenamed(Did, T::RegistryId),
+        /// A registry was renamed (owner_did, registry_id)
+        RegistryDeleted(Did, T::RegistryId),
+        /// New asset created in registry (registry_id, asset_id)
         AssetCreated(T::RegistryId, T::AssetId),
-        /// Asset was updated in registry (registry id, asset id)
-        AssetUpdated(T::RegistryId, T::AssetId),
-
-        AssetDeleted(T::RegistryId, T::AssetId),
+        /// Asset was updated in registry (registry_id, asset_id)
+        AssetUpdated(Did, T::RegistryId, T::AssetId),
+        /// Asset was deleted in registry (registry_id, asset_id)
+        AssetDeleted(Did, T::RegistryId, T::AssetId),
 
         LeaseCreated(T::LeaseId, Did, Did),
 
@@ -120,8 +156,12 @@ pub mod pallet {
         NotDidSubject,
         /// A non-registry owner account attempted to  modify a registry or asset in the registry
         NotRegistryOwner,
+        /// Delete all assets in registry before deleting registry     
+        RegistryNotEmpty,
         /// Id out of bounds
         NoIdAvailable,
+        /// Some assets could not be allocated
+        AssetAllocationFailed,
     }
 
     #[pallet::type_value]
@@ -173,8 +213,15 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn registries)]
     /// Permission options for a given asset.
-    pub type Registries<T: Config> =
-        StorageMap<_, Blake2_128Concat, Did, Vec<T::RegistryId>, ValueQuery>;
+    pub type Registries<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        Did,
+        Blake2_128Concat,
+        T::RegistryId,
+        Registry<BoundedVec<u8, <T as Config>::NameLimit>>,
+        OptionQuery,
+    >;
 
     #[pallet::storage]
     #[pallet::getter(fn assets)]
@@ -231,24 +278,69 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `owner_did` DID of caller
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn create_registry(origin: OriginFor<T>, owner_did: Did) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+        /// - `name` name of registry
+        #[pallet::weight(<T as Config>::WeightInfo::create_registry(
+            name.len() as u32
+        ))]
+        pub fn create_registry(
+            origin: OriginFor<T>,
+            owner_did: Did,
+            name: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_account_or_group!(origin);
+
+            let bounded_name = enforce_limit!(name);
 
             ensure!(
-                Self::is_did_subject(sender, owner_did),
+                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
                 Error::<T>::NotDidSubject
             );
 
-            let registry_id = Self::next_registry_id();
-            let next_id = registry_id
-                .checked_add(&One::one())
-                .ok_or(Error::<T>::NoIdAvailable)?;
-            <NextRegistryId<T>>::put(next_id);
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Registry as u8),
+                &sender,
+            );
 
-            <Registries<T>>::append(owner_did, &registry_id);
+            let registry_id = next_id!(NextRegistryId<T>, T);
+
+            <Registries<T>>::insert(&owner_did, &registry_id, Registry { name: bounded_name });
 
             Self::deposit_event(Event::RegistryCreated(owner_did, registry_id));
+            Ok(().into())
+        }
+
+        /// Rename registry
+        ///
+        /// Arguments:
+        /// - `owner_did` DID of caller
+        /// - `registry_id` Registry
+        /// - `name` new name of registry
+        #[pallet::weight(<T as Config>::WeightInfo::update_registry(
+            name.len() as u32
+        ))]
+        pub fn update_registry(
+            origin: OriginFor<T>,
+            owner_did: Did,
+            registry_id: T::RegistryId,
+            name: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_account_or_group!(origin);
+
+            let bounded_name = enforce_limit!(name);
+
+            ensure!(
+                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
+                Error::<T>::NotDidSubject
+            );
+            ensure!(
+                <Registries<T>>::contains_key(&owner_did, registry_id),
+                <Error<T>>::NotRegistryOwner
+            );
+
+            <Registries<T>>::insert(&owner_did, &registry_id, Registry { name: bounded_name });
+
+            Self::deposit_event(Event::RegistryRenamed(owner_did, registry_id));
             Ok(().into())
         }
 
@@ -257,26 +349,31 @@ pub mod pallet {
         /// Arguments:
         /// - `owner_did` DID of caller
         /// - `registry_id` Registry to be removed
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::delete_registry())]
         pub fn delete_registry(
             origin: OriginFor<T>,
             owner_did: Did,
             registry_id: T::RegistryId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                Self::is_did_subject(sender, owner_did),
+                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
                 Error::<T>::NotDidSubject
             );
+            ensure!(
+                <Registries<T>>::contains_key(&owner_did, registry_id),
+                <Error<T>>::NotRegistryOwner
+            );
 
-            <Registries<T>>::mutate(owner_did, |registries| {
-                registries.retain(|rid| *rid != registry_id)
-            });
+            ensure!(
+                <Assets<T>>::iter_prefix(registry_id).next().is_none(),
+                Error::<T>::RegistryNotEmpty
+            );
 
-            //TODO: is there any asset cleanup to do?
+            <Registries<T>>::remove(&owner_did, registry_id);
 
-            Self::deposit_event(Event::RegistryDeleted(registry_id));
+            Self::deposit_event(Event::RegistryDeleted(owner_did, registry_id));
             Ok(().into())
         }
 
@@ -286,26 +383,64 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset` instance to be added
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::create_asset(
+            asset.name.len() as u32,
+            asset.asset_number.as_ref().map_or(0,|n|n.len()) as u32,
+            asset.serial_number.as_ref().map_or(0,|n|n.len()) as u32,
+            get_max_property_name_len(&asset.properties),
+            get_max_property_fact_len(&asset.properties),
+            asset.properties.len() as u32,
+        ))]
         pub fn create_asset(
             origin: OriginFor<T>,
             owner_did: Did,
             registry_id: T::RegistryId,
             asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
 
             ensure!(
-                Self::is_did_subject(sender, owner_did),
+                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
                 Error::<T>::NotDidSubject
             );
 
             ensure!(
-                Self::is_registry_owner(owner_did, registry_id),
+                <Registries<T>>::contains_key(&owner_did, registry_id),
                 <Error<T>>::NotRegistryOwner
             );
 
-            Self::create_registry_asset(registry_id, asset)?;
+            let asset = Asset {
+                properties: asset
+                    .properties
+                    .into_iter()
+                    .map(|property| {
+                        Ok(AssetProperty {
+                            name: enforce_limit!(property.name),
+                            fact: enforce_limit_fact!(property.fact),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, Error<T>>>()?,
+                name: enforce_limit!(asset.name),
+                asset_number: enforce_limit_option!(asset.asset_number),
+                status: asset.status,
+                serial_number: enforce_limit_option!(asset.serial_number),
+                total_shares: asset.total_shares,
+                residual_value: asset.residual_value,
+                purchase_value: asset.purchase_value,
+                acquired_date: asset.acquired_date,
+            };
+
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Asset as u8),
+                &sender,
+            );
+
+            let asset_id = next_id!(NextAssetId<T>, T);
+
+            <Assets<T>>::insert(&registry_id, &asset_id, asset);
+            Self::deposit_event(Event::AssetCreated(registry_id, asset_id));
+
             Ok(().into())
         }
 
@@ -324,28 +459,24 @@ pub mod pallet {
             asset_id: T::AssetId,
             asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
             ensure!(
-                Self::is_did_subject(sender, owner_did),
+                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
                 Error::<T>::NotDidSubject
             );
 
             let asset = Asset {
                 properties: asset
                     .properties
-                    .map(|properties| {
-                        properties
-                            .into_iter()
-                            .map(|property| {
-                                Ok(AssetProperty {
-                                    name: enforce_limit!(property.name),
-                                    fact: enforce_limit_fact!(property.fact),
-                                })
-                            })
-                            .collect::<Result<Vec<_>, Error<T>>>()
+                    .into_iter()
+                    .map(|property| {
+                        Ok(AssetProperty {
+                            name: enforce_limit!(property.name),
+                            fact: enforce_limit_fact!(property.fact),
+                        })
                     })
-                    .map_or(Ok(None), |r| r.map(Some))?,
-                name: enforce_limit_option!(asset.name),
+                    .collect::<Result<Vec<_>, Error<T>>>()?,
+                name: enforce_limit!(asset.name),
                 asset_number: enforce_limit_option!(asset.asset_number),
                 status: asset.status,
                 serial_number: enforce_limit_option!(asset.serial_number),
@@ -355,15 +486,9 @@ pub mod pallet {
                 acquired_date: asset.acquired_date,
             };
 
-            //TODO: does this fail correctly if asset does not exist?
-
-            //TODO: we are replacing everything - should we instead update in some way?
-
-            <Assets<T>>::remove(&registry_id, &asset_id);
-
             <Assets<T>>::insert(&registry_id, &asset_id, asset);
 
-            Self::deposit_event(Event::AssetUpdated(registry_id, asset_id));
+            Self::deposit_event(Event::AssetUpdated(owner_did, registry_id, asset_id));
             Ok(().into())
         }
 
@@ -380,15 +505,15 @@ pub mod pallet {
             registry_id: T::RegistryId,
             asset_id: T::AssetId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
             ensure!(
-                Self::is_did_subject(sender, owner_did),
+                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
                 Error::<T>::NotDidSubject
             );
 
             <Assets<T>>::remove(&registry_id, &asset_id);
 
-            Self::deposit_event(Event::AssetDeleted(registry_id, asset_id));
+            Self::deposit_event(Event::AssetDeleted(owner_did, registry_id, asset_id));
 
             Ok(().into())
         }
@@ -404,121 +529,35 @@ pub mod pallet {
             origin: OriginFor<T>,
             lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
+            let sender = ensure_account_or_group!(origin);
             ensure!(
-                Self::is_did_subject(sender, lease.lessor),
+                <identity::DidBySubject<T>>::contains_key(&sender, &lease.lessor),
                 Error::<T>::NotDidSubject
             );
 
-            Self::create_new_lease(lease)?;
+            let can_allocate = !lease.allocations.iter().any(Self::check_allocation);
 
-            Ok(().into())
-        }
+            ensure!(can_allocate, Error::<T>::AssetAllocationFailed);
 
-        /// Void a lease agreement. Allocations are un-reserved.
-        ///
-        /// Arguments:
-        /// - `owner_did` DID of caller
-        /// - `registry_id` Asset is created in this registry
-        /// - `asset_id` Asset to be deleted
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn void_lease(
-            origin: OriginFor<T>,
-            lessor: Did,
-            lease_id: T::LeaseId,
-        ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
-            ensure!(
-                Self::is_did_subject(sender, lessor),
-                Error::<T>::NotDidSubject
+            let contract_number_limited = enforce_limit!(lease.contract_number.clone());
+
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Lease as u8),
+                &sender,
             );
-
-            <LeaseAgreements<T>>::remove(&lessor, &lease_id);
-
-            //TODO: clean up lease allocations on asset
-
-            Self::deposit_event(Event::LeaseVoided(lease_id, lessor));
-
-            Ok(().into())
-        }
-    }
-
-    // public functions
-    impl<T: Config> Module<T> {
-        pub fn get_asset(
-            _registry_id: T::RegistryId,
-            _asset_id: T::AssetId,
-        ) -> Option<Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>> {
-            None
-        }
-    }
-
-    // private functions
-    impl<T: Config> Module<T> {
-        /// Create an asset and store it in the given registry
-        fn create_registry_asset(
-            registry_id: T::RegistryId,
-            asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
-        ) -> DispatchResult {
-            let asset_id = next_id!(NextAssetId<T>, T);
-
-            let asset = Asset {
-                properties: asset
-                    .properties
-                    .map(|properties| {
-                        properties
-                            .into_iter()
-                            .map(|property| {
-                                Ok(AssetProperty {
-                                    name: enforce_limit!(property.name),
-                                    fact: enforce_limit_fact!(property.fact),
-                                })
-                            })
-                            .collect::<Result<Vec<_>, Error<T>>>()
-                    })
-                    .map_or(Ok(None), |r| r.map(Some))?,
-                name: enforce_limit_option!(asset.name),
-                asset_number: enforce_limit_option!(asset.asset_number),
-                status: asset.status,
-                serial_number: enforce_limit_option!(asset.serial_number),
-                total_shares: asset.total_shares,
-                residual_value: asset.residual_value,
-                purchase_value: asset.purchase_value,
-                acquired_date: asset.acquired_date,
-            };
-
-            <Assets<T>>::insert(&registry_id, &asset_id, asset);
-            Self::deposit_event(Event::AssetCreated(registry_id, asset_id));
-
-            Ok(())
-        }
-        /// Create an asset and store it in the given registry
-        fn create_new_lease(
-            lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment, Vec<u8>>,
-        ) -> DispatchResult {
-            let can_allocate = !lease
-                .allocations
-                .clone()
-                .into_iter()
-                .any(Self::check_allocation);
-
-            ensure!(can_allocate, "Cannot allocate some assets");
-
-            let lease_id = next_id!(NextLeaseId<T>, T);
 
             let lessor = lease.lessor;
             let lessee = lease.lessee;
 
-            lease
-                .allocations
-                .clone()
-                .into_iter()
-                .for_each(|allocation| {
-                    Self::make_allocation(lease_id, allocation, lease.expiry_ts)
-                });
+            let lease_id = next_id!(NextLeaseId<T>, T);
+
+            lease.allocations.iter().for_each(|allocation| {
+                Self::make_allocation(lease_id, allocation, lease.expiry_ts)
+            });
 
             let lease = LeaseAgreement {
-                contract_number: enforce_limit!(lease.contract_number),
+                contract_number: contract_number_limited,
                 lessor: lease.lessor,
                 lessee: lease.lessee,
                 effective_ts: lease.effective_ts,
@@ -530,71 +569,189 @@ pub mod pallet {
 
             Self::deposit_event(Event::LeaseCreated(lease_id, lessor, lessee));
 
-            Ok(())
+            Ok(().into())
         }
 
-        fn is_registry_owner(owner_did: Did, registry_id: T::RegistryId) -> bool {
-            if <Registries<T>>::contains_key(owner_did) {
-                let registry_ids = <Registries<T>>::get(owner_did);
-                registry_ids.contains(&registry_id)
-            } else {
-                false
-            }
+        //TODO: should we keep some record of voided leases?
+
+        /// Void a lease agreement. Allocations are un-reserved.
+        ///
+        /// Arguments:
+        /// - `lessor` DID of caller        
+        /// - `lease_id` Lease to be deleted
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn void_lease(
+            origin: OriginFor<T>,
+            lessor: Did,
+            lease_id: T::LeaseId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_account_or_group!(origin);
+            ensure!(
+                <identity::DidBySubject<T>>::contains_key(&sender, &lessor),
+                Error::<T>::NotDidSubject
+            );
+
+            let lease_agreement = <LeaseAgreements<T>>::take(&lessor, &lease_id);
+
+            ensure!(lease_agreement.is_some(), Error::<T>::NotDidSubject);
+
+            lease_agreement
+                .unwrap()
+                .allocations
+                .into_iter()
+                .for_each(|allocation| {
+                    <LeaseAllocations<T>>::mutate_exists(
+                        allocation.registry_id,
+                        allocation.asset_id,
+                        |maybe_lease_allocations| {
+                            if let Some(ref mut lease_allocations) = maybe_lease_allocations {
+                                lease_allocations.retain(|(l_id, _, _)| *l_id != lease_id);
+                            }
+                        },
+                    );
+                });
+
+            Self::deposit_event(Event::LeaseVoided(lease_id, lessor));
+
+            Ok(().into())
         }
-        fn is_did_subject(_sender: T::AccountId, _did: Did) -> bool {
-            //TODO: verify that sender is the subject of did
-            true
+    }
+
+    impl<T: Config> Module<T> {
+        // -- rpc api functions --
+
+        pub fn get_registries(
+            did: Did,
+        ) -> Vec<(
+            T::RegistryId,
+            Registry<BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            let mut registries = Vec::new();
+            <Registries<T>>::iter_prefix(did)
+                .for_each(|(registry_id, registry)| registries.push((registry_id, registry)));
+            registries
         }
+
+        pub fn get_registry(
+            did: Did,
+            registry_id: T::RegistryId,
+        ) -> Option<Registry<BoundedVec<u8, <T as Config>::NameLimit>>> {
+            <Registries<T>>::get(did, registry_id)
+        }
+
+        pub fn get_assets(
+            registry_id: T::RegistryId,
+        ) -> Vec<(
+            T::AssetId,
+            Asset<
+                T::Moment,
+                T::Balance,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::FactStringLimit>,
+            >,
+        )> {
+            let mut assets = Vec::new();
+            <Assets<T>>::iter_prefix(registry_id)
+                .for_each(|(asset_id, asset)| assets.push((asset_id, asset)));
+            assets
+        }
+
+        pub fn get_asset(
+            registry_id: T::RegistryId,
+            asset_id: T::AssetId,
+        ) -> Option<
+            Asset<
+                T::Moment,
+                T::Balance,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::FactStringLimit>,
+            >,
+        > {
+            <Assets<T>>::get(registry_id, asset_id)
+        }
+
+        pub fn get_leases(
+            lessor: Did,
+        ) -> Vec<(
+            T::LeaseId,
+            LeaseAgreement<
+                T::RegistryId,
+                T::AssetId,
+                T::Moment,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+            >,
+        )> {
+            let mut leases = Vec::new();
+            <LeaseAgreements<T>>::iter_prefix(lessor)
+                .for_each(|(lease_id, lease)| leases.push((lease_id, lease)));
+            leases
+        }
+
+        pub fn get_lease(
+            lessor: Did,
+            lease_id: T::LeaseId,
+        ) -> Option<
+            LeaseAgreement<
+                T::RegistryId,
+                T::AssetId,
+                T::Moment,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+            >,
+        > {
+            <LeaseAgreements<T>>::get(lessor, lease_id)
+        }
+
+        pub fn get_lease_allocations(
+            registry_id: T::RegistryId,
+            asset_id: T::AssetId,
+        ) -> Option<Vec<(T::LeaseId, u64, T::Moment)>> {
+            <LeaseAllocations<T>>::get(registry_id, asset_id)
+        }
+
+        // -- private functions --
+
         ///should return false if allocation is possible.
-        fn check_allocation(asset_allocation: AssetAllocation<T::RegistryId, T::AssetId>) -> bool {
-            if <Assets<T>>::contains_key(asset_allocation.registry_id, asset_allocation.asset_id) {
-                let asset =
-                    <Assets<T>>::get(asset_allocation.registry_id, asset_allocation.asset_id)
-                        .unwrap();
-                if let Some(total_shares) = asset.total_shares {
-                    if asset_allocation.allocated_shares > total_shares {
-                        return true;
-                    }
-
-                    if <LeaseAllocations<T>>::contains_key(
-                        asset_allocation.registry_id,
-                        asset_allocation.asset_id,
-                    ) {
-                        let now: T::Moment = <timestamp::Module<T>>::get();
-
-                        let lease_allocations = <LeaseAllocations<T>>::get(
-                            asset_allocation.registry_id,
-                            asset_allocation.asset_id,
-                        )
-                        .unwrap();
-                        let not_expired_allocations: Vec<(T::LeaseId, u64, T::Moment)> =
-                            lease_allocations
-                                .into_iter()
-                                .filter(|(_, _, expiry)| *expiry > now)
-                                .collect();
-                        <LeaseAllocations<T>>::insert(
-                            &asset_allocation.registry_id,
-                            &asset_allocation.asset_id,
-                            &not_expired_allocations,
-                        );
-                        let total_allocated: u64 = not_expired_allocations
-                            .into_iter()
-                            .map(|(_, allocation, _)| allocation)
-                            .sum();
-                        total_allocated + asset_allocation.allocated_shares > total_shares
-                    } else {
-                        false
-                    }
-                } else {
-                    true
-                }
-            } else {
-                true
+        fn check_allocation(asset_allocation: &AssetAllocation<T::RegistryId, T::AssetId>) -> bool {
+            let asset = <Assets<T>>::get(asset_allocation.registry_id, asset_allocation.asset_id);
+            if asset.is_none() {
+                return true;
             }
+            let asset = asset.unwrap();
+            if asset_allocation.allocated_shares > asset.total_shares {
+                return true;
+            }
+            let lease_allocations =
+                <LeaseAllocations<T>>::get(asset_allocation.registry_id, asset_allocation.asset_id);
+            if lease_allocations.is_none() {
+                return false;
+            }
+            let now: T::Moment = <timestamp::Module<T>>::get();
+
+            let lease_allocations = lease_allocations.unwrap();
+
+            let lease_allocations_len = lease_allocations.len();
+
+            let not_expired_allocations: Vec<(T::LeaseId, u64, T::Moment)> = lease_allocations
+                .into_iter()
+                .filter(|(_, _, expiry)| *expiry > now)
+                .collect();
+
+            if not_expired_allocations.len() < lease_allocations_len {
+                <LeaseAllocations<T>>::insert(
+                    &asset_allocation.registry_id,
+                    &asset_allocation.asset_id,
+                    &not_expired_allocations,
+                );
+            }
+            let total_allocated: u64 = not_expired_allocations
+                .into_iter()
+                .map(|(_, allocation, _)| allocation)
+                .sum();
+            total_allocated + asset_allocation.allocated_shares > asset.total_shares
         }
         fn make_allocation(
             lease_id: T::LeaseId,
-            asset_allocation: AssetAllocation<T::RegistryId, T::AssetId>,
+            asset_allocation: &AssetAllocation<T::RegistryId, T::AssetId>,
             lease_expiry: T::Moment,
         ) {
             <LeaseAllocations<T>>::append(
@@ -603,5 +760,35 @@ pub mod pallet {
                 &(lease_id, asset_allocation.allocated_shares, lease_expiry),
             )
         }
+    }
+
+    macro_rules! max_fact_len {
+        ($fact:expr,$max_fact_len:ident) => {{
+            let fact_len = match &$fact {
+                Fact::Text(string) => string.len() as u32,
+                _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
+            };
+            if fact_len > $max_fact_len {
+                $max_fact_len = fact_len;
+            };
+        }};
+    }
+
+    fn get_max_property_name_len(properties: &Vec<AssetProperty<Vec<u8>, Vec<u8>>>) -> u32 {
+        let mut max_property_name_len = 0;
+        properties.into_iter().for_each(|property| {
+            if property.name.len() as u32 > max_property_name_len {
+                max_property_name_len = property.name.len() as u32;
+            };
+        });
+        max_property_name_len
+    }
+
+    fn get_max_property_fact_len(properties: &Vec<AssetProperty<Vec<u8>, Vec<u8>>>) -> u32 {
+        let mut max_fact_len = 0;
+        properties.into_iter().for_each(|property| {
+            max_fact_len!(property.fact, max_fact_len);
+        });
+        max_fact_len
     }
 }

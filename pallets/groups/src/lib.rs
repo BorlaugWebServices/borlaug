@@ -2,9 +2,42 @@
 //!
 //! ## Overview
 //!
-//! TODO:
+//! An asset registry is a data registry that mediates the creation, verification, updating, and
+//! deactivation of digital and physical assets. Any account holder can create an asset registry.
+//! An asset can be owned, shared and transferred to an account or a DID.
 //!
+//! ## Interface
 //!
+//! ### Dispatchable Functions
+//!
+//! #### For general users
+//! * `create_group` - Creates a new **Group**
+//!                    The creator transfers some funds to the **Group** account as part of creation.
+
+//!
+//! #### For **Group** members
+//! * `update_group` - Members of a **Group** can update the group via a **Proposal**.
+//! * `remove_group` - Members of a **Group** can remove the group via a **Proposal**.
+//!                    Funds remaining in the **Group** account are transfered to the specified account.
+//! * `create_sub_group` - A **Group** creates a **Sub-group**.
+//!                        The some funds are transfered from the **Group** account to the **Sub-group** account as part of creation.
+//! * `remove_sub_group` - Members of a **Group** can remove a **Sub-group** of the **Group** via a **Proposal**.
+//! * `execute` - A member of a **Group**/**Sub-group** can execute certain extrinsics on behalf of the **Group**.
+//! * `propose` - A member of a **Group**/**Sub-group** can propose certain extrinsics on behalf of the **Group**.
+//!               The caller specifies threshold and voting proceeds until that threshold is met or cannot be met.
+//!               The threshold is not checked at this stage but is instead checked upon extrinsic execution and depends on the requirements of the extrinsic called.
+//!               If the specified threshold is 1, the extrinsic is executed immediately.
+//! * `vote` - A member of a **Group**/**Sub-group** can vote on pending **Proposals**
+//! *          A member may change thier vote while the **Proposal** is still in progress, but there is an extra charge.
+//! * `close` - After voting a caller should check the vote tallies and call `close` if the threshold is met or cannot be met.
+//! * `veto` - A member of a **Group** can veto an ongoing **Proposal** (override the existing votes with either yay or nay).
+//!
+//! ### RPC Methods
+//!
+//! * `member_of` - Get the collection of **Groups** that an account is a member of.
+//! * `get_sub_groups` - Get the collection of **Sub-groups** of a **Group**
+//! * `get_proposals` - Get the collection of outstanding **Proposals** of a **Group**
+//! * `get_voting` - Get the current votes on a **Proposal**
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -40,7 +73,7 @@ pub mod pallet {
             AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Hash, One, Saturating,
             UniqueSaturatedFrom, Zero,
         },
-        DispatchResult, Either,
+        Either,
     };
     use sp_std::{prelude::*, vec};
 
@@ -50,6 +83,7 @@ pub mod pallet {
     pub enum ExtrinsicIndex {
         Group = 1,
         SubGroup = 2,
+        //TODO: charge for proposals.
     }
 
     #[pallet::config]
@@ -63,13 +97,20 @@ pub mod pallet {
         ///
         /// This also serves as a number of voting members, and since for motions, each member may
         /// vote exactly once, therefore also the number of votes for any given motion.
-        type MemberCount: Parameter + AtLeast32BitUnsigned + Default + Copy + PartialEq + PartialOrd;
+        type MemberCount: Parameter
+            + AtLeast32BitUnsigned
+            + Default
+            + Copy
+            + PartialEq
+            + PartialOrd
+            + Into<u32>;
 
         type Currency: ReservableCurrency<Self::AccountId>;
 
         /// The outer origin type.
         type Origin: From<RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
 
+        /// This allows extrinsics to be executed via a Group account and it requires that the Group Threshold is met.
         type GroupsOriginByGroupThreshold: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
             Success = (
@@ -79,7 +120,8 @@ pub mod pallet {
                 Self::AccountId,
             ),
         >;
-
+        /// This allows extrinsics to be executed via a Group account but it does not check the group threshold.
+        /// The called extrinsic should require a threshold.
         type GroupsOriginByCallerThreshold: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
             Success = (
@@ -89,8 +131,16 @@ pub mod pallet {
                 Self::AccountId,
             ),
         >;
-
-        type GroupsOriginAccountOrGroup: EnsureOrigin<
+        /// This allows extrinsics to be executed via a Group account but there is no proposal or voting.
+        /// Any member of the group may execute the extrinsic.
+        /// The specific member account is also recorded, which may be useful.
+        type GroupsOriginExecuted: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = (Self::GroupId, Self::AccountId, Self::AccountId),
+        >;
+        /// This allows extrinsics to be executed either by individual accounts or via a Group account.
+        /// If a group account is used, it requires that the Group Threshold is met.
+        type GroupsOriginAccountOrThreshold: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
             Success = Either<
                 Self::AccountId,
@@ -102,21 +152,39 @@ pub mod pallet {
                 ),
             >,
         >;
+        /// This allows extrinsics to be executed either by individual accounts or via a Group account.
+        /// If a group account is used, it does not check the group threshold. The called extrinsic should require a threshold.
+        type GroupsOriginAccountOrApproved: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = Either<
+                Self::AccountId,
+                (
+                    Self::GroupId,
+                    Option<Self::MemberCount>,
+                    Option<Self::MemberCount>,
+                    Self::AccountId,
+                ),
+            >,
+        >;
+        /// This allows extrinsics to be executed either by individual accounts or via a Group account.
+        /// If a group account is used, there is no proposal or voting. Any member of the group may execute the extrinsic.
+        /// The specific member account is also recorded, which may be useful.
+        type GroupsOriginAccountOrExecuted: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = Either<Self::AccountId, (Self::GroupId, Self::AccountId, Self::AccountId)>,
+        >;
 
         type Proposal: Parameter
             + Dispatchable<Origin = <Self as Config>::Origin, PostInfo = PostDispatchInfo>
             + GetDispatchInfo
             + From<frame_system::Call<Self>>;
 
-        /// Maximum number of proposals allowed to be active in parallel.
-        //TODO: choose correct type
-        type MaxProposals: Get<Self::MemberCount>;
+        /// Maximum number of proposals allowed to be active in parallel.        
+        type MaxProposals: Get<u32>;
+        /// Maximum length of proposal        
+        type MaxProposalLength: Get<u32>;
 
-        /// The maximum number of members supported by the pallet. Used for weight estimation.
-        ///
-        /// NOTE:
-        /// + Benchmarks will need to be re-run and weights adjusted if this changes.
-        /// + This pallet assumes that dependents keep to the limit without enforcing it.
+        /// The maximum number of members supported by the pallet. Used for weight estimation.      
         type MaxMembers: Get<Self::MemberCount>;
 
         /// Weight information for extrinsics in this pallet.
@@ -128,14 +196,19 @@ pub mod pallet {
             AccountId = Self::AccountId,
         >;
 
-        /// The maximum length of a name or symbol stored on-chain.
+        /// The maximum length of strings.
         type NameLimit: Get<u32>;
+        /// The maximum length of parent child relationships.
+        type GroupChainLimit: Get<u32>;
     }
 
     /// Origin for groups module proposals.
 
     #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode)]
     pub enum RawOrigin<AccountId, GroupId, MemberCount> {
+        /// It has been executed by a member of a group.
+        /// (group_id,member_account,group_account)
+        ProposalExecuted(GroupId, AccountId, AccountId),
         /// It has been condoned by a given number of members of the group.
         /// (group_id,yes_votes,no_votes,group_account)
         ProposalApproved(GroupId, MemberCount, MemberCount, AccountId),
@@ -163,18 +236,26 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A new Group was created (creator,group_id,annonymous_account)
+        /// A new Group was created
+        /// (creator,group_id,annonymous_account)
         GroupCreated(T::AccountId, T::GroupId, T::AccountId),
-        /// A new SubGroup was created (parent_group_id,group_id,annonymous_account)
+        /// A new SubGroup was created
+        /// (parent_group_id,group_id,annonymous_account)
         SubGroupCreated(T::GroupId, T::GroupId, T::AccountId),
-        /// A Group was updated (admin_group_id,group_id)
+        /// A Group was updated
+        /// (admin_group_id,group_id)
         GroupUpdated(T::GroupId, T::GroupId),
-        /// A Group was removed (group_id,return_funds_too)
+        /// A Group was removed
+        /// (group_id,return_funds_too)
         GroupRemoved(T::GroupId, T::AccountId),
-        /// A Group was removed (admin_group_id,group_id)
+        /// A Group was removed
+        /// (admin_group_id,group_id)
         SubGroupRemoved(T::GroupId, T::GroupId),
-        /// A new SubGroup was created (proposer,group_id,proposal_id)
-        Proposed(T::AccountId, T::GroupId, T::ProposalId),
+        /// A motion was executed by a member of the group;
+        /// (group_id,proposal_hash,member,success)
+        Executed(T::GroupId, T::Hash, T::AccountId, bool),
+        /// A new SubGroup was created (proposer,group_id,proposal_id,threshold)
+        Proposed(T::AccountId, T::GroupId, T::ProposalId, T::MemberCount),
         /// A proposal was voted on (voter,group_id,proposal_id,approved,yes_votes,no_votes)
         Voted(
             T::AccountId,
@@ -209,6 +290,7 @@ pub mod pallet {
             T::MemberCount,
             bool,
         ),
+
         /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
         Disapproved(T::GroupId, T::ProposalId, T::MemberCount, T::MemberCount),
     }
@@ -227,7 +309,6 @@ pub mod pallet {
         AccountCreationFailed,
         /// Duplicate proposals not allowed
         DuplicateProposal,
-
         /// Group must exist
         GroupMissing,
         /// Cannot remove a group that has children.
@@ -240,6 +321,8 @@ pub mod pallet {
         WrongIndex,
         /// Duplicate vote ignored
         DuplicateVote,
+        /// Tried to close before sufficient votes
+        VotingIncomplete,
         /// Members are already initialized!
         AlreadyInitialized,
         /// There can only be a maximum of `MaxProposals` active proposals.
@@ -346,7 +429,7 @@ pub mod pallet {
         T::GroupId,
         Blake2_128Concat,
         T::ProposalId,
-        Votes<T::AccountId, T::ProposalId, T::MemberCount>,
+        Votes<T::AccountId, T::MemberCount>,
         OptionQuery,
     >;
 
@@ -358,16 +441,12 @@ pub mod pallet {
         /// - `members`: The members of the group. Sender is automatically added to members if not already included.
         /// - `threshold`: The threshold number of votes required to make modifications to the group.
         /// - `initial_balance`: The initial GRAMs to transfer from the sender to the group account to be used for calling extrinsics by the group.
-        ///
-        /// # <weight>
-        /// TODO:
-        /// # </weight>
         #[pallet::weight(
             T::WeightInfo::create_group(
-                name.len() as u32, // name_len
-                members.len() as u32 // member_count            
+                name.len() as u32,
+                (members.len() +1) as u32
             )
-    )]
+        )]
         pub fn create_group(
             origin: OriginFor<T>,
             name: Vec<u8>,
@@ -431,13 +510,10 @@ pub mod pallet {
         /// - `members`: The members of the group. Sender is automatically added to members if not already included.
         /// - `threshold`: The threshold number of votes required to make modifications to the group.
         /// - `initial_balance`: The initial GRAMs to transfer from the sender to the group account to be used for calling extrinsics by the group.       
-        ///
-        /// # <weight>
-        /// TODO:
-        /// # </weight>
+
         #[pallet::weight(T::WeightInfo::create_sub_group(
-            name.len() as u32, // name_len
-            members.len() as u32, // member_count            
+            name.len() as u32,
+            members.len() as u32,
         ))]
         pub fn create_sub_group(
             origin: OriginFor<T>,
@@ -495,16 +571,11 @@ pub mod pallet {
             };
 
             <Groups<T>>::insert(group_id, group);
-            <GroupChildren<T>>::try_mutate_exists(
-                caller_group_id,
-                |maybe_group_children| -> DispatchResult {
-                    let group_children = maybe_group_children
-                        .as_mut()
-                        .ok_or(Error::<T>::GroupMissing)?;
+            <GroupChildren<T>>::mutate_exists(caller_group_id, |maybe_group_children| {
+                if let Some(ref mut group_children) = maybe_group_children {
                     group_children.push(group_id);
-                    Ok(())
-                },
-            )?;
+                }
+            });
             <ProposalHashes<T>>::insert(group_id, Vec::<T::Hash>::new());
 
             Self::deposit_event(Event::SubGroupCreated(
@@ -518,10 +589,15 @@ pub mod pallet {
 
         /// Update a Group. Can only be called via a proposal from any group in the parent chain.
         ///
-        /// # <weight>
-        /// TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `group_id`: Group to be updated
+        /// - `name`: New group name
+        /// - `members`: New set of members. Old set will be overwritten, so sender should ensure they are included if desired.
+        /// - `threshold`: New threshold
+
+        #[pallet::weight(T::WeightInfo::update_group(
+        name.as_ref().map_or(0,|a|a.len()) as u32,
+        members.as_ref().map_or(0,|a|a.len()) as u32,
+    ))]
         pub fn update_group(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -543,6 +619,10 @@ pub mod pallet {
             }
             ensure!(caller_group_id == group_id, Error::<T>::NotGroupAdmin);
 
+            if let Some(ref members) = members {
+                ensure!(members.len() > 0, Error::<T>::MembersRequired)
+            }
+
             <Groups<T>>::mutate(group_id, |group_option| {
                 if let Some(group) = group_option {
                     if let Some(bounded_name) = bounded_name {
@@ -563,12 +643,14 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Remove a Group. All child groups will also be removed.  Can only be called via a proposal from any group in the parent chain. Funds returned to specified member.
+        /// Remove a Group. Remove all child groups first. Can only be called via a proposal from the group. Funds returned to specified member.
         ///
-        /// # <weight>
-        ///TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `group_id`: Group to be updated
+        /// - `return_funds_too`: account to transfer remaining group funds to
+
+        #[pallet::weight(T::WeightInfo::remove_group(
+            T::MaxProposals::get() as u32,
+        ))]
         pub fn remove_group(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -597,21 +679,23 @@ pub mod pallet {
                 AllowDeath,
             )?;
 
+            let proposal_count = <Proposals<T>>::drain_prefix(&group_id).count();
+
             <Groups<T>>::remove(&group_id);
             <GroupChildren<T>>::remove(&group_id);
             <ProposalHashes<T>>::remove(&group_id);
 
             Self::deposit_event(Event::GroupRemoved(group_id, return_funds_too));
 
-            Ok(().into())
+            Ok((Some(T::WeightInfo::remove_group(proposal_count as u32))).into())
         }
 
-        /// Remove a Sub-group. All child groups will also be removed.  Can only be called via a proposal from any group in the parent chain. Funds returned to immediate parent.
+        /// Remove a Sub-group. Remove all child groups first. Can only be called via a proposal from any group in the parent chain. Funds returned to immediate parent.
         ///
-        /// # <weight>
-        ///TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `subgroup_id`: Group to be updated   
+        #[pallet::weight(T::WeightInfo::remove_group(
+            T::MaxProposals::get() as u32,
+        ))]
         pub fn remove_sub_group(
             origin: OriginFor<T>,
             subgroup_id: T::GroupId,
@@ -646,28 +730,96 @@ pub mod pallet {
                 AllowDeath,
             )?;
 
+            let proposal_count = <Proposals<T>>::drain_prefix(&subgroup_id).count();
             <Groups<T>>::remove(&subgroup_id);
             <GroupChildren<T>>::remove(&subgroup_id);
             <ProposalHashes<T>>::remove(&subgroup_id);
 
             Self::deposit_event(Event::SubGroupRemoved(admin_group_id, subgroup_id));
 
-            Ok(().into())
+            Ok((Some(T::WeightInfo::remove_sub_group(proposal_count as u32))).into())
+        }
+
+        /// Execute a proposal. Use for extrinsics that don't require voting.
+        ///
+        /// Requires the sender to be member.
+        ///
+        /// - `group_id`: Group executing the extrinsic
+        /// - `proposal`: Proposal to be executed
+        /// - `length_bound`: The length of the Proposal for weight estimation       
+        #[pallet::weight(T::WeightInfo::execute(
+            *length_bound as u32,
+            T::MaxMembers::get().into()
+        ).saturating_add(proposal.get_dispatch_info().weight))]
+        pub fn execute(
+            origin: OriginFor<T>,
+            group_id: T::GroupId,
+            proposal: Box<<T as Config>::Proposal>,
+            length_bound: u32,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(group.members.contains(&sender), Error::<T>::NotMember);
+            let proposal_len = proposal.using_encoded(|x| x.len());
+            ensure!(
+                proposal_len <= length_bound as usize,
+                Error::<T>::WrongProposalLength
+            );
+            let proposal_hash = T::Hashing::hash_of(&proposal);
+
+            let result = proposal.dispatch(
+                RawOrigin::ProposalExecuted(
+                    group_id,
+                    sender.clone(),
+                    group.anonymous_account.clone(),
+                )
+                .into(),
+            );
+            Self::deposit_event(Event::Executed(
+                group_id,
+                proposal_hash,
+                sender,
+                result.is_ok(),
+            ));
+
+            Ok(Self::get_result_weight(result)
+                .map(|w| {
+                    T::WeightInfo::execute(proposal_len as u32, group.members.len() as u32)
+                        .saturating_add(w)
+                })
+                .into())
         }
 
         /// Add a new proposal to either be voted on or executed directly.
         ///
         /// Requires the sender to be member.
         ///
+        /// - `group_id`: Group executing the extrinsic
+        /// - `proposal`: Proposal to be executed
+        /// - `threshold`: Declaration of the threshold required - will be checked by the extrinsic after approval.
+        /// - `length_bound`: The length of the Proposal for weight estimation        
 
-        #[pallet::weight(proposal.get_dispatch_info().weight)]
+        #[pallet::weight(
+            if *threshold < 2u32.into() {
+                T::WeightInfo::propose_execute(
+                    *length_bound,
+                    T::MaxMembers::get().into(),
+                ).saturating_add(proposal.get_dispatch_info().weight)
+            } else {
+                T::WeightInfo::propose_proposed(
+                    *length_bound,
+                    T::MaxMembers::get().into(),
+                    T::MaxProposals::get(),
+                )
+            }
+        )]
         pub fn propose(
             origin: OriginFor<T>,
             group_id: T::GroupId,
             proposal: Box<<T as Config>::Proposal>,
-            //TODO: how do we add compact macro?
-            // #[compact]
             threshold: T::MemberCount,
+            length_bound: u32,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -684,8 +836,12 @@ pub mod pallet {
                 !proposal_hashes.contains(&proposal_hash),
                 Error::<T>::DuplicateProposal
             );
-            //TODO: do we need this for proper weighting (benchmarking)
-            // let proposals_length = proposal_hashes.len();
+
+            let proposals_count = proposal_hashes.len();
+            ensure!(
+                proposal_len <= length_bound as usize,
+                Error::<T>::WrongProposalLength
+            );
 
             let proposal_id = next_id!(NextProposalId<T>, T);
 
@@ -707,42 +863,38 @@ pub mod pallet {
                     result.is_ok(),
                 ));
 
-                let weight = Self::get_result_weight(result).map(|w| {
-                    <T as Config>::WeightInfo::propose_execute(proposal_len as u32)
-                        .saturating_add(w) // P1
-                });
-
-                //TODO: what to do on insufficint funds
-
-                Ok(weight.into())
+                Ok(Self::get_result_weight(result)
+                    .map(|w| {
+                        T::WeightInfo::propose_execute(
+                            proposal_len as u32,
+                            group.members.len() as u32,
+                        )
+                        .saturating_add(w)
+                    })
+                    .into())
             } else {
-                <ProposalHashes<T>>::try_mutate_exists(
-                    group_id,
-                    |maybe_proposals| -> DispatchResult {
-                        let proposals = maybe_proposals
-                            .as_mut()
-                            .ok_or(Error::<T>::ProposalMissing)?;
+                <ProposalHashes<T>>::mutate_exists(group_id, |maybe_proposals| {
+                    if let Some(ref mut proposals) = maybe_proposals {
                         proposals.push(proposal_hash);
-                        Ok(())
-                    },
-                )?;
+                    }
+                });
                 // let active_proposals = proposals_length + 1;
 
                 <Proposals<T>>::insert(group_id, proposal_id, proposal);
 
                 let votes = Votes {
-                    proposal_id,
                     threshold,
                     ayes: vec![sender.clone()],
                     nays: vec![],
                 };
                 <Voting<T>>::insert(group_id, proposal_id, votes);
 
-                Self::deposit_event(Event::Proposed(sender, group_id, proposal_id));
+                Self::deposit_event(Event::Proposed(sender, group_id, proposal_id, threshold));
 
                 Ok(Some(<T as Config>::WeightInfo::propose_proposed(
                     proposal_len as u32,
                     group.members.len() as u32,
+                    proposals_count as u32,
                 ))
                 .into())
             }
@@ -750,10 +902,12 @@ pub mod pallet {
 
         /// Vote on a Proposal
         ///
-        /// # <weight>
-        ///TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `group_id`: Group executing the extrinsic
+        /// - `proposal_id`: Proposal to be voted on
+        /// - `approve`: approval.
+        #[pallet::weight(T::WeightInfo::vote(
+            T::MaxMembers::get().into()
+        ))]
         pub fn vote(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -763,11 +917,8 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             ensure!(group.members.contains(&sender), Error::<T>::NotMember);
-            let proposal =
-                Self::proposals(group_id, proposal_id).ok_or(Error::<T>::ProposalMissing)?;
-            let proposal_hash = T::Hashing::hash_of(&proposal);
             let mut voting = Self::voting(group_id, proposal_id).ok_or(Error::<T>::VoteMissing)?;
-            ensure!(voting.proposal_id == proposal_id, Error::<T>::WrongIndex);
+
             let position_yes = voting.ayes.iter().position(|a| a == &sender);
             let position_no = voting.nays.iter().position(|a| a == &sender);
 
@@ -805,39 +956,7 @@ pub mod pallet {
                 no_votes,
             ));
 
-            Voting::<T>::insert(group_id, proposal_id, voting.clone());
-
-            let seats = T::MemberCount::unique_saturated_from(group.members.len() as u128);
-            let approved = yes_votes >= voting.threshold;
-            let disapproved = seats.saturating_sub(no_votes) < voting.threshold;
-            // Allow (dis-)approving the proposal as soon as there are enough votes.
-            if approved {
-                let result = proposal.dispatch(
-                    RawOrigin::ProposalApproved(
-                        group_id,
-                        yes_votes,
-                        no_votes,
-                        group.anonymous_account.clone(),
-                    )
-                    .into(),
-                );
-                Self::deposit_event(Event::Approved(
-                    group_id,
-                    proposal_id,
-                    yes_votes,
-                    no_votes,
-                    result.is_ok(),
-                ));
-                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
-            } else if disapproved {
-                Self::deposit_event(Event::Disapproved(
-                    group_id,
-                    proposal_id,
-                    yes_votes,
-                    no_votes,
-                ));
-                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
-            };
+            Voting::<T>::insert(group_id, proposal_id, voting);
 
             if is_account_voting_first_time {
                 Ok((
@@ -854,19 +973,146 @@ pub mod pallet {
             }
         }
 
+        /// Close a Proposal. Caller of vote should check if the vote will be approved/disaproved and call close if it will
+        ///
+        /// - `group_id`: Group executing the extrinsic
+        /// - `proposal_id`: Proposal to be closed
+        /// - `proposal_weight_bound`: maximum expected weight of the proposal.
+        /// - `length_bound`: length of the proposal.
+        // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(	{
+            let a = *length_bound;
+            let m = T::MaxMembers::get().into();
+            let p1 = *proposal_weight_bound;
+            let p2 = T::MaxProposals::get();
+                T::WeightInfo::close_approved(a, m, p2)
+                .max(T::WeightInfo::close_disapproved(m, p2))
+                .saturating_add(p1)
+        })]
+        pub fn close(
+            origin: OriginFor<T>,
+            group_id: T::GroupId,
+            proposal_id: T::ProposalId,
+            proposal_weight_bound: Weight,
+            length_bound: u32,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(group.members.contains(&sender), Error::<T>::NotMember);
+
+            let voting = Self::voting(group_id, proposal_id).ok_or(Error::<T>::VoteMissing)?;
+
+            let yes_votes = T::MemberCount::unique_saturated_from(voting.ayes.len() as u128);
+            let no_votes = T::MemberCount::unique_saturated_from(voting.nays.len() as u128);
+
+            let seats = T::MemberCount::unique_saturated_from(group.members.len() as u128);
+            let approved = yes_votes >= voting.threshold;
+            let disapproved = seats.saturating_sub(no_votes) < voting.threshold;
+
+            let proposal =
+                Self::proposals(group_id, proposal_id).ok_or(Error::<T>::ProposalMissing)?;
+
+            let proposal_hash = T::Hashing::hash_of(&proposal);
+
+            if approved {
+                let proposal_len = proposal.using_encoded(|x| x.len());
+                ensure!(
+                    proposal_len <= length_bound as usize,
+                    Error::<T>::WrongProposalLength
+                );
+
+                let dispatch_weight = proposal.get_dispatch_info().weight;
+                ensure!(
+                    dispatch_weight <= proposal_weight_bound,
+                    Error::<T>::WrongProposalWeight
+                );
+
+                let result = proposal.dispatch(
+                    RawOrigin::ProposalApproved(
+                        group_id,
+                        yes_votes,
+                        no_votes,
+                        group.anonymous_account.clone(),
+                    )
+                    .into(),
+                );
+                Self::deposit_event(Event::Approved(
+                    group_id,
+                    proposal_id,
+                    yes_votes,
+                    no_votes,
+                    result.is_ok(),
+                ));
+
+                let proposal_count = Self::remove_proposal(group_id, proposal_id, proposal_hash);
+
+                let proposal_weight = Self::get_result_weight(result).unwrap_or(dispatch_weight);
+
+                return Ok((
+                    Some(
+                        T::WeightInfo::close_approved(
+                            proposal_len as u32,
+                            seats.into(),
+                            proposal_count,
+                        )
+                        .saturating_add(proposal_weight),
+                    ),
+                    Pays::Yes,
+                )
+                    .into());
+            } else if disapproved {
+                Self::deposit_event(Event::Disapproved(
+                    group_id,
+                    proposal_id,
+                    yes_votes,
+                    no_votes,
+                ));
+
+                let proposal_count = Self::remove_proposal(group_id, proposal_id, proposal_hash);
+
+                return Ok((
+                    Some(T::WeightInfo::close_disapproved(
+                        seats.into(),
+                        proposal_count,
+                    )),
+                    Pays::No,
+                )
+                    .into());
+            } else {
+                ensure!(false, Error::<T>::VotingIncomplete);
+            };
+            //TODO: do we remove votes?
+
+            //this never happens
+            Ok(().into())
+        }
+
         /// Veto a Proposal
         ///
-        /// # <weight>
-        ///TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// - `group_id`: Group executing the extrinsic
+        /// - `proposal_id`: Proposal to be closed
+        /// - `approve`: approval.
+        /// - `proposal_weight_bound`: maximum expected weight of the proposal.
+        /// - `length_bound`: length of the proposal.
+        #[pallet::weight(	{
+            let a = *length_bound;
+            let m = T::MaxMembers::get().into();
+            let p1 = *proposal_weight_bound;
+            let p2 = T::MaxProposals::get();
+                T::WeightInfo::veto_approved(a, m, p2)
+                .max(T::WeightInfo::veto_disapproved(m, p2))
+                .saturating_add(p1)
+        })]
         pub fn veto(
             origin: OriginFor<T>,
             group_id: T::GroupId,
             proposal_id: T::ProposalId,
             approve: bool,
+            proposal_weight_bound: Weight,
+            length_bound: u32,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+            //TODO: should veto power follow group threshold?
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             ensure!(group.parent.is_some(), Error::<T>::NotSubGroup);
             //is sender in parent members else recurse parent
@@ -882,11 +1128,23 @@ pub mod pallet {
                 Self::proposals(group_id, proposal_id).ok_or(Error::<T>::ProposalMissing)?;
             let proposal_hash = T::Hashing::hash_of(&proposal);
             let voting = Self::voting(group_id, proposal_id).ok_or(Error::<T>::VoteMissing)?;
+            let seats = T::MemberCount::unique_saturated_from(group.members.len() as u128);
 
             let yes_votes = T::MemberCount::unique_saturated_from(voting.ayes.len() as u128);
             let no_votes = T::MemberCount::unique_saturated_from(voting.nays.len() as u128);
 
             if approve {
+                let proposal_len = proposal.using_encoded(|x| x.len());
+                ensure!(
+                    proposal_len <= length_bound as usize,
+                    Error::<T>::WrongProposalLength
+                );
+                let dispatch_weight = proposal.get_dispatch_info().weight;
+                ensure!(
+                    dispatch_weight <= proposal_weight_bound,
+                    Error::<T>::WrongProposalWeight
+                );
+
                 let result = proposal.dispatch(
                     RawOrigin::ProposalApprovedByVeto(
                         group_id,
@@ -903,7 +1161,22 @@ pub mod pallet {
                     no_votes,
                     result.is_ok(),
                 ));
-                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
+                let proposal_count = Self::remove_proposal(group_id, proposal_id, proposal_hash);
+
+                let proposal_weight = Self::get_result_weight(result).unwrap_or(dispatch_weight);
+
+                return Ok((
+                    Some(
+                        T::WeightInfo::veto_approved(
+                            proposal_len as u32,
+                            seats.into(),
+                            proposal_count,
+                        )
+                        .saturating_add(proposal_weight),
+                    ),
+                    Pays::Yes,
+                )
+                    .into());
             } else {
                 Self::deposit_event(Event::DisapprovedByVeto(
                     sender,
@@ -912,10 +1185,16 @@ pub mod pallet {
                     yes_votes,
                     no_votes,
                 ));
-                Self::remove_proposal(group_id, proposal_id, proposal_hash)?;
+                let proposal_count = Self::remove_proposal(group_id, proposal_id, proposal_hash);
+                return Ok((
+                    Some(T::WeightInfo::veto_disapproved(
+                        seats.into(),
+                        proposal_count,
+                    )),
+                    Pays::No,
+                )
+                    .into());
             };
-
-            Ok(().into())
         }
     }
 
@@ -958,10 +1237,18 @@ pub mod pallet {
             })
         }
 
+        pub fn get_proposals(group_id: T::GroupId) -> Vec<(T::ProposalId, T::Hash)> {
+            let mut proposals = Vec::new();
+            <Proposals<T>>::iter_prefix(group_id).for_each(|(proposal_id, proposal)| {
+                proposals.push((proposal_id, T::Hashing::hash_of(&proposal)))
+            });
+            proposals
+        }
+
         pub fn get_voting(
             group_id: T::GroupId,
             proposal_id: T::ProposalId,
-        ) -> Option<Votes<T::AccountId, T::ProposalId, T::MemberCount>> {
+        ) -> Option<Votes<T::AccountId, T::MemberCount>> {
             <Voting<T>>::get(group_id, proposal_id)
         }
 
@@ -1014,19 +1301,16 @@ pub mod pallet {
             group_id: T::GroupId,
             proposal_id: T::ProposalId,
             proposal_hash: T::Hash,
-        ) -> DispatchResult {
+        ) -> u32 {
             <Proposals<T>>::remove(group_id, proposal_id);
-            <ProposalHashes<T>>::try_mutate_exists(
-                group_id,
-                |maybe_proposals| -> DispatchResult {
-                    let proposals = maybe_proposals
-                        .as_mut()
-                        .ok_or(Error::<T>::ProposalMissing)?;
+            let mut proposal_count = 0;
+            <ProposalHashes<T>>::mutate_exists(group_id, |maybe_proposals| {
+                if let Some(ref mut proposals) = maybe_proposals {
+                    proposal_count = proposals.len() as u32;
                     proposals.retain(|h| h != &proposal_hash);
-                    Ok(())
-                },
-            )?;
-            Ok(())
+                }
+            });
+            proposal_count
         }
     }
 
@@ -1064,6 +1348,7 @@ pub mod pallet {
                 RawOrigin::ProposalApprovedByVeto(group_id, _, group_account) => {
                     Ok((group_id, None, None, group_account))
                 }
+                r => Err(O::from(r)),
             })
         }
 
@@ -1072,6 +1357,35 @@ pub mod pallet {
             let group_id: T::GroupId = 1u32.into();
             let group = Groups::<T>::get(group_id).unwrap();
             O::from(RawOrigin::ProposalApprovedByVeto(
+                group_id,
+                T::AccountId::default(),
+                group.anonymous_account.clone(),
+            ))
+        }
+    }
+    /// This just verifies that the origin came from a proposal. It does NOT do any threshold checks. The proposer specifies a threshold and that is used for voting. It is up to the recieving extrinsic to enforce a threshold.
+    pub struct EnsureExecuted<T>(sp_std::marker::PhantomData<T>);
+    impl<
+            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>, O>>
+                + From<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>>,
+            T: Config,
+        > EnsureOrigin<O> for EnsureExecuted<T>
+    {
+        type Success = (T::GroupId, T::AccountId, T::AccountId);
+        fn try_origin(o: O) -> Result<Self::Success, O> {
+            o.into().and_then(|o| match o {
+                RawOrigin::ProposalExecuted(group_id, member, group_account) => {
+                    Ok((group_id, member, group_account))
+                }
+                r => Err(O::from(r)),
+            })
+        }
+
+        #[cfg(feature = "runtime-benchmarks")]
+        fn successful_origin() -> O {
+            let group_id: T::GroupId = 1u32.into();
+            let group = Groups::<T>::get(group_id).unwrap();
+            O::from(RawOrigin::ProposalExecuted(
                 group_id,
                 T::AccountId::default(),
                 group.anonymous_account.clone(),
@@ -1112,6 +1426,7 @@ pub mod pallet {
                 RawOrigin::ProposalApprovedByVeto(group_id, _, group_account) => {
                     Ok((group_id, None, None, group_account))
                 }
+                r => Err(O::from(r)),
             })
         }
 
