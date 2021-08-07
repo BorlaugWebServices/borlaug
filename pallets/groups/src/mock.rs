@@ -88,8 +88,13 @@ impl pallet_groups::Config for Test {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = pallet_groups::EnsureThreshold<Test>;
     type GroupsOriginByCallerThreshold = pallet_groups::EnsureApproved<Test>;
-    type GroupsOriginAccountOrGroup =
+    type GroupsOriginExecuted = pallet_groups::EnsureExecuted<Test>;
+    type GroupsOriginAccountOrThreshold =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, pallet_groups::EnsureThreshold<Test>>;
+    type GroupsOriginAccountOrApproved =
         EnsureOneOf<AccountId, EnsureSigned<AccountId>, pallet_groups::EnsureApproved<Test>>;
+    type GroupsOriginAccountOrExecuted =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, pallet_groups::EnsureExecuted<Test>>;
     type Proposal = Call;
     type GroupId = u32;
     type ProposalId = u32;

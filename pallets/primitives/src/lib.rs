@@ -172,7 +172,7 @@ macro_rules! enforce_limit_attributes {
 #[macro_export]
 macro_rules! ensure_account_or_group {
     ($origin:expr) => {{
-        let either = T::GroupsOriginAccountOrGroup::ensure_origin($origin)?;
+        let either = T::GroupsOriginAccountOrApproved::ensure_origin($origin)?;
         match either {
             Either::Left(account_id) => account_id,
             Either::Right((_, _, _, group_account)) => group_account,
@@ -187,6 +187,17 @@ macro_rules! ensure_account_or_threshold {
         match either {
             Either::Left(account_id) => account_id,
             Either::Right((_, _, _, group_account)) => group_account,
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! ensure_account_or_executed {
+    ($origin:expr) => {{
+        let either = T::GroupsOriginAccountOrExecuted::ensure_origin($origin)?;
+        match either {
+            Either::Left(account_id) => (account_id.clone(), account_id),
+            Either::Right((_, account_id, group_account)) => (account_id, group_account),
         }
     }};
 }

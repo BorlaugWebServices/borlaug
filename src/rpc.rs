@@ -46,6 +46,7 @@ where
         GroupId,
         MemberCount,
         ProposalId,
+        Hash,
         BoundedStringName,
     >,
     C::Api: provenance_runtime_api::ProvenanceApi<

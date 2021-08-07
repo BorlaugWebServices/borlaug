@@ -11,12 +11,22 @@
 //! ### Dispatchable Functions
 //!
 //! #### For general users
-//! * `create_registry` - Creates a new asset registry
-//! * `create_asset` - Creates a new asset within a registry
-//! * `update_asset` - Updates a properties of an asset within a registry
-//! * `delete_asset` - Delete an asset
-//! * `new_lease` - Creates a new lease agreement between lessor and lessee for a set of assets
-//! * `void_lease` - Void a lease and release assets from lease
+//! * `create_registry` - Creates a new **Asset Registry**
+//! * `create_asset` - Creates a new asset within an **Asset Registry**
+//! * `update_asset` - Updates a properties of an **Asset** within an **Asset Registry**
+//! * `delete_asset` - Delete an **Asset**
+//! * `new_lease` - Creates a new **Lease Agreement** between lessor and lessee for a set of assets
+//! * `void_lease` - Void a **Lease Agreement** and release assets from lease
+//!
+//! ### RPC Methods
+//!
+//! * `get_registries` - Get the collection of **Asset Registries** owned by a DID
+//! * `get_registry` - Get a specific **Asset Registry**
+//! * `get_assets` - Get the collection of **Assets** in an **Asset Registry**
+//! * `get_asset` - Get a specific **Asset**
+//! * `get_leases` - Get the collection of **Lease Agreements** for a given lessor
+//! * `get_lease` - Get a specific **Lease Agreement**
+//! * `get_lease_allocations` - Get the lease allocations for a specific **Asset**
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

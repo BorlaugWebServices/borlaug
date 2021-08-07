@@ -26,19 +26,43 @@
 //!
 //! #### For general users
 //! * `register_did` - Creates a new DID and registers it for the caller
+//! * `create_catalog` - Creates a new Catalog for organizing DIDs into collections
+//! * `rename_catalog` - Rename a Catalog
+//! * `remove_catalog` - Remove a Catalog
+//! * `add_dids_to_catalog` - Add dids to a Catalog
+//! * `rename_did_in_catalog` - Change the label of a DID in a catalog
+//! * `remove_dids_from_catalog` - Remove a DID from in a catalog
 //!
 //! #### For Controllers
 //! * `register_did_for` - Registers a new DID for a subject and adds caller as a controller
-//! * `add_did_properties` - Add properties to a DID Document
-//! * `authorize_claim_consumer` - Grant permission to a claim consumer to add a claim
-//! * `authorize_claim_verifier` - Grant permission to a claim verifier to attest a claim
+//! * `update_did` - Update properties of a DID Document
+//! * `replace_did` - Replace all the properties of a DID Document
+//! * `manage_controllers` - Add or remove controllers for the did. Subject cannot be removed.
+//! * `authorize_claim_consumers` - Grant permission to claim consumers to add claims to a DID
+//! * `revoke_claim_consumers` - Remove permission from claim consumers to add claims to a DID
+//! * `authorize_claim_issuers` - Grant permission to claim issuers to attest claims to a DID
+//! * `revoke_claim_issuers` - Remove permission from claim issuers to attest claims to a DID
 //!
 //! #### For Claim Consumers
-//! * `set_fee` - Set the fee required to be paid for a judgement to be given by the registrar.
-//! * `set_fields` - Set the fields that a registrar cares about in their judgements.
-//! * `provide_judgement` - Provide a judgement to an identity.
+//! * `make_claim` - Claim consumer makes a claim against a DID.
 //!
 //! #### For Claim Verifiers
+//! * `attest_claim` - Claim consumer makes a claim against a DID.
+//! * `revoke_attestation` - Claim consumer makes a claim against a DID.
+//!
+//! ### RPC Methods
+//! * `get_catalogs` - Get the collection of catalogs owned by the caller.
+//! * `get_catalog` - Get a catalog name.
+//! * `get_dids_in_catalog` - Get the collection of DIDs in a catalog.
+//! * `get_did_in_catalog` - Get a DID with its catalog label and its DID Document.
+//! * `get_did` - Get a DID with its short name and its DID Document.
+//! * `get_dids_by_subject` - Get the collection of DIDs with the specified subject.
+//! * `get_dids_by_controller` - Get the collection of DIDs with the specified controller.
+//! * `get_claims` - Get the collection of claims against a DID.
+//! * `get_claim_consumers` - Get the list of claim consumers for a DID.
+//! * `get_claim_issuers` - Get the list of claim issuers for a DID.
+//! * `get_dids_by_consumer` - Get the list DIDs by claim consumer.
+//! * `get_dids_by_issuer` - Get the list DIDs by claim issuer.
 //!
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -399,7 +423,10 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Register a new DID for caller. Subject calls to create a new DID.
-        ///        
+        ///   
+        /// Arguments:
+        /// - `short_name` an optional short name for the DID
+        /// - `properties` initial DID properties to be added to the new DID
         #[pallet::weight(<T as Config>::WeightInfo::register_did(
             short_name.as_ref().map_or(0,|name|name.len()) as u32,
             get_max_property_name_len_option(properties),
@@ -435,8 +462,12 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Register a new DID for caller. A group calls to create a new DID.
+        /// Register a new DID on behalf of another user (subject).
         ///        
+        /// Arguments:
+        /// - `subject` the Subject of the DID
+        /// - `short_name` an optional short name for the DID
+        /// - `properties` initial DID properties to be added to the new DID
         #[pallet::weight(<T as Config>::WeightInfo::register_did(
             short_name.as_ref().map_or(0,|name|name.len()) as u32,
             get_max_property_name_len_option(properties),
@@ -889,7 +920,7 @@ pub mod pallet {
             statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
             valid_until: T::Moment,
         ) -> DispatchResultWithPostInfo {
-            let either = T::GroupsOriginAccountOrGroup::ensure_origin(origin)?;
+            let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
             let (sender, yes_votes) = match either {
                 Either::Left(account_id) => (account_id, None),
                 Either::Right((_, yes_votes, _, group_account)) => (group_account, yes_votes),

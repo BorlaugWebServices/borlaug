@@ -34,8 +34,6 @@ use sp_std::{prelude::*, vec};
 #[allow(unused)]
 use crate::Pallet as IdentityPallet;
 
-//TODO: compare with collective pallet in substrate and see if we need to set maximums.
-
 type BalanceOf<T> =
     <<T as groups::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 

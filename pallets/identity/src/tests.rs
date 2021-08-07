@@ -114,11 +114,11 @@ fn update_did_should_work() {
         assert_eq!(dids_by_controller.len(), 1);
         let did = dids_by_controller[0];
 
-        //check chainging name
+        //check changing name
         assert_ok!(Identity::update_did(
             Origin::signed(1),
             did,
-            Some(b"name".to_vec()),
+            Some(Some(b"name".to_vec())),
             None,
             None
         ));

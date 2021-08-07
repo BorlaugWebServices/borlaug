@@ -782,10 +782,13 @@ impl groups::Config for Runtime {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Runtime>;
     type GroupsOriginByCallerThreshold = groups::EnsureApproved<Runtime>;
-    type GroupsOriginAccountOrGroup =
-        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Runtime>>;
+    type GroupsOriginExecuted = groups::EnsureExecuted<Runtime>;
     type GroupsOriginAccountOrThreshold =
         EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureThreshold<Runtime>>;
+    type GroupsOriginAccountOrApproved =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Runtime>>;
+    type GroupsOriginAccountOrExecuted =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureExecuted<Runtime>>;
     type Proposal = Call;
     type GroupId = GroupId;
     type ProposalId = ProposalId;
@@ -1184,7 +1187,7 @@ impl_runtime_apis! {
 // }
 
 
-    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount, ProposalId,BoundedStringName> for Runtime {
+    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName> for Runtime {
         fn member_of(account:AccountId) -> Vec<GroupId>  {
             Groups::member_of(account)
         }
@@ -1193,6 +1196,9 @@ impl_runtime_apis! {
         }
         fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>)>>{
             Groups::get_sub_groups(group)
+        }
+        fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash)>{
+            Groups::get_proposals(group)
         }
         fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
             Groups::get_voting(group, proposal)

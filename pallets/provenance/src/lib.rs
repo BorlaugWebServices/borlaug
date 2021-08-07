@@ -7,10 +7,43 @@
 //!
 //! ### Dispatchable Functions
 //!
-//! #### For process creators
-
+//! #### For Process Definition creators
+//! * `create_registry` - Creates a new **Registry** for organizing Definitions into collections
+//! * `update_registry` - Rename a **Registry**
+//! * `remove_registry` - Remove a **Registry** - **Registry** must be empty.
+//! * `create_definition` - Create a new **Process Definition**
+//! * `update_definition` - Rename a **Process Definition**
+//! * `set_definition_active` - Set a **Process Definition** to 'active'.
+//!                             Once a **Process Definition** is made active, it cannot be renamed and steps cannot be added or removed.
+//!                             Only attestor settings may be changed.
+//! * `remove_definition` - Remove a **Process Definition**. It must not have any related Processes.
+//! * `create_definition_step` - Add a step to a **Process Definition**.
+//! * `update_definition_step` - Update a step of a **Process Definition**.
+//!                              You can rename the step or change attestors or threshold.
+//!                              Renaming is only possible before the **Process Definition** is set to 'active'.
+//! * `delete_definition_step` - Delete a step of a **Process Definition**.
+//!                              Deletion is only possible before the **Process Definition** is set to 'active'.
+//! * `update_process` - A **Process Definition** creator is allowed to rename **Processes** (attestors cannot).
+//! * `remove_process` - A **Process Definition** creator is allowed to remove a **Processes** (attestors cannot).
 //!
 //! #### For Attestors
+//! * `create_process` - An attestor of the first step of a **Process Definition** may create a new Process.
+//! * `update_process_step` - An attestor may update the attributes of a process step. All attributes are replaced on each update.
+//!                           A Process Step can only be updated after the previous step has been attested and before the step itself is attested.
+//! * `attest_process_step` - Attest that the attributes for a process step are accurate.
+//!                           This is done once for each step in order and the process moves on to the next or completes if it is the last step.
+//!
+//! ### RPC Methods
+//!
+//! * `get_registries` - Get the collection of **Registries** owned by a **Process Definition** creator.
+//! * `get_registry` - Get a specific **Registry**.
+//! * `get_definitions` - Get the collection of **Process Definitions** in a **Registry**.
+//! * `get_definition` - Get a specific **Process Definition**.
+//! * `get_definition_steps` - Get the collection of steps in a **Process Definition**.
+//! * `get_processes` - Get the collection of **Processes** based on a specific **Process Definition**.
+//! * `get_process` - Get a specific **Process**.
+//! * `get_process_steps` - Get the collection of steps of a **Process**.
+//! * `get_process_step` - Get a specific step of a **Process**.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -1018,7 +1051,7 @@ pub mod pallet {
             process_id: T::ProcessId,
             definition_step_index: T::DefinitionStepIndex,
         ) -> DispatchResultWithPostInfo {
-            let either = T::GroupsOriginAccountOrGroup::ensure_origin(origin)?;
+            let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
             let (sender, yes_votes) = match either {
                 Either::Left(account_id) => (account_id, None),
                 Either::Right((_, yes_votes, _, group_account)) => (group_account, yes_votes),

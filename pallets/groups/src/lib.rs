@@ -2,9 +2,42 @@
 //!
 //! ## Overview
 //!
-//! TODO:
+//! An asset registry is a data registry that mediates the creation, verification, updating, and
+//! deactivation of digital and physical assets. Any account holder can create an asset registry.
+//! An asset can be owned, shared and transferred to an account or a DID.
 //!
+//! ## Interface
 //!
+//! ### Dispatchable Functions
+//!
+//! #### For general users
+//! * `create_group` - Creates a new **Group**
+//!                    The creator transfers some funds to the **Group** account as part of creation.
+
+//!
+//! #### For **Group** members
+//! * `update_group` - Members of a **Group** can update the group via a **Proposal**.
+//! * `remove_group` - Members of a **Group** can remove the group via a **Proposal**.
+//!                    Funds remaining in the **Group** account are transfered to the specified account.
+//! * `create_sub_group` - A **Group** creates a **Sub-group**.
+//!                        The some funds are transfered from the **Group** account to the **Sub-group** account as part of creation.
+//! * `remove_sub_group` - Members of a **Group** can remove a **Sub-group** of the **Group** via a **Proposal**.
+//! * `execute` - A member of a **Group**/**Sub-group** can execute certain extrinsics on behalf of the **Group**.
+//! * `propose` - A member of a **Group**/**Sub-group** can propose certain extrinsics on behalf of the **Group**.
+//!               The caller specifies threshold and voting proceeds until that threshold is met or cannot be met.
+//!               The threshold is not checked at this stage but is instead checked upon extrinsic execution and depends on the requirements of the extrinsic called.
+//!               If the specified threshold is 1, the extrinsic is executed immediately.
+//! * `vote` - A member of a **Group**/**Sub-group** can vote on pending **Proposals**
+//! *          A member may change thier vote while the **Proposal** is still in progress, but there is an extra charge.
+//! * `close` - After voting a caller should check the vote tallies and call `close` if the threshold is met or cannot be met.
+//! * `veto` - A member of a **Group** can veto an ongoing **Proposal** (override the existing votes with either yay or nay).
+//!
+//! ### RPC Methods
+//!
+//! * `member_of` - Get the collection of **Groups** that an account is a member of.
+//! * `get_sub_groups` - Get the collection of **Sub-groups** of a **Group**
+//! * `get_proposals` - Get the collection of outstanding **Proposals** of a **Group**
+//! * `get_voting` - Get the current votes on a **Proposal**
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -50,6 +83,7 @@ pub mod pallet {
     pub enum ExtrinsicIndex {
         Group = 1,
         SubGroup = 2,
+        //TODO: charge for proposals.
     }
 
     #[pallet::config]
@@ -76,6 +110,7 @@ pub mod pallet {
         /// The outer origin type.
         type Origin: From<RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
 
+        /// This allows extrinsics to be executed via a Group account and it requires that the Group Threshold is met.
         type GroupsOriginByGroupThreshold: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
             Success = (
@@ -85,7 +120,8 @@ pub mod pallet {
                 Self::AccountId,
             ),
         >;
-
+        /// This allows extrinsics to be executed via a Group account but it does not check the group threshold.
+        /// The called extrinsic should require a threshold.
         type GroupsOriginByCallerThreshold: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
             Success = (
@@ -95,20 +131,15 @@ pub mod pallet {
                 Self::AccountId,
             ),
         >;
-
-        type GroupsOriginAccountOrGroup: EnsureOrigin<
+        /// This allows extrinsics to be executed via a Group account but there is no proposal or voting.
+        /// Any member of the group may execute the extrinsic.
+        /// The specific member account is also recorded, which may be useful.
+        type GroupsOriginExecuted: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
-            Success = Either<
-                Self::AccountId,
-                (
-                    Self::GroupId,
-                    Option<Self::MemberCount>,
-                    Option<Self::MemberCount>,
-                    Self::AccountId,
-                ),
-            >,
+            Success = (Self::GroupId, Self::AccountId, Self::AccountId),
         >;
-
+        /// This allows extrinsics to be executed either by individual accounts or via a Group account.
+        /// If a group account is used, it requires that the Group Threshold is met.
         type GroupsOriginAccountOrThreshold: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
             Success = Either<
@@ -120,6 +151,27 @@ pub mod pallet {
                     Self::AccountId,
                 ),
             >,
+        >;
+        /// This allows extrinsics to be executed either by individual accounts or via a Group account.
+        /// If a group account is used, it does not check the group threshold. The called extrinsic should require a threshold.
+        type GroupsOriginAccountOrApproved: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = Either<
+                Self::AccountId,
+                (
+                    Self::GroupId,
+                    Option<Self::MemberCount>,
+                    Option<Self::MemberCount>,
+                    Self::AccountId,
+                ),
+            >,
+        >;
+        /// This allows extrinsics to be executed either by individual accounts or via a Group account.
+        /// If a group account is used, there is no proposal or voting. Any member of the group may execute the extrinsic.
+        /// The specific member account is also recorded, which may be useful.
+        type GroupsOriginAccountOrExecuted: EnsureOrigin<
+            <Self as frame_system::Config>::Origin,
+            Success = Either<Self::AccountId, (Self::GroupId, Self::AccountId, Self::AccountId)>,
         >;
 
         type Proposal: Parameter
@@ -1060,6 +1112,7 @@ pub mod pallet {
             length_bound: u32,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+            //TODO: should veto power follow group threshold?
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
             ensure!(group.parent.is_some(), Error::<T>::NotSubGroup);
             //is sender in parent members else recurse parent
@@ -1182,6 +1235,14 @@ pub mod pallet {
                     })
                     .collect()
             })
+        }
+
+        pub fn get_proposals(group_id: T::GroupId) -> Vec<(T::ProposalId, T::Hash)> {
+            let mut proposals = Vec::new();
+            <Proposals<T>>::iter_prefix(group_id).for_each(|(proposal_id, proposal)| {
+                proposals.push((proposal_id, T::Hashing::hash_of(&proposal)))
+            });
+            proposals
         }
 
         pub fn get_voting(

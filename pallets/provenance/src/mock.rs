@@ -101,10 +101,13 @@ impl groups::Config for Test {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Test>;
     type GroupsOriginByCallerThreshold = groups::EnsureApproved<Test>;
-    type GroupsOriginAccountOrGroup =
-        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Test>>;
+    type GroupsOriginExecuted = groups::EnsureExecuted<Test>;
     type GroupsOriginAccountOrThreshold =
         EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureThreshold<Test>>;
+    type GroupsOriginAccountOrApproved =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Test>>;
+    type GroupsOriginAccountOrExecuted =
+        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureExecuted<Test>>;
     type GetExtrinsicExtraSource = Settings;
     type Proposal = Call;
     type GroupId = u32;

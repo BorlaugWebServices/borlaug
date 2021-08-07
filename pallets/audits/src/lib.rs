@@ -144,8 +144,9 @@ pub mod pallet {
         AuditStarted(T::AccountId, T::AuditId),
         /// Audit was completed (auditing_org, audit_id)
         AuditCompleted(T::AccountId, T::AuditId),
-        /// New observation created (auditors, audit_id, control_point_id, observation_id)
+        /// New observation created (auditors, auditor,audit_id, control_point_id, observation_id)
         ObservationCreated(
+            T::AccountId,
             T::AccountId,
             T::AuditId,
             T::ControlPointId,
@@ -541,7 +542,7 @@ pub mod pallet {
             control_point_id: T::ControlPointId,
             observation: Observation,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -552,7 +553,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                *audit.auditors.as_ref().unwrap() == sender.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account.clone(),
                 <Error<T>>::NotAuditor
             );
 
@@ -564,7 +565,7 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Observation as u8),
-                &sender,
+                &group_account,
             );
 
             let observation_id = next_id!(NextObservationId<T>, T);
@@ -572,7 +573,8 @@ pub mod pallet {
             <Observations<T>>::insert((&audit_id, &control_point_id), &observation_id, observation);
 
             Self::deposit_event(Event::ObservationCreated(
-                sender,
+                group_account,
+                account_id,
                 audit_id,
                 control_point_id,
                 observation_id,
