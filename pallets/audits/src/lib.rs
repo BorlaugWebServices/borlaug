@@ -10,28 +10,22 @@
 //!
 //! ### Dispatchable Functions
 //!
+//! #### For the Audit Creator
 //! * `create_audit` - Creates a new audit. Assigning an Auditing Organization is done as part of creation. Auditing Organization cannot be changed.
-//!     Used by: Audit Creator
 //! * `delete_audit` - Delete an audit. Audits can only be deleted before they have been accepted by an Auditing Organization
-//!     Used by: Audit Creator
+//!
+//! #### For the Auditing Organization
 //! * `accept_audit` - The Auditing Organization accepts an Audit
-//!     Used by: Auditing Organization
 //! * `assign_auditors` - The Auditing Organization assigns and auditor or auditors. Use a group or subgroup when assigning multiple auditors.
-//!     Used by: Auditing Organization
 //! * `reject_audit` - The Auditing Organization rejects an Audit
-//!     Used by: Auditing Organization
 //! * `complete_audit` - The Auditing Organization completes an Audit
-//!     Used by: Auditing Organization
 //! * `create_observation` - An Auditor creates an observation
-//!     Used by: Auditors
+//!
+//! #### For the Auditors
 //! * `create_evidence` - An Auditor creates an item of evidence
-//!     Used by: Auditors
 //! * `link_evidence` - An Auditor links evidence to an observation
-//!     Used by: Auditors
 //! * `unlink_evidence` - An Auditor removes a link between evidence and an observation
-//!     Used by: Auditors
 //! * `delete_evidence` - An Auditor removes a link between evidence and an observation
-//!     Used by: Auditors
 //!
 //! ### RPC Methods
 //!

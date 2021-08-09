@@ -760,6 +760,7 @@ impl pallet_proxy::Config for Runtime {
 
 impl settings::Config for Runtime {
     type Event = Event;
+    type WeightInfo = settings::weights::SubstrateWeight<Runtime>;
     type ChangeSettingOrigin = EnsureOneOf<
         AccountId,
         EnsureRoot<AccountId>,
@@ -1429,6 +1430,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_audits, Audits);
             add_benchmark!(params, batches, pallet_provenance, Provenance);
             add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
+            add_benchmark!(params, batches, pallet_settings, Settings);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

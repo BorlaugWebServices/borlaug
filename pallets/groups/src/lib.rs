@@ -13,7 +13,6 @@
 //! #### For general users
 //! * `create_group` - Creates a new **Group**
 //!                    The creator transfers some funds to the **Group** account as part of creation.
-
 //!
 //! #### For **Group** members
 //! * `update_group` - Members of a **Group** can update the group via a **Proposal**.

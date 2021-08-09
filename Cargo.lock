@@ -4255,7 +4255,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-timestamp",
+ "pallet-balances",
  "parity-scale-codec",
  "serde",
  "smallvec 1.6.1",
