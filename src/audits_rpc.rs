@@ -13,6 +13,7 @@ use std::sync::Arc;
 pub trait AuditsApi<
     BlockHash,
     AccountId,
+    ProposalId,
     AuditId,
     ControlPointId,
     EvidenceId,
@@ -25,28 +26,28 @@ pub trait AuditsApi<
         &self,
         account: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuditResponse<AccountId, AuditId>>>;
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>>;
 
     #[rpc(name = "get_audits_by_auditing_org")]
     fn get_audits_by_auditing_org(
         &self,
         account: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuditResponse<AccountId, AuditId>>>;
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>>;
 
     #[rpc(name = "get_audits_by_auditors")]
     fn get_audits_by_auditors(
         &self,
         account: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuditResponse<AccountId, AuditId>>>;
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>>;
 
     #[rpc(name = "get_audit")]
     fn get_audit(
         &self,
         audit_id: AuditId,
         at: Option<BlockHash>,
-    ) -> Result<AuditResponse<AccountId, AuditId>>;
+    ) -> Result<AuditResponse<AccountId, ProposalId, AuditId>>;
 
     #[rpc(name = "get_observation")]
     fn get_observation(
@@ -96,17 +97,21 @@ pub trait AuditsApi<
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AuditResponse<AccountId, AuditId> {
+pub struct AuditResponse<AccountId, ProposalId, AuditId> {
     pub audit_id: AuditId,
+    pub proposal_id: Option<ProposalId>,
     pub status: String,
     pub audit_creator: AccountId,
     pub auditing_org: AccountId,
     pub auditors: Option<AccountId>,
 }
-impl<AccountId, AuditId> From<(AuditId, Audit<AccountId>)> for AuditResponse<AccountId, AuditId> {
-    fn from((audit_id, audit): (AuditId, Audit<AccountId>)) -> Self {
-        AuditResponse::<AccountId, AuditId> {
+impl<AccountId, ProposalId, AuditId> From<(AuditId, Audit<AccountId, ProposalId>)>
+    for AuditResponse<AccountId, ProposalId, AuditId>
+{
+    fn from((audit_id, audit): (AuditId, Audit<AccountId, ProposalId>)) -> Self {
+        AuditResponse::<AccountId, ProposalId, AuditId> {
             audit_id,
+            proposal_id: audit.proposal_id,
             status: match audit.status {
                 AuditStatus::Requested => "Requested".to_string(),
                 AuditStatus::Accepted => "Accepted".to_string(),
@@ -207,6 +212,7 @@ impl<
         C,
         Block,
         AccountId,
+        ProposalId,
         AuditId,
         ControlPointId,
         EvidenceId,
@@ -216,6 +222,7 @@ impl<
     AuditsApi<
         <Block as BlockT>::Hash,
         AccountId,
+        ProposalId,
         AuditId,
         ControlPointId,
         EvidenceId,
@@ -227,6 +234,7 @@ impl<
         (
             Block,
             AccountId,
+            ProposalId,
             AuditId,
             ControlPointId,
             EvidenceId,
@@ -242,6 +250,7 @@ where
     C::Api: AuditsRuntimeApi<
         Block,
         AccountId,
+        ProposalId,
         AuditId,
         ControlPointId,
         EvidenceId,
@@ -249,6 +258,7 @@ where
         BoundedStringName,
     >,
     AccountId: Codec + Send + Sync + 'static,
+    ProposalId: Codec + Send + Sync + 'static,
     AuditId: Codec + Copy + Send + Sync + 'static,
     ControlPointId: Codec + Copy + Send + Sync + 'static,
     EvidenceId: Codec + Copy + Send + Sync + 'static,
@@ -259,7 +269,7 @@ where
         &self,
         account: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuditResponse<AccountId, AuditId>>> {
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -276,7 +286,7 @@ where
         &self,
         account: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuditResponse<AccountId, AuditId>>> {
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -293,7 +303,7 @@ where
         &self,
         account: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuditResponse<AccountId, AuditId>>> {
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -310,7 +320,7 @@ where
         &self,
         audit_id: AuditId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<AuditResponse<AccountId, AuditId>> {
+    ) -> Result<AuditResponse<AccountId, ProposalId, AuditId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 

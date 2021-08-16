@@ -107,13 +107,16 @@ pub mod pallet {
         type Currency: ReservableCurrency<Self::AccountId>;
 
         /// The outer origin type.
-        type Origin: From<RawOrigin<Self::AccountId, Self::GroupId, Self::MemberCount>>;
+        type Origin: From<
+            RawOrigin<Self::AccountId, Self::GroupId, Self::ProposalId, Self::MemberCount>,
+        >;
 
         /// This allows extrinsics to be executed via a Group account and it requires that the Group Threshold is met.
         type GroupsOriginByGroupThreshold: EnsureOrigin<
             <Self as frame_system::Config>::Origin,
             Success = (
                 Self::GroupId,
+                Self::ProposalId,
                 Option<Self::MemberCount>,
                 Option<Self::MemberCount>,
                 Self::AccountId,
@@ -125,6 +128,7 @@ pub mod pallet {
             <Self as frame_system::Config>::Origin,
             Success = (
                 Self::GroupId,
+                Self::ProposalId,
                 Option<Self::MemberCount>,
                 Option<Self::MemberCount>,
                 Self::AccountId,
@@ -145,6 +149,7 @@ pub mod pallet {
                 Self::AccountId,
                 (
                     Self::GroupId,
+                    Self::ProposalId,
                     Option<Self::MemberCount>,
                     Option<Self::MemberCount>,
                     Self::AccountId,
@@ -159,6 +164,7 @@ pub mod pallet {
                 Self::AccountId,
                 (
                     Self::GroupId,
+                    Self::ProposalId,
                     Option<Self::MemberCount>,
                     Option<Self::MemberCount>,
                     Self::AccountId,
@@ -204,22 +210,23 @@ pub mod pallet {
     /// Origin for groups module proposals.
 
     #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode)]
-    pub enum RawOrigin<AccountId, GroupId, MemberCount> {
+    pub enum RawOrigin<AccountId, GroupId, ProposalId, MemberCount> {
         /// It has been executed by a member of a group.
         /// (group_id,member_account,group_account)
         ProposalExecuted(GroupId, AccountId, AccountId),
         /// It has been condoned by a given number of members of the group.
         /// (group_id,yes_votes,no_votes,group_account)
-        ProposalApproved(GroupId, MemberCount, MemberCount, AccountId),
+        ProposalApproved(GroupId, ProposalId, MemberCount, MemberCount, AccountId),
         /// It has been approved by veto.
         /// (group_id,veto_account,group_account)
-        ProposalApprovedByVeto(GroupId, AccountId, AccountId),
+        ProposalApprovedByVeto(GroupId, ProposalId, AccountId, AccountId),
     }
 
     /// Origin for the groups module.
     #[pallet::origin]
     pub type Origin<T> = RawOrigin<
         <T as frame_system::Config>::AccountId,
+        <T as Config>::ProposalId,
         <T as Config>::GroupId,
         <T as Config>::MemberCount,
     >;
@@ -521,7 +528,7 @@ pub mod pallet {
             threshold: T::MemberCount,
             initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
-            let (caller_group_id, _yes_votes, _no_votes, caller_group_account) =
+            let (caller_group_id, _proposal_id, _yes_votes, _no_votes, caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             ensure!(members.len() > 0, Error::<T>::MembersRequired);
@@ -604,7 +611,7 @@ pub mod pallet {
             members: Option<Vec<T::AccountId>>,
             threshold: Option<T::MemberCount>,
         ) -> DispatchResultWithPostInfo {
-            let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
+            let (caller_group_id, _proposal_id, _yes_votes, _no_votes, _caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let bounded_name = enforce_limit_option!(name);
@@ -655,7 +662,7 @@ pub mod pallet {
             group_id: T::GroupId,
             return_funds_too: T::AccountId,
         ) -> DispatchResultWithPostInfo {
-            let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
+            let (caller_group_id, _proposal_id, _yes_votes, _no_votes, _caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
             ensure!(caller_group_id == group_id, Error::<T>::NotGroupAccount);
             let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
@@ -699,7 +706,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             subgroup_id: T::GroupId,
         ) -> DispatchResultWithPostInfo {
-            let (caller_group_id, _yes_votes, _no_votes, _caller_group_account) =
+            let (caller_group_id, _proposal_id, _yes_votes, _no_votes, _caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
             ensure!(caller_group_id != subgroup_id, Error::<T>::NotSubGroup);
             let group = Self::groups(subgroup_id).ok_or(Error::<T>::GroupMissing)?;
@@ -848,6 +855,7 @@ pub mod pallet {
                 let result = proposal.dispatch(
                     RawOrigin::ProposalApproved(
                         group_id,
+                        proposal_id,
                         1u32.into(),
                         0u32.into(),
                         group.anonymous_account.clone(),
@@ -1029,6 +1037,7 @@ pub mod pallet {
                 let result = proposal.dispatch(
                     RawOrigin::ProposalApproved(
                         group_id,
+                        proposal_id,
                         yes_votes,
                         no_votes,
                         group.anonymous_account.clone(),
@@ -1147,6 +1156,7 @@ pub mod pallet {
                 let result = proposal.dispatch(
                     RawOrigin::ProposalApprovedByVeto(
                         group_id,
+                        proposal_id,
                         sender.clone(),
                         group.anonymous_account.clone(),
                     )
@@ -1328,24 +1338,35 @@ pub mod pallet {
     /// This just verifies that the origin came from a proposal. It does NOT do any threshold checks. The proposer specifies a threshold and that is used for voting. It is up to the recieving extrinsic to enforce a threshold.
     pub struct EnsureApproved<T>(sp_std::marker::PhantomData<T>);
     impl<
-            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>, O>>
-                + From<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>>,
+            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>, O>>
+                + From<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>>,
             T: Config,
         > EnsureOrigin<O> for EnsureApproved<T>
     {
         type Success = (
             T::GroupId,
+            T::ProposalId,
             Option<T::MemberCount>,
             Option<T::MemberCount>,
             T::AccountId,
         );
         fn try_origin(o: O) -> Result<Self::Success, O> {
             o.into().and_then(|o| match o {
-                RawOrigin::ProposalApproved(group_id, yes_votes, no_votes, group_account) => {
-                    Ok((group_id, Some(yes_votes), Some(no_votes), group_account))
-                }
-                RawOrigin::ProposalApprovedByVeto(group_id, _, group_account) => {
-                    Ok((group_id, None, None, group_account))
+                RawOrigin::ProposalApproved(
+                    group_id,
+                    proposal_id,
+                    yes_votes,
+                    no_votes,
+                    group_account,
+                ) => Ok((
+                    group_id,
+                    proposal_id,
+                    Some(yes_votes),
+                    Some(no_votes),
+                    group_account,
+                )),
+                RawOrigin::ProposalApprovedByVeto(group_id, proposal_id, _, group_account) => {
+                    Ok((group_id, proposal_id, None, None, group_account))
                 }
                 r => Err(O::from(r)),
             })
@@ -1354,9 +1375,11 @@ pub mod pallet {
         #[cfg(feature = "runtime-benchmarks")]
         fn successful_origin() -> O {
             let group_id: T::GroupId = 1u32.into();
+            let proposal_id: T::ProposalId = 1u32.into();
             let group = Groups::<T>::get(group_id).unwrap();
             O::from(RawOrigin::ProposalApprovedByVeto(
                 group_id,
+                proposal_id,
                 T::AccountId::default(),
                 group.anonymous_account.clone(),
             ))
@@ -1365,8 +1388,8 @@ pub mod pallet {
     /// This just verifies that the origin came from a proposal. It does NOT do any threshold checks. The proposer specifies a threshold and that is used for voting. It is up to the recieving extrinsic to enforce a threshold.
     pub struct EnsureExecuted<T>(sp_std::marker::PhantomData<T>);
     impl<
-            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>, O>>
-                + From<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>>,
+            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>, O>>
+                + From<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>>,
             T: Config,
         > EnsureOrigin<O> for EnsureExecuted<T>
     {
@@ -1396,25 +1419,38 @@ pub mod pallet {
 
     pub struct EnsureThreshold<T>(sp_std::marker::PhantomData<T>);
     impl<
-            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>, O>>
-                + From<RawOrigin<T::AccountId, T::GroupId, T::MemberCount>>,
+            O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>, O>>
+                + From<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>>,
             T: Config,
         > EnsureOrigin<O> for EnsureThreshold<T>
     {
         type Success = (
             T::GroupId,
+            T::ProposalId,
             Option<T::MemberCount>,
             Option<T::MemberCount>,
             T::AccountId,
         );
         fn try_origin(o: O) -> Result<Self::Success, O> {
             o.into().and_then(|o| match o.clone() {
-                RawOrigin::ProposalApproved(group_id, yes_votes, no_votes, group_account) => {
+                RawOrigin::ProposalApproved(
+                    group_id,
+                    proposal_id,
+                    yes_votes,
+                    no_votes,
+                    group_account,
+                ) => {
                     let group_maybe = <Groups<T>>::get(group_id);
                     match group_maybe {
                         Some(group) => {
                             if yes_votes >= group.threshold {
-                                Ok((group_id, Some(yes_votes), Some(no_votes), group_account))
+                                Ok((
+                                    group_id,
+                                    proposal_id,
+                                    Some(yes_votes),
+                                    Some(no_votes),
+                                    group_account,
+                                ))
                             } else {
                                 Err(O::from(o))
                             }
@@ -1422,8 +1458,8 @@ pub mod pallet {
                         None => Err(O::from(o)),
                     }
                 }
-                RawOrigin::ProposalApprovedByVeto(group_id, _, group_account) => {
-                    Ok((group_id, None, None, group_account))
+                RawOrigin::ProposalApprovedByVeto(group_id, proposal_id, _, group_account) => {
+                    Ok((group_id, proposal_id, None, None, group_account))
                 }
                 r => Err(O::from(r)),
             })
@@ -1432,9 +1468,11 @@ pub mod pallet {
         #[cfg(feature = "runtime-benchmarks")]
         fn successful_origin() -> O {
             let group_id: T::GroupId = 1u32.into();
+            let proposal_id: T::ProposalId = 1u32.into();
             let group = Groups::<T>::get(group_id).unwrap();
             O::from(RawOrigin::ProposalApprovedByVeto(
                 group_id,
+                proposal_id,
                 T::AccountId::default(),
                 group.anonymous_account.clone(),
             ))

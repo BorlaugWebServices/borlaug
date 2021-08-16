@@ -175,7 +175,7 @@ macro_rules! ensure_account_or_group {
         let either = T::GroupsOriginAccountOrApproved::ensure_origin($origin)?;
         match either {
             Either::Left(account_id) => account_id,
-            Either::Right((_, _, _, group_account)) => group_account,
+            Either::Right((_, _, _, _, group_account)) => group_account,
         }
     }};
 }
@@ -185,8 +185,10 @@ macro_rules! ensure_account_or_threshold {
     ($origin:expr) => {{
         let either = T::GroupsOriginAccountOrThreshold::ensure_origin($origin)?;
         match either {
-            Either::Left(account_id) => account_id,
-            Either::Right((_, _, _, group_account)) => group_account,
+            Either::Left(account_id) => (account_id, None),
+            Either::Right((_, proposal_id, _, _, group_account)) => {
+                (group_account, Some(proposal_id))
+            }
         }
     }};
 }

@@ -61,7 +61,7 @@ pub type AssetId = u32;
 pub type LeaseId = u32;
 
 parameter_types! {
-    pub const NameLimit: u32 = 50;
+    pub const NameLimit: u32 = 500;
     pub const FactStringLimit: u32 = 500;
 
 }

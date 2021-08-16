@@ -9,22 +9,23 @@ use primitives::*;
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
 sp_api::decl_runtime_apis! {
-    pub trait AuditsApi<AccountId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName>
+    pub trait AuditsApi<AccountId,ProposalId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName>
     where
     AccountId: Codec,
+    ProposalId: Codec,
     AuditId: Codec,
     ControlPointId: Codec,
     EvidenceId: Codec,
     ObservationId: Codec,
     BoundedStringName: Codec + Into<Vec<u8>>,
      {
-        fn get_audits_by_creator(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
+        fn get_audits_by_creator(account: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>;
 
-        fn get_audits_by_auditing_org(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
+        fn get_audits_by_auditing_org(account: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>;
 
-        fn get_audits_by_auditors(account: AccountId) -> Vec<(AuditId,Audit<AccountId>)>;
+        fn get_audits_by_auditors(account: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>;
 
-        fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId>>;
+        fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId,ProposalId>>;
 
         fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>;
 

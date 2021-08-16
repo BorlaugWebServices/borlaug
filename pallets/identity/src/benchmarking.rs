@@ -131,6 +131,47 @@ benchmarks! {
         assert_eq!(dids_by_subject.len(), 1);
     }
 
+
+    register_did_for_bulk {
+        //use lower numbers than the real limits because real limits can exceed chain limits.
+        //use different numbers per item or the benchmarking algorithm gets confused.
+        //TODO: check whether or not this is an issue in other instances.
+        let a in 1 .. 400;//(<T as Config>::NameLimit::get() -1);//short_name length
+        let b in 5 .. 200;//(<T as Config>::NameLimit::get()-1);//property name length
+        let c in 1 .. 300;//(<T as Config>::FactStringLimit::get()-1);//property fact length
+        let d in 1 .. 100; //(<T as Config>::PropertyLimit::get()-1);//property count
+        let e in 1 .. 200; //(<T as Config>::BulkDidLimit::get()-1);//bulk did count
+
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+
+        let subject:<T as frame_system::Config>::AccountId = whitelisted_caller();
+
+        let mut dids=vec![];
+        for i in 0..e {
+            let name = vec![42u8; a as usize];
+            let properties=create_properties(d,b,c,1);
+            dids.push((subject.clone(),Some(name),Some(properties)));
+        }
+
+    }: _(SystemOrigin::Signed(caller.clone()),dids)
+
+    verify {
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&did).count(), d as usize);
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), e as usize);
+
+        let mut dids_by_subject=Vec::new();
+        <DidByController<T>>::iter_prefix(&subject).for_each(|(did, _)| {
+            dids_by_subject.push(did);
+        });
+        assert_eq!(dids_by_subject.len(), e as usize);
+    }
+
+
     //TODO: should we worry about None? Current weight may charge an extra read + write max.
     update_did {
         let a in 1 .. (<T as Config>::NameLimit::get() -1); //short_name length

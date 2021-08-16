@@ -806,12 +806,13 @@ impl groups::Config for Runtime {
 }
 
 parameter_types! {
-    pub const PropertyLimit: u32 = 500;
+    pub const PropertyLimit: u32 = 1000;
     pub const StatementLimit: u32 = 500;
     pub const ControllerLimit: u32 = 50;
     pub const ClaimConsumerLimit: u32 = 50;
     pub const ClaimIssuerLimit: u32 = 50;
     pub const CatalogDidLimit: u32 = 500;
+    pub const BulkDidLimit: u32 = 10000;
 }
 impl identity::Config for Runtime {
     type CatalogId = CatalogId;
@@ -826,6 +827,7 @@ impl identity::Config for Runtime {
     type ClaimConsumerLimit = ClaimConsumerLimit;
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
+    type BulkDidLimit = BulkDidLimit;
 }
 parameter_types! {
     pub const AssetPropertyLimit: u32 = 500;
@@ -1300,17 +1302,17 @@ impl_runtime_apis! {
         fn get_dids_by_issuer(issuer:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_issuer(issuer)}
     }
 
-    impl audits_runtime_api::AuditsApi<Block,AccountId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {
-        fn get_audits_by_creator(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+    impl audits_runtime_api::AuditsApi<Block,AccountId,ProposalId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {
+        fn get_audits_by_creator(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_creator(account_id)
         }
-        fn get_audits_by_auditing_org(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+        fn get_audits_by_auditing_org(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_auditing_org(account_id)
         }
-        fn get_audits_by_auditors(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+        fn get_audits_by_auditors(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_auditors(account_id)
         }
-        fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId>>{
+        fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId,ProposalId>>{
             Audits::get_audit(audit_id)
         }
         fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>{
