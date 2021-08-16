@@ -1,5 +1,4 @@
 //! Tests for the module.
-use std::convert::TryInto;
 
 use crate::mock::*;
 use frame_support::{assert_ok, codec::Encode};

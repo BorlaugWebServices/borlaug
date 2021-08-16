@@ -72,7 +72,7 @@ pub mod pallet {
     {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
+        ///A unique id for each Asset Registry. Serial generated on chain.
         type RegistryId: Parameter
             + Member
             + AtLeast32Bit
@@ -80,7 +80,7 @@ pub mod pallet {
             + Copy
             + MaybeSerializeDeserialize
             + PartialEq;
-
+        ///A unique id for each Asset. Serial generated on chain.
         type AssetId: Parameter
             + Member
             + AtLeast32Bit
@@ -88,7 +88,7 @@ pub mod pallet {
             + Copy
             + MaybeSerializeDeserialize
             + PartialEq;
-
+        ///A unique id for each Lease. Serial generated on chain.
         type LeaseId: Parameter
             + Member
             + AtLeast32Bit
@@ -96,7 +96,7 @@ pub mod pallet {
             + Copy
             + MaybeSerializeDeserialize
             + PartialEq;
-
+        ///Type used for asset `purchase_value` and `residual_value`
         type Balance: Parameter
             + Member
             + AtLeast32Bit
@@ -110,10 +110,8 @@ pub mod pallet {
 
         /// The maximum length of a name or symbol stored on-chain.
         type NameLimit: Get<u32>;
-
         /// The maximum length of a name or symbol stored on-chain.
         type FactStringLimit: Get<u32>;
-
         /// The maximum number of properties an asset can have.
         type AssetPropertyLimit: Get<u32>;
         /// The maximum number of assets a lease can have.
@@ -137,12 +135,12 @@ pub mod pallet {
         /// New asset created in registry (registry_id, asset_id)
         AssetCreated(T::RegistryId, T::AssetId),
         /// Asset was updated in registry (registry_id, asset_id)
-        AssetUpdated(Did, T::RegistryId, T::AssetId),
+        AssetUpdated(T::RegistryId, T::AssetId),
         /// Asset was deleted in registry (registry_id, asset_id)
-        AssetDeleted(Did, T::RegistryId, T::AssetId),
-
+        AssetDeleted(T::RegistryId, T::AssetId),
+        /// Lease was created (lease_id, lessor, lessee)
         LeaseCreated(T::LeaseId, Did, Did),
-
+        /// Lease was created (lease_id, lessor)
         LeaseVoided(T::LeaseId, Did),
     }
 
@@ -168,7 +166,6 @@ pub mod pallet {
     pub fn UnitDefault<T: Config>() -> u64 {
         1u64
     }
-
     #[pallet::type_value]
     pub fn RegistryIdDefault<T: Config>() -> T::RegistryId {
         1u32.into()
@@ -287,19 +284,19 @@ pub mod pallet {
             owner_did: Did,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (_sender, group_account) = ensure_account_or_executed!(origin);
 
             let bounded_name = enforce_limit!(name);
 
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
                 Error::<T>::NotDidSubject
             );
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Registry as u8),
-                &sender,
+                &group_account,
             );
 
             let registry_id = next_id!(NextRegistryId<T>, T);
@@ -325,12 +322,12 @@ pub mod pallet {
             registry_id: T::RegistryId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (_sender, group_account) = ensure_account_or_executed!(origin);
 
             let bounded_name = enforce_limit!(name);
 
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
                 Error::<T>::NotDidSubject
             );
             ensure!(
@@ -355,10 +352,10 @@ pub mod pallet {
             owner_did: Did,
             registry_id: T::RegistryId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (_sender, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
                 Error::<T>::NotDidSubject
             );
             ensure!(
@@ -397,10 +394,10 @@ pub mod pallet {
             registry_id: T::RegistryId,
             asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (_sender, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
                 Error::<T>::NotDidSubject
             );
 
@@ -433,7 +430,7 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Asset as u8),
-                &sender,
+                &group_account,
             );
 
             let asset_id = next_id!(NextAssetId<T>, T);
@@ -459,9 +456,9 @@ pub mod pallet {
             asset_id: T::AssetId,
             asset: Asset<T::Moment, T::Balance, Vec<u8>, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (_sender, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
                 Error::<T>::NotDidSubject
             );
 
@@ -488,7 +485,7 @@ pub mod pallet {
 
             <Assets<T>>::insert(&registry_id, &asset_id, asset);
 
-            Self::deposit_event(Event::AssetUpdated(owner_did, registry_id, asset_id));
+            Self::deposit_event(Event::AssetUpdated(registry_id, asset_id));
             Ok(().into())
         }
 
@@ -505,15 +502,15 @@ pub mod pallet {
             registry_id: T::RegistryId,
             asset_id: T::AssetId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (_sender, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
                 Error::<T>::NotDidSubject
             );
 
             <Assets<T>>::remove(&registry_id, &asset_id);
 
-            Self::deposit_event(Event::AssetDeleted(owner_did, registry_id, asset_id));
+            Self::deposit_event(Event::AssetDeleted(registry_id, asset_id));
 
             Ok(().into())
         }
@@ -529,9 +526,9 @@ pub mod pallet {
             origin: OriginFor<T>,
             lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (_sender, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &lease.lessor),
+                <identity::DidBySubject<T>>::contains_key(&group_account, &lease.lessor),
                 Error::<T>::NotDidSubject
             );
 
@@ -544,7 +541,7 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Lease as u8),
-                &sender,
+                &group_account,
             );
 
             let lessor = lease.lessor;
@@ -585,9 +582,9 @@ pub mod pallet {
             lessor: Did,
             lease_id: T::LeaseId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (_sender, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &lessor),
+                <identity::DidBySubject<T>>::contains_key(&group_account, &lessor),
                 Error::<T>::NotDidSubject
             );
 

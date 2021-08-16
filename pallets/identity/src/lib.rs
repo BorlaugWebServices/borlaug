@@ -514,10 +514,9 @@ pub mod pallet {
         ///        
         /// Arguments:
         /// - `dids` the DIDs to be created
-        //TODO: implement benchmarking
         #[pallet::weight({
             let (a,b,c,d)=get_did_for_bulk_lens::<T>(dids);            
-            <T as Config>::WeightInfo::register_did_for_bulk(a,b,c,d,dids.len() as u32)
+            <T as Config>::WeightInfo::register_did_for(a,b,c,d).saturating_mul(dids.len() as Weight)
         })]
         pub fn register_did_for_bulk(
             origin: OriginFor<T>,
