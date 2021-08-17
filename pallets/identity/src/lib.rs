@@ -1675,6 +1675,9 @@ pub mod pallet {
             Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
         )>,
     ) -> (u32, u32, u32, u32) {
+        fn div_up(a: u32, b: u32) -> u32 {
+            a/b + (a % b != 0) as u32
+        }
         let mut short_name_tot = 0;
         let mut property_count_tot = 0;
         let mut property_name_tot = 0;
@@ -1702,13 +1705,13 @@ pub mod pallet {
             if did_count==0{
                 return (0,0,0,0);
             }
-        let short_name_avg = short_name_tot / did_count + 1;
-        let property_count_avg = property_count_tot / did_count + 1;
+        let short_name_avg = div_up(short_name_tot , did_count);
+        let property_count_avg = div_up(property_count_tot , did_count );
         if property_count_tot==0{
-            return (short_name_avg,property_count_avg,0,0);
+            return (short_name_avg,0,0,property_count_avg);
         }
-        let property_name_avg = property_name_tot / property_count_tot + 1;
-        let property_fact_avg = property_fact_tot / property_count_tot + 1;
+        let property_name_avg =div_up( property_name_tot , property_count_tot);
+        let property_fact_avg = div_up(property_fact_tot , property_count_tot);
 
         (
             short_name_avg,
@@ -1719,3 +1722,4 @@ pub mod pallet {
     }
    
 }
+

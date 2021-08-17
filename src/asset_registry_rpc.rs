@@ -9,7 +9,10 @@ use pallet_primitives::{
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::{
+    generic::BlockId,
+    traits::{AtLeast32BitUnsigned, Block as BlockT},
+};
 use std::sync::Arc;
 
 #[rpc]
@@ -43,14 +46,14 @@ pub trait AssetRegistryApi<
         &self,
         registry_id: RegistryId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AssetResponse<AssetId, Moment, Balance>>>;
+    ) -> Result<Vec<AssetResponse<AssetId, Moment>>>;
     #[rpc(name = "get_asset")]
     fn get_asset(
         &self,
         registry_id: RegistryId,
         asset_id: AssetId,
         at: Option<BlockHash>,
-    ) -> Result<AssetResponse<AssetId, Moment, Balance>>;
+    ) -> Result<AssetResponse<AssetId, Moment>>;
     #[rpc(name = "get_leases")]
     fn get_leases(
         &self,
@@ -93,7 +96,7 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AssetResponse<AssetId, Moment, Balance> {
+pub struct AssetResponse<AssetId, Moment> {
     pub asset_id: AssetId,
     pub properties: Vec<AssetPropertyResponse>,
     pub name: String,
@@ -101,8 +104,10 @@ pub struct AssetResponse<AssetId, Moment, Balance> {
     pub status: String,
     pub serial_number: Option<String>,
     pub total_shares: u64,
-    pub residual_value: Option<Balance>,
-    pub purchase_value: Option<Balance>,
+    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
+    pub residual_value: Option<u64>,
+    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
+    pub purchase_value: Option<u64>,
     pub acquired_date: Option<Moment>,
 }
 
@@ -110,10 +115,11 @@ impl<AssetId, Moment, Balance, BoundedStringName, BoundedStringFact>
     From<(
         AssetId,
         Asset<Moment, Balance, BoundedStringName, BoundedStringFact>,
-    )> for AssetResponse<AssetId, Moment, Balance>
+    )> for AssetResponse<AssetId, Moment>
 where
     BoundedStringName: Into<Vec<u8>>,
     BoundedStringFact: Into<Vec<u8>>,
+    Balance: AtLeast32BitUnsigned,
 {
     fn from(
         (asset_id, asset): (
@@ -141,8 +147,8 @@ where
                 .serial_number
                 .map(|str| String::from_utf8_lossy(&str.into()).to_string()),
             total_shares: asset.total_shares,
-            residual_value: asset.residual_value,
-            purchase_value: asset.purchase_value,
+            residual_value: asset.residual_value.map(|v| v.unique_saturated_into()),
+            purchase_value: asset.purchase_value.map(|v| v.unique_saturated_into()),
             acquired_date: asset.acquired_date,
         }
     }
@@ -334,7 +340,7 @@ where
     AssetId: Codec + Copy + Send + Sync + 'static,
     LeaseId: Codec + Copy + Send + Sync + 'static,
     Moment: Codec + Copy + Send + Sync + 'static,
-    Balance: Codec + Copy + Send + Sync + 'static,
+    Balance: Codec + Copy + Send + Sync + AtLeast32BitUnsigned + 'static,
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
     BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
@@ -377,7 +383,7 @@ where
         &self,
         registry_id: RegistryId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AssetResponse<AssetId, Moment, Balance>>> {
+    ) -> Result<Vec<AssetResponse<AssetId, Moment>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -392,7 +398,7 @@ where
         registry_id: RegistryId,
         asset_id: AssetId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<AssetResponse<AssetId, Moment, Balance>> {
+    ) -> Result<AssetResponse<AssetId, Moment>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 

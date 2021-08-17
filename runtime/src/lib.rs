@@ -120,6 +120,13 @@ pub mod opaque {
     }
 }
 
+pub struct Author;
+impl OnUnbalanced<NegativeImbalance> for Author {
+    fn on_nonzero_unbalanced(amount: NegativeImbalance) {
+        Balances::resolve_creating(&Authorship::author(), amount);
+    }
+}
+
 pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
@@ -133,8 +140,8 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
                 tips.ration_merge_into(treasury_share, author_share, &mut split);
             }
             Treasury::on_unbalanced(split.0);
-            //TODO: Do we need the Author pallet?
-            // Author::on_unbalanced(split.1);
+
+            Author::on_unbalanced(split.1);
         }
     }
 }
