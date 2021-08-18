@@ -49,6 +49,13 @@ pub trait AuditsApi<
         at: Option<BlockHash>,
     ) -> Result<AuditResponse<AccountId, ProposalId, AuditId>>;
 
+    #[rpc(name = "get_audit_by_proposal")]
+    fn get_audit_by_proposal(
+        &self,
+        proposal_id: ProposalId,
+        at: Option<BlockHash>,
+    ) -> Result<AuditResponse<AccountId, ProposalId, AuditId>>;
+
     #[rpc(name = "get_observation")]
     fn get_observation(
         &self,
@@ -326,6 +333,21 @@ where
 
         let audit = api
             .get_audit(&at, audit_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok((audit_id, audit).into())
+    }
+
+    fn get_audit_by_proposal(
+        &self,
+        proposal_id: ProposalId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<AuditResponse<AccountId, ProposalId, AuditId>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let (audit_id, audit) = api
+            .get_audit_by_proposal(&at, proposal_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((audit_id, audit).into())

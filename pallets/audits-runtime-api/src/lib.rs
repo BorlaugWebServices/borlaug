@@ -27,6 +27,8 @@ sp_api::decl_runtime_apis! {
 
         fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId,ProposalId>>;
 
+        fn get_audit_by_proposal(proposal_id:ProposalId) -> Option<(AuditId,Audit<AccountId,ProposalId>)>;
+
         fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>;
 
         fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation)>;

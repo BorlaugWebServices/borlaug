@@ -235,7 +235,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn audits)]
-    /// Audits by audit_id
+    /// Audit by audit_id
     pub type Audits<T: Config> = StorageMap<
         _,
         Blake2_128Concat,
@@ -243,6 +243,12 @@ pub mod pallet {
         Audit<T::AccountId, T::ProposalId>,
         OptionQuery,
     >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn audit_by_proposal)]
+    /// Audit by proposal_id
+    pub type AuditByProposal<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::ProposalId, T::AuditId, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn audits_by_creator)]
@@ -364,6 +370,9 @@ pub mod pallet {
             );
 
             <Audits<T>>::insert(&audit_id, audit);
+            if let Some(proposal_id) = proposal_id {
+                <AuditByProposal<T>>::insert(&proposal_id, audit_id);
+            }
             <AuditsByCreator<T>>::insert(&sender, &audit_id, ());
             <AuditsByAuditingOrg<T>>::insert(&auditing_org, &audit_id, ());
 
@@ -395,6 +404,9 @@ pub mod pallet {
             );
 
             <Audits<T>>::remove(&audit_id);
+            if let Some(proposal_id) = audit.proposal_id {
+                <AuditByProposal<T>>::remove(&proposal_id);
+            }
             <AuditsByCreator<T>>::remove(&sender, &audit_id);
             <AuditsByAuditingOrg<T>>::remove(&audit.auditing_org, &audit_id);
 
@@ -830,6 +842,13 @@ pub mod pallet {
 
         pub fn get_audit(audit_id: T::AuditId) -> Option<Audit<T::AccountId, T::ProposalId>> {
             <Audits<T>>::get(audit_id)
+        }
+
+        pub fn get_audit_by_proposal(
+            proposal_id: T::ProposalId,
+        ) -> Option<(T::AuditId, Audit<T::AccountId, T::ProposalId>)> {
+            <AuditByProposal<T>>::get(proposal_id)
+                .map(|audit_id| (audit_id, <Audits<T>>::get(audit_id).unwrap()))
         }
 
         pub fn get_observation(

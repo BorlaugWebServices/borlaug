@@ -1322,6 +1322,9 @@ impl_runtime_apis! {
         fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId,ProposalId>>{
             Audits::get_audit(audit_id)
         }
+        fn get_audit_by_proposal(proposal_id:ProposalId) -> Option<(AuditId,Audit<AccountId,ProposalId>)>{
+            Audits::get_audit_by_proposal(proposal_id)
+        }
         fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>{
             Audits::get_observation(audit_id,control_point_id,observation_id)
         }

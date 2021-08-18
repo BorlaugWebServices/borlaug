@@ -82,7 +82,7 @@ pub mod pallet {
     pub enum ExtrinsicIndex {
         Group = 1,
         SubGroup = 2,
-        //TODO: charge for proposals.
+        Proposal = 3,
     }
 
     #[pallet::config]
@@ -847,6 +847,12 @@ pub mod pallet {
             ensure!(
                 proposal_len <= length_bound as usize,
                 Error::<T>::WrongProposalLength
+            );
+
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(ExtrinsicIndex::Proposal as u8),
+                &sender,
             );
 
             let proposal_id = next_id!(NextProposalId<T>, T);
