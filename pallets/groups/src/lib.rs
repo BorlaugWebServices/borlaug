@@ -1252,10 +1252,26 @@ pub mod pallet {
             })
         }
 
-        pub fn get_proposals(group_id: T::GroupId) -> Vec<(T::ProposalId, T::Hash)> {
+        pub fn get_proposal(
+            group_id: T::GroupId,
+            proposal_id: T::ProposalId,
+        ) -> Option<(T::Hash, u32)> {
+            <Proposals<T>>::get(group_id, proposal_id).map(|proposal| {
+                (
+                    T::Hashing::hash_of(&proposal),
+                    proposal.encoded_size() as u32,
+                )
+            })
+        }
+
+        pub fn get_proposals(group_id: T::GroupId) -> Vec<(T::ProposalId, T::Hash, u32)> {
             let mut proposals = Vec::new();
             <Proposals<T>>::iter_prefix(group_id).for_each(|(proposal_id, proposal)| {
-                proposals.push((proposal_id, T::Hashing::hash_of(&proposal)))
+                proposals.push((
+                    proposal_id,
+                    T::Hashing::hash_of(&proposal),
+                    proposal.encoded_size() as u32,
+                ))
             });
             proposals
         }

@@ -1207,7 +1207,10 @@ impl_runtime_apis! {
         fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>)>>{
             Groups::get_sub_groups(group)
         }
-        fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash)>{
+        fn get_proposal(group:GroupId,proposal_id:ProposalId) ->Option<(Hash,u32)>{
+            Groups::get_proposal(group,proposal_id)
+        }
+        fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash,u32)>{
             Groups::get_proposals(group)
         }
         fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
