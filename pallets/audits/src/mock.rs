@@ -80,6 +80,7 @@ impl settings::Config for Test {
     type ExtrinsicIndex = u8;
     type Currency = Balances;
     type Balance = Balance;
+    type WeightInfo = ();
 }
 
 parameter_types! {

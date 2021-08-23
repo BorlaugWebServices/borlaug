@@ -28,6 +28,14 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         at: Option<BlockHash>,
     ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
 
+    #[rpc(name = "get_proposal")]
+    fn get_proposal(
+        &self,
+        group_id: GroupId,
+        proposal_id: ProposalId,
+        at: Option<BlockHash>,
+    ) -> Result<ProposalResponse<ProposalId>>;
+
     #[rpc(name = "get_proposals")]
     fn get_proposals(
         &self,
@@ -82,15 +90,17 @@ where
 pub struct ProposalResponse<ProposalId> {
     pub proposal_id: ProposalId,
     pub hash: String,
+    pub proposal_len: u32,
 }
-impl<ProposalId, Hash> From<(ProposalId, Hash)> for ProposalResponse<ProposalId>
+impl<ProposalId, Hash> From<(ProposalId, Hash, u32)> for ProposalResponse<ProposalId>
 where
     Hash: AsRef<[u8]>,
 {
-    fn from((proposal_id, hash): (ProposalId, Hash)) -> Self {
+    fn from((proposal_id, hash, proposal_len): (ProposalId, Hash, u32)) -> Self {
         ProposalResponse {
             proposal_id,
             hash: String::from_utf8_lossy(hash.as_ref()).to_string(),
+            proposal_len,
         }
     }
 }
@@ -226,6 +236,23 @@ where
             .collect())
     }
 
+    fn get_proposal(
+        &self,
+        group_id: GroupId,
+        proposal_id: ProposalId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<ProposalResponse<ProposalId>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let (hash, proposal_len) = api
+            .get_proposal(&at, group_id, proposal_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+
+        Ok((proposal_id, hash, proposal_len).into())
+    }
+
     fn get_proposals(
         &self,
         group_id: GroupId,
@@ -238,7 +265,7 @@ where
 
         Ok(proposals
             .into_iter()
-            .map(|(proposal_id, hash)| (proposal_id, hash).into())
+            .map(|(proposal_id, hash, proposal_len)| (proposal_id, hash, proposal_len).into())
             .collect())
     }
 

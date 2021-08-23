@@ -10,28 +10,22 @@
 //!
 //! ### Dispatchable Functions
 //!
+//! #### For the Audit Creator
 //! * `create_audit` - Creates a new audit. Assigning an Auditing Organization is done as part of creation. Auditing Organization cannot be changed.
-//!     Used by: Audit Creator
 //! * `delete_audit` - Delete an audit. Audits can only be deleted before they have been accepted by an Auditing Organization
-//!     Used by: Audit Creator
+//!
+//! #### For the Auditing Organization
 //! * `accept_audit` - The Auditing Organization accepts an Audit
-//!     Used by: Auditing Organization
 //! * `assign_auditors` - The Auditing Organization assigns and auditor or auditors. Use a group or subgroup when assigning multiple auditors.
-//!     Used by: Auditing Organization
 //! * `reject_audit` - The Auditing Organization rejects an Audit
-//!     Used by: Auditing Organization
 //! * `complete_audit` - The Auditing Organization completes an Audit
-//!     Used by: Auditing Organization
 //! * `create_observation` - An Auditor creates an observation
-//!     Used by: Auditors
+//!
+//! #### For the Auditors
 //! * `create_evidence` - An Auditor creates an item of evidence
-//!     Used by: Auditors
 //! * `link_evidence` - An Auditor links evidence to an observation
-//!     Used by: Auditors
 //! * `unlink_evidence` - An Auditor removes a link between evidence and an observation
-//!     Used by: Auditors
 //! * `delete_evidence` - An Auditor removes a link between evidence and an observation
-//!     Used by: Auditors
 //!
 //! ### RPC Methods
 //!
@@ -241,9 +235,20 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn audits)]
-    /// Audits by audit_id
-    pub type Audits<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::AuditId, Audit<T::AccountId>, OptionQuery>;
+    /// Audit by audit_id
+    pub type Audits<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::AuditId,
+        Audit<T::AccountId, T::ProposalId>,
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn audit_by_proposal)]
+    /// Audit by proposal_id
+    pub type AuditByProposal<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::ProposalId, T::AuditId, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn audits_by_creator)]
@@ -346,11 +351,12 @@ pub mod pallet {
             origin: OriginFor<T>,
             auditing_org: T::AccountId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, proposal_id) = ensure_account_or_threshold!(origin);
 
             let audit_id = next_id!(NextAuditId<T>, T);
 
             let audit = Audit {
+                proposal_id,
                 status: AuditStatus::Requested,
                 audit_creator: sender.clone(),
                 auditing_org: auditing_org.clone(),
@@ -364,6 +370,9 @@ pub mod pallet {
             );
 
             <Audits<T>>::insert(&audit_id, audit);
+            if let Some(proposal_id) = proposal_id {
+                <AuditByProposal<T>>::insert(&proposal_id, audit_id);
+            }
             <AuditsByCreator<T>>::insert(&sender, &audit_id, ());
             <AuditsByAuditingOrg<T>>::insert(&auditing_org, &audit_id, ());
 
@@ -380,7 +389,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -395,6 +404,9 @@ pub mod pallet {
             );
 
             <Audits<T>>::remove(&audit_id);
+            if let Some(proposal_id) = audit.proposal_id {
+                <AuditByProposal<T>>::remove(&proposal_id);
+            }
             <AuditsByCreator<T>>::remove(&sender, &audit_id);
             <AuditsByAuditingOrg<T>>::remove(&audit.auditing_org, &audit_id);
 
@@ -411,7 +423,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -441,7 +453,7 @@ pub mod pallet {
             audit_id: T::AuditId,
             auditors: T::AccountId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -482,7 +494,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -510,7 +522,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -542,7 +554,7 @@ pub mod pallet {
             control_point_id: T::ControlPointId,
             observation: Observation,
         ) -> DispatchResultWithPostInfo {
-            let (account_id, group_account) = ensure_account_or_executed!(origin);
+            let (sender, group_account) = ensure_account_or_executed!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -574,7 +586,7 @@ pub mod pallet {
 
             Self::deposit_event(Event::ObservationCreated(
                 group_account,
-                account_id,
+                sender,
                 audit_id,
                 control_point_id,
                 observation_id,
@@ -599,7 +611,7 @@ pub mod pallet {
             audit_id: T::AuditId,
             evidence: Evidence<Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, group_account) = ensure_account_or_executed!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -610,7 +622,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                audit.auditors.unwrap() == sender.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account.clone(),
                 <Error<T>>::NotAuditor
             );
 
@@ -654,7 +666,7 @@ pub mod pallet {
             observation_id: T::ObservationId,
             evidence_id: T::EvidenceId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, group_account) = ensure_account_or_executed!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -665,7 +677,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                audit.auditors.unwrap() == sender.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account.clone(),
                 <Error<T>>::NotAuditor
             );
             ensure!(
@@ -704,7 +716,7 @@ pub mod pallet {
             observation_id: T::ObservationId,
             evidence_id: T::EvidenceId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, group_account) = ensure_account_or_executed!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -715,7 +727,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                audit.auditors.unwrap() == sender.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account.clone(),
                 <Error<T>>::NotAuditor
             );
             ensure!(
@@ -752,7 +764,7 @@ pub mod pallet {
             evidence_id: T::EvidenceId,
             link_count: u32,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_threshold!(origin);
+            let (sender, group_account) = ensure_account_or_executed!(origin);
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -763,7 +775,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                audit.auditors.unwrap() == sender.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account.clone(),
                 <Error<T>>::NotAuditor
             );
             ensure!(
@@ -797,7 +809,7 @@ pub mod pallet {
 
         pub fn get_audits_by_creator(
             account: T::AccountId,
-        ) -> Vec<(T::AuditId, Audit<T::AccountId>)> {
+        ) -> Vec<(T::AuditId, Audit<T::AccountId, T::ProposalId>)> {
             let mut audits = Vec::new();
             <AuditsByCreator<T>>::iter_prefix(account).for_each(|(audit_id, _)| {
                 let audit = <Audits<T>>::get(audit_id).unwrap();
@@ -808,7 +820,7 @@ pub mod pallet {
 
         pub fn get_audits_by_auditing_org(
             account: T::AccountId,
-        ) -> Vec<(T::AuditId, Audit<T::AccountId>)> {
+        ) -> Vec<(T::AuditId, Audit<T::AccountId, T::ProposalId>)> {
             let mut audits = Vec::new();
             <AuditsByAuditingOrg<T>>::iter_prefix(account).for_each(|(audit_id, _)| {
                 let audit = <Audits<T>>::get(audit_id).unwrap();
@@ -819,7 +831,7 @@ pub mod pallet {
 
         pub fn get_audits_by_auditors(
             account: T::AccountId,
-        ) -> Vec<(T::AuditId, Audit<T::AccountId>)> {
+        ) -> Vec<(T::AuditId, Audit<T::AccountId, T::ProposalId>)> {
             let mut audits = Vec::new();
             <AuditsByAuditors<T>>::iter_prefix(account).for_each(|(audit_id, _)| {
                 let audit = <Audits<T>>::get(audit_id).unwrap();
@@ -828,8 +840,15 @@ pub mod pallet {
             audits
         }
 
-        pub fn get_audit(audit_id: T::AuditId) -> Option<Audit<T::AccountId>> {
+        pub fn get_audit(audit_id: T::AuditId) -> Option<Audit<T::AccountId, T::ProposalId>> {
             <Audits<T>>::get(audit_id)
+        }
+
+        pub fn get_audit_by_proposal(
+            proposal_id: T::ProposalId,
+        ) -> Option<(T::AuditId, Audit<T::AccountId, T::ProposalId>)> {
+            <AuditByProposal<T>>::get(proposal_id)
+                .map(|audit_id| (audit_id, <Audits<T>>::get(audit_id).unwrap()))
         }
 
         pub fn get_observation(

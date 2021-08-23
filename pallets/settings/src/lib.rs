@@ -2,21 +2,48 @@
 //!
 //! ## Overview
 //!
-//! TODO:
+//! This module allows the Council to change various chain settings including:
+//! * The **Transaction Byte Fee**. This is the fee in GRAM per byte charged for extrinsics (in addition to other fees).
+//! * The **Fee Split Ratio**. This is the proportion of fees that go to the Treasury vs the block author (validator owner).
+//! * **Extrinsic Extras**. These are special fees that are charged for specific extrinsics.
+//!   Typicaly they involve creating objects on chain such as Audits, Process Definitions etc.
+//! * **Weight to Fee Coefficients**. These are the coeffients used for the Weight to Fee Polinomial.
+//!   For more detail see: https://substrate.dev/recipes/fees.html
 //!
+//! ## Interface
 //!
+//! ### Dispatchable Functions
+//!
+//! * `set_weight_to_fee_coefficients` - Set the **Weight to Fee Coefficients**.
+//! * `set_transaction_byte_fee` - Set the **Transaction Byte Fee**.
+//! * `set_fee_split_ratio` - Set the **Fee Split Ratio**.
+//! * `set_extrinsic_extra` - Set an **Extrinsic Extra**.
+//! * `remove_extrinsic_extra` - Set an **Extrinsic Extra**.
+//!
+//! ### RPC Methods
+//!
+//! * `get_weight_to_fee_coefficients` - Get the current **Weight to Fee Coefficients**.
+//! * `get_transaction_byte_fee` - Get the current **Transaction Byte Fee**.
+//! * `get_fee_split_ratio` - Get the current **Fee Split Ratio**.
+//! * `get_extrinsic_extra` - Get a specific **Extrinsic Extra**.
+//! * `get_extrinsic_extras` - Get all the current **Extrinsic Extras**.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
+
+mod benchmarking;
 
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+
 #[frame_support::pallet]
 pub mod pallet {
+    pub use super::weights::WeightInfo;
     use codec::Codec;
     use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{
@@ -38,15 +65,28 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
+
         /// The origin which can change settings
         type ChangeSettingOrigin: EnsureOrigin<Self::Origin>;
 
         type Currency: Currency<Self::AccountId>;
 
         /// Unique identifier for each module
-        type ModuleIndex: Parameter + Member + PartialEq + MaybeSerializeDeserialize;
+        type ModuleIndex: Parameter
+            + Member
+            + PartialEq
+            + MaybeSerializeDeserialize
+            + From<u8>
+            + Copy;
         /// A Unique identifier for each extrinsic within a module
-        type ExtrinsicIndex: Parameter + Member + PartialEq + MaybeSerializeDeserialize;
+        type ExtrinsicIndex: Parameter
+            + Member
+            + PartialEq
+            + MaybeSerializeDeserialize
+            + From<u8>
+            + Copy;
 
         type Balance: Parameter
             + Member
@@ -71,13 +111,20 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// WeightToFeePolinomialCoefficients were updated
+        ///
         WeightToFeePolinomialCoefficientsUpdated(),
         /// Transaction byte fee was updated
+        /// (byte_fee)
         TransactionByteFeeUpdated(T::Balance),
         /// Fee split ratio was updated
+        /// (ratio)
         FeeSplitRatioUpdated(u32),
-        /// Extrinsic extra was updated
+        /// Extrinsic Extra was updated
+        /// (module_index, extrinsic_index, fee)
         ExtrinsicExtraUpdated(T::ModuleIndex, T::ExtrinsicIndex, T::Balance),
+        /// Extrinsic Extra was removed
+        /// (module_index, extrinsic_index)
+        ExtrinsicExtraRemoved(T::ModuleIndex, T::ExtrinsicIndex),
     }
 
     #[pallet::error]
@@ -141,7 +188,7 @@ pub mod pallet {
     #[pallet::getter(fn fee_split_ratio)]
     pub(super) type FeeSplitRatio<T: Config> = StorageValue<_, u32, ValueQuery>;
 
-    /// Cost to be added to extrinsics
+    /// Special fees to be added to specific extrinsics
     #[pallet::storage]
     #[pallet::getter(fn extrinsic_extra)]
     pub(super) type ExtrinsicExtra<T: Config> = StorageDoubleMap<
@@ -158,10 +205,11 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Change the weight to fee coefficents used to build the polynomial for calcualting weight to fee
         ///
-        /// # <weight>
-        /// TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// Arguments:
+        /// - `new_coefficents` new polinomial coefficients
+        #[pallet::weight(<T as Config>::WeightInfo::set_weight_to_fee_coefficients(
+            new_coefficents.len() as u32
+        ))]
         pub fn set_weight_to_fee_coefficients(
             origin: OriginFor<T>,
             new_coefficents: Vec<(T::Balance, Perbill, bool, u8)>,
@@ -187,12 +235,11 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Change the fee split ratio (specify percentage of fee to go to Treasury. Remaining goes to Author)
+        /// Change the Transaction Byte Fee. The fee in GRAM per byte charged for extrinsics (in addition to other fees).
         ///
-        /// # <weight>
-        /// TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// Arguments:
+        /// - `new_fee` new transaction byte fee
+        #[pallet::weight(<T as Config>::WeightInfo::set_transaction_byte_fee())]
         pub fn set_transaction_byte_fee(
             origin: OriginFor<T>,
             new_fee: T::Balance,
@@ -208,10 +255,9 @@ pub mod pallet {
 
         /// Change the fee split ratio (specify percentage of fee to go to Treasury. Remaining goes to Author)
         ///
-        /// # <weight>
-        /// TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// Arguments:
+        /// - `new_ratio` new Fee Split Ratio as an integer 0..100 inclusive. This number represents the percentage going to the Treasury. Remainder goes to block author.
+        #[pallet::weight(<T as Config>::WeightInfo::set_fee_split_ratio())]
         pub fn set_fee_split_ratio(
             origin: OriginFor<T>,
             new_ratio: u32,
@@ -227,12 +273,13 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Change the fee split ratio (specify percentage of fee to go to Treasury. Remaining goes to Author)
+        /// Set an Extrinsic Extra - a special fee for specific extrinsics in addition to usual extrinsic fees.
         ///
-        /// # <weight>
-        /// TODO:
-        /// # </weight>
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        /// Arguments:
+        /// - `module_index` module of the extrinsic. See module code for indicies.
+        /// - `extrinsic_index` index of the extrinsic within the module. See module code for indicies.
+        /// - `extra` fee to be charged for calling the extrinsic.
+        #[pallet::weight(<T as Config>::WeightInfo::set_extrinsic_extra())]
         pub fn set_extrinsic_extra(
             origin: OriginFor<T>,
             module_index: T::ModuleIndex,
@@ -248,6 +295,25 @@ pub mod pallet {
                 extrinsic_index,
                 extra,
             ));
+
+            Ok(().into())
+        }
+        /// Remove an Extrinsic Extra
+        ///
+        /// Arguments:
+        /// - `module_index` module of the extrinsic. See module code for indicies.
+        /// - `extrinsic_index` index of the extrinsic within the module. See module code for indicies.
+        #[pallet::weight(<T as Config>::WeightInfo::remove_extrinsic_extra())]
+        pub fn remove_extrinsic_extra(
+            origin: OriginFor<T>,
+            module_index: T::ModuleIndex,
+            extrinsic_index: T::ExtrinsicIndex,
+        ) -> DispatchResultWithPostInfo {
+            T::ChangeSettingOrigin::ensure_origin(origin)?;
+
+            <ExtrinsicExtra<T>>::remove(&module_index, &extrinsic_index);
+
+            Self::deposit_event(Event::ExtrinsicExtraRemoved(module_index, extrinsic_index));
 
             Ok(().into())
         }

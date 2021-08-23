@@ -1054,7 +1054,7 @@ pub mod pallet {
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
             let (sender, yes_votes) = match either {
                 Either::Left(account_id) => (account_id, None),
-                Either::Right((_, yes_votes, _, group_account)) => (group_account, yes_votes),
+                Either::Right((_, _, yes_votes, _, group_account)) => (group_account, yes_votes),
             };
 
             let definition_step =

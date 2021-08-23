@@ -101,6 +101,7 @@ impl settings::Config for Test {
     type ExtrinsicIndex = u8;
     type Currency = Balances;
     type Balance = Balance;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -142,6 +143,7 @@ parameter_types! {
     pub const ClaimConsumerLimit: u32 = 100;
     pub const ClaimIssuerLimit: u32 = 100;
     pub const CatalogDidLimit: u32 = 100;
+    pub const BulkDidLimit: u32 = 100;
 }
 impl identity::Config for Test {
     type CatalogId = u32;
@@ -156,6 +158,7 @@ impl identity::Config for Test {
     type ClaimConsumerLimit = ClaimConsumerLimit;
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
+    type BulkDidLimit = BulkDidLimit;
 }
 
 parameter_types! {

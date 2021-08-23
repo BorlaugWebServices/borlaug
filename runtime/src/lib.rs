@@ -120,6 +120,13 @@ pub mod opaque {
     }
 }
 
+pub struct Author;
+impl OnUnbalanced<NegativeImbalance> for Author {
+    fn on_nonzero_unbalanced(amount: NegativeImbalance) {
+        Balances::resolve_creating(&Authorship::author(), amount);
+    }
+}
+
 pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
@@ -133,8 +140,8 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
                 tips.ration_merge_into(treasury_share, author_share, &mut split);
             }
             Treasury::on_unbalanced(split.0);
-            //TODO: Do we need the Author pallet?
-            // Author::on_unbalanced(split.1);
+
+            Author::on_unbalanced(split.1);
         }
     }
 }
@@ -760,6 +767,7 @@ impl pallet_proxy::Config for Runtime {
 
 impl settings::Config for Runtime {
     type Event = Event;
+    type WeightInfo = settings::weights::SubstrateWeight<Runtime>;
     type ChangeSettingOrigin = EnsureOneOf<
         AccountId,
         EnsureRoot<AccountId>,
@@ -805,12 +813,13 @@ impl groups::Config for Runtime {
 }
 
 parameter_types! {
-    pub const PropertyLimit: u32 = 500;
+    pub const PropertyLimit: u32 = 1000;
     pub const StatementLimit: u32 = 500;
     pub const ControllerLimit: u32 = 50;
     pub const ClaimConsumerLimit: u32 = 50;
     pub const ClaimIssuerLimit: u32 = 50;
     pub const CatalogDidLimit: u32 = 500;
+    pub const BulkDidLimit: u32 = 10000;
 }
 impl identity::Config for Runtime {
     type CatalogId = CatalogId;
@@ -825,6 +834,7 @@ impl identity::Config for Runtime {
     type ClaimConsumerLimit = ClaimConsumerLimit;
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
+    type BulkDidLimit = BulkDidLimit;
 }
 parameter_types! {
     pub const AssetPropertyLimit: u32 = 500;
@@ -1197,7 +1207,10 @@ impl_runtime_apis! {
         fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>)>>{
             Groups::get_sub_groups(group)
         }
-        fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash)>{
+        fn get_proposal(group:GroupId,proposal_id:ProposalId) ->Option<(Hash,u32)>{
+            Groups::get_proposal(group,proposal_id)
+        }
+        fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash,u32)>{
             Groups::get_proposals(group)
         }
         fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
@@ -1299,18 +1312,21 @@ impl_runtime_apis! {
         fn get_dids_by_issuer(issuer:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_issuer(issuer)}
     }
 
-    impl audits_runtime_api::AuditsApi<Block,AccountId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {
-        fn get_audits_by_creator(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+    impl audits_runtime_api::AuditsApi<Block,AccountId,ProposalId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {
+        fn get_audits_by_creator(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_creator(account_id)
         }
-        fn get_audits_by_auditing_org(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+        fn get_audits_by_auditing_org(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_auditing_org(account_id)
         }
-        fn get_audits_by_auditors(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId>)>{
+        fn get_audits_by_auditors(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_auditors(account_id)
         }
-        fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId>>{
+        fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId,ProposalId>>{
             Audits::get_audit(audit_id)
+        }
+        fn get_audit_by_proposal(proposal_id:ProposalId) -> Option<(AuditId,Audit<AccountId,ProposalId>)>{
+            Audits::get_audit_by_proposal(proposal_id)
         }
         fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>{
             Audits::get_observation(audit_id,control_point_id,observation_id)
@@ -1429,6 +1445,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_audits, Audits);
             add_benchmark!(params, batches, pallet_provenance, Provenance);
             add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
+            add_benchmark!(params, batches, pallet_settings, Settings);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

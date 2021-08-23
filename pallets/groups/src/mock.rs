@@ -122,6 +122,7 @@ impl settings::Config for Test {
     type Currency = Balances;
     type Balance = Balance;
     type ExtrinsicIndex = ExtrinsicIndex;
+    type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.

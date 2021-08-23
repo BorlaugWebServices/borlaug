@@ -142,6 +142,9 @@ pub mod pallet {
         /// The maximum number of dids you can add/remove to a catalog at one time (does not limit total)
         #[pallet::constant]
         type CatalogDidLimit: Get<u32>;
+        /// The maximum number of dids you can register in bulk at one time. Watch out for weight and block size limits too.
+        #[pallet::constant]
+        type BulkDidLimit: Get<u32>;
     }
 
     #[pallet::event]
@@ -159,6 +162,8 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// A new DID was registered (Subject, Controller, DID)
         Registered(T::AccountId, T::AccountId, Did),
+        /// A DIDs were bulk registered (Controller, count)
+        BulkRegistered(T::AccountId, u32),
         /// Did updated (Controller, DID)
         DidUpdated(T::AccountId, Did),
         /// Did replaced (Controller, DID)
@@ -214,8 +219,10 @@ pub mod pallet {
         ClaimIssuerLimitExceeded,
         /// Too many statements
         StatementLimitExceeded,
-        /// Did limit exceeded. Call extrinsic multiple times to add/remove more.
+        /// Catalog Did limit exceeded. Call extrinsic multiple times to add/remove more.
         CatalogDidLimitExceeded,
+        /// Bulk Did limit exceeded.
+        BulkDidLimitExceeded,
         /// A non-controller account attempted to  modify a DID
         NotController,
         /// The requested DID Document does not exist
@@ -500,6 +507,64 @@ pub mod pallet {
             );
 
             Self::mint_did(subject, sender, bounded_name, properties);
+            Ok(().into())
+        }
+
+        /// Register a number of new DIDs on behalf of users (subject). Note the client should be smart and avoid exceeding block weight and size limits.
+        ///        
+        /// Arguments:
+        /// - `dids` the DIDs to be created
+        #[pallet::weight({
+            let (a,b,c,d)=get_did_for_bulk_lens::<T>(dids);            
+            <T as Config>::WeightInfo::register_did_for(a,b,c,d).saturating_mul(dids.len() as Weight)
+        })]
+        pub fn register_did_for_bulk(
+            origin: OriginFor<T>,
+            dids: Vec<(
+                T::AccountId,
+                Option<Vec<u8>>,
+                Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
+            )>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_account_or_group!(origin);
+
+            let did_count = dids.len();
+
+            ensure!(
+                did_count < T::BulkDidLimit::get() as usize,
+                Error::<T>::BulkDidLimitExceeded
+            );
+
+            let dids = dids
+                .into_iter()
+                .map(|(subject, short_name, properties)| {
+                    let bounded_name = enforce_limit_option!(short_name);
+                    let property_count = properties.as_ref().map_or(0, |p| p.len());
+
+                    ensure!(
+                        property_count <= T::PropertyLimit::get() as usize,
+                        Error::<T>::PropertyLimitExceeded
+                    );
+
+                    let properties = enforce_limit_did_properties_option!(properties);
+
+                    Ok((subject, bounded_name, properties))
+                })
+                .collect::<Result<Vec<_>, Error<T>>>()?;
+
+            T::GetExtrinsicExtraSource::charge_extrinsic_extra(
+                &MODULE_INDEX,
+                &(did_count as u8 * ExtrinsicIndex::Did as u8),
+                &sender,
+            );
+
+            dids.into_iter()
+                .for_each(|(subject, bounded_name, properties)| {
+                    Self::mint_did(subject, sender.clone(), bounded_name, properties);
+                });
+
+            Self::deposit_event(Event::BulkRegistered(sender, did_count as u32));
+
             Ok(().into())
         }
 
@@ -923,7 +988,7 @@ pub mod pallet {
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
             let (sender, yes_votes) = match either {
                 Either::Left(account_id) => (account_id, None),
-                Either::Right((_, yes_votes, _, group_account)) => (group_account, yes_votes),
+                Either::Right((_,_, yes_votes, _, group_account)) => (group_account, yes_votes),
             };
 
             ensure!(
@@ -1602,4 +1667,59 @@ pub mod pallet {
         });
         max_did_short_name_len
     }
+
+    fn get_did_for_bulk_lens<T: Config>(
+        dids: &Vec<(
+            T::AccountId,
+            Option<Vec<u8>>,
+            Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
+        )>,
+    ) -> (u32, u32, u32, u32) {
+        fn div_up(a: u32, b: u32) -> u32 {
+            a/b + (a % b != 0) as u32
+        }
+        let mut short_name_tot = 0;
+        let mut property_count_tot = 0;
+        let mut property_name_tot = 0;
+        let mut property_fact_tot = 0;
+        let did_count = dids.len() as u32;
+        dids.iter()
+            .for_each(|(_, short_name_maybe, properties_maybe)| {
+                short_name_tot =
+                    short_name_tot + short_name_maybe.as_ref().map_or(0, |name| name.len()) as u32;
+
+                if let Some(properties) = properties_maybe.as_ref() {
+                    property_count_tot = property_count_tot + properties.len() as u32;
+
+                    properties.into_iter().for_each(|property| {
+                        property_name_tot = property_name_tot + property.name.len() as u32;
+                        let fact_len = match &property.fact {
+                            Fact::Text(string) => string.len() as u32,
+                            _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
+                        };
+                        property_fact_tot = property_fact_tot + fact_len;
+                    })
+                };
+            });
+            //avoid divide by zero errors
+            if did_count==0{
+                return (0,0,0,0);
+            }
+        let short_name_avg = div_up(short_name_tot , did_count);
+        let property_count_avg = div_up(property_count_tot , did_count );
+        if property_count_tot==0{
+            return (short_name_avg,0,0,property_count_avg);
+        }
+        let property_name_avg =div_up( property_name_tot , property_count_tot);
+        let property_fact_avg = div_up(property_fact_tot , property_count_tot);
+
+        (
+            short_name_avg,
+            property_name_avg,
+            property_fact_avg,
+            property_count_avg,
+        )
+    }
+   
 }
+

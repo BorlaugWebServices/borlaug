@@ -15,12 +15,12 @@ sp-core = {version = "3.0.0", default-features = false}
 sp-io = {version = "3.0.0", default-features = false}
 sp-runtime = {version = "3.0.0", default-features = false}
 sp-std = {version = "3.0.0", default-features = false}
-timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
 
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
 
 [dev-dependencies]
 chrono = "0.4"
+pallet-balances = "3.0.0"
 sp-core = {version = "3.0.0", default-features = false}
 
 [features]
@@ -34,6 +34,5 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "sp-runtime/std",
-  "timestamp/std",
   "extrinsic-extra/std",
 ]

@@ -94,6 +94,7 @@ impl settings::Config for Test {
     type ExtrinsicIndex = u8;
     type Currency = Balances;
     type Balance = Balance;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -105,6 +106,7 @@ parameter_types! {
     pub const ClaimConsumerLimit: u32 = 500;
     pub const ClaimIssuerLimit: u32 = 500;
     pub const CatalogDidLimit: u32 = 500;
+    pub const BulkDidLimit: u32 = 500;
 }
 
 impl pallet_identity::Config for Test {
@@ -120,6 +122,7 @@ impl pallet_identity::Config for Test {
     type ClaimConsumerLimit = ClaimConsumerLimit;
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
+    type BulkDidLimit = BulkDidLimit;
 }
 
 parameter_types! {
