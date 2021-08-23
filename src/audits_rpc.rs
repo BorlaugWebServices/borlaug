@@ -106,7 +106,7 @@ pub trait AuditsApi<
 #[derive(Serialize, Deserialize)]
 pub struct AuditResponse<AccountId, ProposalId, AuditId> {
     pub audit_id: AuditId,
-    pub proposal_id: Option<ProposalId>,
+    pub proposal_id: ProposalId,
     pub status: String,
     pub audit_creator: AccountId,
     pub auditing_org: AccountId,

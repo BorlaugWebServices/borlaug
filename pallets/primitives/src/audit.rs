@@ -4,7 +4,7 @@ use sp_runtime::RuntimeDebug;
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub struct Audit<AccountId, ProposalId> {
     ///if the audit was created by a group, then this is the proposal that created it.
-    pub proposal_id: Option<ProposalId>,
+    pub proposal_id: ProposalId,
     ///the status of the audit.
     pub status: AuditStatus,
     ///the audit creator can create/delete and audit. They assign and auditing_org.
