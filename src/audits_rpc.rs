@@ -88,7 +88,7 @@ pub trait AuditsApi<
         at: Option<BlockHash>,
     ) -> Result<Vec<EvidenceResponse<EvidenceId, ProposalId>>>;
 
-    #[rpc(name = "get_evidence_by_audit")]
+    #[rpc(name = "get_evidence_by_proposal")]
     fn get_evidence_by_proposal(
         &self,
         audit_id: AuditId,
