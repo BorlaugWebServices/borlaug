@@ -117,7 +117,8 @@ pub mod pallet {
         T::AuditId = "AuditId",
         T::ObservationId = "ObservationId",
         T::ControlPointId = "ControlPointId",
-        T::EvidenceId = "EvidenceId"
+        T::EvidenceId = "EvidenceId",
+        T::ProposalId = "ProposalId"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -320,9 +321,15 @@ pub mod pallet {
         T::AuditId,
         Blake2_128Concat,
         T::EvidenceId,
-        Evidence<BoundedVec<u8, <T as Config>::NameLimit>>,
+        Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn evidence_by_proposal)]
+    /// Evidence by proposal_id
+    pub type EvidenceByProposal<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::ProposalId, T::EvidenceId, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn evidence_links_by_evidence)]
@@ -629,16 +636,19 @@ pub mod pallet {
         /// - `audit_id` id of audit created on chain
         /// - `evidence` Body of evidence
         #[pallet::weight(<T as Config>::WeightInfo::create_evidence(
-            evidence.name.len() as u32,
-            evidence.content_type.len() as u32,
-            evidence.url.as_ref().map_or(0,|url|url.len()) as u32,
-            evidence.hash.len() as u32,
+            name.len() as u32,
+            content_type.len() as u32,
+            url.as_ref().map_or(0,|url|url.len()) as u32,
+            hash.len() as u32,
 
         ))]
         pub fn create_evidence(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
-            evidence: Evidence<Vec<u8>>,
+            name: Vec<u8>,
+            content_type: Vec<u8>,
+            url: Option<Vec<u8>>,
+            hash: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let (_, proposal_id, _, _, group_account) =
                 <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
@@ -656,10 +666,10 @@ pub mod pallet {
                 <Error<T>>::NotAuditor
             );
 
-            let bounded_content_type = enforce_limit!(evidence.content_type);
-            let bounded_hash = enforce_limit!(evidence.hash);
-            let bounded_name = enforce_limit!(evidence.name);
-            let bounded_url = enforce_limit_option!(evidence.url);
+            let bounded_content_type = enforce_limit!(content_type);
+            let bounded_hash = enforce_limit!(hash);
+            let bounded_name = enforce_limit!(name);
+            let bounded_url = enforce_limit_option!(url);
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
@@ -670,6 +680,7 @@ pub mod pallet {
             let evidence_id = next_id!(NextEvidenceId<T>, T);
 
             let evidence = Evidence {
+                proposal_id,
                 content_type: bounded_content_type,
                 hash: bounded_hash,
                 name: bounded_name,
@@ -677,6 +688,7 @@ pub mod pallet {
             };
 
             <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
+            <EvidenceByProposal<T>>::insert(&proposal_id, evidence_id);
 
             Self::deposit_event(Event::EvidenceAttached(
                 group_account,
@@ -818,10 +830,9 @@ pub mod pallet {
                 *audit.auditors.as_ref().unwrap() == group_account.clone(),
                 <Error<T>>::NotAuditor
             );
-            ensure!(
-                <Evidences<T>>::contains_key(audit_id, evidence_id),
-                <Error<T>>::EvidenceNotFound
-            );
+            let maybe_evidence = <Evidences<T>>::get(audit_id, evidence_id);
+            ensure!(maybe_evidence.is_some(), <Error<T>>::EvidenceNotFound);
+            let evidence = maybe_evidence.unwrap();
             ensure!(
                 link_count <= <T as Config>::MaxLinkRemove::get(),
                 <Error<T>>::RemoveLinkLimitExceeded
@@ -843,6 +854,7 @@ pub mod pallet {
             }
 
             <Evidences<T>>::remove(&audit_id, &evidence_id);
+            <EvidenceByProposal<T>>::remove(&evidence.proposal_id);
 
             Self::deposit_event(Event::EvidenceDeleted(
                 group_account,
@@ -923,7 +935,7 @@ pub mod pallet {
         pub fn get_evidence(
             audit_id: T::AuditId,
             evidence_id: T::EvidenceId,
-        ) -> Option<Evidence<BoundedVec<u8, <T as Config>::NameLimit>>> {
+        ) -> Option<Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>> {
             <Evidences<T>>::get(audit_id, evidence_id)
         }
 
@@ -931,12 +943,27 @@ pub mod pallet {
             audit_id: T::AuditId,
         ) -> Vec<(
             T::EvidenceId,
-            Evidence<BoundedVec<u8, <T as Config>::NameLimit>>,
+            Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut evidences = Vec::new();
             <Evidences<T>>::iter_prefix(audit_id)
                 .for_each(|(evidence_id, evidence)| evidences.push((evidence_id, evidence)));
             evidences
+        }
+
+        pub fn get_evidence_by_proposal(
+            audit_id: T::AuditId,
+            proposal_id: T::ProposalId,
+        ) -> Option<(
+            T::EvidenceId,
+            Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            <EvidenceByProposal<T>>::get(proposal_id).map(|evidence_id| {
+                (
+                    evidence_id,
+                    <Evidences<T>>::get(audit_id, evidence_id).unwrap(),
+                )
+            })
         }
 
         pub fn get_evidence_links_by_evidence(evidence_id: T::EvidenceId) -> Vec<T::ObservationId> {

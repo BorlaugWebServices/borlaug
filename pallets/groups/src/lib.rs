@@ -601,9 +601,9 @@ pub mod pallet {
         /// - `threshold`: New threshold
 
         #[pallet::weight(T::WeightInfo::update_group(
-        name.as_ref().map_or(0,|a|a.len()) as u32,
-        members.as_ref().map_or(0,|a|a.len()) as u32,
-    ))]
+            name.as_ref().map_or(0,|a|a.len()) as u32,
+            members.as_ref().map_or(0,|a|a.len()) as u32,
+        ))]
         pub fn update_group(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -1211,6 +1211,33 @@ pub mod pallet {
                     .into());
             };
         }
+        //TODO:
+        // /// Withdraw funds from the group account
+        // ///
+        // /// - `group_id`: Group to withdraw funds from (not a subgroup)
+
+        // #[pallet::weight(10_000)]
+        // pub fn withdraw_funds_group(
+        //     origin: OriginFor<T>,
+        //     group_id: T::GroupId,
+        //     target_account: T::AccountId,
+        // ) -> DispatchResultWithPostInfo {
+        //     let sender = ensure_signed(origin)?;
+        // }
+
+        // /// Withdraw funds from a subgroup account to the group account
+        // ///
+        // /// - `group_id`: Group executing the extrinsic
+
+        // #[pallet::weight(10_000)]
+        // pub fn withdraw_funds_sub_group(
+        //     origin: OriginFor<T>,
+        //     sub_group_id: T::GroupId,
+        // ) -> DispatchResultWithPostInfo {
+        //     let sender = ensure_signed(origin)?;
+        // }
+
+        // send_funds
     }
 
     impl<T: Config> Module<T> {
