@@ -1461,6 +1461,29 @@ pub mod pallet {
             dids
         }
 
+        pub fn get_outstanding_claims(account: T::AccountId) -> Vec<(Did, T::Moment)> {
+            let mut dids = Vec::new();
+            <DidsByConsumer<T>>::iter_prefix(account).for_each(|(did, expiry)| {
+                if <Claims<T>>::iter_prefix(did).next().is_none() {
+                    dids.push((did, expiry))
+                }
+            });
+            dids
+        }
+
+        pub fn get_outstanding_attestations(account: T::AccountId) -> Vec<(Did, T::Moment)> {
+            let mut dids = Vec::new();
+            <DidsByIssuer<T>>::iter_prefix(account).for_each(|(did, expiry)| {
+                if <Claims<T>>::iter_prefix(did)
+                    .find(|(_, claim)| claim.attestation.is_some())
+                    .is_none()
+                {
+                    dids.push((did, expiry))
+                }
+            });
+            dids
+        }
+
         // -- private functions --
 
         /// Returns true if a `account` is a consumer and expiry has not yet passed

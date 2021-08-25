@@ -109,6 +109,20 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         issuer: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
+
+    #[rpc(name = "get_outstanding_claims")]
+    fn get_outstanding_claims(
+        &self,
+        consumer: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
+
+    #[rpc(name = "get_outstanding_attestations")]
+    fn get_outstanding_attestations(
+        &self,
+        issuer: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
 }
 
 #[derive(Encode, Default, Decode, Debug, Clone)]
@@ -774,6 +788,40 @@ where
 
         let dids = api
             .get_dids_by_issuer(&at, issuer)
+            .map_err(convert_error!())?;
+        Ok(dids
+            .into_iter()
+            .map(|(did, expiry)| (did, expiry).into())
+            .collect())
+    }
+
+    fn get_outstanding_claims(
+        &self,
+        consumer: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuthorizedDidResponse<Moment>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .get_outstanding_claims(&at, consumer)
+            .map_err(convert_error!())?;
+        Ok(dids
+            .into_iter()
+            .map(|(did, expiry)| (did, expiry).into())
+            .collect())
+    }
+
+    fn get_outstanding_attestations(
+        &self,
+        issuer: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuthorizedDidResponse<Moment>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .get_outstanding_attestations(&at, issuer)
             .map_err(convert_error!())?;
         Ok(dids
             .into_iter()

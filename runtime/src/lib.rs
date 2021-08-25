@@ -1310,6 +1310,8 @@ impl_runtime_apis! {
         fn get_claim_issuers(did: Did) -> Vec<(AccountId,Moment)>{Identity::get_claim_issuers(did)}
         fn get_dids_by_consumer(consumer:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_consumer(consumer)}
         fn get_dids_by_issuer(issuer:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_issuer(issuer)}
+        fn get_outstanding_claims(consumer:AccountId) -> Vec<(Did,Moment)>{Identity::get_outstanding_claims(consumer)}
+        fn get_outstanding_attestations(issuer:AccountId) -> Vec<(Did,Moment)>{Identity::get_outstanding_attestations(issuer)}
     }
 
     impl audits_runtime_api::AuditsApi<Block,AccountId,ProposalId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {

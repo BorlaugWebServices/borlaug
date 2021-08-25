@@ -46,6 +46,10 @@ sp_api::decl_runtime_apis! {
 
         fn get_dids_by_issuer(issuer:AccountId) -> Vec<(Did,Moment)>;
 
+        fn get_outstanding_claims(consumer:AccountId) -> Vec<(Did,Moment)>;
+
+        fn get_outstanding_attestations(issuer:AccountId) -> Vec<(Did,Moment)>;
+
 
     }
 }
