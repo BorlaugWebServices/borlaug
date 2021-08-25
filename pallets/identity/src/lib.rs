@@ -1463,8 +1463,11 @@ pub mod pallet {
 
         pub fn get_outstanding_claims(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();
-            <DidsByConsumer<T>>::iter_prefix(account).for_each(|(did, expiry)| {
-                if <Claims<T>>::iter_prefix(did).next().is_none() {
+            <DidsByConsumer<T>>::iter_prefix(&account).for_each(|(did, expiry)| {
+                if <Claims<T>>::iter_prefix(did)
+                    .find(|(_, claim)| claim.created_by == account)
+                    .is_none()
+                {
                     dids.push((did, expiry))
                 }
             });
