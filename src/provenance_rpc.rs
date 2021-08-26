@@ -21,14 +21,14 @@ pub trait ProvenanceApi<
     DefinitionStepIndex,
 >
 {
-    #[rpc(name = "get_registries")]
+    #[rpc(name = "get_definition_registries")]
     fn get_registries(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<RegistryResponse<RegistryId>>>;
 
-    #[rpc(name = "get_registry")]
+    #[rpc(name = "get_definition_registry")]
     fn get_registry(
         &self,
         account_id: AccountId,
