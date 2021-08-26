@@ -24,13 +24,23 @@ sp_api::decl_runtime_apis! {
     BoundedStringFact: Codec + Into<Vec<u8>>
      {
         fn get_registries(account_id: AccountId) -> Vec<(RegistryId, Registry<BoundedStringName>)>;
+
         fn get_registry(account_id: AccountId,registry_id:RegistryId) -> Option<Registry<BoundedStringName>>;
+
         fn get_definitions(registry_id:RegistryId) -> Vec<(DefinitionId,Definition<BoundedStringName>)>;
+
         fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition<BoundedStringName>>;
+
         fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<AccountId,MemberCount,BoundedStringName>)>;
+
+        fn get_available_definitions(account_id: AccountId) -> Vec<(RegistryId,DefinitionId,Definition<BoundedStringName>)>;
+
         fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process<BoundedStringName>)>;
+
         fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Option<Process<BoundedStringName>>;
+
         fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Vec<ProcessStep<BoundedStringName, BoundedStringFact>>;
+
         fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<BoundedStringName, BoundedStringFact>>;
 
 

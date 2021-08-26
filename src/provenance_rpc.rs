@@ -63,6 +63,23 @@ pub trait ProvenanceApi<
         DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     >;
 
+    #[rpc(name = "get_available_definitions")]
+    fn get_available_definitions(
+        &self,
+        account_id: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<
+        Vec<
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
+        >,
+    >;
+
     #[rpc(name = "get_processes")]
     fn get_processes(
         &self,
@@ -335,13 +352,7 @@ where
             .get_definition_steps(&at, registry_id, definition_id)
             .map_err(convert_error!())?;
 
-        Ok(DefinitionResponse::<
-            AccountId,
-            RegistryId,
-            DefinitionId,
-            MemberCount,
-            DefinitionStepIndex,
-        > {
+        Ok(DefinitionResponse {
             registry_id,
             definition_id,
             name: String::from_utf8_lossy(&definition.name.into()).to_string(),
@@ -359,6 +370,41 @@ where
                     .collect(),
             ),
         })
+    }
+
+    fn get_available_definitions(
+        &self,
+        account_id: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<
+        Vec<
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
+        >,
+    > {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let definitions = api
+            .get_available_definitions(&at, account_id)
+            .map_err(convert_error!())?;
+
+        Ok(definitions
+            .into_iter()
+            .map(
+                |(registry_id, definition_id, definition)| DefinitionResponse {
+                    registry_id,
+                    definition_id,
+                    name: String::from_utf8_lossy(&definition.name.into()).to_string(),
+                    definition_steps: None,
+                },
+            )
+            .collect())
     }
 
     fn get_processes(
