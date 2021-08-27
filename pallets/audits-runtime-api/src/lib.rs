@@ -25,6 +25,8 @@ sp_api::decl_runtime_apis! {
 
         fn get_audits_by_auditors(account: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>;
 
+        fn get_linked_audits(audit_id:AuditId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>;
+
         fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId,ProposalId>>;
 
         fn get_audit_by_proposal(proposal_id:ProposalId) -> Option<(AuditId,Audit<AccountId,ProposalId>)>;

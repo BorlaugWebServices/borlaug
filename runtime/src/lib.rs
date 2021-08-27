@@ -1327,6 +1327,9 @@ impl_runtime_apis! {
         fn get_audits_by_auditors(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_auditors(account_id)
         }
+        fn get_linked_audits(audit_id:AuditId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
+            Audits::get_linked_audits(audit_id)
+        }
         fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId,ProposalId>>{
             Audits::get_audit(audit_id)
         }

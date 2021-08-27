@@ -136,6 +136,10 @@ pub mod pallet {
         AuditStarted(T::AccountId, T::ProposalId, T::AuditId),
         /// Audit was completed (auditing_org, proposal_id, audit_id)
         AuditCompleted(T::AccountId, T::ProposalId, T::AuditId),
+        /// Audit was linked (auditing_org, parent_audit_id, child_audit_id)
+        AuditLinked(T::AccountId, T::AuditId, T::AuditId),
+        /// Audit was unlinked (auditing_org, parent_audit_id, child_audit_id)
+        AuditUnlinked(T::AccountId, T::AuditId, T::AuditId),
         /// New observation created (auditors, proposal_id, audit_id, control_point_id, observation_id)
         ObservationCreated(
             T::AccountId,
@@ -184,6 +188,8 @@ pub mod pallet {
         AuditIsNotInProgress,
         /// The audit must be in the `Accepted` or `InProgress` state.
         AuditIsNotAcceptedOrInProgress,
+        /// The audit must be in the `Accepted` or `InProgress` or `Completed` state.
+        AuditIsNotAcceptedOrInProgressOrCompleted,
         /// The audit does not have an auditor assigned
         AuditorNotAssigned,
         /// The caller must be the auditor to execute this action.
@@ -251,6 +257,19 @@ pub mod pallet {
         Blake2_128Concat,
         T::AuditId,
         Audit<T::AccountId, T::ProposalId>,
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn linked_audits)]
+    /// Linked audits
+    pub type LinkedAudits<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AuditId,
+        Blake2_128Concat,
+        T::AuditId,
+        (),
         OptionQuery,
     >;
 
@@ -576,6 +595,99 @@ pub mod pallet {
             Ok(().into())
         }
 
+        /// Link Audit
+        ///
+        /// Arguments:
+        /// - `parent_audit_id`
+        /// - `child_audit_id`
+        //TODO: benchmarking
+        #[pallet::weight(10_000)]
+        pub fn link_audit(
+            origin: OriginFor<T>,
+            parent_audit_id: T::AuditId,
+            child_audit_id: T::AuditId,
+        ) -> DispatchResultWithPostInfo {
+            let (_, _, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+
+            let maybe_parent_audit = <Audits<T>>::get(parent_audit_id);
+            ensure!(maybe_parent_audit.is_some(), <Error<T>>::AuditNotFound);
+            let parent_audit = maybe_parent_audit.unwrap();
+            ensure!(
+                parent_audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
+            ensure!(
+                parent_audit.status == AuditStatus::Accepted
+                    || parent_audit.status == AuditStatus::InProgress
+                    || parent_audit.status == AuditStatus::Completed,
+                <Error<T>>::AuditIsNotAcceptedOrInProgressOrCompleted
+            );
+
+            let maybe_child_audit = <Audits<T>>::get(child_audit_id);
+            ensure!(maybe_child_audit.is_some(), <Error<T>>::AuditNotFound);
+            let child_audit = maybe_child_audit.unwrap();
+            ensure!(
+                child_audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
+            ensure!(
+                child_audit.status == AuditStatus::Accepted
+                    || child_audit.status == AuditStatus::InProgress
+                    || child_audit.status == AuditStatus::Completed,
+                <Error<T>>::AuditIsNotAcceptedOrInProgressOrCompleted
+            );
+
+            <LinkedAudits<T>>::insert(parent_audit_id, child_audit_id, ());
+
+            Self::deposit_event(Event::AuditLinked(
+                group_account,
+                parent_audit_id,
+                child_audit_id,
+            ));
+            Ok(().into())
+        }
+        /// Unlink Audit
+        ///
+        /// Arguments:
+        /// - `parent_audit_id`
+        /// - `child_audit_id`
+        //TODO: benchmarking
+        #[pallet::weight(10_000)]
+        pub fn unlink_audit(
+            origin: OriginFor<T>,
+            parent_audit_id: T::AuditId,
+            child_audit_id: T::AuditId,
+        ) -> DispatchResultWithPostInfo {
+            let (_, _, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+
+            let maybe_parent_audit = <Audits<T>>::get(parent_audit_id);
+            ensure!(maybe_parent_audit.is_some(), <Error<T>>::AuditNotFound);
+            let parent_audit = maybe_parent_audit.unwrap();
+            ensure!(
+                parent_audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
+
+            let maybe_child_audit = <Audits<T>>::get(child_audit_id);
+            ensure!(maybe_child_audit.is_some(), <Error<T>>::AuditNotFound);
+            let child_audit = maybe_child_audit.unwrap();
+            ensure!(
+                child_audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
+
+            <LinkedAudits<T>>::remove(parent_audit_id, child_audit_id);
+
+            Self::deposit_event(Event::AuditUnlinked(
+                group_account,
+                parent_audit_id,
+                child_audit_id,
+            ));
+            Ok(().into())
+        }
+
         /// Create New Observation
         ///
         /// Arguments:
@@ -898,6 +1010,19 @@ pub mod pallet {
             <AuditsByAuditors<T>>::iter_prefix(account).for_each(|(audit_id, _)| {
                 let audit = <Audits<T>>::get(audit_id).unwrap();
                 audits.push((audit_id, audit))
+            });
+            audits
+        }
+
+        pub fn get_linked_audits(
+            audit_id: T::AuditId,
+        ) -> Vec<(T::AuditId, Audit<T::AccountId, T::ProposalId>)> {
+            let mut audits = Vec::new();
+            <LinkedAudits<T>>::iter_prefix(audit_id).for_each(|(child_audit_id, _)| {
+                let audit_maybe = <Audits<T>>::get(child_audit_id);
+                if let Some(audit) = audit_maybe {
+                    audits.push((audit_id, audit));
+                }
             });
             audits
         }

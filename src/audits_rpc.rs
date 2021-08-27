@@ -42,6 +42,13 @@ pub trait AuditsApi<
         at: Option<BlockHash>,
     ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>>;
 
+    #[rpc(name = "get_linked_audits")]
+    fn get_linked_audits(
+        &self,
+        audit_id: AuditId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>>;
+
     #[rpc(name = "get_audit")]
     fn get_audit(
         &self,
@@ -326,6 +333,23 @@ where
 
         let audits = api
             .get_audits_by_auditors(&at, account)
+            .map_err(convert_error!())?;
+        Ok(audits
+            .into_iter()
+            .map(|(audit_id, audit)| (audit_id, audit).into())
+            .collect())
+    }
+
+    fn get_linked_audits(
+        &self,
+        audit_id: AuditId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let audits = api
+            .get_linked_audits(&at, audit_id)
             .map_err(convert_error!())?;
         Ok(audits
             .into_iter()
