@@ -1274,6 +1274,12 @@ impl_runtime_apis! {
         fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Option<Process<BoundedStringName>>  {
             Provenance::get_process(registry_id,definition_id,process_id)
         }
+        fn get_processes_for_attestor_by_status(account_id: AccountId,status: ProcessStatus) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>  {
+            Provenance::get_processes_for_attestor_by_status(account_id,status)
+        }
+        fn get_processes_for_attestor_pending(account_id: AccountId) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>  {
+            Provenance::get_processes_for_attestor_pending(account_id)
+        }
         fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<BoundedStringName,BoundedStringFact>>  {
             Provenance::get_process_steps(registry_id,definition_id,process_id)
         }

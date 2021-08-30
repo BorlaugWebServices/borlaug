@@ -4,10 +4,7 @@
 
 use codec::Codec;
 use frame_support::dispatch::Vec;
-use primitives::{
-    definition::Definition, definition_step::DefinitionStep, process::Process,
-    process_step::ProcessStep, registry::Registry,
-};
+use primitives::{Definition, DefinitionStep, Process, ProcessStatus, ProcessStep, Registry};
 
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
@@ -38,6 +35,10 @@ sp_api::decl_runtime_apis! {
         fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process<BoundedStringName>)>;
 
         fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Option<Process<BoundedStringName>>;
+
+        fn get_processes_for_attestor_by_status(account_id: AccountId,status: ProcessStatus) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>;
+
+        fn get_processes_for_attestor_pending(account_id: AccountId) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>;
 
         fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Vec<ProcessStep<BoundedStringName, BoundedStringFact>>;
 

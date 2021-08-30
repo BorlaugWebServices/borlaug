@@ -1254,7 +1254,15 @@ pub mod pallet {
                     if step_index == T::DefinitionStepIndex::unique_saturated_from(0u32) {
                         let maybe_definition = <Definitions<T>>::get(registry_id, definition_id);
                         if let Some(definition) = maybe_definition {
-                            definitions.push((registry_id, definition_id, definition));
+                            if definitions
+                                .iter()
+                                .find(|(r_id, d_id, _)| {
+                                    *r_id == registry_id && *d_id == definition_id
+                                })
+                                .is_none()
+                            {
+                                definitions.push((registry_id, definition_id, definition));
+                            }
                         }
                     }
                 },
@@ -1283,6 +1291,91 @@ pub mod pallet {
         ) -> Option<Process<BoundedVec<u8, <T as Config>::NameLimit>>> {
             <Processes<T>>::get((registry_id, definition_id), process_id)
         }
+        /// Processes where an account is the attestor on at least one step and the specified status
+        pub fn get_processes_for_attestor_by_status(
+            account_id: T::AccountId,
+            status: ProcessStatus,
+        ) -> Vec<(
+            T::RegistryId,
+            T::DefinitionId,
+            T::ProcessId,
+            Process<BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            let mut definitions = Vec::new();
+            <DefinitionStepsByAttestor<T>>::iter_prefix(account_id).for_each(
+                |((registry_id, definition_id, _), _)| {
+                    if definitions
+                        .iter()
+                        .find(|(r_id, d_id)| *r_id == registry_id && *d_id == definition_id)
+                        .is_none()
+                    {
+                        definitions.push((registry_id, definition_id));
+                    }
+                },
+            );
+
+            let mut processes = Vec::new();
+
+            definitions.iter().for_each(|(registry_id, definition_id)| {
+                <Processes<T>>::iter_prefix((registry_id, definition_id)).for_each(
+                    |(process_id, process)| {
+                        if process.status == status {
+                            processes.push((*registry_id, *definition_id, process_id, process))
+                        }
+                    },
+                );
+            });
+
+            processes
+        }
+
+        /// Processes where an account is the attestor on the step that is pending
+        pub fn get_processes_for_attestor_pending(
+            account_id: T::AccountId,
+        ) -> Vec<(
+            T::RegistryId,
+            T::DefinitionId,
+            T::ProcessId,
+            Process<BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            let mut definition_steps = Vec::new();
+            <DefinitionStepsByAttestor<T>>::iter_prefix(account_id).for_each(
+                |((registry_id, definition_id, step_index), _)| {
+                    definition_steps.push((registry_id, definition_id, step_index));
+                },
+            );
+
+            let mut processes = Vec::new();
+
+            definition_steps
+                .iter()
+                .for_each(|(registry_id, definition_id, step_index)| {
+                    <Processes<T>>::iter_prefix((registry_id, definition_id)).for_each(
+                        |(process_id, process)| {
+                            if process.status == ProcessStatus::InProgress {
+                                let process_step_maybe = <ProcessSteps<T>>::get(
+                                    (registry_id, definition_id, process_id),
+                                    step_index,
+                                );
+                                //if process step has been created but is not attested then it is pending
+                                if let Some(process_step) = process_step_maybe {
+                                    if !process_step.attested {
+                                        processes.push((
+                                            *registry_id,
+                                            *definition_id,
+                                            process_id,
+                                            process,
+                                        ))
+                                    }
+                                }
+                            }
+                        },
+                    );
+                });
+
+            processes
+        }
+
         pub fn get_process_steps(
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,

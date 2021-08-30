@@ -684,7 +684,17 @@ where
         let who = match call.is_sub_type() {
             Some(groups::Call::propose(group_id, ..)) => {
                 sp_runtime::print("propose was received.");
-                debug::info!("group_id:{:?}", group_id);
+                // debug::info!("group_id:{:?}", group_id);
+
+                if let Some(group) = groups::Module::<T>::groups(group_id) {
+                    group.anonymous_account
+                } else {
+                    who.clone()
+                }
+            }
+            Some(groups::Call::execute(group_id, ..)) => {
+                sp_runtime::print("execute was received.");
+                // debug::info!("group_id:{:?}", group_id);
 
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
