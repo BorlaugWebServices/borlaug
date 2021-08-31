@@ -701,7 +701,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` the Definition
-        /// - `definition_step_index` New definition_step_index (should equal existing step count)
+        /// - `definition_step_index` index of definition step to be updated
         /// - `name` name of the Definition Step. Can only be changed when in status `Creating`
         /// - `attestor` Attestor for the step. Can only be set to None when in status `Creating`
         /// - `threshold` Required threshold if Attestor is a group account else set to 1
@@ -794,7 +794,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` Definition the process is related to
-        /// - `definition_step_index` New definition_step_index (should equal existing step count)
+        /// - `definition_step_index` index of definition step to be deleted
         #[pallet::weight(<T as Config>::WeightInfo::delete_definition_step(
             <T as Config>::DefinitionStepLimit::get()
         ))]

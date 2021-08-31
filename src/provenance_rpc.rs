@@ -2,7 +2,9 @@ use crate::identity_rpc::FactResponse;
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_primitives::{Process, ProcessStatus, ProcessStep, Registry};
+use pallet_primitives::{
+    Definition, DefinitionStep, Process, ProcessStatus, ProcessStep, Registry,
+};
 use provenance_runtime_api::ProvenanceApi as ProvenanceRuntimeApi;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
@@ -148,9 +150,65 @@ pub struct DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, 
     pub registry_id: RegistryId,
     pub definition_id: DefinitionId,
     pub name: String,
+    pub status: String,
     pub definition_steps:
         Option<Vec<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>>>,
 }
+
+impl<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex, BoundedStringName>
+    From<(
+        RegistryId,
+        DefinitionId,
+        Definition<BoundedStringName>,
+        Option<
+            Vec<(
+                DefinitionStepIndex,
+                DefinitionStep<AccountId, MemberCount, BoundedStringName>,
+            )>,
+        >,
+    )> for DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>
+where
+    BoundedStringName: Into<Vec<u8>>,
+{
+    fn from(
+        (registry_id, definition_id, definition, definition_steps): (
+            RegistryId,
+            DefinitionId,
+            Definition<BoundedStringName>,
+            Option<
+                Vec<(
+                    DefinitionStepIndex,
+                    DefinitionStep<AccountId, MemberCount, BoundedStringName>,
+                )>,
+            >,
+        ),
+    ) -> Self {
+        DefinitionResponse {
+            registry_id,
+            definition_id,
+            name: String::from_utf8_lossy(&definition.name.into()).to_string(),
+            status: match definition.status {
+                pallet_primitives::DefinitionStatus::Creating => "Creating".to_string(),
+                pallet_primitives::DefinitionStatus::Active => "Active".to_string(),
+                pallet_primitives::DefinitionStatus::Inactive => "Inactive".to_string(),
+            },
+            definition_steps: definition_steps.map(|definition_steps| {
+                definition_steps
+                    .into_iter()
+                    .map(
+                        |(definition_step_index, definition_step)| DefinitionStepResponse {
+                            definition_step_index,
+                            name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
+                            attestor: definition_step.attestor,
+                            threshold: definition_step.threshold,
+                        },
+                    )
+                    .collect()
+            }),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex> {
     pub definition_step_index: DefinitionStepIndex,
@@ -185,7 +243,7 @@ where
             Process<BoundedStringName>,
         ),
     ) -> Self {
-        ProcessResponse::<RegistryId, DefinitionId, ProcessId> {
+        ProcessResponse {
             registry_id,
             definition_id,
             process_id,
@@ -219,7 +277,7 @@ where
             Vec<ProcessStep<BoundedStringName, BoundedStringFact>>,
         ),
     ) -> Self {
-        ProcessResponse::<RegistryId, DefinitionId, ProcessId> {
+        ProcessResponse {
             registry_id,
             definition_id,
             process_id,
@@ -412,17 +470,8 @@ where
 
         Ok(definitions
             .into_iter()
-            .map(|(definition_id, definition)| DefinitionResponse::<
-                AccountId,
-                RegistryId,
-                DefinitionId,
-                MemberCount,
-                DefinitionStepIndex,
-            > {
-                registry_id,
-                definition_id,
-                name: String::from_utf8_lossy(&definition.name.into()).to_string(),
-                definition_steps: None,
+            .map(|(definition_id, definition)| {
+                (registry_id, definition_id, definition, None).into()
             })
             .collect())
     }
@@ -447,24 +496,13 @@ where
             .get_definition_steps(&at, registry_id, definition_id)
             .map_err(convert_error!())?;
 
-        Ok(DefinitionResponse {
+        Ok((
             registry_id,
             definition_id,
-            name: String::from_utf8_lossy(&definition.name.into()).to_string(),
-            definition_steps: Some(
-                definition_steps
-                    .into_iter()
-                    .map(
-                        |(definition_step_index, definition_step)| DefinitionStepResponse {
-                            definition_step_index,
-                            name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
-                            attestor: definition_step.attestor,
-                            threshold: definition_step.threshold,
-                        },
-                    )
-                    .collect(),
-            ),
-        })
+            definition,
+            Some(definition_steps),
+        )
+            .into())
     }
 
     fn get_available_definitions(
@@ -491,14 +529,9 @@ where
 
         Ok(definitions
             .into_iter()
-            .map(
-                |(registry_id, definition_id, definition)| DefinitionResponse {
-                    registry_id,
-                    definition_id,
-                    name: String::from_utf8_lossy(&definition.name.into()).to_string(),
-                    definition_steps: None,
-                },
-            )
+            .map(|(registry_id, definition_id, definition)| {
+                (registry_id, definition_id, definition, None).into()
+            })
             .collect())
     }
 
