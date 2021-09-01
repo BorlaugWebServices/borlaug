@@ -1021,7 +1021,7 @@ pub mod pallet {
             <LinkedAudits<T>>::iter_prefix(audit_id).for_each(|(child_audit_id, _)| {
                 let audit_maybe = <Audits<T>>::get(child_audit_id);
                 if let Some(audit) = audit_maybe {
-                    audits.push((audit_id, audit));
+                    audits.push((child_audit_id, audit));
                 }
             });
             audits
