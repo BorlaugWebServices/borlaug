@@ -30,6 +30,12 @@
 //! *          A member may change thier vote while the **Proposal** is still in progress, but there is an extra charge.
 //! * `close` - After voting a caller should check the vote tallies and call `close` if the threshold is met or cannot be met.
 //! * `veto` - A member of a **Group** can veto an ongoing **Proposal** (override the existing votes with either yay or nay).
+
+//TODO:
+// withdraw_funds_group
+// withdraw_funds_sub_group
+// send_funds_to_sub_group
+
 //!
 //! ### RPC Methods
 //!
@@ -317,6 +323,20 @@ pub mod pallet {
             <T::Currency as Currency<T::AccountId>>::Balance,
             bool,
         ),
+        /// funds were withdrawn from a sub_group account (group_id,sub_group_id,amount,success)
+        SubGroupFundsWithdrawn(
+            T::GroupId,
+            T::GroupId,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+            bool,
+        ),
+        /// funds were deposited from a group to a sub_group account (group_id,sub_group_id,amount,success)
+        SubGroupFundsDeposited(
+            T::GroupId,
+            T::GroupId,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+            bool,
+        ),
     }
 
     #[pallet::error]
@@ -359,7 +379,10 @@ pub mod pallet {
         NotGroup,
         /// Group is not a SubGroup
         NotSubGroup,
+        /// Group is not the parent of SubGroup
+        NotParentGroup,
         /// User is not admin for group
+        //TODO: should we only allow one level of veto etc?
         NotGroupAdmin,
         /// User is not the group account (was not correctly called via proposal)
         NotGroupAccount,
@@ -1234,7 +1257,7 @@ pub mod pallet {
         ///
         /// - `target_account`: account to withdraw the funds to
         /// - `amount`: amount to withdraw
-
+        //TODO: weights
         #[pallet::weight(10_000)]
         pub fn withdraw_funds_group(
             origin: OriginFor<T>,
@@ -1263,44 +1286,81 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // /// Withdraw funds from a subgroup account to the group account
-        // ///
-        // /// - `group_id`: Group executing the extrinsic
+        /// Withdraw funds from a subgroup account to the group account
+        ///
+        /// - `sub_group_id`: Subgroup to withdraw funds from
+        //TODO: weights
+        #[pallet::weight(10_000)]
+        pub fn withdraw_funds_sub_group(
+            origin: OriginFor<T>,
+            sub_group_id: T::GroupId,
+            amount: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
+        ) -> DispatchResultWithPostInfo {
+            let (caller_group_id, _, _, _, caller_group_account) =
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
-        // #[pallet::weight(10_000)]
-        // pub fn withdraw_funds_sub_group(
-        //     origin: OriginFor<T>,
-        //     sub_group_id: T::GroupId,
-        // ) -> DispatchResultWithPostInfo {
-        //     let (caller_group_id, _proposal_id, _yes_votes, _no_votes, _caller_group_account) =
-        //     T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
-        // ensure!(caller_group_id != subgroup_id, Error::<T>::NotSubGroup);
-        // let group = Self::groups(subgroup_id).ok_or(Error::<T>::GroupMissing)?;
-        // ensure!(group.parent.is_some(), Error::<T>::NotSubGroup);
-        // let parent_group_id = group.parent.unwrap();
-        // let parent_group = Self::groups(parent_group_id).ok_or(Error::<T>::GroupMissing)?;
-        // let return_funds_too = parent_group.anonymous_account;
+            let sub_group = Self::groups(sub_group_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(sub_group.parent.is_some(), Error::<T>::NotSubGroup);
+            let parent_group_id = sub_group.parent.unwrap();
+            ensure!(
+                caller_group_id == parent_group_id,
+                Error::<T>::NotParentGroup
+            );
 
-        // }
+            let result = <T as Config>::Currency::transfer(
+                &sub_group.anonymous_account,
+                &caller_group_account,
+                amount,
+                AllowDeath,
+            );
 
-        //  /// Withdraw funds from a subgroup account to the group account
-        // ///
-        // /// - `group_id`: Group executing the extrinsic
+            Self::deposit_event(Event::SubGroupFundsWithdrawn(
+                parent_group_id,
+                sub_group_id,
+                amount,
+                result.is_ok(),
+            ));
 
-        // #[pallet::weight(10_000)]
-        // pub fn send_funds_to_sub_group(
-        //     origin: OriginFor<T>,
-        //     sub_group_id: T::GroupId,
-        // ) -> DispatchResultWithPostInfo {
-        //      let (caller_group_id, _proposal_id, _yes_votes, _no_votes, _caller_group_account) =
-        //     T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
-        // ensure!(caller_group_id != subgroup_id, Error::<T>::NotSubGroup);
-        // let group = Self::groups(subgroup_id).ok_or(Error::<T>::GroupMissing)?;
-        // ensure!(group.parent.is_some(), Error::<T>::NotSubGroup);
-        // let parent_group_id = group.parent.unwrap();
-        // let parent_group = Self::groups(parent_group_id).ok_or(Error::<T>::GroupMissing)?;
-        // let return_funds_too = parent_group.anonymous_account;
-        // }
+            Ok(().into())
+        }
+
+        /// Deposit funds to a subgroup account from the group account
+        ///
+        /// - `sub_group_id`: Subgroup to deposit funds to
+        //TODO: weights
+        #[pallet::weight(10_000)]
+        pub fn send_funds_to_sub_group(
+            origin: OriginFor<T>,
+            sub_group_id: T::GroupId,
+            amount: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
+        ) -> DispatchResultWithPostInfo {
+            let (caller_group_id, _, _, _, caller_group_account) =
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+
+            let sub_group = Self::groups(sub_group_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(sub_group.parent.is_some(), Error::<T>::NotSubGroup);
+            let parent_group_id = sub_group.parent.unwrap();
+            ensure!(
+                caller_group_id == parent_group_id,
+                Error::<T>::NotParentGroup
+            );
+
+            let result = <T as Config>::Currency::transfer(
+                &caller_group_account,
+                &sub_group.anonymous_account,
+                amount,
+                AllowDeath,
+            );
+
+            Self::deposit_event(Event::SubGroupFundsDeposited(
+                parent_group_id,
+                sub_group_id,
+                amount,
+                result.is_ok(),
+            ));
+
+            Ok(().into())
+        }
     }
 
     impl<T: Config> Module<T> {
