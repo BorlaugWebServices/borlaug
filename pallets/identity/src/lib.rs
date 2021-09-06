@@ -445,7 +445,7 @@ pub mod pallet {
             short_name: Option<Vec<u8>>,
             properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let bounded_name = enforce_limit_option!(short_name.clone());
 
@@ -461,10 +461,15 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Did as u8),
-                &sender,
+                &group_account,
             );
 
-            Self::mint_did(sender.clone(), sender, bounded_name, properties);
+            Self::mint_did(
+                group_account.clone(),
+                group_account,
+                bounded_name,
+                properties,
+            );
 
             Ok(().into())
         }
@@ -487,7 +492,7 @@ pub mod pallet {
             short_name: Option<Vec<u8>>,
             properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let bounded_name = enforce_limit_option!(short_name);
 
@@ -503,10 +508,10 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Did as u8),
-                &sender,
+                &group_account,
             );
 
-            Self::mint_did(subject, sender, bounded_name, properties);
+            Self::mint_did(subject, group_account, bounded_name, properties);
             Ok(().into())
         }
 
@@ -526,7 +531,7 @@ pub mod pallet {
                 Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
             )>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let did_count = dids.len();
 
@@ -555,15 +560,15 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(did_count as u8 * ExtrinsicIndex::Did as u8),
-                &sender,
+                &group_account,
             );
 
             dids.into_iter()
                 .for_each(|(subject, bounded_name, properties)| {
-                    Self::mint_did(subject, sender.clone(), bounded_name, properties);
+                    Self::mint_did(subject, group_account.clone(), bounded_name, properties);
                 });
 
-            Self::deposit_event(Event::BulkRegistered(sender, did_count as u32));
+            Self::deposit_event(Event::BulkRegistered(group_account, did_count as u32));
 
             Ok(().into())
         }
@@ -589,7 +594,7 @@ pub mod pallet {
             add_properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
             remove_keys: Option<Vec<Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let bounded_short_name = match short_name {
                 Some(short_name) => Some(enforce_limit_option!(short_name)),
@@ -622,7 +627,7 @@ pub mod pallet {
                 .map_or(Ok(None), |r| r.map(Some))?;
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &did),
+                <DidByController<T>>::contains_key(&group_account, &did),
                 Error::<T>::NotController
             );
 
@@ -647,7 +652,7 @@ pub mod pallet {
                 });
             }
 
-            Self::deposit_event(Event::DidUpdated(sender, did));
+            Self::deposit_event(Event::DidUpdated(group_account, did));
             Ok(().into())
         }
 
@@ -667,10 +672,10 @@ pub mod pallet {
             did: Did,
             properties: Vec<DidProperty<Vec<u8>, Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &did),
+                <DidByController<T>>::contains_key(&group_account, &did),
                 Error::<T>::NotController
             );
 
@@ -688,7 +693,7 @@ pub mod pallet {
                 <DidDocumentProperties<T>>::insert(&did, &hash, property);
             });
 
-            Self::deposit_event(Event::DidReplaced(sender, did));
+            Self::deposit_event(Event::DidReplaced(group_account, did));
             //TODO: consider measuring how many properties were removed, and refund weight accordingly.
             Ok(().into())
         }
@@ -709,10 +714,9 @@ pub mod pallet {
             add: Option<Vec<T::AccountId>>,
             remove: Option<Vec<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
-
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -742,7 +746,12 @@ pub mod pallet {
                     <DidControllers<T>>::insert(&target_did, &add, ());
                 });
             }
-            Self::deposit_event(Event::DidControllerUpdated(sender, target_did, add, remove));
+            Self::deposit_event(Event::DidControllerUpdated(
+                group_account,
+                target_did,
+                add,
+                remove,
+            ));
             Ok(().into())
         }
 
@@ -759,10 +768,10 @@ pub mod pallet {
             target_did: Did,
             claim_consumers: Vec<ClaimConsumer<T::AccountId, T::Moment>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -801,10 +810,10 @@ pub mod pallet {
             target_did: Did,
             claim_consumers: Vec<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -835,10 +844,10 @@ pub mod pallet {
             target_did: Did,
             claim_issuers: Vec<ClaimIssuer<T::AccountId, T::Moment>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -877,10 +886,10 @@ pub mod pallet {
             target_did: Did,
             claim_issuers: Vec<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -919,10 +928,10 @@ pub mod pallet {
             statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
             threshold: T::MemberCount,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                Self::is_valid_consumer(&target_did, &sender),
+                Self::is_valid_consumer(&target_did, &group_account),
                 Error::<T>::NotAuthorized
             );
 
@@ -945,7 +954,7 @@ pub mod pallet {
             let claim = Claim {
                 description: enforce_limit!(description),
                 statements,
-                created_by: sender.clone(),
+                created_by: group_account.clone(),
                 attestation: None,
                 threshold,
             };
@@ -953,14 +962,14 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Claim as u8),
-                &sender,
+                &group_account,
             );
 
             let claim_id = next_id!(NextClaimId<T>, T);
 
             <Claims<T>>::insert(&target_did, claim_id, claim);
 
-            Self::deposit_event(Event::ClaimMade(target_did, claim_id, sender));
+            Self::deposit_event(Event::ClaimMade(target_did, claim_id, group_account));
             Ok(().into())
         }
 
@@ -985,14 +994,15 @@ pub mod pallet {
             statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
             valid_until: T::Moment,
         ) -> DispatchResultWithPostInfo {
+            //TODO: use macro
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
-            let (sender, yes_votes) = match either {
+            let (group_account, yes_votes) = match either {
                 Either::Left(account_id) => (account_id, None),
                 Either::Right((_, _, yes_votes, _, group_account)) => (group_account, yes_votes),
             };
 
             ensure!(
-                Self::is_valid_issuer(&target_did, &sender),
+                Self::is_valid_issuer(&target_did, &group_account),
                 Error::<T>::NotAuthorized
             );
 
@@ -1042,13 +1052,13 @@ pub mod pallet {
                     claim.statements.retain(|s| !names.contains(&s.name));
                     claim.statements.append(&mut stmts);
                     claim.attestation = Some(Attestation {
-                        attested_by: sender.clone(),
+                        attested_by: group_account.clone(),
                         valid_until,
                     });
                 }
             });
 
-            Self::deposit_event(Event::ClaimAttested(target_did, claim_id, sender));
+            Self::deposit_event(Event::ClaimAttested(target_did, claim_id, group_account));
 
             Ok(Some(<T as Config>::WeightInfo::attest_claim(
                 statements_len as u32,
@@ -1074,10 +1084,10 @@ pub mod pallet {
             target_did: Did,
             claim_id: T::ClaimId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                Self::is_valid_issuer(&target_did, &sender),
+                Self::is_valid_issuer(&target_did, &group_account),
                 Error::<T>::NotAuthorized
             );
 
@@ -1098,7 +1108,11 @@ pub mod pallet {
                 }
             });
 
-            Self::deposit_event(Event::ClaimAttestationRevoked(target_did, claim_id, sender));
+            Self::deposit_event(Event::ClaimAttestationRevoked(
+                target_did,
+                claim_id,
+                group_account,
+            ));
             Ok(Some(<T as Config>::WeightInfo::revoke_attestation(
                 existing_statements_len as u32,
                 max_statement_name_len as u32,
@@ -1115,21 +1129,21 @@ pub mod pallet {
             name.len() as u32
         ))]
         pub fn create_catalog(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let bounded_name = enforce_limit!(name);
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Catalog as u8),
-                &sender,
+                &group_account,
             );
 
             let catalog_id = next_id!(NextCatalogId<T>, T);
 
-            <Catalogs<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
+            <Catalogs<T>>::insert(&group_account, catalog_id, Catalog { name: bounded_name });
 
-            Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
+            Self::deposit_event(Event::CatalogCreated(group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1146,18 +1160,18 @@ pub mod pallet {
             catalog_id: T::CatalogId,
             name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&group_account, catalog_id),
                 Error::<T>::NotController
             );
 
             let bounded_name = enforce_limit!(name);
 
-            <Catalogs<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
+            <Catalogs<T>>::insert(&group_account, catalog_id, Catalog { name: bounded_name });
 
-            Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
+            Self::deposit_event(Event::CatalogCreated(group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1170,18 +1184,18 @@ pub mod pallet {
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&group_account, catalog_id),
                 Error::<T>::NotController
             );
 
-            <Catalogs<T>>::remove(&sender, catalog_id);
+            <Catalogs<T>>::remove(&group_account, catalog_id);
             //TODO: fix this for weights
             <DidsByCatalog<T>>::remove_prefix(&catalog_id);
 
-            Self::deposit_event(Event::CatalogRemoved(sender, catalog_id));
+            Self::deposit_event(Event::CatalogRemoved(group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1199,10 +1213,10 @@ pub mod pallet {
             catalog_id: T::CatalogId,
             dids: Vec<(Did, Vec<u8>)>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&group_account, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -1220,7 +1234,7 @@ pub mod pallet {
                 <DidsByCatalog<T>>::insert(catalog_id, did, short_name);
             }
 
-            Self::deposit_event(Event::CatalogDidsAdded(sender, catalog_id));
+            Self::deposit_event(Event::CatalogDidsAdded(group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1239,10 +1253,10 @@ pub mod pallet {
             target_did: Did,
             short_name: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&group_account, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -1250,7 +1264,11 @@ pub mod pallet {
 
             <DidsByCatalog<T>>::insert(&catalog_id, &target_did, bounded_name);
 
-            Self::deposit_event(Event::CatalogDidRenamed(sender, catalog_id, target_did));
+            Self::deposit_event(Event::CatalogDidRenamed(
+                group_account,
+                catalog_id,
+                target_did,
+            ));
             Ok(().into())
         }
 
@@ -1267,10 +1285,10 @@ pub mod pallet {
             catalog_id: T::CatalogId,
             dids: Vec<Did>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&group_account, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -1283,7 +1301,7 @@ pub mod pallet {
                 <DidsByCatalog<T>>::remove(catalog_id, did);
             }
 
-            Self::deposit_event(Event::CatalogDidsRemoved(sender, catalog_id));
+            Self::deposit_event(Event::CatalogDidsRemoved(group_account, catalog_id));
             Ok(().into())
         }
     }

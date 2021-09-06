@@ -526,9 +526,9 @@ pub mod pallet {
             origin: OriginFor<T>,
             lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let (_sender, group_account) = ensure_account_or_executed!(origin);
+            let (sender, proposal_id) = ensure_account_or_threshold!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &lease.lessor),
+                <identity::DidBySubject<T>>::contains_key(&sender, &lease.lessor),
                 Error::<T>::NotDidSubject
             );
 
@@ -541,7 +541,7 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Lease as u8),
-                &group_account,
+                &sender,
             );
 
             let lessor = lease.lessor;
@@ -582,9 +582,9 @@ pub mod pallet {
             lessor: Did,
             lease_id: T::LeaseId,
         ) -> DispatchResultWithPostInfo {
-            let (_sender, group_account) = ensure_account_or_executed!(origin);
+            let (sender, proposal_id) = ensure_account_or_threshold!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &lessor),
+                <identity::DidBySubject<T>>::contains_key(&sender, &lessor),
                 Error::<T>::NotDidSubject
             );
 

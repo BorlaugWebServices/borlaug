@@ -1345,6 +1345,9 @@ impl_runtime_apis! {
         fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>{
             Audits::get_observation(audit_id,control_point_id,observation_id)
         }
+        fn get_observation_by_proposal(proposal_id: ProposalId)->Option<(ObservationId,Observation)>{
+            Audits::get_observation_by_proposal(proposal_id)
+        }
         fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation)>{
             Audits::get_observation_by_control_point(audit_id,control_point_id)
         }
@@ -1354,9 +1357,8 @@ impl_runtime_apis! {
         fn get_evidence_by_audit(audit_id:AuditId)->Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
             Audits::get_evidence_by_audit(audit_id)
         }
-
-        fn get_evidence_by_proposal(audit_id: AuditId,proposal_id:ProposalId)->Option<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
-            Audits::get_evidence_by_proposal(audit_id,proposal_id)
+        fn get_evidence_by_proposal(proposal_id:ProposalId)->Option<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
+            Audits::get_evidence_by_proposal(proposal_id)
         }
         fn get_evidence_links_by_evidence(evidence_id:EvidenceId)->Vec<ObservationId>{
             Audits::get_evidence_links_by_evidence(evidence_id)

@@ -319,6 +319,17 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
+    #[pallet::getter(fn observation_by_proposal)]
+    /// Observation by proposal_id
+    pub type ObservationByProposal<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::ProposalId,
+        (T::AuditId, T::ControlPointId, T::ObservationId),
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
     #[pallet::getter(fn observation_of)]
     /// audit_id, control_point => Observation
     pub type Observations<T: Config> = StorageDoubleMap<
@@ -348,7 +359,7 @@ pub mod pallet {
     #[pallet::getter(fn evidence_by_proposal)]
     /// Evidence by proposal_id
     pub type EvidenceByProposal<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::ProposalId, T::EvidenceId, OptionQuery>;
+        StorageMap<_, Blake2_128Concat, T::ProposalId, (T::AuditId, T::EvidenceId), OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn evidence_links_by_evidence)]
@@ -731,6 +742,10 @@ pub mod pallet {
             let observation_id = next_id!(NextObservationId<T>, T);
 
             <Observations<T>>::insert((&audit_id, &control_point_id), &observation_id, observation);
+            <ObservationByProposal<T>>::insert(
+                &proposal_id,
+                (audit_id, control_point_id, observation_id),
+            );
 
             Self::deposit_event(Event::ObservationCreated(
                 group_account,
@@ -800,7 +815,7 @@ pub mod pallet {
             };
 
             <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
-            <EvidenceByProposal<T>>::insert(&proposal_id, evidence_id);
+            <EvidenceByProposal<T>>::insert(&proposal_id, (audit_id, evidence_id));
 
             Self::deposit_event(Event::EvidenceAttached(
                 group_account,
@@ -1046,6 +1061,20 @@ pub mod pallet {
             <Observations<T>>::get((audit_id, control_point_id), observation_id)
         }
 
+        pub fn get_observation_by_proposal(
+            proposal_id: T::ProposalId,
+        ) -> Option<(T::ObservationId, Observation)> {
+            <ObservationByProposal<T>>::get(proposal_id).map(
+                |(audit_id, control_point_id, observation_id)| {
+                    (
+                        observation_id,
+                        <Observations<T>>::get((audit_id, control_point_id), observation_id)
+                            .unwrap(),
+                    )
+                },
+            )
+        }
+
         pub fn get_observation_by_control_point(
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
@@ -1077,13 +1106,12 @@ pub mod pallet {
         }
 
         pub fn get_evidence_by_proposal(
-            audit_id: T::AuditId,
             proposal_id: T::ProposalId,
         ) -> Option<(
             T::EvidenceId,
             Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
-            <EvidenceByProposal<T>>::get(proposal_id).map(|evidence_id| {
+            <EvidenceByProposal<T>>::get(proposal_id).map(|(audit_id, evidence_id)| {
                 (
                     evidence_id,
                     <Evidences<T>>::get(audit_id, evidence_id).unwrap(),

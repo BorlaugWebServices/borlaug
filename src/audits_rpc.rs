@@ -72,6 +72,13 @@ pub trait AuditsApi<
         at: Option<BlockHash>,
     ) -> Result<ObservationResponse<ObservationId>>;
 
+    #[rpc(name = "get_observation_by_proposal")]
+    fn get_observation_by_proposal(
+        &self,
+        proposal_id: ProposalId,
+        at: Option<BlockHash>,
+    ) -> Result<ObservationResponse<ObservationId>>;
+
     #[rpc(name = "get_observation_by_control_point")]
     fn get_observation_by_control_point(
         &self,
@@ -98,7 +105,6 @@ pub trait AuditsApi<
     #[rpc(name = "get_evidence_by_proposal")]
     fn get_evidence_by_proposal(
         &self,
-        audit_id: AuditId,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
     ) -> Result<EvidenceResponse<EvidenceId, ProposalId>>;
@@ -404,6 +410,21 @@ where
         Ok((observation_id, observation).into())
     }
 
+    fn get_observation_by_proposal(
+        &self,
+        proposal_id: ProposalId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<ObservationResponse<ObservationId>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let (observation_id, observation) = api
+            .get_observation_by_proposal(&at, proposal_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok((observation_id, observation).into())
+    }
+
     fn get_observation_by_control_point(
         &self,
         audit_id: AuditId,
@@ -457,7 +478,6 @@ where
 
     fn get_evidence_by_proposal(
         &self,
-        audit_id: AuditId,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<EvidenceResponse<EvidenceId, ProposalId>> {
@@ -465,7 +485,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let (evidence_id, evidence) = api
-            .get_evidence_by_proposal(&at, audit_id, proposal_id)
+            .get_evidence_by_proposal(&at, proposal_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((evidence_id, evidence).into())
