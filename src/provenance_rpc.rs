@@ -65,6 +65,15 @@ pub trait ProvenanceApi<
         DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     >;
 
+    #[rpc(name = "get_definition_step")]
+    fn get_definition_step(
+        &self,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        step_index: DefinitionStepIndex,
+        at: Option<BlockHash>,
+    ) -> Result<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>>;
+
     #[rpc(name = "get_available_definitions")]
     fn get_available_definitions(
         &self,
@@ -195,14 +204,9 @@ where
             definition_steps: definition_steps.map(|definition_steps| {
                 definition_steps
                     .into_iter()
-                    .map(
-                        |(definition_step_index, definition_step)| DefinitionStepResponse {
-                            definition_step_index,
-                            name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
-                            attestor: definition_step.attestor,
-                            threshold: definition_step.threshold,
-                        },
-                    )
+                    .map(|(definition_step_index, definition_step)| {
+                        (definition_step_index, definition_step).into()
+                    })
                     .collect()
             }),
         }
@@ -216,6 +220,30 @@ pub struct DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex> {
     pub attestor: Option<AccountId>,
     pub threshold: MemberCount,
 }
+
+impl<AccountId, MemberCount, DefinitionStepIndex, BoundedStringName>
+    From<(
+        DefinitionStepIndex,
+        DefinitionStep<AccountId, MemberCount, BoundedStringName>,
+    )> for DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>
+where
+    BoundedStringName: Into<Vec<u8>>,
+{
+    fn from(
+        (definition_step_index, definition_step): (
+            DefinitionStepIndex,
+            DefinitionStep<AccountId, MemberCount, BoundedStringName>,
+        ),
+    ) -> Self {
+        DefinitionStepResponse {
+            definition_step_index,
+            name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
+            attestor: definition_step.attestor,
+            threshold: definition_step.threshold,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ProcessResponse<RegistryId, DefinitionId, ProcessId> {
     pub registry_id: RegistryId,
@@ -503,6 +531,24 @@ where
             Some(definition_steps),
         )
             .into())
+    }
+
+    fn get_definition_step(
+        &self,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        step_index: DefinitionStepIndex,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let definition_step = api
+            .get_definition_step(&at, registry_id, definition_id, step_index)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+
+        Ok(((step_index, definition_step)).into())
     }
 
     fn get_available_definitions(

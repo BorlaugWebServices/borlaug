@@ -1285,6 +1285,17 @@ pub mod pallet {
         ) -> Option<Definition<BoundedVec<u8, <T as Config>::NameLimit>>> {
             <Definitions<T>>::get(registry_id, definition_id)
         }
+
+        pub fn get_definition_step(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            step_index: T::DefinitionStepIndex,
+        ) -> Option<
+            DefinitionStep<T::AccountId, T::MemberCount, BoundedVec<u8, <T as Config>::NameLimit>>,
+        > {
+            <DefinitionSteps<T>>::get((registry_id, definition_id), step_index)
+        }
+
         pub fn get_definition_steps(
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,

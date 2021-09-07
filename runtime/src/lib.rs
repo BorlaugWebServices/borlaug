@@ -1262,6 +1262,9 @@ impl_runtime_apis! {
         fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition<BoundedStringName>>  {
             Provenance::get_definition(registry_id,definition_id)
         }
+        fn get_definition_step(registry_id:RegistryId,definition_id:DefinitionId,step_index: DefinitionStepIndex) -> Option<DefinitionStep<AccountId, MemberCount,BoundedStringName>>  {
+            Provenance::get_definition_step(registry_id,definition_id,step_index)
+        }
         fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<AccountId, MemberCount,BoundedStringName>)>  {
             Provenance::get_definition_steps(registry_id,definition_id)
         }
