@@ -160,45 +160,73 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A new DID was registered (Subject, Controller, DID)
-        Registered(T::AccountId, T::AccountId, Did),
-        /// A DIDs were bulk registered (Controller, count)
-        BulkRegistered(T::AccountId, u32),
-        /// Did updated (Controller, DID)
-        DidUpdated(T::AccountId, Did),
-        /// Did replaced (Controller, DID)
-        DidReplaced(T::AccountId, Did),
-        /// Claim consumers added
-        ClaimConsumersAdded(Did, Vec<ClaimConsumer<T::AccountId, T::Moment>>),
-        /// Claim consumers removed
-        ClaimConsumersRemoved(Did, Vec<T::AccountId>),
-        /// Claim issuers added
-        ClaimIssuersAdded(Did, Vec<ClaimIssuer<T::AccountId, T::Moment>>),
-        /// Claim issuers removed
-        ClaimIssuersRemoved(Did, Vec<T::AccountId>),
-        /// Claim was made against a DID (target DID, index of claim, group_id)
-        ClaimMade(Did, T::ClaimId, T::AccountId),
-        /// Claim was attested (target DID, index of claim, group_id)
-        ClaimAttested(Did, T::ClaimId, T::AccountId),
-        /// Claim attestation revoked (target DID, index of claim, group_id)
-        ClaimAttestationRevoked(Did, T::ClaimId, T::AccountId),
-        /// Catalog added (account, Catalog Id)
-        CatalogCreated(T::AccountId, T::CatalogId),
-        /// Catalog removed (account, Catalog Id)
-        CatalogRemoved(T::AccountId, T::CatalogId),
-        /// Dids added to catalog (account, Catalog Id)
-        CatalogDidsAdded(T::AccountId, T::CatalogId),
-        /// Did short_name in catalog changed (account, catalog_id, did)
-        CatalogDidRenamed(T::AccountId, T::CatalogId, Did),
-        /// Dids removed from catalog (account, catalog_id)
-        CatalogDidsRemoved(T::AccountId, T::CatalogId),
-        /// DID Controller updated (account, target_did, added_controllers,removed_controllers)
+        /// A new DID was registered
+        /// (caller, subject, controller, did)
+        Registered(T::AccountId, T::AccountId, T::AccountId, Did),
+        /// DIDs were bulk registered
+        /// (caller, controller, count)
+        BulkRegistered(T::AccountId, T::AccountId, u32),
+        /// Did updated
+        /// (caller, controller, did)
+        DidUpdated(T::AccountId, T::AccountId, Did),
+        /// Did replaced
+        /// (caller, controller, did)
+        DidReplaced(T::AccountId, T::AccountId, Did),
+        /// DID Controller updated
+        /// (caller, controller, target_did, added_controllers, removed_controllers)
         DidControllerUpdated(
+            T::AccountId,
             T::AccountId,
             Did,
             Option<Vec<T::AccountId>>,
             Option<Vec<T::AccountId>>,
         ),
+        /// Claim consumers added
+        /// (caller, controller, did, claim_consumers)
+        ClaimConsumersAuthorized(
+            T::AccountId,
+            T::AccountId,
+            Did,
+            Vec<ClaimConsumer<T::AccountId, T::Moment>>,
+        ),
+        /// Claim consumers removed
+        /// (caller, controller, did, claim_consumers)
+        ClaimConsumersRevoked(T::AccountId, T::AccountId, Did, Vec<T::AccountId>),
+        /// Claim issuers added
+        /// (caller, controller, did, claim_consumers)
+        ClaimIssuersAuthorized(
+            T::AccountId,
+            T::AccountId,
+            Did,
+            Vec<ClaimIssuer<T::AccountId, T::Moment>>,
+        ),
+        /// Claim issuers removed
+        /// (caller, controller, did, claim_consumers)
+        ClaimIssuersRevoked(T::AccountId, T::AccountId, Did, Vec<T::AccountId>),
+        /// Claim was made against a DID
+        /// (caller, issuer, target_did, claim_id)
+        ClaimMade(T::AccountId, T::AccountId, Did, T::ClaimId),
+        /// Claim was attested
+        /// ( attester, target_did, claim_id)
+        ClaimAttested(T::AccountId, Did, T::ClaimId),
+        /// Claim attestation revoked
+        /// (attester, target_did, claim_id)
+        ClaimAttestationRevoked(T::AccountId, Did, T::ClaimId),
+        /// Catalog added
+        /// (caller, controller, catalog_id)
+        CatalogCreated(T::AccountId, T::AccountId, T::CatalogId),
+        /// Catalog removed
+        /// (caller, controller, catalog_id)
+        CatalogRemoved(T::AccountId, T::AccountId, T::CatalogId),
+        /// Dids added to catalog
+        /// (caller, controller, catalog_id)
+        CatalogDidsAdded(T::AccountId, T::AccountId, T::CatalogId),
+        /// Did short_name in catalog changed
+        /// (caller, controller, catalog_id)
+        CatalogDidRenamed(T::AccountId, T::AccountId, T::CatalogId, Did),
+        /// Dids removed from catalog
+        /// (caller, controller, catalog_id)
+        CatalogDidsRemoved(T::AccountId, T::AccountId, T::CatalogId),
     }
 
     #[pallet::error]
@@ -465,8 +493,9 @@ pub mod pallet {
             );
 
             Self::mint_did(
-                group_account.clone(),
-                group_account,
+                &account_id,
+                &group_account,
+                &group_account,
                 bounded_name,
                 properties,
             );
@@ -511,7 +540,13 @@ pub mod pallet {
                 &group_account,
             );
 
-            Self::mint_did(subject, group_account, bounded_name, properties);
+            Self::mint_did(
+                &account_id,
+                &subject,
+                &group_account,
+                bounded_name,
+                properties,
+            );
             Ok(().into())
         }
 
@@ -565,10 +600,20 @@ pub mod pallet {
 
             dids.into_iter()
                 .for_each(|(subject, bounded_name, properties)| {
-                    Self::mint_did(subject, group_account.clone(), bounded_name, properties);
+                    Self::mint_did(
+                        &account_id,
+                        &subject,
+                        &group_account,
+                        bounded_name,
+                        properties,
+                    );
                 });
 
-            Self::deposit_event(Event::BulkRegistered(group_account, did_count as u32));
+            Self::deposit_event(Event::BulkRegistered(
+                account_id,
+                group_account,
+                did_count as u32,
+            ));
 
             Ok(().into())
         }
@@ -652,7 +697,7 @@ pub mod pallet {
                 });
             }
 
-            Self::deposit_event(Event::DidUpdated(group_account, did));
+            Self::deposit_event(Event::DidUpdated(account_id, group_account, did));
             Ok(().into())
         }
 
@@ -693,7 +738,7 @@ pub mod pallet {
                 <DidDocumentProperties<T>>::insert(&did, &hash, property);
             });
 
-            Self::deposit_event(Event::DidReplaced(group_account, did));
+            Self::deposit_event(Event::DidReplaced(account_id, group_account, did));
             //TODO: consider measuring how many properties were removed, and refund weight accordingly.
             Ok(().into())
         }
@@ -747,6 +792,7 @@ pub mod pallet {
                 });
             }
             Self::deposit_event(Event::DidControllerUpdated(
+                account_id,
                 group_account,
                 target_did,
                 add,
@@ -771,7 +817,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -793,7 +839,12 @@ pub mod pallet {
                 );
             });
 
-            Self::deposit_event(Event::ClaimConsumersAdded(target_did, claim_consumers));
+            Self::deposit_event(Event::ClaimConsumersAuthorized(
+                account_id,
+                group_account,
+                target_did,
+                claim_consumers,
+            ));
             Ok(().into())
         }
 
@@ -813,7 +864,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -827,7 +878,12 @@ pub mod pallet {
                 <DidsByConsumer<T>>::remove(claim_consumer, &target_did);
             });
 
-            Self::deposit_event(Event::ClaimConsumersRemoved(target_did, claim_consumers));
+            Self::deposit_event(Event::ClaimConsumersRevoked(
+                account_id,
+                group_account,
+                target_did,
+                claim_consumers,
+            ));
             Ok(().into())
         }
 
@@ -847,7 +903,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -869,7 +925,12 @@ pub mod pallet {
                 );
             });
 
-            Self::deposit_event(Event::ClaimIssuersAdded(target_did, claim_issuers));
+            Self::deposit_event(Event::ClaimIssuersAuthorized(
+                account_id,
+                group_account,
+                target_did,
+                claim_issuers,
+            ));
             Ok(().into())
         }
 
@@ -889,7 +950,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -903,7 +964,12 @@ pub mod pallet {
                 <DidsByIssuer<T>>::remove(claim_issuer, &target_did);
             });
 
-            Self::deposit_event(Event::ClaimIssuersRemoved(target_did, claim_issuers));
+            Self::deposit_event(Event::ClaimIssuersRevoked(
+                account_id,
+                group_account,
+                target_did,
+                claim_issuers,
+            ));
             Ok(().into())
         }
 
@@ -969,7 +1035,12 @@ pub mod pallet {
 
             <Claims<T>>::insert(&target_did, claim_id, claim);
 
-            Self::deposit_event(Event::ClaimMade(target_did, claim_id, group_account));
+            Self::deposit_event(Event::ClaimMade(
+                account_id,
+                group_account,
+                target_did,
+                claim_id,
+            ));
             Ok(().into())
         }
 
@@ -996,13 +1067,13 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             //TODO: use macro
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
-            let (group_account, yes_votes) = match either {
+            let (account_id, yes_votes) = match either {
                 Either::Left(account_id) => (account_id, None),
                 Either::Right((_, _, yes_votes, _, group_account)) => (group_account, yes_votes),
             };
 
             ensure!(
-                Self::is_valid_issuer(&target_did, &group_account),
+                Self::is_valid_issuer(&target_did, &account_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -1052,13 +1123,13 @@ pub mod pallet {
                     claim.statements.retain(|s| !names.contains(&s.name));
                     claim.statements.append(&mut stmts);
                     claim.attestation = Some(Attestation {
-                        attested_by: group_account.clone(),
+                        attested_by: account_id.clone(),
                         valid_until,
                     });
                 }
             });
 
-            Self::deposit_event(Event::ClaimAttested(target_did, claim_id, group_account));
+            Self::deposit_event(Event::ClaimAttested(account_id, target_did, claim_id));
 
             Ok(Some(<T as Config>::WeightInfo::attest_claim(
                 statements_len as u32,
@@ -1084,12 +1155,25 @@ pub mod pallet {
             target_did: Did,
             claim_id: T::ClaimId,
         ) -> DispatchResultWithPostInfo {
-            let (account_id, group_account) = ensure_account_or_executed!(origin);
+            let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
+            let (account_id, yes_votes) = match either {
+                Either::Left(account_id) => (account_id, None),
+                Either::Right((_, _, yes_votes, _, group_account)) => (group_account, yes_votes),
+            };
 
             ensure!(
-                Self::is_valid_issuer(&target_did, &group_account),
+                Self::is_valid_issuer(&target_did, &account_id),
                 Error::<T>::NotAuthorized
             );
+
+            if yes_votes.is_some() {
+                let claim = <Claims<T>>::get(&target_did, claim_id);
+                ensure!(claim.is_some(), Error::<T>::NotFound);
+                ensure!(
+                    yes_votes.unwrap() >= claim.unwrap().threshold,
+                    Error::<T>::ThresholdNotMet
+                );
+            }
 
             let mut existing_statements_len = 0;
             let mut max_statement_name_len = 0;
@@ -1109,9 +1193,7 @@ pub mod pallet {
             });
 
             Self::deposit_event(Event::ClaimAttestationRevoked(
-                target_did,
-                claim_id,
-                group_account,
+                account_id, target_did, claim_id,
             ));
             Ok(Some(<T as Config>::WeightInfo::revoke_attestation(
                 existing_statements_len as u32,
@@ -1143,7 +1225,7 @@ pub mod pallet {
 
             <Catalogs<T>>::insert(&group_account, catalog_id, Catalog { name: bounded_name });
 
-            Self::deposit_event(Event::CatalogCreated(group_account, catalog_id));
+            Self::deposit_event(Event::CatalogCreated(account_id, group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1171,7 +1253,7 @@ pub mod pallet {
 
             <Catalogs<T>>::insert(&group_account, catalog_id, Catalog { name: bounded_name });
 
-            Self::deposit_event(Event::CatalogCreated(group_account, catalog_id));
+            Self::deposit_event(Event::CatalogCreated(account_id, group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1195,7 +1277,7 @@ pub mod pallet {
             //TODO: fix this for weights
             <DidsByCatalog<T>>::remove_prefix(&catalog_id);
 
-            Self::deposit_event(Event::CatalogRemoved(group_account, catalog_id));
+            Self::deposit_event(Event::CatalogRemoved(account_id, group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1234,7 +1316,11 @@ pub mod pallet {
                 <DidsByCatalog<T>>::insert(catalog_id, did, short_name);
             }
 
-            Self::deposit_event(Event::CatalogDidsAdded(group_account, catalog_id));
+            Self::deposit_event(Event::CatalogDidsAdded(
+                account_id,
+                group_account,
+                catalog_id,
+            ));
             Ok(().into())
         }
 
@@ -1265,6 +1351,7 @@ pub mod pallet {
             <DidsByCatalog<T>>::insert(&catalog_id, &target_did, bounded_name);
 
             Self::deposit_event(Event::CatalogDidRenamed(
+                account_id,
                 group_account,
                 catalog_id,
                 target_did,
@@ -1301,7 +1388,11 @@ pub mod pallet {
                 <DidsByCatalog<T>>::remove(catalog_id, did);
             }
 
-            Self::deposit_event(Event::CatalogDidsRemoved(group_account, catalog_id));
+            Self::deposit_event(Event::CatalogDidsRemoved(
+                account_id,
+                group_account,
+                catalog_id,
+            ));
             Ok(().into())
         }
     }
@@ -1533,8 +1624,9 @@ pub mod pallet {
 
         /// Creates a Did with given properties
         fn mint_did(
-            subject: T::AccountId,
-            controller: T::AccountId,
+            caller: &T::AccountId,
+            subject: &T::AccountId,
+            controller: &T::AccountId,
             short_name: Option<BoundedVec<u8, <T as Config>::NameLimit>>,
             properties: Option<
                 Vec<
@@ -1547,17 +1639,17 @@ pub mod pallet {
         ) {
             let nonce = Self::next_nonce();
             let random = <randomness::Module<T>>::random(&b"mint_did context"[..]);
-            let encoded = (random, subject.clone(), nonce).encode();
+            let encoded = (random, subject, nonce).encode();
             let id = sp_io::hashing::blake2_256(&encoded);
 
             let did = Did { id };
 
-            <DidBySubject<T>>::insert(&subject, &did, ());
-            <DidByController<T>>::insert(&controller, &did, ());
-            <DidControllers<T>>::insert(&did, &controller, ());
-            if subject != controller {
-                <DidByController<T>>::insert(&subject, &did, ());
-                <DidControllers<T>>::insert(&did, &subject, ());
+            <DidBySubject<T>>::insert(subject, &did, ());
+            <DidByController<T>>::insert(controller, &did, ());
+            <DidControllers<T>>::insert(&did, controller, ());
+            if *subject != *controller {
+                <DidByController<T>>::insert(subject, &did, ());
+                <DidControllers<T>>::insert(&did, subject, ());
             }
 
             let did_doc = DidDocument {
@@ -1573,7 +1665,12 @@ pub mod pallet {
                 });
             }
 
-            Self::deposit_event(Event::Registered(subject, controller, did));
+            Self::deposit_event(Event::Registered(
+                caller.clone(),
+                subject.clone(),
+                controller.clone(),
+                did,
+            ));
         }
     }
     // -- for use in weights --

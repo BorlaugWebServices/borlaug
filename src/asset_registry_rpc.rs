@@ -19,6 +19,7 @@ use std::sync::Arc;
 pub trait AssetRegistryApi<
     BlockHash,
     AccountId,
+    ProposalId,
     RegistryId,
     AssetId,
     LeaseId,
@@ -59,14 +60,14 @@ pub trait AssetRegistryApi<
         &self,
         lessor: Did,
         at: Option<BlockHash>,
-    ) -> Result<Vec<LeaseAgreementResponse<LeaseId, RegistryId, AssetId, Moment>>>;
+    ) -> Result<Vec<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>>;
     #[rpc(name = "get_lease")]
     fn get_lease(
         &self,
         lessor: Did,
         lease_id: LeaseId,
         at: Option<BlockHash>,
-    ) -> Result<LeaseAgreementResponse<LeaseId, RegistryId, AssetId, Moment>>;
+    ) -> Result<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>;
     #[rpc(name = "get_lease_allocations")]
     fn get_lease_allocations(
         &self,
@@ -173,8 +174,9 @@ where
     }
 }
 #[derive(Serialize, Deserialize)]
-pub struct LeaseAgreementResponse<LeaseId, RegistryId, AssetId, Moment> {
+pub struct LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment> {
     pub lease_id: LeaseId,
+    pub proposal_id: Option<ProposalId>,
     pub contract_number: String,
     pub lessor: Did,
     pub lessee: Did,
@@ -183,22 +185,23 @@ pub struct LeaseAgreementResponse<LeaseId, RegistryId, AssetId, Moment> {
     pub allocations: Vec<AssetAllocationResponse<RegistryId, AssetId>>,
 }
 
-impl<LeaseId, RegistryId, AssetId, Moment, BoundedStringName>
+impl<LeaseId, ProposalId, RegistryId, AssetId, Moment, BoundedStringName>
     From<(
         LeaseId,
-        LeaseAgreement<RegistryId, AssetId, Moment, BoundedStringName>,
-    )> for LeaseAgreementResponse<LeaseId, RegistryId, AssetId, Moment>
+        LeaseAgreement<ProposalId, RegistryId, AssetId, Moment, BoundedStringName>,
+    )> for LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>
 where
     BoundedStringName: Into<Vec<u8>>,
 {
     fn from(
         (lease_id, lease): (
             LeaseId,
-            LeaseAgreement<RegistryId, AssetId, Moment, BoundedStringName>,
+            LeaseAgreement<ProposalId, RegistryId, AssetId, Moment, BoundedStringName>,
         ),
     ) -> Self {
         LeaseAgreementResponse {
             lease_id,
+            proposal_id: lease.proposal_id,
             contract_number: String::from_utf8_lossy(&lease.contract_number.into()).to_string(),
             lessor: lease.lessor.into(),
             lessee: lease.lessee.into(),
@@ -286,6 +289,7 @@ impl<
         C,
         Block,
         AccountId,
+        ProposalId,
         RegistryId,
         AssetId,
         LeaseId,
@@ -297,6 +301,7 @@ impl<
     AssetRegistryApi<
         <Block as BlockT>::Hash,
         AccountId,
+        ProposalId,
         RegistryId,
         AssetId,
         LeaseId,
@@ -310,6 +315,7 @@ impl<
         (
             Block,
             AccountId,
+            ProposalId,
             RegistryId,
             AssetId,
             LeaseId,
@@ -327,6 +333,7 @@ where
     C::Api: AssetRegistryRuntimeApi<
         Block,
         AccountId,
+        ProposalId,
         RegistryId,
         AssetId,
         LeaseId,
@@ -336,6 +343,7 @@ where
         BoundedStringFact,
     >,
     AccountId: Codec + Send + Sync + 'static,
+    ProposalId: Codec + Send + Sync + 'static,
     RegistryId: Codec + Copy + Send + Sync + 'static,
     AssetId: Codec + Copy + Send + Sync + 'static,
     LeaseId: Codec + Copy + Send + Sync + 'static,
@@ -413,7 +421,7 @@ where
         &self,
         lessor: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<LeaseAgreementResponse<LeaseId, RegistryId, AssetId, Moment>>> {
+    ) -> Result<Vec<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -431,7 +439,7 @@ where
         lessor: Did,
         lease_id: LeaseId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<LeaseAgreementResponse<LeaseId, RegistryId, AssetId, Moment>> {
+    ) -> Result<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
