@@ -246,7 +246,8 @@ pub mod pallet {
         T::AccountId = "AccountId",
         T::MemberCount = "MemberCount",
         T::Currency = "Currency",
-        <T::Currency as Currency<T::AccountId>>::Balance = "Balance"      
+        <T::Currency as Currency<T::AccountId>>::Balance = "Balance",
+        DispatchError = "DispatchError"  
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
