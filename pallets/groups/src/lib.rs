@@ -277,7 +277,13 @@ pub mod pallet {
         SubGroupRemoved(T::GroupId, T::GroupId),
         /// A motion was executed by a member of the group;
         /// (group_id,proposal_hash,member,success)
-        Executed(T::GroupId, T::Hash, T::AccountId, bool),
+        Executed(
+            T::GroupId,
+            T::Hash,
+            T::AccountId,
+            bool,
+            Option<DispatchError>,
+        ),
         /// A new SubGroup was created (proposer,group_id,proposal_id,threshold)
         Proposed(T::AccountId, T::GroupId, T::ProposalId, T::MemberCount),
         /// A proposal was voted on (voter,group_id,proposal_id,approved,yes_votes,no_votes)
@@ -297,6 +303,7 @@ pub mod pallet {
             T::MemberCount,
             T::MemberCount,
             bool,
+            Option<DispatchError>,
         ),
         /// A proposal was disapproved by veto (vetoer,group_id,proposal_id,approved,yes_votes,no_votes)
         DisapprovedByVeto(
@@ -313,6 +320,7 @@ pub mod pallet {
             T::MemberCount,
             T::MemberCount,
             bool,
+            Option<DispatchError>,
         ),
         /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
         Disapproved(T::GroupId, T::ProposalId, T::MemberCount, T::MemberCount),
@@ -823,11 +831,13 @@ pub mod pallet {
                 )
                 .into(),
             );
+
             Self::deposit_event(Event::Executed(
                 group_id,
                 proposal_hash,
                 sender,
                 result.is_ok(),
+                result.err().map(|err| err.error),
             ));
 
             Ok(Self::get_result_weight(result)
@@ -909,12 +919,14 @@ pub mod pallet {
                     )
                     .into(),
                 );
+
                 Self::deposit_event(Event::Approved(
                     group_id,
                     proposal_id,
                     1u32.into(),
                     0u32.into(),
                     result.is_ok(),
+                    result.err().map(|err| err.error),
                 ));
 
                 Ok(Self::get_result_weight(result)
@@ -1091,12 +1103,14 @@ pub mod pallet {
                     )
                     .into(),
                 );
+
                 Self::deposit_event(Event::Approved(
                     group_id,
                     proposal_id,
                     yes_votes,
                     no_votes,
                     result.is_ok(),
+                    result.err().map(|err| err.error),
                 ));
 
                 let proposal_count = Self::remove_proposal(group_id, proposal_id, proposal_hash);
@@ -1209,6 +1223,7 @@ pub mod pallet {
                     )
                     .into(),
                 );
+
                 Self::deposit_event(Event::ApprovedByVeto(
                     sender,
                     group_id,
@@ -1216,6 +1231,7 @@ pub mod pallet {
                     yes_votes,
                     no_votes,
                     result.is_ok(),
+                    result.err().map(|err| err.error),
                 ));
                 let proposal_count = Self::remove_proposal(group_id, proposal_id, proposal_hash);
 

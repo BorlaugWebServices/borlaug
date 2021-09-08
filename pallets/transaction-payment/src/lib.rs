@@ -62,7 +62,6 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 use frame_support::{
-    debug,
     dispatch::DispatchResult,
     traits::{Get, IsSubType},
     weights::{
@@ -655,9 +654,13 @@ where
     ) -> TransactionValidity {
         let who = match call.is_sub_type() {
             Some(groups::Call::propose(group_id, ..)) => {
-                sp_runtime::print("propose was received.");
-                debug::info!("group_id:{:?}", group_id);
-
+                if let Some(group) = groups::Module::<T>::groups(group_id) {
+                    group.anonymous_account
+                } else {
+                    who.clone()
+                }
+            }
+            Some(groups::Call::execute(group_id, ..)) => {
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {
@@ -683,9 +686,6 @@ where
     ) -> Result<Self::Pre, TransactionValidityError> {
         let who = match call.is_sub_type() {
             Some(groups::Call::propose(group_id, ..)) => {
-                sp_runtime::print("propose was received.");
-                // debug::info!("group_id:{:?}", group_id);
-
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {
@@ -693,9 +693,6 @@ where
                 }
             }
             Some(groups::Call::execute(group_id, ..)) => {
-                sp_runtime::print("execute was received.");
-                // debug::info!("group_id:{:?}", group_id);
-
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {
