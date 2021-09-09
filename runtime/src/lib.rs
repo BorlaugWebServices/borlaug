@@ -1291,12 +1291,9 @@ impl_runtime_apis! {
         }
     }
     impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
-        fn get_catalogs(account_id:AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)> {
+        fn get_catalogs(account_id:AccountId) -> Vec<CatalogId> {
             Identity::get_catalogs(account_id)
-        }
-        fn get_catalog(account_id:AccountId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>> {
-            Identity::get_catalog(account_id,catalog_id)
-        }
+        }        
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>  {
             Identity::get_dids_in_catalog(catalog_id)
         }

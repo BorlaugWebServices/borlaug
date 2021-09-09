@@ -437,7 +437,7 @@ pub mod pallet {
         T::AccountId,
         Blake2_128Concat,
         T::CatalogId,
-        Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
+        (),
         OptionQuery,
     >;
 
@@ -1207,13 +1207,10 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `name` name of the catalog
-        #[pallet::weight(<T as Config>::WeightInfo::create_catalog(
-            name.len() as u32
-        ))]
-        pub fn create_catalog(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
+        //TODO: update weights
+        #[pallet::weight(10_000)]
+        pub fn create_catalog(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
-
-            let bounded_name = enforce_limit!(name);
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
@@ -1223,35 +1220,7 @@ pub mod pallet {
 
             let catalog_id = next_id!(NextCatalogId<T>, T);
 
-            <Catalogs<T>>::insert(&group_account, catalog_id, Catalog { name: bounded_name });
-
-            Self::deposit_event(Event::CatalogCreated(account_id, group_account, catalog_id));
-            Ok(().into())
-        }
-
-        /// Rename a catalog
-        ///
-        /// Arguments:
-        /// - `catalog_id` id of catalog
-        /// - `name` new name of catalog
-        #[pallet::weight(<T as Config>::WeightInfo::rename_catalog(
-            name.len() as u32
-        ))]
-        pub fn rename_catalog(
-            origin: OriginFor<T>,
-            catalog_id: T::CatalogId,
-            name: Vec<u8>,
-        ) -> DispatchResultWithPostInfo {
-            let (account_id, group_account) = ensure_account_or_executed!(origin);
-
-            ensure!(
-                <Catalogs<T>>::contains_key(&group_account, catalog_id),
-                Error::<T>::NotController
-            );
-
-            let bounded_name = enforce_limit!(name);
-
-            <Catalogs<T>>::insert(&group_account, catalog_id, Catalog { name: bounded_name });
+            <Catalogs<T>>::insert(&group_account, catalog_id, ());
 
             Self::deposit_event(Event::CatalogCreated(account_id, group_account, catalog_id));
             Ok(().into())
@@ -1400,23 +1369,11 @@ pub mod pallet {
     impl<T: Config> Module<T> {
         // -- rpc api functions --
 
-        pub fn get_catalogs(
-            account_id: T::AccountId,
-        ) -> Vec<(
-            T::CatalogId,
-            Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
-        )> {
+        pub fn get_catalogs(account_id: T::AccountId) -> Vec<T::CatalogId> {
             let mut catalogs = Vec::new();
             <Catalogs<T>>::iter_prefix(account_id)
-                .for_each(|(catalog_id, catalog)| catalogs.push((catalog_id, catalog)));
+                .for_each(|(catalog_id, _)| catalogs.push(catalog_id));
             catalogs
-        }
-
-        pub fn get_catalog(
-            account_id: T::AccountId,
-            catalog_id: T::CatalogId,
-        ) -> Option<Catalog<BoundedVec<u8, <T as Config>::NameLimit>>> {
-            <Catalogs<T>>::get(account_id, catalog_id)
         }
 
         pub fn get_dids_in_catalog(

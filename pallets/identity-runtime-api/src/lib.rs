@@ -4,7 +4,7 @@
 
 use codec::Codec;
 use frame_support::dispatch::Vec;
-use primitives::{Catalog, Claim, Did, DidDocument, DidProperty};
+use primitives::{Claim, Did, DidDocument, DidProperty};
 
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
@@ -20,9 +20,7 @@ sp_api::decl_runtime_apis! {
     BoundedStringFact: Codec + Into<Vec<u8>>
 
      {
-        fn get_catalogs(account_id: AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)>;
-
-        fn get_catalog(account_id: AccountId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>>;
+        fn get_catalogs(account_id: AccountId) -> Vec<CatalogId>;
 
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>;
 

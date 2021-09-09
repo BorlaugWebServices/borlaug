@@ -5,7 +5,6 @@ pub mod attestation;
 pub mod attribute;
 pub mod audit;
 pub mod bounded_vec;
-pub mod catalog;
 pub mod claim;
 pub mod definition;
 pub mod definition_step;
@@ -22,10 +21,9 @@ pub mod process_step;
 pub mod registry;
 
 pub use self::{
-    asset::*, asset_property::*, attestation::*, attribute::*, audit::*, catalog::*, claim::*,
-    definition::*, definition_step::*, did::*, did_document::*, did_property::*, evidence::*,
-    fact::*, group::*, lease_agreement::*, observation::*, process::*, process_step::*,
-    registry::*,
+    asset::*, asset_property::*, attestation::*, attribute::*, audit::*, claim::*, definition::*,
+    definition_step::*, did::*, did_document::*, did_property::*, evidence::*, fact::*, group::*,
+    lease_agreement::*, observation::*, process::*, process_step::*, registry::*,
 };
 pub use codec::Encode;
 

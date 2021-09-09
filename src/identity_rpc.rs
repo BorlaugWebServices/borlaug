@@ -27,14 +27,6 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         at: Option<BlockHash>,
     ) -> Result<Vec<CatalogResponse<CatalogId>>>;
 
-    #[rpc(name = "get_catalog")]
-    fn get_catalog(
-        &self,
-        account_id: AccountId,
-        catalog_id: CatalogId,
-        at: Option<BlockHash>,
-    ) -> Result<CatalogResponse<CatalogId>>;
-
     #[rpc(name = "get_dids_in_catalog")]
     fn get_dids_in_catalog(
         &self,
@@ -231,7 +223,6 @@ impl Serialize for Did {
 #[derive(Serialize, Deserialize)]
 pub struct CatalogResponse<CatalogId> {
     pub catalog_id: CatalogId,
-    pub name: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -575,31 +566,8 @@ where
             .map_err(convert_error!())?;
         Ok(catalogs
             .into_iter()
-            .map(|(catalog_id, catalog)| CatalogResponse::<CatalogId> {
-                catalog_id,
-                name: String::from_utf8_lossy(&catalog.name.into()).to_string(),
-            })
+            .map(|catalog_id| CatalogResponse { catalog_id })
             .collect())
-    }
-
-    fn get_catalog(
-        &self,
-        account_id: AccountId,
-        catalog_id: CatalogId,
-        at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<CatalogResponse<CatalogId>> {
-        let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
-
-        let catalog = api
-            .get_catalog(&at, account_id, catalog_id)
-            .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
-
-        Ok(CatalogResponse::<CatalogId> {
-            catalog_id,
-            name: String::from_utf8_lossy(&catalog.name.into()).to_string(),
-        })
     }
 
     fn get_dids_in_catalog(
