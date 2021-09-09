@@ -228,28 +228,20 @@ pub struct CatalogResponse<CatalogId> {
 #[derive(Serialize, Deserialize)]
 pub struct DidDocumentBasicResponse {
     pub did: String,
-    pub short_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct DidDocumentResponse<AccountId> {
-    pub short_name: Option<String>,
     pub subject: AccountId,
     pub controllers: Vec<AccountId>,
     pub properties: Vec<DidPropertyResponse>,
 }
 
-impl<BoundedString> From<(pallet_primitives::Did, Option<BoundedString>)>
-    for DidDocumentBasicResponse
-where
-    BoundedString: Into<Vec<u8>>,
-{
-    fn from((did, short_name): (pallet_primitives::Did, Option<BoundedString>)) -> Self {
+impl From<pallet_primitives::Did> for DidDocumentBasicResponse {
+    fn from(did: pallet_primitives::Did) -> Self {
         let did: Did = did.into();
         DidDocumentBasicResponse {
             did: did.to_string(),
-            short_name: short_name
-                .map(|short_name| String::from_utf8_lossy(&short_name.into()).to_string()),
         }
     }
 }
@@ -294,8 +286,7 @@ where
 
 impl<AccountId, BoundedStringName, BoundedStringFact>
     From<(
-        Option<BoundedStringName>,
-        DidDocument<AccountId, BoundedStringName>,
+        DidDocument<AccountId>,
         Vec<DidProperty<BoundedStringName, BoundedStringFact>>,
         Vec<AccountId>,
     )> for DidDocumentResponse<AccountId>
@@ -304,17 +295,13 @@ where
     BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(
-        (short_name, did_document, properties, controllers): (
-            Option<BoundedStringName>,
-            DidDocument<AccountId, BoundedStringName>,
+        (did_document, properties, controllers): (
+            DidDocument<AccountId>,
             Vec<DidProperty<BoundedStringName, BoundedStringFact>>,
             Vec<AccountId>,
         ),
     ) -> Self {
         DidDocumentResponse {
-            short_name: short_name
-                .or_else(|| did_document.short_name.clone())
-                .map(|short_name| String::from_utf8_lossy(&short_name.into()).to_string()),
             subject: did_document.subject,
             controllers,
             properties: properties.into_iter().map(|p| p.into()).collect(),
@@ -581,10 +568,7 @@ where
         let dids = api
             .get_dids_in_catalog(&at, catalog_id)
             .map_err(convert_error!())?;
-        Ok(dids
-            .into_iter()
-            .map(|(did, name)| (did, Some(name)).into())
-            .collect())
+        Ok(dids.into_iter().map(|did| did.into()).collect())
     }
 
     fn get_did_in_catalog(
@@ -596,11 +580,11 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (name, did_document, properties, controllers) = api
+        let (did_document, properties, controllers) = api
             .get_did_in_catalog(&at, catalog_id, did.clone().into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((Some(name), did_document, properties, controllers).into())
+        Ok((did_document, properties, controllers).into())
     }
 
     fn get_did(
@@ -615,7 +599,7 @@ where
             .get_did(&at, did.clone().into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((None, did_document, properties, controllers).into())
+        Ok((did_document, properties, controllers).into())
     }
 
     fn get_dids_by_subject(
@@ -629,10 +613,7 @@ where
         let dids = api
             .get_dids_by_subject(&at, subject)
             .map_err(convert_error!())?;
-        Ok(dids
-            .into_iter()
-            .map(|(did, maybe_short_name)| (did, maybe_short_name).into())
-            .collect())
+        Ok(dids.into_iter().map(|did| did.into()).collect())
     }
 
     fn get_dids_by_controller(
@@ -646,10 +627,7 @@ where
         let dids = api
             .get_dids_by_controller(&at, controller)
             .map_err(convert_error!())?;
-        Ok(dids
-            .into_iter()
-            .map(|(did, maybe_short_name)| (did, maybe_short_name).into())
-            .collect())
+        Ok(dids.into_iter().map(|did| did.into()).collect())
     }
 
     fn get_claims(

@@ -1293,20 +1293,20 @@ impl_runtime_apis! {
     impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_catalogs(account_id:AccountId) -> Vec<CatalogId> {
             Identity::get_catalogs(account_id)
-        }        
-        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>  {
+        }
+        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<Did>  {
             Identity::get_dids_in_catalog(catalog_id)
         }
-        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<(BoundedStringName, DidDocument<AccountId,  BoundedStringName>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
+        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<( DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
             Identity::get_did_in_catalog(catalog_id,did)
         }
-        fn get_did(did:Did) -> Option<(DidDocument<AccountId,  BoundedStringName>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
+        fn get_did(did:Did) -> Option<(DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
             Identity::get_did(did)
         }
-        fn get_dids_by_subject( subject: AccountId) -> Vec<(Did, Option<BoundedStringName>)>  {
+        fn get_dids_by_subject( subject: AccountId) -> Vec<Did>  {
             Identity::get_dids_by_subject(subject)
         }
-        fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<BoundedStringName>)>  {
+        fn get_dids_by_controller( controller: AccountId) -> Vec<Did>  {
             Identity::get_dids_by_controller(controller)
         }
         fn get_claims( did: Did) -> Vec<(ClaimId, Claim<AccountId,MemberCount,Moment,BoundedStringName,BoundedStringFact>)>  {

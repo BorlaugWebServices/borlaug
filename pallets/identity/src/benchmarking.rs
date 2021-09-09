@@ -74,7 +74,6 @@ fn create_accounts<T: Config>(n: u32, seed: u32) -> Vec<T::AccountId> {
 
 benchmarks! {
     register_did {
-        let a in 1 .. (<T as Config>::NameLimit::get() -1);//short_name length
         let b in 5 .. (<T as Config>::NameLimit::get()-1);//property name length
         let c in 1 .. (<T as Config>::FactStringLimit::get()-1);//property fact length
         let d in 1 .. (<T as Config>::PropertyLimit::get()-1);//property count
@@ -82,11 +81,9 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let name = vec![42u8; a as usize];
-
         let properties=create_properties(d,b,c,1);
 
-    }: _(SystemOrigin::Signed(caller.clone()), Some(name), Some(properties))
+    }: _(SystemOrigin::Signed(caller.clone()), Some(properties))
 
     verify {
         let mut dids_by_controller=Vec::new();
@@ -102,7 +99,6 @@ benchmarks! {
     }
 
     register_did_for {
-        let a in 1 .. (<T as Config>::NameLimit::get() -1);//short_name length
         let b in 5 .. (<T as Config>::NameLimit::get()-1);//property name length
         let c in 1 .. (<T as Config>::FactStringLimit::get()-1);//property fact length
         let d in 1 .. (<T as Config>::PropertyLimit::get()-1);//property count
@@ -112,11 +108,9 @@ benchmarks! {
 
         let subject:<T as frame_system::Config>::AccountId = whitelisted_caller();
 
-        let name = vec![42u8; a as usize];
-
         let properties=create_properties(d,b,c,1);
 
-    }: _(SystemOrigin::Signed(caller.clone()),subject.clone(), Some(name), Some(properties))
+    }: _(SystemOrigin::Signed(caller.clone()),subject.clone(), Some(properties))
 
     verify {
         let mut dids_by_controller=Vec::new();
@@ -173,7 +167,6 @@ benchmarks! {
 
     //TODO: should we worry about None? Current weight may charge an extra read + write max.
     update_did {
-        let a in 1 .. (<T as Config>::NameLimit::get() -1); //short_name length
         let b in 5 .. (<T as Config>::NameLimit::get()-1); //add property name length
         let c in 1 .. (<T as Config>::FactStringLimit::get()-1); //add property fact length
         let d in 1 .. (<T as Config>::PropertyLimit::get()-1); //add property count
@@ -183,13 +176,13 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origional_name = vec![42u8; <T as Config>::NameLimit::get() as usize];
+
         //these will be removed
         let origional_properties=create_properties(f,e,<T as Config>::FactStringLimit::get()-1,1);
         assert_eq!(origional_properties.len(),f as usize);
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin,Some(origional_name), Some(origional_properties.clone()))?;
+        IdentityPallet::<T>::register_did(origin,Some(origional_properties.clone()))?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -209,15 +202,10 @@ benchmarks! {
 
         let remove_keys=origional_properties.into_iter().map(|property|property.name).collect();
 
-        let name = vec![42u8; a as usize];
-    }: _(SystemOrigin::Signed(caller.clone()),did, Some(Some(name.clone())),  Some(add_properties.clone()),Some(remove_keys))
+    }: _(SystemOrigin::Signed(caller.clone()),did, Some(add_properties.clone()),Some(remove_keys))
 
     verify {
-        let did_document=<DidDocuments<T>>::get(&did);
-        assert!(did_document.is_some());
-        let did_document=did_document.unwrap();
-        assert!(did_document.short_name.is_some());
-        assert_eq!(did_document.short_name.unwrap().len(),name.len());
+        assert!(<DidDocuments<T>>::contains_key(&did));
 
         let mut stored_properties=Vec::new();
         <DidDocumentProperties<T>>::iter_prefix(&did).for_each(|(_, property)| {
@@ -239,7 +227,7 @@ benchmarks! {
         let origional_properties=create_properties(d,<T as Config>::NameLimit::get()-1,<T as Config>::FactStringLimit::get()-1,1);
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin,None, Some(origional_properties.clone()))?;
+        IdentityPallet::<T>::register_did(origin, Some(origional_properties.clone()))?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -273,7 +261,7 @@ benchmarks! {
         let origional_controllers=create_accounts::<T>(a,1);
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+        IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -303,7 +291,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+        IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -334,7 +322,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+        IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -367,7 +355,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+        IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -398,7 +386,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+        IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -434,7 +422,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+        IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -486,7 +474,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+        IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -547,7 +535,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+        IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -605,46 +593,15 @@ benchmarks! {
     }
 
     create_catalog {
-        let a in 1 .. (<T as Config>::NameLimit::get()-1);
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let name = vec![42u8; a as usize];
-
-    }: _(SystemOrigin::Signed(caller.clone()),name.clone())
+    }: _(SystemOrigin::Signed(caller.clone()))
 
     verify {
         let catalog_id=T::CatalogId::unique_saturated_from(1u32);
-        let catalog=<Catalogs<T>>::get(caller,catalog_id);
-        assert!(catalog.is_some());
-        assert_eq!(catalog.unwrap().name.len(),name.len());
-    }
-
-    rename_catalog {
-        let a in 1 .. (<T as Config>::NameLimit::get()-1);
-
-        let caller = whitelisted_caller();
-        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-
-        let origional_name = vec![42u8];
-
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::create_catalog(origin.clone(), origional_name.clone())?;
-
-        let catalog_id=T::CatalogId::unique_saturated_from(1u32);
-        let catalog=<Catalogs<T>>::get(caller.clone(),catalog_id);
-        assert!(catalog.is_some());
-        assert_eq!(catalog.unwrap().name.len(),origional_name.len());
-
-        let name = vec![42u8; a as usize];
-
-    }: _(SystemOrigin::Signed(caller.clone()),catalog_id,name.clone())
-
-    verify {
-        let catalog=<Catalogs<T>>::get(caller,catalog_id);
-        assert!(catalog.is_some());
-        assert_eq!(catalog.unwrap().name.len(),name.len());
+        assert!(<Catalogs<T>>::contains_key(caller,catalog_id));
     }
 
     remove_catalog {
@@ -652,10 +609,8 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origional_name = vec![42u8];
-
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::create_catalog(origin.clone(), origional_name)?;
+        IdentityPallet::<T>::create_catalog(origin.clone())?;
 
         let catalog_id=T::CatalogId::unique_saturated_from(1u32);
         assert!(<Catalogs<T>>::contains_key(caller.clone(),catalog_id));
@@ -669,18 +624,17 @@ benchmarks! {
     add_dids_to_catalog {
 
         let a in 1 .. (<T as Config>::CatalogDidLimit::get()-1);
-        let b in 1 .. (<T as Config>::NameLimit::get()-1);
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::create_catalog(origin.clone(), vec![42u8])?;
+        IdentityPallet::<T>::create_catalog(origin.clone())?;
 
         let catalog_id=T::CatalogId::unique_saturated_from(1u32);
 
         for _ in 0..a {
-            IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+            IdentityPallet::<T>::register_did(origin.clone(),None)?;
         }
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -688,51 +642,14 @@ benchmarks! {
         });
         assert_eq!(dids_by_controller.len(), a as usize);
 
-        let dids=dids_by_controller.into_iter().map(|did| (did,vec![42u8; b as usize])).collect();
-
-    }: _(SystemOrigin::Signed(caller.clone()),catalog_id,dids)
+    }: _(SystemOrigin::Signed(caller.clone()),catalog_id,dids_by_controller)
 
     verify {
         let mut catalog_dids=Vec::new();
-        <DidsByCatalog<T>>::iter_prefix(&catalog_id).for_each(|(did, short_name)| {
-            assert_eq!(short_name.len(),b as usize);
-            catalog_dids.push((did, short_name));
+        <DidsByCatalog<T>>::iter_prefix(&catalog_id).for_each(|(did,_)| {
+            catalog_dids.push(did);
         });
         assert_eq!(catalog_dids.len(),a as usize);
-    }
-
-    rename_did_in_catalog {
-
-        let a in 1 .. (<T as Config>::NameLimit::get()-1);
-
-        let caller = whitelisted_caller();
-        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::create_catalog(origin.clone(), vec![42u8])?;
-
-        let catalog_id=T::CatalogId::unique_saturated_from(1u32);
-
-        IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
-
-        let mut dids_by_controller=Vec::new();
-        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
-            dids_by_controller.push(did);
-        });
-        assert_eq!(dids_by_controller.len(), 1 as usize);
-
-        let did=dids_by_controller[0];
-
-        IdentityPallet::<T>::add_dids_to_catalog(origin.clone(), catalog_id, vec![(did,vec![42u8])])?;
-
-        let name = vec![42u8; a as usize];
-
-    }: _(SystemOrigin::Signed(caller.clone()),catalog_id,did,name)
-
-    verify {
-        let short_name=  <DidsByCatalog<T>>::get(&catalog_id,&did);
-        assert!(short_name.is_some());
-        assert_eq!(short_name.unwrap().len(),a as usize);
     }
 
     remove_dids_from_catalog {
@@ -743,12 +660,12 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::create_catalog(origin.clone(), vec![42u8])?;
+        IdentityPallet::<T>::create_catalog(origin.clone())?;
 
         let catalog_id=T::CatalogId::unique_saturated_from(1u32);
 
         for _ in 0..a {
-            IdentityPallet::<T>::register_did(origin.clone(),None,None)?;
+            IdentityPallet::<T>::register_did(origin.clone(),None)?;
         }
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -756,13 +673,9 @@ benchmarks! {
         });
         assert_eq!(dids_by_controller.len(), a as usize);
 
-        let dids:Vec<(Did, Vec<u8>)>=dids_by_controller.into_iter().map(|did| (did,vec![42u8])).collect();
+        IdentityPallet::<T>::add_dids_to_catalog(origin.clone(), catalog_id, dids_by_controller.clone())?;
 
-        IdentityPallet::<T>::add_dids_to_catalog(origin.clone(), catalog_id, dids.clone())?;
-
-        let dids=dids.into_iter().map(|(did,short_name)| did).collect();
-
-    }: _(SystemOrigin::Signed(caller.clone()),catalog_id,dids)
+    }: _(SystemOrigin::Signed(caller.clone()),catalog_id,dids_by_controller)
 
     verify {
         let mut dids_in_catalog=Vec::new();

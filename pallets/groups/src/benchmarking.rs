@@ -218,7 +218,7 @@ benchmarks! {
     verify {
         let proposal_hash = T::Hashing::hash_of(&proposal);
         assert_last_event::<T>(
-            Event::Executed(group_id,proposal_hash,caller,false).into()
+            Event::Executed(group_id,proposal_hash,caller,false,None).into()
         );
     }
 
@@ -251,7 +251,7 @@ benchmarks! {
     verify {
         let proposal_id:T::ProposalId=1u32.into();
         assert_last_event::<T>(
-            Event::Approved(group_id,proposal_id,1u32.into(),0u32.into(),false).into()
+            Event::Approved(group_id,proposal_id,1u32.into(),0u32.into(),false,None).into()
         );
 
     }
@@ -540,7 +540,7 @@ benchmarks! {
 
     verify {
         assert!(!Proposals::<T>::contains_key(group_id,proposal_id));
-        assert_last_event::<T>(Event::Approved(group_id,proposal_id,m.into(),0u32.into(),false).into());
+        assert_last_event::<T>(Event::Approved(group_id,proposal_id,m.into(),0u32.into(),false,None).into());
     }
 
     veto_disapproved {
@@ -691,7 +691,7 @@ benchmarks! {
 
     verify {
         assert!(!Proposals::<T>::contains_key(sub_group_id,proposal_id));
-        assert_last_event::<T>(Event::ApprovedByVeto(admin,sub_group_id,proposal_id,1u32.into(),(m-1).into(),false).into());
+        assert_last_event::<T>(Event::ApprovedByVeto(admin,sub_group_id,proposal_id,1u32.into(),(m-1).into(),false,None).into());
     }
 
 
