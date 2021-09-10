@@ -5,6 +5,20 @@ use frame_support::assert_ok;
 use primitives::*;
 use std::convert::TryInto;
 
+fn create_group(member: u64, group_id: u32) -> u64 {
+    assert_ok!(Groups::create_group(
+        Origin::signed(member),
+        "Test".to_string().into(),
+        vec![member],
+        1,
+        10_000,
+    ));
+    let group_maybe = Groups::get_group(group_id);
+    assert!(group_maybe.is_some());
+    let group = group_maybe.unwrap();
+    group.anonymous_account
+}
+
 #[test]
 fn create_registry_should_work() {
     new_test_ext().execute_with(|| {
@@ -102,13 +116,7 @@ fn create_definition_should_work() {
 fn remove_definition_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Group
-        assert_ok!(Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
-            10_000
-        ));
+        let group_account = create_group(1, 1);
 
         // 1 creates a Registry for itself
         assert_ok!(Groups::propose(
@@ -152,13 +160,7 @@ fn remove_definition_should_work() {
 fn create_definition_step_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Group
-        assert_ok!(Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
-            10_000
-        ));
+        let group_account = create_group(1, 1);
         // 1 creates a Registry for itself
         assert_ok!(Groups::propose(
             Origin::signed(1),
@@ -183,11 +185,6 @@ fn create_definition_step_should_work() {
 
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
-
-        let group_maybe = Groups::get_group(1);
-        assert!(group_maybe.is_some());
-        let group = group_maybe.unwrap();
-        let group_account = group.anonymous_account;
 
         // 1 adds step to definition
         assert_ok!(Groups::propose(
@@ -215,13 +212,7 @@ fn create_definition_step_should_work() {
 fn update_definition_step_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Group
-        assert_ok!(Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
-            10_000
-        ));
+        let group_account = create_group(1, 1);
 
         // 1 creates a Registry for itself
         assert_ok!(Groups::propose(
@@ -247,11 +238,6 @@ fn update_definition_step_should_work() {
 
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
-
-        let group_maybe = Groups::get_group(1);
-        assert!(group_maybe.is_some());
-        let group = group_maybe.unwrap();
-        let group_account = group.anonymous_account;
 
         // 1 adds step to definition
         assert_ok!(Groups::propose(
@@ -441,13 +427,7 @@ fn update_definition_step_should_work() {
 fn create_process_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Group
-        assert_ok!(Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
-            10_000
-        ));
+        let group_account = create_group(1, 1);
 
         // 1 creates a Registry for itself
         assert_ok!(Groups::propose(
@@ -470,11 +450,6 @@ fn create_process_should_work() {
             1,
             100
         ));
-
-        let group_maybe = Groups::get_group(1);
-        assert!(group_maybe.is_some());
-        let group = group_maybe.unwrap();
-        let group_account = group.anonymous_account;
 
         // 1 adds step to definition
         assert_ok!(Groups::propose(

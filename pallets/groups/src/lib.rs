@@ -314,7 +314,7 @@ pub mod pallet {
             T::MemberCount,
             T::MemberCount,
         ),
-        /// A motion was approved by the required threshold and executed (group_id,proposal_id,yes_votes,no_votes,success)
+        /// A motion was approved by the required threshold and executed (group_id,proposal_id,yes_votes,no_votes,success,error)
         Approved(
             T::GroupId,
             T::ProposalId,

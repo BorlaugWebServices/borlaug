@@ -8,7 +8,7 @@ use frame_support::{assert_err, assert_ok};
 use primitives::{bounded_vec::BoundedVec, *};
 
 fn create_did() -> Did {
-    let _ = Identity::register_did(Origin::signed(1), None, None);
+    let _ = Identity::register_did(Origin::signed(1), None);
     let mut dids_by_controller = Vec::new();
     identity::DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
         dids_by_controller.push(did);
@@ -51,6 +51,7 @@ fn create_lease(did_lessor: Did, did_lessee: Did) {
     let now = Utc::now().timestamp() as u64;
     let next_week = (Utc::now().timestamp() + 60 * 60 * 24 * 7) as u64;
     let lease = LeaseAgreement {
+        proposal_id: None,
         contract_number: b"001".to_vec(),
         lessor: did_lessor,
         lessee: did_lessee,
@@ -282,6 +283,7 @@ fn creating_lease_should_work() {
         let next_week = (Utc::now().timestamp() + 60 * 60 * 24 * 7) as u64;
 
         let lease = LeaseAgreement {
+            proposal_id: None,
             contract_number: b"001".to_vec(),
             lessor: did_lessor.clone(),
             lessee: did_lessee,
@@ -329,6 +331,7 @@ fn lease_asset_over_allocation_should_fail() {
         let next_week = (Utc::now().timestamp() + 60 * 60 * 24 * 7) as u64;
 
         let lease1 = LeaseAgreement {
+            proposal_id: None,
             contract_number: b"001".to_vec(),
             lessor: did_lessor,
             lessee: did_lessee,
@@ -351,6 +354,7 @@ fn lease_asset_over_allocation_should_fail() {
         ));
 
         let lease2 = LeaseAgreement {
+            proposal_id: None,
             contract_number: b"002".to_vec(),
             lessor: did_lessor,
             lessee: did_lessee,
