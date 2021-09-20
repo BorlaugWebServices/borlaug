@@ -19,8 +19,8 @@ sp_api::decl_runtime_apis! {
     BoundedString: Codec + Into<Vec<u8>>
     {
         fn member_of(account:AccountId) -> Vec<GroupId>;
-        fn get_group(group:GroupId) -> Option<Group<GroupId, AccountId, MemberCount,BoundedString>>;
-        fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedString>)>>;
+        fn get_group(group:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedString>,Vec<(AccountId, MemberCount)>)>;
+        fn get_sub_groups(group:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedString>,Vec<(AccountId, MemberCount)>)>;
         fn get_proposal(group_id: GroupId,proposal_id:ProposalId) -> Option<(Hash,u32)> ;
         fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash,u32)>;
         fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>;

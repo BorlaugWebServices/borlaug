@@ -115,44 +115,41 @@ fn create_definition_should_work() {
 #[test]
 fn remove_definition_should_work() {
     new_test_ext().execute_with(|| {
-        // 1 creates a Group
-        let group_account = create_group(1, 1);
-
-        // 1 creates a Registry for itself
-        assert_ok!(Groups::propose(
+        assert_ok!(Provenance::create_registry(
             Origin::signed(1),
-            1,
-            Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
-                b"John Doe".to_vec()
-            ))),
-            1,
-            100
+            b"John Doe".to_vec()
         ));
-
-        // 1 creates a definition in the registry
-        assert_ok!(Groups::propose(
+        let registry_id = 1u32;
+        assert_ok!(Provenance::create_definition(
             Origin::signed(1),
-            1,
-            Box::new(crate::mock::Call::Provenance(
-                super::Call::create_definition(1u32, b"Test".to_vec(),)
-            )),
-            1,
-            100
+            registry_id,
+            b"Test".to_vec()
         ));
+        let definition_id = 1u32;
+        assert!(Definitions::<Test>::contains_key(
+            registry_id,
+            definition_id
+        ));
+        let definition = Definitions::<Test>::get(registry_id, definition_id).unwrap();
+        assert_eq!(
+            Definition {
+                name: b"Test".to_vec().try_into().unwrap(),
+                status: DefinitionStatus::Creating
+            },
+            definition
+        );
 
         // remove definition
-        assert_ok!(Groups::propose(
+        assert_ok!(Provenance::remove_definition(
             Origin::signed(1),
-            1,
-            Box::new(crate::mock::Call::Provenance(
-                super::Call::remove_definition(1u32, 1u32)
-            )),
-            1,
-            100
+            registry_id,
+            definition_id
         ));
-
         // verify definition was removed
-        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), false);
+        assert_eq!(
+            Definitions::<Test>::contains_key(registry_id, definition_id),
+            false
+        );
     });
 }
 

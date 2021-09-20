@@ -56,7 +56,8 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
 pub struct GroupResponse<GroupId, AccountId, MemberCount> {
     pub group_id: GroupId,
     pub name: String,
-    pub members: Vec<AccountId>,
+    pub total_vote_weight: MemberCount,
+    pub members: Vec<(AccountId, MemberCount)>,
     pub threshold: MemberCount,
     pub anonymous_account: AccountId,
     pub parent: Option<GroupId>,
@@ -65,20 +66,23 @@ impl<GroupId, AccountId, MemberCount, BoundedString>
     From<(
         GroupId,
         Group<GroupId, AccountId, MemberCount, BoundedString>,
+        Vec<(AccountId, MemberCount)>,
     )> for GroupResponse<GroupId, AccountId, MemberCount>
 where
     BoundedString: Into<Vec<u8>>,
 {
     fn from(
-        (group_id, group): (
+        (group_id, group, members): (
             GroupId,
             Group<GroupId, AccountId, MemberCount, BoundedString>,
+            Vec<(AccountId, MemberCount)>,
         ),
     ) -> Self {
         GroupResponse {
             group_id,
             name: String::from_utf8_lossy(&group.name.into()).to_string(),
-            members: group.members,
+            total_vote_weight: group.total_vote_weight,
+            members: members,
             threshold: group.threshold,
             anonymous_account: group.anonymous_account,
             parent: group.parent,
@@ -109,8 +113,8 @@ where
 pub struct VoteResponse<AccountId, ProposalId, MemberCount> {
     pub proposal_id: ProposalId,
     pub threshold: MemberCount,
-    pub ayes: Vec<AccountId>,
-    pub nays: Vec<AccountId>,
+    pub ayes: Vec<(AccountId, MemberCount)>,
+    pub nays: Vec<(AccountId, MemberCount)>,
 }
 impl<AccountId, ProposalId, MemberCount> From<(ProposalId, Votes<AccountId, MemberCount>)>
     for VoteResponse<AccountId, ProposalId, MemberCount>
@@ -211,11 +215,11 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let group = api
+        let (group, members) = api
             .get_group(&at, group_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((group_id, group).into())
+        Ok((group_id, group, members).into())
     }
     fn get_sub_groups(
         &self,
@@ -227,12 +231,11 @@ where
 
         let groups = api
             .get_sub_groups(&at, group_id)
-            .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .map_err(convert_error!())?;
 
         Ok(groups
             .into_iter()
-            .map(|(sub_group_id, group)| (sub_group_id, group).into())
+            .map(|(sub_group_id, group, members)| (sub_group_id, group, members).into())
             .collect())
     }
 

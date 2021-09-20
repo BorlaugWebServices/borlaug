@@ -34,6 +34,7 @@
 //!
 //! #### For Controllers
 //! * `register_did_for` - Registers a new DID for a subject and adds caller as a controller
+//! * `register_did_for_bulk` - Registers a collection of DIDs for subjects and adds caller as a controller
 //! * `update_did` - Update properties of a DID Document
 //! * `replace_did` - Replace all the properties of a DID Document
 //! * `manage_controllers` - Add or remove controllers for the did. Subject cannot be removed.
