@@ -10,7 +10,7 @@ use sp_core::blake2_256;
 fn create_group(member: u64, group_id: u32) -> u64 {
     assert_ok!(Groups::create_group(
         Origin::signed(member),
-        "Test".to_string().into(),
+        b"Test".to_vec(),
         vec![member],
         1,
         10_000,

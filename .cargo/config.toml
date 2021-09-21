@@ -10,3 +10,6 @@ fmt-unstable = "fmt --all -- --config-path rustfmt-unstable.toml"
 [target.x86_64-unknown-linux-gnu]
 linker = "/usr/bin/clang"
 rustflags = ["-Clink-arg=-fuse-ld=lld", "-Zshare-generics=y"]
+
+[target.x86_64-pc-windows-msvc]
+linker = "lld-link.exe"

@@ -19,4 +19,6 @@ pub struct Votes<AccountId, MemberCount> {
     pub ayes: Vec<(AccountId, MemberCount)>,
     /// The current set of voters that rejected it.
     pub nays: Vec<(AccountId, MemberCount)>,
+    /// whether or not the vote was vetoed
+    pub veto: Option<bool>,
 }
