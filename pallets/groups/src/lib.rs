@@ -576,8 +576,7 @@ pub mod pallet {
             remove_members.as_ref().map_or(0,|a|a.len()) as u32,
         ))]
         pub fn update_group(
-            origin: OriginFor<T>,
-            group_id: T::GroupId,
+            origin: OriginFor<T>,          
             name: Option<Vec<u8>>,
             add_members: Option<Vec<(T::AccountId, T::MemberCount)>>,
             remove_members: Option<Vec<T::AccountId>>,
@@ -586,22 +585,20 @@ pub mod pallet {
             let (caller_group_id, _proposal_id, _yes_votes, _no_votes, _caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
-            let bounded_name = enforce_limit_option!(name);
-
-            ensure!(caller_group_id == group_id, Error::<T>::NotGroup);
+            let bounded_name = enforce_limit_option!(name);           
 
             ensure!(
-                <Groups<T>>::contains_key(group_id),
+                <Groups<T>>::contains_key(caller_group_id),
                 Error::<T>::GroupMissing
             );
 
-            <Groups<T>>::mutate(group_id, |group_option| {
+            <Groups<T>>::mutate(caller_group_id, |group_option| {
                 if let Some(group) = group_option {
                     if let Some(add_members) = add_members {
-                        Self::add_members(group, group_id, add_members);
+                        Self::add_members(group, caller_group_id, add_members);
                     }
                     if let Some(remove_members) = remove_members {
-                        Self::remove_members(group, group_id, remove_members);
+                        Self::remove_members(group, caller_group_id, remove_members);
                     }
                     if let Some(bounded_name) = bounded_name {
                         group.name = bounded_name;
@@ -614,7 +611,7 @@ pub mod pallet {
                 }
             });
 
-            Self::deposit_event(Event::GroupUpdated(group_id));
+            Self::deposit_event(Event::GroupUpdated(caller_group_id));
 
             Ok(().into())
         }
@@ -930,7 +927,7 @@ pub mod pallet {
                 &(ExtrinsicIndex::Proposal as u8),
                 &sender,
             );
-
+            //TODO: should we be creating a proposal_id even when there is no proposal actually created?
             let proposal_id = next_id!(NextProposalId<T>, T);
 
             if threshold == weight {

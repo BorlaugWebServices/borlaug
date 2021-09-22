@@ -88,7 +88,7 @@ benchmarks! {
         let name = vec![42u8; a as usize];
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::update_group(group_id, Some(name),Some(new_members),Some(remove),Some(2u32.into()));
+        let call = Call::<T>::update_group(Some(name),Some(new_members),Some(remove),Some(2u32.into()));
 
     }: { call.dispatch_bypass_filter(origin)? }
 
