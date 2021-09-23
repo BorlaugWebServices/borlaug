@@ -226,7 +226,7 @@ pub mod pallet {
         /// All processes must be removed before removing a definition.
         ProcessesExist,
         /// A string exceeds the maximum allowed length
-        BadString,
+        StringLengthLimitExceeded,
         /// IncorrectStatus
         IncorrectStatus,
         /// No id was found (either user is not owner, or entity does not exist)

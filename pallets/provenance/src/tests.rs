@@ -9,13 +9,13 @@ fn create_group(member: u64, group_id: u32) -> u64 {
     assert_ok!(Groups::create_group(
         Origin::signed(member),
         "Test".to_string().into(),
-        vec![member],
+        vec![(member, 1)],
         1,
         10_000,
     ));
     let group_maybe = Groups::get_group(group_id);
     assert!(group_maybe.is_some());
-    let group = group_maybe.unwrap();
+    let (group, _) = group_maybe.unwrap();
     group.anonymous_account
 }
 

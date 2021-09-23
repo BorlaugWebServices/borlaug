@@ -231,7 +231,7 @@ pub mod pallet {
         /// Value was None
         NoneValue,
         /// A string exceeds the maximum allowed length
-        BadString,
+        StringLengthLimitExceeded,
         /// Value was not found
         NotFound,
         /// Too many properties
@@ -569,7 +569,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Append given collection of Did properties provided the caller is a controller and/or update short_name
+        /// Append given collection of Did properties provided the caller is a controller 
         ///
         /// Arguments:
         /// - `did` DID to which properties are to be added
@@ -676,7 +676,7 @@ pub mod pallet {
             });
 
             Self::deposit_event(Event::DidReplaced(account_id, group_account, did));
-            //TODO: consider measuring how many properties were removed, and refund weight accordingly.
+            
             Ok(().into())
         }
 

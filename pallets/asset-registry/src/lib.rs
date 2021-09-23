@@ -149,7 +149,7 @@ pub mod pallet {
         /// Value was None
         NoneValue,
         /// A string exceeds the maximum allowed length
-        BadString,
+        StringLengthLimitExceeded,
         /// the calling account is not the subject of owner_did
         NotDidSubject,
         /// A non-registry owner account attempted to  modify a registry or asset in the registry

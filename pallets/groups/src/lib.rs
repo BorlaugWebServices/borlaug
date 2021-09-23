@@ -252,7 +252,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new Group was created
-        /// (creator,group_id,annonymous_account)
+        /// (creator,group_id,anonymous_account,initial_balance)
         GroupCreated(
             T::AccountId,
             T::GroupId,
@@ -266,7 +266,7 @@ pub mod pallet {
         /// (group_id,return_funds_too)
         GroupRemoved(T::GroupId, T::AccountId),
         /// A new SubGroup was created
-        /// (parent_group_id,group_id,annonymous_account)
+        /// (parent_group_id,sub_group_id,anonymous_account,initial_balance)
         SubGroupCreated(
             T::GroupId,
             T::GroupId,
@@ -274,13 +274,13 @@ pub mod pallet {
             <T::Currency as Currency<T::AccountId>>::Balance,
         ),
         /// A SubGroup was updated
-        /// (parent_group_id,group_id)
+        /// (parent_group_id,sub_group_id)
         SubGroupUpdated(T::GroupId, T::GroupId),
         /// A Group was removed
-        /// (admin_group_id,group_id)
+        /// (parent_group_id,sub_group_id)
         SubGroupRemoved(T::GroupId, T::GroupId),
         /// A motion was executed by a member of the group;
-        /// (group_id,proposal_hash,member,success)
+        /// (group_id,proposal_hash,member,success,error)
         Executed(
             T::GroupId,
             T::Hash,
@@ -288,11 +288,27 @@ pub mod pallet {
             bool,
             Option<DispatchError>,
         ),
-        /// A new SubGroup was created (proposer,group_id,proposal_id,threshold)
+        /// A new SubGroup was created 
+        /// (proposer,group_id,proposal_id,threshold)
         Proposed(T::AccountId, T::GroupId, T::ProposalId, T::MemberCount),
-        /// A proposal was voted on (voter,group_id,proposal_id,approved)
+        /// A proposal was voted on 
+        /// (voter,group_id,proposal_id,approved)
         Voted(T::AccountId, T::GroupId, T::ProposalId, bool),
-        /// A proposal was approved by veto (vetoer,group_id,proposal_id,approved,success)
+          /// A motion was approved by the required threshold and executed 
+          /// (group_id,proposal_id,yes_votes,no_votes,success,error)
+          Approved(
+            T::GroupId,
+            T::ProposalId,
+            T::MemberCount,
+            T::MemberCount,
+            bool,
+            Option<DispatchError>,
+        ),
+        /// A motion was disapproved by the required threshold 
+        /// (group_id,proposal_id,yes_votes,no_votes)
+        Disapproved(T::GroupId, T::ProposalId, T::MemberCount, T::MemberCount),
+        /// A proposal was approved by veto 
+        /// (vetoer,group_id,proposal_id,success,success)
         ApprovedByVeto(
             T::AccountId,
             T::GroupId,
@@ -300,34 +316,28 @@ pub mod pallet {
             bool,
             Option<DispatchError>,
         ),
-        /// A proposal was disapproved by veto (vetoer,group_id,proposal_id,approved)
+        /// A proposal was disapproved by veto 
+        /// (vetoer,group_id,proposal_id)
         DisapprovedByVeto(T::AccountId, T::GroupId, T::ProposalId),
-        /// A motion was approved by the required threshold and executed (group_id,proposal_id,yes_votes,no_votes,success,error)
-        Approved(
-            T::GroupId,
-            T::ProposalId,
-            T::MemberCount,
-            T::MemberCount,
-            bool,
-            Option<DispatchError>,
-        ),
-        /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
-        Disapproved(T::GroupId, T::ProposalId, T::MemberCount, T::MemberCount),
-        /// funds were withdrawn from a group account (group_id,target_account,amount,success)
+      
+        /// funds were withdrawn from a group account 
+        /// (group_id,target_account,amount,success)
         GroupFundsWithdrawn(
             T::GroupId,
             T::AccountId,
             <T::Currency as Currency<T::AccountId>>::Balance,
             bool,
         ),
-        /// funds were withdrawn from a sub_group account (group_id,sub_group_id,amount,success)
+        /// funds were withdrawn from a sub_group account 
+        /// (group_id,sub_group_id,amount,success)
         SubGroupFundsWithdrawn(
             T::GroupId,
             T::GroupId,
             <T::Currency as Currency<T::AccountId>>::Balance,
             bool,
         ),
-        /// funds were deposited from a group to a sub_group account (group_id,sub_group_id,amount,success)
+        /// funds were deposited from a group to a sub_group account 
+        /// (group_id,sub_group_id,amount,success)
         SubGroupFundsDeposited(
             T::GroupId,
             T::GroupId,
@@ -345,7 +355,7 @@ pub mod pallet {
         /// Invalid threshold provided when creating a group
         InvalidThreshold,
         /// A string exceeds the maximum allowed length
-        BadString,
+        StringLengthLimitExceeded,
         /// Failed to give requested balance to group account
         AccountCreationFailed,
         /// Duplicate proposals not allowed
@@ -783,17 +793,17 @@ pub mod pallet {
 
         /// Remove a Sub-group. Remove all child groups first. Can only be called via a proposal from any group in the parent chain. Funds returned to immediate parent.
         ///
-        /// - `subgroup_id`: Group to be updated   
+        /// - `sub_group_id`: Group to be updated   
         //TODO: does remove_prefix only cost one db write?
         #[pallet::weight(T::WeightInfo::remove_sub_group())]
         pub fn remove_sub_group(
             origin: OriginFor<T>,
-            subgroup_id: T::GroupId,
+            sub_group_id: T::GroupId,
         ) -> DispatchResultWithPostInfo {
             let (caller_group_id, _proposal_id, _yes_votes, _no_votes, _caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
-            let sub_group = Self::groups(subgroup_id).ok_or(Error::<T>::GroupMissing)?;
+            let sub_group = Self::groups(sub_group_id).ok_or(Error::<T>::GroupMissing)?;
             ensure!(sub_group.parent.is_some(), Error::<T>::NotSubGroup);
             ensure!(
                 caller_group_id == sub_group.parent.unwrap(),
@@ -801,7 +811,7 @@ pub mod pallet {
             );
 
             ensure!(
-                <GroupChildren<T>>::iter_prefix(&subgroup_id)
+                <GroupChildren<T>>::iter_prefix(&sub_group_id)
                     .next()
                     .is_none(),
                 Error::<T>::GroupHasChildren
@@ -815,13 +825,13 @@ pub mod pallet {
                 AllowDeath,
             )?;
 
-            <Groups<T>>::remove(&subgroup_id);
-            <GroupChildren<T>>::remove(&caller_group_id, &subgroup_id);
-            <GroupMembers<T>>::remove_prefix(&subgroup_id);
-            <Proposals<T>>::remove_prefix(&subgroup_id);
-            <ProposalHashes<T>>::remove_prefix(&subgroup_id);
+            <Groups<T>>::remove(&sub_group_id);
+            <GroupChildren<T>>::remove(&caller_group_id, &sub_group_id);
+            <GroupMembers<T>>::remove_prefix(&sub_group_id);
+            <Proposals<T>>::remove_prefix(&sub_group_id);
+            <ProposalHashes<T>>::remove_prefix(&sub_group_id);
 
-            Self::deposit_event(Event::SubGroupRemoved(caller_group_id, subgroup_id));
+            Self::deposit_event(Event::SubGroupRemoved(caller_group_id, sub_group_id));
 
             Ok(().into())
         }
@@ -927,10 +937,11 @@ pub mod pallet {
                 &(ExtrinsicIndex::Proposal as u8),
                 &sender,
             );
-            //TODO: should we be creating a proposal_id even when there is no proposal actually created?
+            
             let proposal_id = next_id!(NextProposalId<T>, T);
 
             if threshold == weight {
+                //TODO: should we create votes here?
                 let result = proposal.dispatch(
                     RawOrigin::ProposalApproved(
                         group_id,
@@ -965,6 +976,7 @@ pub mod pallet {
 
                 let votes = Votes {
                     threshold,
+                    total_vote_weight: group.total_vote_weight,
                     ayes: vec![(sender.clone(), weight)],
                     nays: vec![],
                     veto: None,
@@ -1053,7 +1065,9 @@ pub mod pallet {
             }
         }
 
-        /// Close a Proposal. Caller of vote should check if the vote will be approved/disaproved and call close if it will
+        /// Close a Proposal. Caller of vote should check if the vote will be approved/disaproved and call close if it will. 
+        /// Anyone can trigger a close, they don't have to be a member. It could for example be triggered by a service that watches voting.
+        /// TODO: payments?
         ///
         /// - `group_id`: Group executing the extrinsic
         /// - `proposal_id`: Proposal to be closed
@@ -1075,19 +1089,16 @@ pub mod pallet {
             proposal_weight_bound: Weight,
             length_bound: u32,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
-            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
-            let weight_maybe = <GroupMembers<T>>::get(group_id, &sender);
-            ensure!(weight_maybe.is_some(), Error::<T>::NotMember);
-            let weight = weight_maybe.unwrap();
+            let _sender = ensure_signed(origin)?;
+            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;            
 
             let voting = Self::voting(group_id, proposal_id).ok_or(Error::<T>::VoteMissing)?;
 
             let yes_votes = voting.ayes.into_iter().map(|(_, w)| w).sum();
-            let no_votes = voting.nays.into_iter().map(|(_, w)| w).sum();
+            let no_votes = voting.nays.into_iter().map(|(_, w)| w).sum();            
 
             let approved = yes_votes >= voting.threshold;
-            let disapproved = weight.saturating_sub(no_votes) < voting.threshold;
+            let disapproved = voting.total_vote_weight.saturating_sub(no_votes) < voting.threshold;
 
             let proposal =
                 Self::proposals(group_id, proposal_id).ok_or(Error::<T>::ProposalMissing)?;
@@ -1153,13 +1164,12 @@ pub mod pallet {
                 ));
 
                 <Proposals<T>>::remove(group_id, proposal_id);
-                <ProposalHashes<T>>::remove(group_id, proposal_hash);
-
+                <ProposalHashes<T>>::remove(group_id, proposal_hash);                
                 return Ok((
                     Some(T::WeightInfo::close_disapproved(
                         T::MaxMembers::get().into()
                     )),
-                    Pays::No,
+                    Pays::Yes,
                 )
                     .into());
             } else {
@@ -1262,7 +1272,7 @@ pub mod pallet {
 
                 return Ok((
                     Some(T::WeightInfo::veto_disapproved()),
-                    Pays::No,
+                    Pays::Yes,
                 )
                     .into());
             };

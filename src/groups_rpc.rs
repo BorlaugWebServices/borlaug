@@ -49,7 +49,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
-    ) -> Result<VoteResponse<AccountId, ProposalId, MemberCount>>;
+    ) -> Result<VotesResponse<AccountId, ProposalId, MemberCount>>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -110,21 +110,23 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct VoteResponse<AccountId, ProposalId, MemberCount> {
+pub struct VotesResponse<AccountId, ProposalId, MemberCount> {
     pub proposal_id: ProposalId,
     pub threshold: MemberCount,
+    pub total_vote_weight: MemberCount,
     pub ayes: Vec<(AccountId, MemberCount)>,
     pub nays: Vec<(AccountId, MemberCount)>,
 }
 impl<AccountId, ProposalId, MemberCount> From<(ProposalId, Votes<AccountId, MemberCount>)>
-    for VoteResponse<AccountId, ProposalId, MemberCount>
+    for VotesResponse<AccountId, ProposalId, MemberCount>
 {
-    fn from((proposal_id, vote): (ProposalId, Votes<AccountId, MemberCount>)) -> Self {
-        VoteResponse {
+    fn from((proposal_id, votes): (ProposalId, Votes<AccountId, MemberCount>)) -> Self {
+        VotesResponse {
             proposal_id,
-            threshold: vote.threshold,
-            ayes: vote.ayes,
-            nays: vote.nays,
+            threshold: votes.threshold,
+            total_vote_weight: votes.total_vote_weight,
+            ayes: votes.ayes,
+            nays: votes.nays,
         }
     }
 }
@@ -277,7 +279,7 @@ where
         group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<VoteResponse<AccountId, ProposalId, MemberCount>> {
+    ) -> Result<VotesResponse<AccountId, ProposalId, MemberCount>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 

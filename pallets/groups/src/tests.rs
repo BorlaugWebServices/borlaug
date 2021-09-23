@@ -582,6 +582,8 @@ fn vote_with_close_and_approve_should_work() {
     });
 }
 
+//TODO: test more variations
+
 #[test]
 fn vote_with_close_and_disapprove_should_work() {
     new_test_ext().execute_with(|| {

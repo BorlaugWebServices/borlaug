@@ -667,6 +667,20 @@ where
                     who.clone()
                 }
             }
+            Some(groups::Call::close(group_id, ..)) => {
+                if let Some(group) = groups::Module::<T>::groups(group_id) {
+                    group.anonymous_account
+                } else {
+                    who.clone()
+                }
+            }
+            Some(groups::Call::veto(group_id, ..)) => {
+                if let Some(group) = groups::Module::<T>::groups(group_id) {
+                    group.anonymous_account
+                } else {
+                    who.clone()
+                }
+            }
             _ => who.clone(),
         };
 
@@ -693,6 +707,20 @@ where
                 }
             }
             Some(groups::Call::execute(group_id, ..)) => {
+                if let Some(group) = groups::Module::<T>::groups(group_id) {
+                    group.anonymous_account
+                } else {
+                    who.clone()
+                }
+            }
+            Some(groups::Call::close(group_id, ..)) => {
+                if let Some(group) = groups::Module::<T>::groups(group_id) {
+                    group.anonymous_account
+                } else {
+                    who.clone()
+                }
+            }
+            Some(groups::Call::veto(group_id, ..)) => {
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {

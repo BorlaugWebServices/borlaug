@@ -175,7 +175,7 @@ pub mod pallet {
     #[pallet::error]
     pub enum Error<T> {
         /// A string exceeds the maximum allowed length
-        BadString,
+        StringLengthLimitExceeded,
         /// A sequential id exceeded its upper bound. Please report this to chain council.
         NoIdAvailable,
         /// The audit does not exist
