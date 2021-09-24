@@ -122,9 +122,9 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// New registry created (owner, proposal_id, audit_id)
+        /// New registry created (auditing_org, proposal_id, audit_id)
         AuditCreated(T::AccountId, T::ProposalId, T::AuditId),
-        /// Audit deleted (owner, audit_id)
+        /// Audit deleted (auditing_org, proposal_id, audit_id)
         AuditRemoved(T::AccountId, T::ProposalId, T::AuditId),
         /// Audit was accepted (auditing_org, proposal_id, audit_id)
         AuditAccepted(T::AccountId, T::ProposalId, T::AuditId),
@@ -729,6 +729,12 @@ pub mod pallet {
             );
 
             if audit.status == AuditStatus::Accepted {
+                Self::deposit_event(Event::AuditStarted(
+                    group_account.clone(),
+                    proposal_id,
+                    audit_id,
+                ));
+
                 audit.status = AuditStatus::InProgress;
                 <Audits<T>>::insert(audit_id, audit);
             }
