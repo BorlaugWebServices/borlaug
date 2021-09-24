@@ -1400,6 +1400,10 @@ pub mod pallet {
                     <GroupMembers<T>>::contains_key(group_id, account)
         }
 
+        pub fn get_group_account(group_id: T::GroupId)-> Option<T::AccountId>{
+            <Groups<T>>::get(group_id).map(|group|group.anonymous_account)
+        }
+
         pub fn get_group(
             group_id: T::GroupId,
         ) -> Option<(

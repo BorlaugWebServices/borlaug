@@ -22,6 +22,9 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         at: Option<BlockHash>,
     ) -> Result<bool>;
 
+    #[rpc(name = "get_group_account")]
+    fn get_group_account(&self, group_id: GroupId, at: Option<BlockHash>) -> Result<AccountId>;
+
     #[rpc(name = "get_group")]
     fn get_group(
         &self,
@@ -228,6 +231,21 @@ where
         Ok(is_member)
     }
 
+    fn get_group_account(
+        &self,
+        group_id: GroupId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<AccountId> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let account_id = api
+            .get_group_account(&at, group_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok(account_id)
+    }
+
     fn get_group(
         &self,
         group_id: GroupId,
@@ -242,6 +260,7 @@ where
             .ok_or(not_found_error!())?;
         Ok((group_id, group, members).into())
     }
+
     fn get_sub_groups(
         &self,
         group_id: GroupId,

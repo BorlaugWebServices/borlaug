@@ -20,6 +20,7 @@ sp_api::decl_runtime_apis! {
     {
         fn member_of(account:AccountId) -> Vec<GroupId>;
         fn is_member(group:GroupId,account:AccountId) -> bool;
+        fn get_group_account(group:GroupId) -> Option<AccountId>;
         fn get_group(group:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedString>,Vec<(AccountId, MemberCount)>)>;
         fn get_sub_groups(group:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedString>,Vec<(AccountId, MemberCount)>)>;
         fn get_proposal(group_id: GroupId,proposal_id:ProposalId) -> Option<(Hash,u32)> ;
