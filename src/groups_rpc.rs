@@ -14,6 +14,14 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     #[rpc(name = "member_of")]
     fn member_of(&self, account: AccountId, at: Option<BlockHash>) -> Result<Vec<GroupId>>;
 
+    #[rpc(name = "is_member")]
+    fn is_member(
+        &self,
+        group_id: GroupId,
+        account: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<bool>;
+
     #[rpc(name = "get_group")]
     fn get_group(
         &self,
@@ -201,12 +209,23 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let runtime_api_result = api.member_of(&at, account);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
+        let groups = api.member_of(&at, account).map_err(convert_error!())?;
+        Ok(groups)
+    }
+
+    fn is_member(
+        &self,
+        group_id: GroupId,
+        account: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<bool> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let is_member = api
+            .is_member(&at, group_id, account)
+            .map_err(convert_error!())?;
+        Ok(is_member)
     }
 
     fn get_group(

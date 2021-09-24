@@ -72,13 +72,10 @@ pub mod pallet {
     use group_info::GroupInfo;
     use primitives::{bounded_vec::BoundedVec, *};
     use sp_io::hashing::blake2_256;
-    use sp_runtime::{
-        traits::{
+    use sp_runtime::{ Either, traits::{
             AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Hash, One, Saturating,
             UniqueSaturatedInto, Zero,
-        },
-        Either,
-    };
+        }};
     use sp_std::{iter::Sum, prelude::*, vec};
 
     const MODULE_INDEX: u8 = 1;
@@ -279,6 +276,8 @@ pub mod pallet {
         /// A Group was removed
         /// (parent_group_id,sub_group_id)
         SubGroupRemoved(T::GroupId, T::GroupId),
+/// Total vote weight must not exceed group member limit
+        GroupMembersExceeded(T::GroupId),
         /// A motion was executed by a member of the group;
         /// (group_id,proposal_hash,member,success,error)
         Executed(
@@ -390,8 +389,9 @@ pub mod pallet {
         NotParentGroup,
         /// User is not the group account (was not correctly called via proposal)
         NotGroupAccount,
-
+/// A chain generated Id has exceeded its capacity
         NoIdAvailable,
+
     }
 
     #[pallet::type_value]
@@ -604,12 +604,12 @@ pub mod pallet {
 
             <Groups<T>>::mutate(caller_group_id, |group_option| {
                 if let Some(group) = group_option {
-                    if let Some(add_members) = add_members {
-                        Self::add_members(group, caller_group_id, add_members);
-                    }
                     if let Some(remove_members) = remove_members {
                         Self::remove_members(group, caller_group_id, remove_members);
                     }
+                    if let Some(add_members) = add_members {
+                        Self::add_members(group, caller_group_id, add_members);
+                    }                  
                     if let Some(bounded_name) = bounded_name {
                         group.name = bounded_name;
                     }
@@ -726,12 +726,12 @@ pub mod pallet {
 
             <Groups<T>>::mutate(sub_group_id, |sub_group_option| {
                 if let Some(sub_group) = sub_group_option {
-                    if let Some(add_members) = add_members {
-                        Self::add_members(sub_group, sub_group_id, add_members);
-                    }
                     if let Some(remove_members) = remove_members {
                         Self::remove_members(sub_group, sub_group_id, remove_members);
                     }
+                    if let Some(add_members) = add_members {
+                        Self::add_members(sub_group, sub_group_id, add_members);
+                    }                   
                     if let Some(bounded_name) = bounded_name {
                         sub_group.name = bounded_name;
                     }
@@ -1396,6 +1396,10 @@ pub mod pallet {
                 .collect()
         }
 
+        pub fn is_member(group_id:T::GroupId,account: &T::AccountId) -> bool{            
+                    <GroupMembers<T>>::contains_key(group_id, account)
+        }
+
         pub fn get_group(
             group_id: T::GroupId,
         ) -> Option<(
@@ -1470,18 +1474,26 @@ pub mod pallet {
             >,
             group_id: T::GroupId,
             members: Vec<(T::AccountId, T::MemberCount)>,
-        ) {
-            members.into_iter().for_each(|(account, mut weight)| {
+        )  {
+            for (account, mut weight) in members {                
                 if weight == Zero::zero() {
                     weight = 1u32.into();
                 }
+                let mut total_vote_weight=group.total_vote_weight;
                 let old_member_maybe = <GroupMembers<T>>::get(group_id, &account);
                 if let Some(old_weight) = old_member_maybe {
-                    group.total_vote_weight -= old_weight;
+                    total_vote_weight -= old_weight;
                 }
-                group.total_vote_weight += weight;
+                total_vote_weight += weight;
+                if total_vote_weight<=T::MaxMembers::get() {
+
+                group.total_vote_weight=total_vote_weight;
                 <GroupMembers<T>>::insert(group_id, &account, weight);
-            });
+                }else{
+                    //Use event not error here because we have already mutated data in the db so we want to complete.
+                    Self::deposit_event(Event::GroupMembersExceeded(group_id));
+                }
+            };            
         }
 
         fn remove_members(
@@ -1501,11 +1513,7 @@ pub mod pallet {
                 }
                 <GroupMembers<T>>::remove(group_id, account);
             });
-        }
-
-        fn is_member(group_id: T::GroupId, account_id: &T::AccountId) -> bool {
-            <GroupMembers<T>>::contains_key(group_id, account_id)
-        }
+        }        
 
         fn is_group_account(group_id: T::GroupId, account_id: &T::AccountId) -> bool {
             let group = <Groups<T>>::get(group_id);

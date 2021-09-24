@@ -1201,20 +1201,23 @@ impl_runtime_apis! {
         fn member_of(account:AccountId) -> Vec<GroupId>  {
             Groups::member_of(account)
         }
-        fn get_group(group:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
-            Groups::get_group(group)
+        fn is_member(group_id:GroupId,account:AccountId) -> bool  {
+            Groups::is_member(group_id,&account)
         }
-        fn get_sub_groups(group:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
-            Groups::get_sub_groups(group)
+        fn get_group(group_id:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+            Groups::get_group(group_id)
         }
-        fn get_proposal(group:GroupId,proposal_id:ProposalId) ->Option<(Hash,u32)>{
-            Groups::get_proposal(group,proposal_id)
+        fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+            Groups::get_sub_groups(group_id)
         }
-        fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash,u32)>{
-            Groups::get_proposals(group)
+        fn get_proposal(group_id:GroupId,proposal_id:ProposalId) ->Option<(Hash,u32)>{
+            Groups::get_proposal(group_id,proposal_id)
         }
-        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
-            Groups::get_voting(group, proposal)
+        fn get_proposals(group_id:GroupId) -> Vec<(ProposalId, Hash,u32)>{
+            Groups::get_proposals(group_id)
+        }
+        fn get_voting(group_id:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
+            Groups::get_voting(group_id, proposal)
         }
     }
 
