@@ -1265,11 +1265,20 @@ impl_runtime_apis! {
         fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<AccountId, MemberCount,BoundedStringName>)>  {
             Provenance::get_definition_steps(registry_id,definition_id)
         }
+        fn get_available_definitions(account_id:AccountId) -> Vec<(RegistryId,DefinitionId,Definition<BoundedStringName>)>   {
+            Provenance::get_available_definitions(account_id)
+        }
         fn get_processes(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(ProcessId,Process<BoundedStringName>)>  {
             Provenance::get_processes(registry_id,definition_id)
         }
         fn get_process(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Option<Process<BoundedStringName>>  {
             Provenance::get_process(registry_id,definition_id,process_id)
+        }
+        fn get_processes_for_attestor_by_status(account_id: AccountId,status: ProcessStatus) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>  {
+            Provenance::get_processes_for_attestor_by_status(account_id,status)
+        }
+        fn get_processes_for_attestor_pending(account_id: AccountId) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>  {
+            Provenance::get_processes_for_attestor_pending(account_id)
         }
         fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<BoundedStringName,BoundedStringFact>>  {
             Provenance::get_process_steps(registry_id,definition_id,process_id)
@@ -1310,6 +1319,8 @@ impl_runtime_apis! {
         fn get_claim_issuers(did: Did) -> Vec<(AccountId,Moment)>{Identity::get_claim_issuers(did)}
         fn get_dids_by_consumer(consumer:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_consumer(consumer)}
         fn get_dids_by_issuer(issuer:AccountId) -> Vec<(Did,Moment)>{Identity::get_dids_by_issuer(issuer)}
+        fn get_outstanding_claims(consumer:AccountId) -> Vec<(Did,Moment)>{Identity::get_outstanding_claims(consumer)}
+        fn get_outstanding_attestations(issuer:AccountId) -> Vec<(Did,Moment)>{Identity::get_outstanding_attestations(issuer)}
     }
 
     impl audits_runtime_api::AuditsApi<Block,AccountId,ProposalId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {
@@ -1321,6 +1332,9 @@ impl_runtime_apis! {
         }
         fn get_audits_by_auditors(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_auditors(account_id)
+        }
+        fn get_linked_audits(audit_id:AuditId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
+            Audits::get_linked_audits(audit_id)
         }
         fn get_audit(audit_id:AuditId) -> Option<Audit<AccountId,ProposalId>>{
             Audits::get_audit(audit_id)
@@ -1334,11 +1348,15 @@ impl_runtime_apis! {
         fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation)>{
             Audits::get_observation_by_control_point(audit_id,control_point_id)
         }
-        fn get_evidence(audit_id:AuditId,evidence_id:EvidenceId)->Option<Evidence<BoundedStringName>>{
+        fn get_evidence(audit_id:AuditId,evidence_id:EvidenceId)->Option<Evidence<ProposalId,BoundedStringName>>{
             Audits::get_evidence(audit_id,evidence_id)
         }
-        fn get_evidence_by_audit(audit_id:AuditId)->Vec<(EvidenceId,Evidence<BoundedStringName>)>{
+        fn get_evidence_by_audit(audit_id:AuditId)->Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
             Audits::get_evidence_by_audit(audit_id)
+        }
+
+        fn get_evidence_by_proposal(audit_id: AuditId,proposal_id:ProposalId)->Option<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
+            Audits::get_evidence_by_proposal(audit_id,proposal_id)
         }
         fn get_evidence_links_by_evidence(evidence_id:EvidenceId)->Vec<ObservationId>{
             Audits::get_evidence_links_by_evidence(evidence_id)

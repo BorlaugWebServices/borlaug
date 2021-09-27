@@ -10,12 +10,6 @@ pub struct Group<GroupId, AccountId, MemberCount, BoundedString> {
     pub anonymous_account: AccountId,
     pub parent: Option<GroupId>,
 }
-
-// struct Ident {
-//     account: Option<AccountId>,
-//     did: Option<Did>,
-// }
-
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 /// Info for keeping track of a motion being voted on.
 pub struct Votes<AccountId, MemberCount> {

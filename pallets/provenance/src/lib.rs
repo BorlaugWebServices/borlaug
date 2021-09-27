@@ -288,6 +288,20 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
+    #[pallet::getter(fn definition_steps_by_attestor)]
+    /// A Process has multiple steps
+    /// (T::RegistryId,T::DefinitionId), u8 => DefinitionStep
+    pub(super) type DefinitionStepsByAttestor<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        Blake2_128Concat,
+        (T::RegistryId, T::DefinitionId, T::DefinitionStepIndex),
+        (),
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
     #[pallet::getter(fn processes)]
     /// A process Definition can have multiple process Processes
     /// (T::RegistryId,T::DefinitionId), T::ProcessId => T::ProcessId
@@ -655,7 +669,7 @@ pub mod pallet {
 
             let definition_step = DefinitionStep {
                 name: bounded_name,
-                attestor,
+                attestor: attestor.clone(),
                 threshold,
             };
 
@@ -664,6 +678,14 @@ pub mod pallet {
                 definition_step_index,
                 definition_step,
             );
+
+            if let Some(attestor) = attestor {
+                <DefinitionStepsByAttestor<T>>::insert(
+                    attestor,
+                    (registry_id, definition_id, definition_step_index),
+                    (),
+                );
+            }
 
             Self::deposit_event(Event::DefinitionStepCreated(
                 sender,
@@ -679,7 +701,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` the Definition
-        /// - `definition_step_index` New definition_step_index (should equal existing step count)
+        /// - `definition_step_index` index of definition step to be updated
         /// - `name` name of the Definition Step. Can only be changed when in status `Creating`
         /// - `attestor` Attestor for the step. Can only be set to None when in status `Creating`
         /// - `threshold` Required threshold if Attestor is a group account else set to 1
@@ -734,8 +756,22 @@ pub mod pallet {
                         if let Some(bounded_name) = bounded_name {
                             definition_step.name = bounded_name;
                         }
-                        if let Some(attestor) = attestor {
-                            definition_step.attestor = attestor;
+                        if let Some(attestor) = &attestor {
+                            if let Some(old_attestor) = &definition_step.attestor {
+                                <DefinitionStepsByAttestor<T>>::remove(
+                                    old_attestor,
+                                    (registry_id, definition_id, definition_step_index),
+                                );
+                            }
+
+                            definition_step.attestor = attestor.clone();
+                            if let Some(new_attestor) = &attestor {
+                                <DefinitionStepsByAttestor<T>>::insert(
+                                    new_attestor,
+                                    (registry_id, definition_id, definition_step_index),
+                                    (),
+                                );
+                            }
                         }
                         if let Some(threshold) = threshold {
                             definition_step.threshold = threshold;
@@ -758,7 +794,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` Definition the process is related to
-        /// - `definition_step_index` New definition_step_index (should equal existing step count)
+        /// - `definition_step_index` index of definition step to be deleted
         #[pallet::weight(<T as Config>::WeightInfo::delete_definition_step(
             <T as Config>::DefinitionStepLimit::get()
         ))]
@@ -789,8 +825,6 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            <DefinitionSteps<T>>::remove((registry_id, definition_id), definition_step_index);
-
             let one = T::DefinitionStepIndex::unique_saturated_from(1u32);
 
             let mut step_count = 0u32;
@@ -800,12 +834,36 @@ pub mod pallet {
                 let next_step =
                     <DefinitionSteps<T>>::take((registry_id, definition_id), definition_step_index);
                 match next_step {
-                    Some(next_step) => <DefinitionSteps<T>>::insert(
-                        (registry_id, definition_id),
-                        definition_step_index.saturating_sub(one),
-                        next_step,
-                    ),
-                    None => break,
+                    Some(next_step) => {
+                        if let Some(attestor) = &next_step.attestor {
+                            <DefinitionStepsByAttestor<T>>::remove(
+                                attestor,
+                                (registry_id, definition_id, definition_step_index),
+                            );
+                            <DefinitionStepsByAttestor<T>>::insert(
+                                attestor,
+                                (
+                                    registry_id,
+                                    definition_id,
+                                    definition_step_index.saturating_sub(one),
+                                ),
+                                (),
+                            );
+                        }
+                        <DefinitionSteps<T>>::insert(
+                            (registry_id, definition_id),
+                            definition_step_index.saturating_sub(one),
+                            next_step,
+                        );
+                    }
+                    None => {
+                        <DefinitionSteps<T>>::remove(
+                            (registry_id, definition_id),
+                            definition_step_index.saturating_sub(one),
+                        );
+
+                        break;
+                    }
                 };
             }
 
@@ -1182,6 +1240,36 @@ pub mod pallet {
 
             definition_steps
         }
+
+        pub fn get_available_definitions(
+            account_id: T::AccountId,
+        ) -> Vec<(
+            T::RegistryId,
+            T::DefinitionId,
+            Definition<BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            let mut definitions = Vec::new();
+            <DefinitionStepsByAttestor<T>>::iter_prefix(account_id).for_each(
+                |((registry_id, definition_id, step_index), _)| {
+                    if step_index == T::DefinitionStepIndex::unique_saturated_from(0u32) {
+                        let maybe_definition = <Definitions<T>>::get(registry_id, definition_id);
+                        if let Some(definition) = maybe_definition {
+                            if definitions
+                                .iter()
+                                .find(|(r_id, d_id, _)| {
+                                    *r_id == registry_id && *d_id == definition_id
+                                })
+                                .is_none()
+                            {
+                                definitions.push((registry_id, definition_id, definition));
+                            }
+                        }
+                    }
+                },
+            );
+            definitions
+        }
+
         pub fn get_processes(
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
@@ -1203,6 +1291,91 @@ pub mod pallet {
         ) -> Option<Process<BoundedVec<u8, <T as Config>::NameLimit>>> {
             <Processes<T>>::get((registry_id, definition_id), process_id)
         }
+        /// Processes where an account is the attestor on at least one step and the specified status
+        pub fn get_processes_for_attestor_by_status(
+            account_id: T::AccountId,
+            status: ProcessStatus,
+        ) -> Vec<(
+            T::RegistryId,
+            T::DefinitionId,
+            T::ProcessId,
+            Process<BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            let mut definitions = Vec::new();
+            <DefinitionStepsByAttestor<T>>::iter_prefix(account_id).for_each(
+                |((registry_id, definition_id, _), _)| {
+                    if definitions
+                        .iter()
+                        .find(|(r_id, d_id)| *r_id == registry_id && *d_id == definition_id)
+                        .is_none()
+                    {
+                        definitions.push((registry_id, definition_id));
+                    }
+                },
+            );
+
+            let mut processes = Vec::new();
+
+            definitions.iter().for_each(|(registry_id, definition_id)| {
+                <Processes<T>>::iter_prefix((registry_id, definition_id)).for_each(
+                    |(process_id, process)| {
+                        if process.status == status {
+                            processes.push((*registry_id, *definition_id, process_id, process))
+                        }
+                    },
+                );
+            });
+
+            processes
+        }
+
+        /// Processes where an account is the attestor on the step that is pending
+        pub fn get_processes_for_attestor_pending(
+            account_id: T::AccountId,
+        ) -> Vec<(
+            T::RegistryId,
+            T::DefinitionId,
+            T::ProcessId,
+            Process<BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            let mut definition_steps = Vec::new();
+            <DefinitionStepsByAttestor<T>>::iter_prefix(account_id).for_each(
+                |((registry_id, definition_id, step_index), _)| {
+                    definition_steps.push((registry_id, definition_id, step_index));
+                },
+            );
+
+            let mut processes = Vec::new();
+
+            definition_steps
+                .iter()
+                .for_each(|(registry_id, definition_id, step_index)| {
+                    <Processes<T>>::iter_prefix((registry_id, definition_id)).for_each(
+                        |(process_id, process)| {
+                            if process.status == ProcessStatus::InProgress {
+                                let process_step_maybe = <ProcessSteps<T>>::get(
+                                    (registry_id, definition_id, process_id),
+                                    step_index,
+                                );
+                                //if process step has been created but is not attested then it is pending
+                                if let Some(process_step) = process_step_maybe {
+                                    if !process_step.attested {
+                                        processes.push((
+                                            *registry_id,
+                                            *definition_id,
+                                            process_id,
+                                            process,
+                                        ))
+                                    }
+                                }
+                            }
+                        },
+                    );
+                });
+
+            processes
+        }
+
         pub fn get_process_steps(
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,

@@ -72,7 +72,8 @@ where
     >,
     C::Api: audits_runtime_api::AuditsApi<
         Block,
-        AccountId, ProposalId,
+        AccountId,
+        ProposalId,
         AuditId,
         ControlPointId,
         EvidenceId,

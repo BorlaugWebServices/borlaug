@@ -59,10 +59,7 @@ pub mod pallet {
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use primitives::{bounded_vec::BoundedVec, *};
-    use sp_runtime::{
-        traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
-        Either,
-    };
+    use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One};
     use sp_std::prelude::*;
 
     const MODULE_INDEX: u8 = 5;
@@ -120,42 +117,59 @@ pub mod pallet {
         T::AuditId = "AuditId",
         T::ObservationId = "ObservationId",
         T::ControlPointId = "ControlPointId",
-        T::EvidenceId = "EvidenceId"
+        T::EvidenceId = "EvidenceId",
+        T::ProposalId = "ProposalId"
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// New registry created (owner, audit_id)
-        AuditCreated(T::AccountId, T::AuditId),
+        /// New registry created (owner, proposal_id, audit_id)
+        AuditCreated(T::AccountId, T::ProposalId, T::AuditId),
         /// Audit deleted (owner, audit_id)
-        AuditRemoved(T::AccountId, T::AuditId),
-        /// Audit was accepted (auditing_org, audit_id)
-        AuditAccepted(T::AccountId, T::AuditId),
-        /// Audit was rejected (auditing_org, audit_id)
-        AuditRejected(T::AccountId, T::AuditId),
-        /// Audit was accepted (auditing_org, audit_id, auditors)
-        AuditorsAssigned(T::AccountId, T::AuditId, T::AccountId),
-        /// Audit was started (auditors, audit_id)
-        AuditStarted(T::AccountId, T::AuditId),
-        /// Audit was completed (auditing_org, audit_id)
-        AuditCompleted(T::AccountId, T::AuditId),
-        /// New observation created (auditors, auditor,audit_id, control_point_id, observation_id)
+        AuditRemoved(T::AccountId, T::ProposalId, T::AuditId),
+        /// Audit was accepted (auditing_org, proposal_id, audit_id)
+        AuditAccepted(T::AccountId, T::ProposalId, T::AuditId),
+        /// Audit was rejected (auditing_org, proposal_id, audit_id)
+        AuditRejected(T::AccountId, T::ProposalId, T::AuditId),
+        /// Audit was accepted (auditing_org, proposal_id, audit_id, auditors)
+        AuditorsAssigned(T::AccountId, T::ProposalId, T::AuditId, T::AccountId),
+        /// Audit was started (auditors, proposal_id, audit_id)
+        AuditStarted(T::AccountId, T::ProposalId, T::AuditId),
+        /// Audit was completed (auditing_org, proposal_id, audit_id)
+        AuditCompleted(T::AccountId, T::ProposalId, T::AuditId),
+        /// Audit was linked (auditing_org, parent_audit_id, child_audit_id)
+        AuditLinked(T::AccountId, T::AuditId, T::AuditId),
+        /// Audit was unlinked (auditing_org, parent_audit_id, child_audit_id)
+        AuditUnlinked(T::AccountId, T::AuditId, T::AuditId),
+        /// New observation created (auditors, proposal_id, audit_id, control_point_id, observation_id)
         ObservationCreated(
             T::AccountId,
-            T::AccountId,
+            T::ProposalId,
             T::AuditId,
             T::ControlPointId,
             T::ObservationId,
         ),
-        /// Evidence Attached (auditors, audit_id, evidence_id)
-        EvidenceAttached(T::AccountId, T::AuditId, T::EvidenceId),
-        /// Evidence Linked to Observation (auditors, audit_id, evidence_id, observation_id)
-        EvidenceLinked(T::AccountId, T::AuditId, T::EvidenceId, T::ObservationId),
-        /// Evidence Unlinked from Observation (auditors, audit_id, evidence_id, observation_id)
-        EvidenceUnlinked(T::AccountId, T::AuditId, T::EvidenceId, T::ObservationId),
-        /// Evidence Deleted from Audit (auditors, audit_id, evidence_id)       
-        EvidenceDeleted(T::AccountId, T::AuditId, T::EvidenceId),
-        /// Evidence could not be deleted due to too many observation links. Call delete_evidence again. (auditors, audit_id, evidence_id)
-        EvidenceDeleteFailed(T::AccountId, T::AuditId, T::EvidenceId),
+        /// Evidence Attached (auditors, proposal_id, audit_id, evidence_id)
+        EvidenceAttached(T::AccountId, T::ProposalId, T::AuditId, T::EvidenceId),
+        /// Evidence Linked to Observation (auditors, proposal_id, audit_id, evidence_id, observation_id)
+        EvidenceLinked(
+            T::AccountId,
+            T::ProposalId,
+            T::AuditId,
+            T::EvidenceId,
+            T::ObservationId,
+        ),
+        /// Evidence Unlinked from Observation (auditors, proposal_id, audit_id, evidence_id, observation_id)
+        EvidenceUnlinked(
+            T::AccountId,
+            T::ProposalId,
+            T::AuditId,
+            T::EvidenceId,
+            T::ObservationId,
+        ),
+        /// Evidence Deleted from Audit (auditors, proposal_id, audit_id, evidence_id)       
+        EvidenceDeleted(T::AccountId, T::ProposalId, T::AuditId, T::EvidenceId),
+        /// Evidence could not be deleted due to too many observation links. Call delete_evidence again. (auditors, proposal_id, audit_id, evidence_id)
+        EvidenceDeleteFailed(T::AccountId, T::ProposalId, T::AuditId, T::EvidenceId),
     }
 
     #[pallet::error]
@@ -174,6 +188,8 @@ pub mod pallet {
         AuditIsNotInProgress,
         /// The audit must be in the `Accepted` or `InProgress` state.
         AuditIsNotAcceptedOrInProgress,
+        /// The audit must be in the `Accepted` or `InProgress` or `Completed` state.
+        AuditIsNotAcceptedOrInProgressOrCompleted,
         /// The audit does not have an auditor assigned
         AuditorNotAssigned,
         /// The caller must be the auditor to execute this action.
@@ -245,6 +261,19 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
+    #[pallet::getter(fn linked_audits)]
+    /// Linked audits
+    pub type LinkedAudits<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AuditId,
+        Blake2_128Concat,
+        T::AuditId,
+        (),
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
     #[pallet::getter(fn audit_by_proposal)]
     /// Audit by proposal_id
     pub type AuditByProposal<T: Config> =
@@ -311,9 +340,15 @@ pub mod pallet {
         T::AuditId,
         Blake2_128Concat,
         T::EvidenceId,
-        Evidence<BoundedVec<u8, <T as Config>::NameLimit>>,
+        Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
         OptionQuery,
     >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn evidence_by_proposal)]
+    /// Evidence by proposal_id
+    pub type EvidenceByProposal<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::ProposalId, T::EvidenceId, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn evidence_links_by_evidence)]
@@ -351,14 +386,15 @@ pub mod pallet {
             origin: OriginFor<T>,
             auditing_org: T::AccountId,
         ) -> DispatchResultWithPostInfo {
-            let (sender, proposal_id) = ensure_account_or_threshold!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let audit_id = next_id!(NextAuditId<T>, T);
 
             let audit = Audit {
                 proposal_id,
                 status: AuditStatus::Requested,
-                audit_creator: sender.clone(),
+                audit_creator: group_account.clone(),
                 auditing_org: auditing_org.clone(),
                 auditors: None,
             };
@@ -366,17 +402,15 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Audit as u8),
-                &sender,
+                &group_account,
             );
 
             <Audits<T>>::insert(&audit_id, audit);
-            if let Some(proposal_id) = proposal_id {
-                <AuditByProposal<T>>::insert(&proposal_id, audit_id);
-            }
-            <AuditsByCreator<T>>::insert(&sender, &audit_id, ());
+            <AuditByProposal<T>>::insert(&proposal_id, audit_id);
+            <AuditsByCreator<T>>::insert(&group_account, &audit_id, ());
             <AuditsByAuditingOrg<T>>::insert(&auditing_org, &audit_id, ());
 
-            Self::deposit_event(Event::AuditCreated(sender, audit_id));
+            Self::deposit_event(Event::AuditCreated(group_account, proposal_id, audit_id));
             Ok(().into())
         }
 
@@ -389,7 +423,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
-            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -399,18 +434,16 @@ pub mod pallet {
                 <Error<T>>::AuditIsNotRequested
             );
             ensure!(
-                audit.audit_creator == sender.clone(),
+                audit.audit_creator == group_account.clone(),
                 <Error<T>>::NotCreator
             );
 
             <Audits<T>>::remove(&audit_id);
-            if let Some(proposal_id) = audit.proposal_id {
-                <AuditByProposal<T>>::remove(&proposal_id);
-            }
-            <AuditsByCreator<T>>::remove(&sender, &audit_id);
+            <AuditByProposal<T>>::remove(&proposal_id);
+            <AuditsByCreator<T>>::remove(&group_account, &audit_id);
             <AuditsByAuditingOrg<T>>::remove(&audit.auditing_org, &audit_id);
 
-            Self::deposit_event(Event::AuditRemoved(sender, audit_id));
+            Self::deposit_event(Event::AuditRemoved(group_account, proposal_id, audit_id));
             Ok(().into())
         }
 
@@ -423,7 +456,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
-            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -432,12 +466,15 @@ pub mod pallet {
                 audit.status == AuditStatus::Requested,
                 <Error<T>>::AuditIsNotRequested
             );
-            ensure!(audit.auditing_org == sender.clone(), <Error<T>>::NotAuditor);
+            ensure!(
+                audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
             audit.status = AuditStatus::Accepted;
 
             <Audits<T>>::insert(audit_id, audit);
 
-            Self::deposit_event(Event::AuditAccepted(sender, audit_id));
+            Self::deposit_event(Event::AuditAccepted(group_account, proposal_id, audit_id));
             Ok(().into())
         }
 
@@ -453,7 +490,8 @@ pub mod pallet {
             audit_id: T::AuditId,
             auditors: T::AccountId,
         ) -> DispatchResultWithPostInfo {
-            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -462,7 +500,10 @@ pub mod pallet {
                 audit.status == AuditStatus::Accepted || audit.status == AuditStatus::InProgress,
                 <Error<T>>::AuditIsNotAcceptedOrInProgress
             );
-            ensure!(audit.auditing_org == sender.clone(), <Error<T>>::NotAuditor);
+            ensure!(
+                audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
 
             let replacing = audit.auditors.is_some();
             if replacing {
@@ -475,7 +516,12 @@ pub mod pallet {
 
             <AuditsByAuditors<T>>::insert(&auditors, &audit_id, ());
 
-            Self::deposit_event(Event::AuditorsAssigned(sender, audit_id, auditors));
+            Self::deposit_event(Event::AuditorsAssigned(
+                group_account,
+                proposal_id,
+                audit_id,
+                auditors,
+            ));
 
             Ok((Some(if replacing {
                 <T as Config>::WeightInfo::assign_auditors_replace()
@@ -494,7 +540,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
-            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -503,13 +550,16 @@ pub mod pallet {
                 audit.status == AuditStatus::Requested,
                 <Error<T>>::AuditIsNotRequested
             );
-            ensure!(audit.auditing_org == sender.clone(), <Error<T>>::NotAuditor);
+            ensure!(
+                audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
 
             audit.status = AuditStatus::Rejected;
 
             <Audits<T>>::insert(audit_id, audit);
 
-            Self::deposit_event(Event::AuditRejected(sender, audit_id));
+            Self::deposit_event(Event::AuditRejected(group_account, proposal_id, audit_id));
             Ok(().into())
         }
 
@@ -522,7 +572,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
         ) -> DispatchResultWithPostInfo {
-            let (sender, _proposal_id) = ensure_account_or_threshold!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -531,13 +582,109 @@ pub mod pallet {
                 audit.status == AuditStatus::InProgress,
                 <Error<T>>::AuditIsNotInProgress
             );
-            ensure!(audit.auditing_org == sender.clone(), <Error<T>>::NotAuditor);
+            ensure!(
+                audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
 
             audit.status = AuditStatus::Completed;
 
             <Audits<T>>::insert(audit_id, audit);
 
-            Self::deposit_event(Event::AuditCompleted(sender, audit_id));
+            Self::deposit_event(Event::AuditCompleted(group_account, proposal_id, audit_id));
+            Ok(().into())
+        }
+
+        /// Link Audit
+        ///
+        /// Arguments:
+        /// - `parent_audit_id`
+        /// - `child_audit_id`
+        //TODO: benchmarking
+        #[pallet::weight(10_000)]
+        pub fn link_audit(
+            origin: OriginFor<T>,
+            parent_audit_id: T::AuditId,
+            child_audit_id: T::AuditId,
+        ) -> DispatchResultWithPostInfo {
+            let (_, _, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+
+            let maybe_parent_audit = <Audits<T>>::get(parent_audit_id);
+            ensure!(maybe_parent_audit.is_some(), <Error<T>>::AuditNotFound);
+            let parent_audit = maybe_parent_audit.unwrap();
+            ensure!(
+                parent_audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
+            ensure!(
+                parent_audit.status == AuditStatus::Accepted
+                    || parent_audit.status == AuditStatus::InProgress
+                    || parent_audit.status == AuditStatus::Completed,
+                <Error<T>>::AuditIsNotAcceptedOrInProgressOrCompleted
+            );
+
+            let maybe_child_audit = <Audits<T>>::get(child_audit_id);
+            ensure!(maybe_child_audit.is_some(), <Error<T>>::AuditNotFound);
+            let child_audit = maybe_child_audit.unwrap();
+            ensure!(
+                child_audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
+            ensure!(
+                child_audit.status == AuditStatus::Accepted
+                    || child_audit.status == AuditStatus::InProgress
+                    || child_audit.status == AuditStatus::Completed,
+                <Error<T>>::AuditIsNotAcceptedOrInProgressOrCompleted
+            );
+
+            <LinkedAudits<T>>::insert(parent_audit_id, child_audit_id, ());
+
+            Self::deposit_event(Event::AuditLinked(
+                group_account,
+                parent_audit_id,
+                child_audit_id,
+            ));
+            Ok(().into())
+        }
+        /// Unlink Audit
+        ///
+        /// Arguments:
+        /// - `parent_audit_id`
+        /// - `child_audit_id`
+        //TODO: benchmarking
+        #[pallet::weight(10_000)]
+        pub fn unlink_audit(
+            origin: OriginFor<T>,
+            parent_audit_id: T::AuditId,
+            child_audit_id: T::AuditId,
+        ) -> DispatchResultWithPostInfo {
+            let (_, _, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+
+            let maybe_parent_audit = <Audits<T>>::get(parent_audit_id);
+            ensure!(maybe_parent_audit.is_some(), <Error<T>>::AuditNotFound);
+            let parent_audit = maybe_parent_audit.unwrap();
+            ensure!(
+                parent_audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
+
+            let maybe_child_audit = <Audits<T>>::get(child_audit_id);
+            ensure!(maybe_child_audit.is_some(), <Error<T>>::AuditNotFound);
+            let child_audit = maybe_child_audit.unwrap();
+            ensure!(
+                child_audit.auditing_org == group_account.clone(),
+                <Error<T>>::NotAuditor
+            );
+
+            <LinkedAudits<T>>::remove(parent_audit_id, child_audit_id);
+
+            Self::deposit_event(Event::AuditUnlinked(
+                group_account,
+                parent_audit_id,
+                child_audit_id,
+            ));
             Ok(().into())
         }
 
@@ -554,7 +701,8 @@ pub mod pallet {
             control_point_id: T::ControlPointId,
             observation: Observation,
         ) -> DispatchResultWithPostInfo {
-            let (sender, group_account) = ensure_account_or_executed!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -586,7 +734,7 @@ pub mod pallet {
 
             Self::deposit_event(Event::ObservationCreated(
                 group_account,
-                sender,
+                proposal_id,
                 audit_id,
                 control_point_id,
                 observation_id,
@@ -600,18 +748,22 @@ pub mod pallet {
         /// - `audit_id` id of audit created on chain
         /// - `evidence` Body of evidence
         #[pallet::weight(<T as Config>::WeightInfo::create_evidence(
-            evidence.name.len() as u32,
-            evidence.content_type.len() as u32,
-            evidence.url.as_ref().map_or(0,|url|url.len()) as u32,
-            evidence.hash.len() as u32,
+            name.len() as u32,
+            content_type.len() as u32,
+            url.as_ref().map_or(0,|url|url.len()) as u32,
+            hash.len() as u32,
 
         ))]
         pub fn create_evidence(
             origin: OriginFor<T>,
             audit_id: T::AuditId,
-            evidence: Evidence<Vec<u8>>,
+            name: Vec<u8>,
+            content_type: Vec<u8>,
+            url: Option<Vec<u8>>,
+            hash: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
-            let (sender, group_account) = ensure_account_or_executed!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -626,20 +778,21 @@ pub mod pallet {
                 <Error<T>>::NotAuditor
             );
 
-            let bounded_content_type = enforce_limit!(evidence.content_type);
-            let bounded_hash = enforce_limit!(evidence.hash);
-            let bounded_name = enforce_limit!(evidence.name);
-            let bounded_url = enforce_limit_option!(evidence.url);
+            let bounded_content_type = enforce_limit!(content_type);
+            let bounded_hash = enforce_limit!(hash);
+            let bounded_name = enforce_limit!(name);
+            let bounded_url = enforce_limit_option!(url);
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Evidence as u8),
-                &sender,
+                &group_account,
             );
 
             let evidence_id = next_id!(NextEvidenceId<T>, T);
 
             let evidence = Evidence {
+                proposal_id,
                 content_type: bounded_content_type,
                 hash: bounded_hash,
                 name: bounded_name,
@@ -647,8 +800,14 @@ pub mod pallet {
             };
 
             <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
+            <EvidenceByProposal<T>>::insert(&proposal_id, evidence_id);
 
-            Self::deposit_event(Event::EvidenceAttached(sender, audit_id, evidence_id));
+            Self::deposit_event(Event::EvidenceAttached(
+                group_account,
+                proposal_id,
+                audit_id,
+                evidence_id,
+            ));
             Ok(().into())
         }
 
@@ -666,7 +825,8 @@ pub mod pallet {
             observation_id: T::ObservationId,
             evidence_id: T::EvidenceId,
         ) -> DispatchResultWithPostInfo {
-            let (sender, group_account) = ensure_account_or_executed!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -693,7 +853,8 @@ pub mod pallet {
             <EvidenceLinksByObservation<T>>::insert(observation_id, evidence_id, ());
 
             Self::deposit_event(Event::EvidenceLinked(
-                sender,
+                group_account,
+                proposal_id,
                 audit_id,
                 evidence_id,
                 observation_id,
@@ -716,7 +877,8 @@ pub mod pallet {
             observation_id: T::ObservationId,
             evidence_id: T::EvidenceId,
         ) -> DispatchResultWithPostInfo {
-            let (sender, group_account) = ensure_account_or_executed!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -743,7 +905,8 @@ pub mod pallet {
             <EvidenceLinksByObservation<T>>::remove(observation_id, evidence_id);
 
             Self::deposit_event(Event::EvidenceUnlinked(
-                sender,
+                group_account,
+                proposal_id,
                 audit_id,
                 evidence_id,
                 observation_id,
@@ -764,7 +927,8 @@ pub mod pallet {
             evidence_id: T::EvidenceId,
             link_count: u32,
         ) -> DispatchResultWithPostInfo {
-            let (sender, group_account) = ensure_account_or_executed!(origin);
+            let (_, proposal_id, _, _, group_account) =
+                <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
             let maybe_audit = <Audits<T>>::get(audit_id);
             ensure!(maybe_audit.is_some(), <Error<T>>::AuditNotFound);
@@ -778,10 +942,9 @@ pub mod pallet {
                 *audit.auditors.as_ref().unwrap() == group_account.clone(),
                 <Error<T>>::NotAuditor
             );
-            ensure!(
-                <Evidences<T>>::contains_key(audit_id, evidence_id),
-                <Error<T>>::EvidenceNotFound
-            );
+            let maybe_evidence = <Evidences<T>>::get(audit_id, evidence_id);
+            ensure!(maybe_evidence.is_some(), <Error<T>>::EvidenceNotFound);
+            let evidence = maybe_evidence.unwrap();
             ensure!(
                 link_count <= <T as Config>::MaxLinkRemove::get(),
                 <Error<T>>::RemoveLinkLimitExceeded
@@ -790,7 +953,12 @@ pub mod pallet {
             let mut i = 0;
             for (observation_id, _) in <EvidenceLinksByEvidence<T>>::drain_prefix(evidence_id) {
                 if i >= link_count {
-                    Self::deposit_event(Event::EvidenceDeleteFailed(sender, audit_id, evidence_id));
+                    Self::deposit_event(Event::EvidenceDeleteFailed(
+                        group_account,
+                        proposal_id,
+                        audit_id,
+                        evidence_id,
+                    ));
                     return Ok(().into());
                 }
                 <EvidenceLinksByObservation<T>>::remove(observation_id, evidence_id);
@@ -798,8 +966,14 @@ pub mod pallet {
             }
 
             <Evidences<T>>::remove(&audit_id, &evidence_id);
+            <EvidenceByProposal<T>>::remove(&evidence.proposal_id);
 
-            Self::deposit_event(Event::EvidenceDeleted(sender, audit_id, evidence_id));
+            Self::deposit_event(Event::EvidenceDeleted(
+                group_account,
+                proposal_id,
+                audit_id,
+                evidence_id,
+            ));
             Ok(().into())
         }
     }
@@ -840,6 +1014,19 @@ pub mod pallet {
             audits
         }
 
+        pub fn get_linked_audits(
+            audit_id: T::AuditId,
+        ) -> Vec<(T::AuditId, Audit<T::AccountId, T::ProposalId>)> {
+            let mut audits = Vec::new();
+            <LinkedAudits<T>>::iter_prefix(audit_id).for_each(|(child_audit_id, _)| {
+                let audit_maybe = <Audits<T>>::get(child_audit_id);
+                if let Some(audit) = audit_maybe {
+                    audits.push((child_audit_id, audit));
+                }
+            });
+            audits
+        }
+
         pub fn get_audit(audit_id: T::AuditId) -> Option<Audit<T::AccountId, T::ProposalId>> {
             <Audits<T>>::get(audit_id)
         }
@@ -873,7 +1060,7 @@ pub mod pallet {
         pub fn get_evidence(
             audit_id: T::AuditId,
             evidence_id: T::EvidenceId,
-        ) -> Option<Evidence<BoundedVec<u8, <T as Config>::NameLimit>>> {
+        ) -> Option<Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>> {
             <Evidences<T>>::get(audit_id, evidence_id)
         }
 
@@ -881,12 +1068,27 @@ pub mod pallet {
             audit_id: T::AuditId,
         ) -> Vec<(
             T::EvidenceId,
-            Evidence<BoundedVec<u8, <T as Config>::NameLimit>>,
+            Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
             let mut evidences = Vec::new();
             <Evidences<T>>::iter_prefix(audit_id)
                 .for_each(|(evidence_id, evidence)| evidences.push((evidence_id, evidence)));
             evidences
+        }
+
+        pub fn get_evidence_by_proposal(
+            audit_id: T::AuditId,
+            proposal_id: T::ProposalId,
+        ) -> Option<(
+            T::EvidenceId,
+            Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            <EvidenceByProposal<T>>::get(proposal_id).map(|evidence_id| {
+                (
+                    evidence_id,
+                    <Evidences<T>>::get(audit_id, evidence_id).unwrap(),
+                )
+            })
         }
 
         pub fn get_evidence_links_by_evidence(evidence_id: T::EvidenceId) -> Vec<T::ObservationId> {

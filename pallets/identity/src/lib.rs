@@ -515,7 +515,7 @@ pub mod pallet {
         /// Arguments:
         /// - `dids` the DIDs to be created
         #[pallet::weight({
-            let (a,b,c,d)=get_did_for_bulk_lens::<T>(dids);            
+            let (a,b,c,d)=get_did_for_bulk_lens::<T>(dids);
             <T as Config>::WeightInfo::register_did_for(a,b,c,d).saturating_mul(dids.len() as Weight)
         })]
         pub fn register_did_for_bulk(
@@ -988,7 +988,7 @@ pub mod pallet {
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
             let (sender, yes_votes) = match either {
                 Either::Left(account_id) => (account_id, None),
-                Either::Right((_,_, yes_votes, _, group_account)) => (group_account, yes_votes),
+                Either::Right((_, _, yes_votes, _, group_account)) => (group_account, yes_votes),
             };
 
             ensure!(
@@ -1461,6 +1461,32 @@ pub mod pallet {
             dids
         }
 
+        pub fn get_outstanding_claims(account: T::AccountId) -> Vec<(Did, T::Moment)> {
+            let mut dids = Vec::new();
+            <DidsByConsumer<T>>::iter_prefix(&account).for_each(|(did, expiry)| {
+                if <Claims<T>>::iter_prefix(did)
+                    .find(|(_, claim)| claim.created_by == account)
+                    .is_none()
+                {
+                    dids.push((did, expiry))
+                }
+            });
+            dids
+        }
+
+        pub fn get_outstanding_attestations(account: T::AccountId) -> Vec<(Did, T::Moment)> {
+            let mut dids = Vec::new();
+            <DidsByIssuer<T>>::iter_prefix(account).for_each(|(did, expiry)| {
+                if <Claims<T>>::iter_prefix(did)
+                    .find(|(_, claim)| claim.attestation.is_some())
+                    .is_none()
+                {
+                    dids.push((did, expiry))
+                }
+            });
+            dids
+        }
+
         // -- private functions --
 
         /// Returns true if a `account` is a consumer and expiry has not yet passed
@@ -1676,7 +1702,7 @@ pub mod pallet {
         )>,
     ) -> (u32, u32, u32, u32) {
         fn div_up(a: u32, b: u32) -> u32 {
-            a/b + (a % b != 0) as u32
+            a / b + (a % b != 0) as u32
         }
         let mut short_name_tot = 0;
         let mut property_count_tot = 0;
@@ -1701,17 +1727,17 @@ pub mod pallet {
                     })
                 };
             });
-            //avoid divide by zero errors
-            if did_count==0{
-                return (0,0,0,0);
-            }
-        let short_name_avg = div_up(short_name_tot , did_count);
-        let property_count_avg = div_up(property_count_tot , did_count );
-        if property_count_tot==0{
-            return (short_name_avg,0,0,property_count_avg);
+        //avoid divide by zero errors
+        if did_count == 0 {
+            return (0, 0, 0, 0);
         }
-        let property_name_avg =div_up( property_name_tot , property_count_tot);
-        let property_fact_avg = div_up(property_fact_tot , property_count_tot);
+        let short_name_avg = div_up(short_name_tot, did_count);
+        let property_count_avg = div_up(property_count_tot, did_count);
+        if property_count_tot == 0 {
+            return (short_name_avg, 0, 0, property_count_avg);
+        }
+        let property_name_avg = div_up(property_name_tot, property_count_tot);
+        let property_fact_avg = div_up(property_fact_tot, property_count_tot);
 
         (
             short_name_avg,
@@ -1720,6 +1746,4 @@ pub mod pallet {
             property_count_avg,
         )
     }
-   
 }
-

@@ -30,6 +30,12 @@
 //! *          A member may change thier vote while the **Proposal** is still in progress, but there is an extra charge.
 //! * `close` - After voting a caller should check the vote tallies and call `close` if the threshold is met or cannot be met.
 //! * `veto` - A member of a **Group** can veto an ongoing **Proposal** (override the existing votes with either yay or nay).
+
+//TODO:
+// withdraw_funds_group
+// withdraw_funds_sub_group
+// send_funds_to_sub_group
+
 //!
 //! ### RPC Methods
 //!
@@ -238,16 +244,28 @@ pub mod pallet {
         T::ProposalId = "ProposalId",
         T::Hash = "Hash",
         T::AccountId = "AccountId",
-        T::MemberCount = "MemberCount"
+        T::MemberCount = "MemberCount",
+        T::Currency = "Currency",
+        <T::Currency as Currency<T::AccountId>>::Balance = "Balance"      
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new Group was created
         /// (creator,group_id,annonymous_account)
-        GroupCreated(T::AccountId, T::GroupId, T::AccountId),
+        GroupCreated(
+            T::AccountId,
+            T::GroupId,
+            T::AccountId,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+        ),
         /// A new SubGroup was created
         /// (parent_group_id,group_id,annonymous_account)
-        SubGroupCreated(T::GroupId, T::GroupId, T::AccountId),
+        SubGroupCreated(
+            T::GroupId,
+            T::GroupId,
+            T::AccountId,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+        ),
         /// A Group was updated
         /// (admin_group_id,group_id)
         GroupUpdated(T::GroupId, T::GroupId),
@@ -288,7 +306,7 @@ pub mod pallet {
             T::MemberCount,
             T::MemberCount,
         ),
-        /// A motion was approved by the required threshold and executed; (group_id,proposal_id,yes_votes,no_votes,success)
+        /// A motion was approved by the required threshold and executed (group_id,proposal_id,yes_votes,no_votes,success)
         Approved(
             T::GroupId,
             T::ProposalId,
@@ -296,9 +314,29 @@ pub mod pallet {
             T::MemberCount,
             bool,
         ),
-
         /// A motion was disapproved by the required threshold; (group_id,proposal_id,yes_votes,no_votes)
         Disapproved(T::GroupId, T::ProposalId, T::MemberCount, T::MemberCount),
+        /// funds were withdrawn from a group account (group_id,target_account,amount,success)
+        GroupFundsWithdrawn(
+            T::GroupId,
+            T::AccountId,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+            bool,
+        ),
+        /// funds were withdrawn from a sub_group account (group_id,sub_group_id,amount,success)
+        SubGroupFundsWithdrawn(
+            T::GroupId,
+            T::GroupId,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+            bool,
+        ),
+        /// funds were deposited from a group to a sub_group account (group_id,sub_group_id,amount,success)
+        SubGroupFundsDeposited(
+            T::GroupId,
+            T::GroupId,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+            bool,
+        ),
     }
 
     #[pallet::error]
@@ -341,18 +379,16 @@ pub mod pallet {
         NotGroup,
         /// Group is not a SubGroup
         NotSubGroup,
+        /// Group is not the parent of SubGroup
+        NotParentGroup,
         /// User is not admin for group
+        //TODO: should we only allow one level of veto etc?
         NotGroupAdmin,
         /// User is not the group account (was not correctly called via proposal)
         NotGroupAccount,
 
         NoIdAvailable,
     }
-
-    // #[pallet::type_value]
-    // pub fn ExistentialDepositRequirement<T: Config>() -> T::Balance {
-    //     1u32.into()
-    // }
 
     #[pallet::type_value]
     pub fn GroupIdDefault<T: Config>() -> T::GroupId {
@@ -482,7 +518,7 @@ pub mod pallet {
 
             let anonymous_account = Self::anonymous_account(&sender, group_id);
 
-            let result = <T as Config>::Currency::transfer(
+            let result = T::Currency::transfer(
                 &sender,
                 &anonymous_account,
                 <T as Config>::Currency::minimum_balance() + initial_balance,
@@ -505,7 +541,12 @@ pub mod pallet {
             <GroupChildren<T>>::insert(group_id, Vec::<T::GroupId>::new());
             <ProposalHashes<T>>::insert(group_id, Vec::<T::Hash>::new());
 
-            Self::deposit_event(Event::GroupCreated(sender, group_id, anonymous_account));
+            Self::deposit_event(Event::GroupCreated(
+                sender,
+                group_id,
+                anonymous_account,
+                initial_balance,
+            ));
 
             Ok(().into())
         }
@@ -556,7 +597,6 @@ pub mod pallet {
 
             let anonymous_account = Self::anonymous_account(&caller_group_account, group_id);
 
-            //TODO: Since groups pay for transactions, we will need to give them more currency at some point
             let result = <T as Config>::Currency::transfer(
                 &caller_group_account,
                 &anonymous_account,
@@ -588,6 +628,7 @@ pub mod pallet {
                 admin_group_id,
                 group_id,
                 anonymous_account,
+                initial_balance,
             ));
 
             Ok(().into())
@@ -601,9 +642,9 @@ pub mod pallet {
         /// - `threshold`: New threshold
 
         #[pallet::weight(T::WeightInfo::update_group(
-        name.as_ref().map_or(0,|a|a.len()) as u32,
-        members.as_ref().map_or(0,|a|a.len()) as u32,
-    ))]
+            name.as_ref().map_or(0,|a|a.len()) as u32,
+            members.as_ref().map_or(0,|a|a.len()) as u32,
+        ))]
         pub fn update_group(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -1210,6 +1251,115 @@ pub mod pallet {
                 )
                     .into());
             };
+        }
+        //TODO:
+        /// Withdraw funds from the group account
+        ///
+        /// - `target_account`: account to withdraw the funds to
+        /// - `amount`: amount to withdraw
+        //TODO: weights
+        #[pallet::weight(10_000)]
+        pub fn withdraw_funds_group(
+            origin: OriginFor<T>,
+            target_account: T::AccountId,
+            amount: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
+        ) -> DispatchResultWithPostInfo {
+            let (group_id, _, _, _, group_account) =
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(group.parent.is_none(), Error::<T>::NotGroup);
+
+            let result = <T as Config>::Currency::transfer(
+                &group_account,
+                &target_account,
+                amount,
+                AllowDeath,
+            );
+
+            Self::deposit_event(Event::GroupFundsWithdrawn(
+                group_id,
+                target_account,
+                amount,
+                result.is_ok(),
+            ));
+
+            Ok(().into())
+        }
+
+        /// Withdraw funds from a subgroup account to the group account
+        ///
+        /// - `sub_group_id`: Subgroup to withdraw funds from
+        //TODO: weights
+        #[pallet::weight(10_000)]
+        pub fn withdraw_funds_sub_group(
+            origin: OriginFor<T>,
+            sub_group_id: T::GroupId,
+            amount: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
+        ) -> DispatchResultWithPostInfo {
+            let (caller_group_id, _, _, _, caller_group_account) =
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+
+            let sub_group = Self::groups(sub_group_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(sub_group.parent.is_some(), Error::<T>::NotSubGroup);
+            let parent_group_id = sub_group.parent.unwrap();
+            ensure!(
+                caller_group_id == parent_group_id,
+                Error::<T>::NotParentGroup
+            );
+
+            let result = <T as Config>::Currency::transfer(
+                &sub_group.anonymous_account,
+                &caller_group_account,
+                amount,
+                AllowDeath,
+            );
+
+            Self::deposit_event(Event::SubGroupFundsWithdrawn(
+                parent_group_id,
+                sub_group_id,
+                amount,
+                result.is_ok(),
+            ));
+
+            Ok(().into())
+        }
+
+        /// Deposit funds to a subgroup account from the group account
+        ///
+        /// - `sub_group_id`: Subgroup to deposit funds to
+        //TODO: weights
+        #[pallet::weight(10_000)]
+        pub fn send_funds_to_sub_group(
+            origin: OriginFor<T>,
+            sub_group_id: T::GroupId,
+            amount: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
+        ) -> DispatchResultWithPostInfo {
+            let (caller_group_id, _, _, _, caller_group_account) =
+                T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
+
+            let sub_group = Self::groups(sub_group_id).ok_or(Error::<T>::GroupMissing)?;
+            ensure!(sub_group.parent.is_some(), Error::<T>::NotSubGroup);
+            let parent_group_id = sub_group.parent.unwrap();
+            ensure!(
+                caller_group_id == parent_group_id,
+                Error::<T>::NotParentGroup
+            );
+
+            let result = <T as Config>::Currency::transfer(
+                &caller_group_account,
+                &sub_group.anonymous_account,
+                amount,
+                AllowDeath,
+            );
+
+            Self::deposit_event(Event::SubGroupFundsDeposited(
+                parent_group_id,
+                sub_group_id,
+                amount,
+                result.is_ok(),
+            ));
+
+            Ok(().into())
         }
     }
 

@@ -28,13 +28,13 @@ pub trait AssetRegistryApi<
     BoundedStringFact,
 >
 {
-    #[rpc(name = "get_registries")]
+    #[rpc(name = "get_asset_registries")]
     fn get_registries(
         &self,
         did: Did,
         at: Option<BlockHash>,
     ) -> Result<Vec<RegistryResponse<RegistryId>>>;
-    #[rpc(name = "get_registry")]
+    #[rpc(name = "get_asset_registry")]
     fn get_registry(
         &self,
         did: Did,

@@ -2,7 +2,9 @@ use crate::identity_rpc::FactResponse;
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use pallet_primitives::Registry;
+use pallet_primitives::{
+    Definition, DefinitionStep, Process, ProcessStatus, ProcessStep, Registry,
+};
 use provenance_runtime_api::ProvenanceApi as ProvenanceRuntimeApi;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
@@ -21,14 +23,14 @@ pub trait ProvenanceApi<
     DefinitionStepIndex,
 >
 {
-    #[rpc(name = "get_registries")]
+    #[rpc(name = "get_definition_registries")]
     fn get_registries(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<RegistryResponse<RegistryId>>>;
 
-    #[rpc(name = "get_registry")]
+    #[rpc(name = "get_definition_registry")]
     fn get_registry(
         &self,
         account_id: AccountId,
@@ -63,6 +65,23 @@ pub trait ProvenanceApi<
         DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     >;
 
+    #[rpc(name = "get_available_definitions")]
+    fn get_available_definitions(
+        &self,
+        account_id: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<
+        Vec<
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
+        >,
+    >;
+
     #[rpc(name = "get_processes")]
     fn get_processes(
         &self,
@@ -79,6 +98,22 @@ pub trait ProvenanceApi<
         process_id: ProcessId,
         at: Option<BlockHash>,
     ) -> Result<ProcessResponse<RegistryId, DefinitionId, ProcessId>>;
+
+    #[rpc(name = "get_processes_for_attestor_by_status")]
+    fn get_processes_for_attestor_by_status(
+        &self,
+        account_id: AccountId,
+        status: String,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId>>>;
+
+    #[rpc(name = "get_processes_for_attestor_pending")]
+    fn get_processes_for_attestor_pending(
+        &self,
+        account_id: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId>>>;
+
     #[rpc(name = "get_process_step")]
     fn get_process_step(
         &self,
@@ -115,9 +150,65 @@ pub struct DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, 
     pub registry_id: RegistryId,
     pub definition_id: DefinitionId,
     pub name: String,
+    pub status: String,
     pub definition_steps:
         Option<Vec<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>>>,
 }
+
+impl<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex, BoundedStringName>
+    From<(
+        RegistryId,
+        DefinitionId,
+        Definition<BoundedStringName>,
+        Option<
+            Vec<(
+                DefinitionStepIndex,
+                DefinitionStep<AccountId, MemberCount, BoundedStringName>,
+            )>,
+        >,
+    )> for DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>
+where
+    BoundedStringName: Into<Vec<u8>>,
+{
+    fn from(
+        (registry_id, definition_id, definition, definition_steps): (
+            RegistryId,
+            DefinitionId,
+            Definition<BoundedStringName>,
+            Option<
+                Vec<(
+                    DefinitionStepIndex,
+                    DefinitionStep<AccountId, MemberCount, BoundedStringName>,
+                )>,
+            >,
+        ),
+    ) -> Self {
+        DefinitionResponse {
+            registry_id,
+            definition_id,
+            name: String::from_utf8_lossy(&definition.name.into()).to_string(),
+            status: match definition.status {
+                pallet_primitives::DefinitionStatus::Creating => "Creating".to_string(),
+                pallet_primitives::DefinitionStatus::Active => "Active".to_string(),
+                pallet_primitives::DefinitionStatus::Inactive => "Inactive".to_string(),
+            },
+            definition_steps: definition_steps.map(|definition_steps| {
+                definition_steps
+                    .into_iter()
+                    .map(
+                        |(definition_step_index, definition_step)| DefinitionStepResponse {
+                            definition_step_index,
+                            name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
+                            attestor: definition_step.attestor,
+                            threshold: definition_step.threshold,
+                        },
+                    )
+                    .collect()
+            }),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex> {
     pub definition_step_index: DefinitionStepIndex,
@@ -134,7 +225,86 @@ pub struct ProcessResponse<RegistryId, DefinitionId, ProcessId> {
     pub process_steps: Option<Vec<ProcessStepResponse>>,
     pub status: String,
 }
-
+impl<RegistryId, DefinitionId, ProcessId, BoundedStringName>
+    From<(
+        RegistryId,
+        DefinitionId,
+        ProcessId,
+        Process<BoundedStringName>,
+    )> for ProcessResponse<RegistryId, DefinitionId, ProcessId>
+where
+    BoundedStringName: Into<Vec<u8>>,
+{
+    fn from(
+        (registry_id, definition_id, process_id, process): (
+            RegistryId,
+            DefinitionId,
+            ProcessId,
+            Process<BoundedStringName>,
+        ),
+    ) -> Self {
+        ProcessResponse {
+            registry_id,
+            definition_id,
+            process_id,
+            name: String::from_utf8_lossy(&process.name.into()).to_string(),
+            process_steps: None,
+            status: match process.status {
+                pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
+                pallet_primitives::ProcessStatus::InProgress => "InProgress".to_string(),
+            },
+        }
+    }
+}
+impl<RegistryId, DefinitionId, ProcessId, BoundedStringName, BoundedStringFact>
+    From<(
+        RegistryId,
+        DefinitionId,
+        ProcessId,
+        Process<BoundedStringName>,
+        Vec<ProcessStep<BoundedStringName, BoundedStringFact>>,
+    )> for ProcessResponse<RegistryId, DefinitionId, ProcessId>
+where
+    BoundedStringName: Into<Vec<u8>>,
+    BoundedStringFact: Into<Vec<u8>>,
+{
+    fn from(
+        (registry_id, definition_id, process_id, process, process_steps): (
+            RegistryId,
+            DefinitionId,
+            ProcessId,
+            Process<BoundedStringName>,
+            Vec<ProcessStep<BoundedStringName, BoundedStringFact>>,
+        ),
+    ) -> Self {
+        ProcessResponse {
+            registry_id,
+            definition_id,
+            process_id,
+            name: String::from_utf8_lossy(&process.name.into()).to_string(),
+            process_steps: Some(
+                process_steps
+                    .into_iter()
+                    .map(|process_step| ProcessStepResponse {
+                        attested: process_step.attested,
+                        attributes: process_step
+                            .attributes
+                            .into_iter()
+                            .map(|attribute| AttributeResponse {
+                                name: String::from_utf8_lossy(&attribute.name.into()).to_string(),
+                                fact: attribute.fact.into(),
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            ),
+            status: match process.status {
+                pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
+                pallet_primitives::ProcessStatus::InProgress => "InProgress".to_string(),
+            },
+        }
+    }
+}
 #[derive(Serialize, Deserialize)]
 pub struct ProcessStepResponse {
     pub attested: bool,
@@ -300,17 +470,8 @@ where
 
         Ok(definitions
             .into_iter()
-            .map(|(definition_id, definition)| DefinitionResponse::<
-                AccountId,
-                RegistryId,
-                DefinitionId,
-                MemberCount,
-                DefinitionStepIndex,
-            > {
-                registry_id,
-                definition_id,
-                name: String::from_utf8_lossy(&definition.name.into()).to_string(),
-                definition_steps: None,
+            .map(|(definition_id, definition)| {
+                (registry_id, definition_id, definition, None).into()
             })
             .collect())
     }
@@ -335,30 +496,43 @@ where
             .get_definition_steps(&at, registry_id, definition_id)
             .map_err(convert_error!())?;
 
-        Ok(DefinitionResponse::<
-            AccountId,
-            RegistryId,
-            DefinitionId,
-            MemberCount,
-            DefinitionStepIndex,
-        > {
+        Ok((
             registry_id,
             definition_id,
-            name: String::from_utf8_lossy(&definition.name.into()).to_string(),
-            definition_steps: Some(
-                definition_steps
-                    .into_iter()
-                    .map(
-                        |(definition_step_index, definition_step)| DefinitionStepResponse {
-                            definition_step_index,
-                            name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
-                            attestor: definition_step.attestor,
-                            threshold: definition_step.threshold,
-                        },
-                    )
-                    .collect(),
-            ),
-        })
+            definition,
+            Some(definition_steps),
+        )
+            .into())
+    }
+
+    fn get_available_definitions(
+        &self,
+        account_id: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<
+        Vec<
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
+        >,
+    > {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let definitions = api
+            .get_available_definitions(&at, account_id)
+            .map_err(convert_error!())?;
+
+        Ok(definitions
+            .into_iter()
+            .map(|(registry_id, definition_id, definition)| {
+                (registry_id, definition_id, definition, None).into()
+            })
+            .collect())
     }
 
     fn get_processes(
@@ -376,19 +550,7 @@ where
 
         Ok(processes
             .into_iter()
-            .map(
-                |(process_id, process)| ProcessResponse::<RegistryId, DefinitionId, ProcessId> {
-                    registry_id,
-                    definition_id,
-                    process_id,
-                    name: String::from_utf8_lossy(&process.name.into()).to_string(),
-                    process_steps: None,
-                    status: match process.status {
-                        pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
-                        pallet_primitives::ProcessStatus::InProgress => "InProgress".to_string(),
-                    },
-                },
-            )
+            .map(|(process_id, process)| (registry_id, definition_id, process_id, process).into())
             .collect())
     }
 
@@ -411,33 +573,68 @@ where
             .get_process_steps(&at, registry_id, definition_id, process_id)
             .map_err(convert_error!())?;
 
-        Ok(ProcessResponse::<RegistryId, DefinitionId, ProcessId> {
+        Ok((
             registry_id,
             definition_id,
             process_id,
-            name: String::from_utf8_lossy(&process.name.into()).to_string(),
-            process_steps: Some(
-                process_steps
-                    .into_iter()
-                    .map(|process_step| ProcessStepResponse {
-                        attested: process_step.attested,
-                        attributes: process_step
-                            .attributes
-                            .into_iter()
-                            .map(|attribute| AttributeResponse {
-                                name: String::from_utf8_lossy(&attribute.name.into()).to_string(),
-                                fact: attribute.fact.into(),
-                            })
-                            .collect(),
-                    })
-                    .collect(),
-            ),
-            status: match process.status {
-                pallet_primitives::ProcessStatus::Completed => "Completed".to_string(),
-                pallet_primitives::ProcessStatus::InProgress => "InProgress".to_string(),
-            },
-        })
+            process,
+            process_steps,
+        )
+            .into())
     }
+
+    fn get_processes_for_attestor_by_status(
+        &self,
+        account_id: AccountId,
+        status: String,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let status = match status.as_str() {
+            "InProgress" => ProcessStatus::InProgress,
+            "Completed" => ProcessStatus::Completed,
+            _ => {
+                return Err(RpcError {
+                    code: ErrorCode::ServerError(1),
+                    message: "Unknown status".into(),
+                    data: Some("Unknown status".into()),
+                })
+            }
+        };
+        let processes = api
+            .get_processes_for_attestor_by_status(&at, account_id, status)
+            .map_err(convert_error!())?;
+
+        Ok(processes
+            .into_iter()
+            .map(|(registry_id, definition_id, process_id, process)| {
+                (registry_id, definition_id, process_id, process).into()
+            })
+            .collect())
+    }
+
+    fn get_processes_for_attestor_pending(
+        &self,
+        account_id: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let processes = api
+            .get_processes_for_attestor_pending(&at, account_id)
+            .map_err(convert_error!())?;
+
+        Ok(processes
+            .into_iter()
+            .map(|(registry_id, definition_id, process_id, process)| {
+                (registry_id, definition_id, process_id, process).into()
+            })
+            .collect())
+    }
+
     fn get_process_step(
         &self,
         registry_id: RegistryId,

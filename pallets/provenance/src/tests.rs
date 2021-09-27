@@ -98,124 +98,220 @@ fn create_definition_should_work() {
     });
 }
 
-// #[test]
-// fn remove_definition_should_work() {
-//     new_test_ext().execute_with(|| {
-//         // 1 creates a Group
-//         assert_ok!(Groups::create_group(
-//             Origin::signed(1),
-//             "Test".to_string().into(),
-//             vec![1],
-//             1,
-//             10_000
-//         ));
+#[test]
+fn remove_definition_should_work() {
+    new_test_ext().execute_with(|| {
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1,
+            10_000
+        ));
 
-//         // 1 creates a Registry for itself
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
-//                 b"John Doe".to_vec()
-//             ))),
-//             1
-//         ));
+        // 1 creates a Registry for itself
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
+                b"John Doe".to_vec()
+            ))),
+            1,
+            100
+        ));
 
-//         // 1 creates a definition in the registry
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(
-//                 super::Call::create_definition(
-//                     1u32,
-//                     b"Test".to_vec(),
-//                     vec![
-//                         (DefinitionStep {
-//                             name: b"Test".to_vec(),
-//                             group_id: None,
-//                             threshold: 1
-//                         })
-//                     ]
-//                 )
-//             )),
-//             1
-//         ));
+        // 1 creates a definition in the registry
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::create_definition(1u32, b"Test".to_vec(),)
+            )),
+            1,
+            100
+        ));
 
-//         // remove definition
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(
-//                 super::Call::remove_definition(1u32, 1u32)
-//             )),
-//             1
-//         ));
+        // remove definition
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::remove_definition(1u32, 1u32)
+            )),
+            1,
+            100
+        ));
 
-//         // verify definition was removed
-//         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), false);
-//     });
-// }
+        // verify definition was removed
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), false);
+    });
+}
 
-// #[test]
-// fn update_definition_step_should_work() {
-//     new_test_ext().execute_with(|| {
-//         // 1 creates a Group
-//         assert_ok!(Groups::create_group(
-//             Origin::signed(1),
-//             "Test".to_string().into(),
-//             vec![1],
-//             1,
-//             10_000
-//         ));
+#[test]
+fn create_definition_step_should_work() {
+    new_test_ext().execute_with(|| {
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1,
+            10_000
+        ));
+        // 1 creates a Registry for itself
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
+                b"John Doe".to_vec()
+            ))),
+            1,
+            100
+        ));
 
-//         // 1 creates a Registry for itself
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
-//                 b"John Doe".to_vec()
-//             ))),
-//             1
-//         ));
+        // 1 creates a definition in the registry
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::create_definition(1u32, b"Test".to_vec(),)
+            )),
+            1,
+            100
+        ));
 
-//         // 1 creates a definition in the registry
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(
-//                 super::Call::create_definition(
-//                     1u32,
-//                     b"Test".to_vec(),
-//                     vec![
-//                         (DefinitionStep {
-//                             name: b"Test".to_vec(),
-//                             group_id: None,
-//                             threshold: 1
-//                         })
-//                     ]
-//                 )
-//             )),
-//             1
-//         ));
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
-//         // verify definition was created
-//         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
+        let group_maybe = Groups::get_group(1);
+        assert!(group_maybe.is_some());
+        let group = group_maybe.unwrap();
+        let group_account = group.anonymous_account;
 
-//         // update definition step
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(
-//                 super::Call::update_definition_step(1u32, 1u32, 0, b"John Doe".to_vec(),)
-//             )),
-//             1
-//         ));
+        // 1 adds step to definition
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::create_definition_step(
+                    1,
+                    1,
+                    0,
+                    b"Test".to_vec(),
+                    Some(group_account),
+                    1
+                )
+            )),
+            1,
+            100
+        ));
 
-//         let definition_steps = Provenance::get_definition_steps(1, 1);
+        assert!(DefinitionSteps::<Test>::contains_key((1, 1), 0));
+    });
+}
 
-//         // Check whether name updated or not
-//         assert_eq!(b"John Doe".to_vec(), definition_steps[0].1.name);
-//     });
-// }
+#[test]
+fn update_definition_step_should_work() {
+    new_test_ext().execute_with(|| {
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1,
+            10_000
+        ));
+
+        // 1 creates a Registry for itself
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
+                b"John Doe".to_vec()
+            ))),
+            1,
+            100
+        ));
+
+        // 1 creates a definition in the registry
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::create_definition(1u32, b"Test".to_vec(),)
+            )),
+            1,
+            100
+        ));
+
+        // verify definition was created
+        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
+
+        let group_maybe = Groups::get_group(1);
+        assert!(group_maybe.is_some());
+        let group = group_maybe.unwrap();
+        let group_account = group.anonymous_account;
+
+        // 1 adds step to definition
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::create_definition_step(
+                    1,
+                    1,
+                    0,
+                    b"Test".to_vec(),
+                    Some(group_account),
+                    1
+                )
+            )),
+            1,
+            100
+        ));
+
+        let definition_steps = Provenance::get_definition_steps(1, 1);
+
+        assert_eq!(
+            DefinitionStep {
+                name: b"Test".to_vec().try_into().unwrap(),
+                attestor: Some(group_account),
+                threshold: 1
+            },
+            definition_steps[0].1
+        );
+
+        // update definition step
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::update_definition_step(
+                    1u32,
+                    1u32,
+                    0,
+                    Some(b"John Doe".to_vec()),
+                    None,
+                    None
+                )
+            )),
+            1,
+            100
+        ));
+
+        let definition_steps = Provenance::get_definition_steps(1, 1);
+
+        assert_eq!(
+            DefinitionStep {
+                name: b"John Doe".to_vec().try_into().unwrap(),
+                attestor: Some(group_account),
+                threshold: 1
+            },
+            definition_steps[0].1
+        );
+    });
+}
 
 // #[test]
 // fn set_definition_active_should_work() {
@@ -341,78 +437,97 @@ fn create_definition_should_work() {
 //     });
 // }
 
-// #[test]
-// fn create_process_should_work() {
-//     new_test_ext().execute_with(|| {
-//         // 1 creates a Group
-//         assert_ok!(Groups::create_group(
-//             Origin::signed(1),
-//             "Test".to_string().into(),
-//             vec![1],
-//             1,
-//             10_000
-//         ));
+#[test]
+fn create_process_should_work() {
+    new_test_ext().execute_with(|| {
+        // 1 creates a Group
+        assert_ok!(Groups::create_group(
+            Origin::signed(1),
+            "Test".to_string().into(),
+            vec![1],
+            1,
+            10_000
+        ));
 
-//         // 1 creates a Registry for itself
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
-//                 b"John Doe".to_vec()
-//             ))),
-//             1
-//         ));
+        // 1 creates a Registry for itself
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
+                b"John Doe".to_vec()
+            ))),
+            1,
+            100
+        ));
 
-//         // 1 creates a definition in the registry
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(
-//                 super::Call::create_definition(
-//                     1u32,
-//                     b"Test".to_vec(),
-//                     vec![
-//                         (DefinitionStep {
-//                             name: b"Test".to_vec(),
-//                             group_id: Some(1),
-//                             threshold: 1
-//                         })
-//                     ]
-//                 )
-//             )),
-//             1
-//         ));
+        // 1 creates a definition in the registry
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::create_definition(1u32, b"Test".to_vec(),)
+            )),
+            1,
+            100
+        ));
 
-//         // set definition active
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(
-//                 super::Call::set_definition_active(1u32, 1u32,)
-//             )),
-//             1
-//         ));
+        let group_maybe = Groups::get_group(1);
+        assert!(group_maybe.is_some());
+        let group = group_maybe.unwrap();
+        let group_account = group.anonymous_account;
 
-//         let definition = Provenance::get_definition(1, 1).unwrap();
-//         // Verify definition is active
-//         assert_eq!(definition.status, DefinitionStatus::Active);
+        // 1 adds step to definition
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::create_definition_step(
+                    1,
+                    1,
+                    0,
+                    b"Test".to_vec(),
+                    Some(group_account),
+                    1
+                )
+            )),
+            1,
+            100
+        ));
 
-//         // Create process as a group
-//         assert_ok!(Groups::propose(
-//             Origin::signed(1),
-//             1,
-//             Box::new(crate::mock::Call::Provenance(super::Call::create_process(
-//                 1u32,
-//                 1u32,
-//                 b"Test".to_vec(),
-//             ))),
-//             1
-//         ));
+        assert!(DefinitionSteps::<Test>::contains_key((1, 1), 0));
 
-//         // verify process was created
-//         assert_eq!(Processes::<Test>::contains_key((1u32, 1u32), 1), true);
-//     });
-// }
+        // set definition active
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(
+                super::Call::set_definition_active(1u32, 1u32,)
+            )),
+            1,
+            100
+        ));
+
+        let definition = Provenance::get_definition(1, 1).unwrap();
+        // Verify definition is active
+        assert_eq!(definition.status, DefinitionStatus::Active);
+
+        // Create process as a group
+        assert_ok!(Groups::propose(
+            Origin::signed(1),
+            1,
+            Box::new(crate::mock::Call::Provenance(super::Call::create_process(
+                1u32,
+                1u32,
+                b"Test".to_vec(),
+            ))),
+            1,
+            100
+        ));
+
+        // verify process was created
+        assert!(Processes::<Test>::contains_key((1u32, 1u32), 1));
+    });
+}
 
 // #[test]
 // fn update_process_should_work() {

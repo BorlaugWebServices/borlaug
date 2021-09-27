@@ -42,6 +42,13 @@ pub trait AuditsApi<
         at: Option<BlockHash>,
     ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>>;
 
+    #[rpc(name = "get_linked_audits")]
+    fn get_linked_audits(
+        &self,
+        audit_id: AuditId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>>;
+
     #[rpc(name = "get_audit")]
     fn get_audit(
         &self,
@@ -79,14 +86,22 @@ pub trait AuditsApi<
         audit_id: AuditId,
         evidence_id: EvidenceId,
         at: Option<BlockHash>,
-    ) -> Result<EvidenceResponse<EvidenceId>>;
+    ) -> Result<EvidenceResponse<EvidenceId, ProposalId>>;
 
     #[rpc(name = "get_evidence_by_audit")]
     fn get_evidence_by_audit(
         &self,
         audit_id: AuditId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<EvidenceResponse<EvidenceId>>>;
+    ) -> Result<Vec<EvidenceResponse<EvidenceId, ProposalId>>>;
+
+    #[rpc(name = "get_evidence_by_proposal")]
+    fn get_evidence_by_proposal(
+        &self,
+        audit_id: AuditId,
+        proposal_id: ProposalId,
+        at: Option<BlockHash>,
+    ) -> Result<EvidenceResponse<EvidenceId, ProposalId>>;
 
     #[rpc(name = "get_evidence_links_by_evidence")]
     fn get_evidence_links_by_evidence(
@@ -106,7 +121,7 @@ pub trait AuditsApi<
 #[derive(Serialize, Deserialize)]
 pub struct AuditResponse<AccountId, ProposalId, AuditId> {
     pub audit_id: AuditId,
-    pub proposal_id: Option<ProposalId>,
+    pub proposal_id: ProposalId,
     pub status: String,
     pub audit_creator: AccountId,
     pub auditing_org: AccountId,
@@ -156,22 +171,24 @@ impl<ObservationId> From<(ObservationId, Observation)> for ObservationResponse<O
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct EvidenceResponse<EvidenceId> {
+pub struct EvidenceResponse<EvidenceId, ProposalId> {
     pub evidence_id: EvidenceId,
+    pub proposal_id: ProposalId,
     pub name: String,
     pub content_type: String,
     pub url: Option<String>,
     pub hash: String,
 }
 
-impl<EvidenceId, BoundedString> From<(EvidenceId, Evidence<BoundedString>)>
-    for EvidenceResponse<EvidenceId>
+impl<EvidenceId, ProposalId, BoundedString> From<(EvidenceId, Evidence<ProposalId, BoundedString>)>
+    for EvidenceResponse<EvidenceId, ProposalId>
 where
     BoundedString: Into<Vec<u8>>,
 {
-    fn from((evidence_id, evidence): (EvidenceId, Evidence<BoundedString>)) -> Self {
+    fn from((evidence_id, evidence): (EvidenceId, Evidence<ProposalId, BoundedString>)) -> Self {
         EvidenceResponse {
             evidence_id,
+            proposal_id: evidence.proposal_id,
             name: String::from_utf8_lossy(&evidence.name.into()).to_string(),
             content_type: String::from_utf8_lossy(&evidence.content_type.into()).to_string(),
             url: evidence
@@ -323,6 +340,23 @@ where
             .collect())
     }
 
+    fn get_linked_audits(
+        &self,
+        audit_id: AuditId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<AuditResponse<AccountId, ProposalId, AuditId>>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let audits = api
+            .get_linked_audits(&at, audit_id)
+            .map_err(convert_error!())?;
+        Ok(audits
+            .into_iter()
+            .map(|(audit_id, audit)| (audit_id, audit).into())
+            .collect())
+    }
+
     fn get_audit(
         &self,
         audit_id: AuditId,
@@ -393,7 +427,7 @@ where
         audit_id: AuditId,
         evidence_id: EvidenceId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<EvidenceResponse<EvidenceId>> {
+    ) -> Result<EvidenceResponse<EvidenceId, ProposalId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -407,9 +441,8 @@ where
     fn get_evidence_by_audit(
         &self,
         audit_id: AuditId,
-
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<EvidenceResponse<EvidenceId>>> {
+    ) -> Result<Vec<EvidenceResponse<EvidenceId, ProposalId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -420,6 +453,22 @@ where
             .into_iter()
             .map(|(evidence_id, evidence)| (evidence_id, evidence).into())
             .collect())
+    }
+
+    fn get_evidence_by_proposal(
+        &self,
+        audit_id: AuditId,
+        proposal_id: ProposalId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<EvidenceResponse<EvidenceId, ProposalId>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let (evidence_id, evidence) = api
+            .get_evidence_by_proposal(&at, audit_id, proposal_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok((evidence_id, evidence).into())
     }
 
     fn get_evidence_links_by_evidence(
