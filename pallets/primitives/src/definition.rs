@@ -9,7 +9,6 @@ pub struct Definition<BoundedString> {
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
 pub enum DefinitionStatus {
-    Creating,
     Active,
     Inactive,
 }
