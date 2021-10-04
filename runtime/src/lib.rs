@@ -1363,8 +1363,10 @@ impl_runtime_apis! {
         fn get_evidence_by_audit(audit_id:AuditId)->Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
             Audits::get_evidence_by_audit(audit_id)
         }
+
         fn get_evidence_by_proposal(proposal_id:ProposalId)->Option<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
             Audits::get_evidence_by_proposal(proposal_id)
+
         }
         fn get_evidence_links_by_evidence(evidence_id:EvidenceId)->Vec<ObservationId>{
             Audits::get_evidence_links_by_evidence(evidence_id)

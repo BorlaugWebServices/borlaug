@@ -478,6 +478,7 @@ where
 
     fn get_evidence_by_proposal(
         &self,
+
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<EvidenceResponse<EvidenceId, ProposalId>> {
@@ -485,7 +486,9 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let (evidence_id, evidence) = api
+
             .get_evidence_by_proposal(&at, proposal_id)
+
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((evidence_id, evidence).into())

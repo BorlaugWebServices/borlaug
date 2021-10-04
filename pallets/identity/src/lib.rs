@@ -518,8 +518,10 @@ pub mod pallet {
         /// Arguments:
         /// - `dids` the DIDs to be created        
         #[pallet::weight({
+
             let (b,c,d)=get_did_for_bulk_lens::<T>(dids);
             <T as Config>::WeightInfo::register_did_for(b,c,d).saturating_mul(dids.len() as Weight)
+
         })]
         pub fn register_did_for_bulk(
             origin: OriginFor<T>,
@@ -1665,6 +1667,7 @@ pub mod pallet {
             });
         //avoid divide by zero errors
         if did_count == 0 {
+
             return (0, 0, 0);
         }
        
@@ -1672,6 +1675,7 @@ pub mod pallet {
         if property_count_tot == 0 {
             return ( 0, 0, property_count_avg);
         }
+
         let property_name_avg = div_up(property_name_tot, property_count_tot);
         let property_fact_avg = div_up(property_fact_tot, property_count_tot);
 

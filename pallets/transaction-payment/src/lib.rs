@@ -700,6 +700,7 @@ where
     ) -> Result<Self::Pre, TransactionValidityError> {
         let who = match call.is_sub_type() {
             Some(groups::Call::propose(group_id, ..)) => {
+
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {
@@ -707,6 +708,7 @@ where
                 }
             }
             Some(groups::Call::execute(group_id, ..)) => {
+
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {
@@ -721,6 +723,7 @@ where
                 }
             }
             Some(groups::Call::veto(group_id, ..)) => {
+
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {

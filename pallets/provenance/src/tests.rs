@@ -115,6 +115,7 @@ fn create_definition_should_work() {
 #[test]
 fn remove_definition_should_work() {
     new_test_ext().execute_with(|| {
+
         assert_ok!(Provenance::create_registry(
             Origin::signed(1),
             b"John Doe".to_vec()
@@ -165,16 +166,21 @@ fn create_definition_step_should_work() {
             Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
                 b"John Doe".to_vec()
             ))),
+
             1,
             100
         ));
 
+
         // 1 creates a definition in the registry
+
         assert_ok!(Groups::propose(
             Origin::signed(1),
             1,
             Box::new(crate::mock::Call::Provenance(
+
                 super::Call::create_definition(1u32, b"Test".to_vec(),)
+
             )),
             1,
             100
@@ -197,9 +203,11 @@ fn create_definition_step_should_work() {
                     1
                 )
             )),
+
             1,
             100
         ));
+
 
         assert!(DefinitionSteps::<Test>::contains_key((1, 1), 0));
     });
@@ -223,18 +231,23 @@ fn update_definition_step_should_work() {
         ));
 
         // 1 creates a definition in the registry
+
         assert_ok!(Groups::propose(
             Origin::signed(1),
             1,
             Box::new(crate::mock::Call::Provenance(
+
                 super::Call::create_definition(1u32, b"Test".to_vec(),)
+
             )),
             1,
             100
         ));
 
+
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
+
 
         // 1 adds step to definition
         assert_ok!(Groups::propose(
@@ -424,7 +437,9 @@ fn update_definition_step_should_work() {
 fn create_process_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Group
+
         let group_account = create_group(1, 1);
+
 
         // 1 creates a Registry for itself
         assert_ok!(Groups::propose(
@@ -447,6 +462,7 @@ fn create_process_should_work() {
             1,
             100
         ));
+
 
         // 1 adds step to definition
         assert_ok!(Groups::propose(
@@ -478,6 +494,7 @@ fn create_process_should_work() {
             1,
             100
         ));
+
 
         let definition = Provenance::get_definition(1, 1).unwrap();
         // Verify definition is active

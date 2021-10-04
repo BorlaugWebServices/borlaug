@@ -33,6 +33,7 @@
 //! * `withdraw_funds_sub_group` - A **Group** can choose to withdraw funds from one of its sub_groups into its account via a **Proposal**
 //! * `send_funds_to_sub_group` - A **Group** can choose to send funds from its account to one of its sub_groups into  via a **Proposal**
 //! Note: adding funds to a group account from an individual account can be done using the built in substrate tranfer extrinsic
+
 //!
 //! ### RPC Methods
 //!
@@ -243,13 +244,17 @@ pub mod pallet {
         T::AccountId = "AccountId",
         T::MemberCount = "MemberCount",
         T::Currency = "Currency",
+
         <T::Currency as Currency<T::AccountId>>::Balance = "Balance",
         DispatchError = "DispatchError"  
+
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new Group was created
+
         /// (creator,group_id,anonymous_account,initial_balance)
+
         GroupCreated(
             T::AccountId,
             T::GroupId,
@@ -335,14 +340,17 @@ pub mod pallet {
             <T::Currency as Currency<T::AccountId>>::Balance,
             bool,
         ),
+
         /// funds were deposited from a group to a sub_group account 
         /// (group_id,sub_group_id,amount,success)
         SubGroupFundsDeposited(
+
             T::GroupId,
             T::GroupId,
             <T::Currency as Currency<T::AccountId>>::Balance,
             bool,
         ),
+
     }
 
     #[pallet::error]
@@ -387,10 +395,12 @@ pub mod pallet {
         NotSubGroup,
         /// Group is not the parent of SubGroup
         NotParentGroup,
+
         /// User is not the group account (was not correctly called via proposal)
         NotGroupAccount,
 /// A chain generated Id has exceeded its capacity
         NoIdAvailable,
+
 
     }
 
@@ -570,6 +580,7 @@ pub mod pallet {
                 initial_balance,
             ));
 
+
             Ok(().into())
         }
 
@@ -622,6 +633,7 @@ pub mod pallet {
             });
 
             Self::deposit_event(Event::GroupUpdated(caller_group_id));
+
 
             Ok(().into())
         }
@@ -698,6 +710,7 @@ pub mod pallet {
         /// - `sub_group_id`: Group to be updated
         /// - `name`: New group name
         /// - `members`: New set of members. Old set will be overwritten, so sender should ensure they are included if desired.
+
         /// - `threshold`: New threshold       
         #[pallet::weight(T::WeightInfo::update_sub_group(
             name.as_ref().map_or(0,|a|a.len()) as u32,
@@ -705,6 +718,7 @@ pub mod pallet {
             remove_members.as_ref().map_or(0,|a|a.len()) as u32,
         ))]
         pub fn update_sub_group(
+
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,
             name: Option<Vec<u8>>,
@@ -1277,11 +1291,14 @@ pub mod pallet {
                     .into());
             };
         }
+
         /// Withdraw funds from the group account
         ///
         /// - `target_account`: account to withdraw the funds to
         /// - `amount`: amount to withdraw
+
         #[pallet::weight(T::WeightInfo::withdraw_funds_group())]
+
         pub fn withdraw_funds_group(
             origin: OriginFor<T>,
             target_account: T::AccountId,
@@ -1311,9 +1328,11 @@ pub mod pallet {
 
         /// Withdraw funds from a subgroup account to the group account
         ///
+
         /// - `sub_group_id`: Subgroup to withdraw funds from        
         /// - `amount`: amount to withdraw     
         #[pallet::weight(T::WeightInfo::withdraw_funds_sub_group())]
+
         pub fn withdraw_funds_sub_group(
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,
@@ -1350,8 +1369,10 @@ pub mod pallet {
         /// Deposit funds to a subgroup account from the group account
         ///
         /// - `sub_group_id`: Subgroup to deposit funds to
+
         /// - `amount`: amount to send
         #[pallet::weight(T::WeightInfo::send_funds_to_sub_group())]
+
         pub fn send_funds_to_sub_group(
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,

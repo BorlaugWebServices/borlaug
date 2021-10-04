@@ -122,9 +122,11 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
+
         /// New registry created (auditing_org, proposal_id, audit_id)
         AuditCreated(T::AccountId, T::ProposalId, T::AuditId),
         /// Audit deleted (auditing_org, proposal_id, audit_id)
+
         AuditRemoved(T::AccountId, T::ProposalId, T::AuditId),
         /// Audit was accepted (auditing_org, proposal_id, audit_id)
         AuditAccepted(T::AccountId, T::ProposalId, T::AuditId),
@@ -359,6 +361,7 @@ pub mod pallet {
     #[pallet::getter(fn evidence_by_proposal)]
     /// Evidence by proposal_id
     pub type EvidenceByProposal<T: Config> =
+
         StorageMap<_, Blake2_128Concat, T::ProposalId, (T::AuditId, T::EvidenceId), OptionQuery>;
 
     #[pallet::storage]
@@ -821,7 +824,9 @@ pub mod pallet {
             };
 
             <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
+
             <EvidenceByProposal<T>>::insert(&proposal_id, (audit_id, evidence_id));
+
 
             Self::deposit_event(Event::EvidenceAttached(
                 group_account,
@@ -1112,12 +1117,15 @@ pub mod pallet {
         }
 
         pub fn get_evidence_by_proposal(
+
             proposal_id: T::ProposalId,
         ) -> Option<(
             T::EvidenceId,
             Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
+
             <EvidenceByProposal<T>>::get(proposal_id).map(|(audit_id, evidence_id)| {
+
                 (
                     evidence_id,
                     <Evidences<T>>::get(audit_id, evidence_id).unwrap(),

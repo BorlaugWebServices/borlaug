@@ -65,6 +65,7 @@ pub trait ProvenanceApi<
         DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     >;
 
+
     #[rpc(name = "get_definition_step")]
     fn get_definition_step(
         &self,
@@ -73,6 +74,7 @@ pub trait ProvenanceApi<
         step_index: DefinitionStepIndex,
         at: Option<BlockHash>,
     ) -> Result<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>>;
+
 
     #[rpc(name = "get_available_definitions")]
     fn get_available_definitions(
@@ -204,9 +206,11 @@ where
             definition_steps: definition_steps.map(|definition_steps| {
                 definition_steps
                     .into_iter()
+
                     .map(|(definition_step_index, definition_step)| {
                         (definition_step_index, definition_step).into()
                     })
+
                     .collect()
             }),
         }
@@ -533,6 +537,7 @@ where
             .into())
     }
 
+
     fn get_definition_step(
         &self,
         registry_id: RegistryId,
@@ -550,6 +555,7 @@ where
 
         Ok(((step_index, definition_step)).into())
     }
+
 
     fn get_available_definitions(
         &self,
@@ -627,6 +633,7 @@ where
             process_steps,
         )
             .into())
+
     }
 
     fn get_processes_for_attestor_by_status(
@@ -680,6 +687,7 @@ where
             })
             .collect())
     }
+
 
     fn get_process_step(
         &self,
