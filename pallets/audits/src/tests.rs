@@ -111,7 +111,7 @@ fn get_proposal_id() -> u32 {
 fn create_observation(auditors_member: u64, auditors_group_id: u32, audit_id: u32) {
     let observation = Observation {
         compliance: Some(Compliance::Compliant),
-        procedural_note: Some(blake2_256(b"test note")),
+        procedural_note_hash: Some(blake2_256(b"test note")),
     };
     let control_point_id = 1;
 
@@ -142,7 +142,7 @@ fn create_observation(auditors_member: u64, auditors_group_id: u32, audit_id: u3
         observation,
         Observation {
             compliance: Some(Compliance::Compliant),
-            procedural_note: Some(blake2_256(b"test note")),
+            procedural_note_hash: Some(blake2_256(b"test note")),
         }
     );
 }

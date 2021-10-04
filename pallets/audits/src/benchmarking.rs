@@ -144,7 +144,7 @@ benchmarks! {
         let auditors_origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(auditors).into();
         let observation = Observation{
             compliance:Some(Compliance::Compliant),
-            procedural_note:Some([42u8;32])
+            procedural_note_hash:Some([42u8;32])
         };
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
         AuditsPallet::<T>::create_observation(auditors_origin,audit_id,control_point_id,observation.clone())?;
@@ -164,7 +164,7 @@ benchmarks! {
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
         let observation = Observation{
             compliance:Some(Compliance::Compliant),
-            procedural_note:Some([42u8;32])
+            procedural_note_hash:Some([42u8;32])
         };
     }: _(SystemOrigin::Signed(auditors), audit_id,control_point_id,observation.clone())
 
@@ -220,7 +220,7 @@ benchmarks! {
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
         let observation = Observation{
             compliance:Some(Compliance::Compliant),
-            procedural_note:Some([42u8;32])
+            procedural_note_hash:Some([42u8;32])
         };
 
         AuditsPallet::<T>::create_observation(auditors_origin,audit_id,control_point_id,observation.clone())?;
@@ -255,7 +255,7 @@ benchmarks! {
 
         let observation = Observation{
             compliance:Some(Compliance::Compliant),
-            procedural_note:Some([42u8;32])
+            procedural_note_hash:Some([42u8;32])
         };
 
         AuditsPallet::<T>::create_observation(auditors_origin.clone(),audit_id,control_point_id,observation.clone())?;
@@ -297,7 +297,7 @@ benchmarks! {
 
             let observation = Observation{
                 compliance:Some(Compliance::Compliant),
-                procedural_note:Some([42u8;32])
+                procedural_note_hash:Some([42u8;32])
             };
             AuditsPallet::<T>::create_observation(auditors_origin.clone(),audit_id,control_point_id,observation.clone())?;
             let observation_id=T::ObservationId::unique_saturated_from(i+1);

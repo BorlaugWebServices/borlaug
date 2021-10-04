@@ -65,7 +65,6 @@ pub trait ProvenanceApi<
         DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     >;
 
-
     #[rpc(name = "get_definition_step")]
     fn get_definition_step(
         &self,
@@ -74,7 +73,6 @@ pub trait ProvenanceApi<
         step_index: DefinitionStepIndex,
         at: Option<BlockHash>,
     ) -> Result<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>>;
-
 
     #[rpc(name = "get_available_definitions")]
     fn get_available_definitions(
@@ -199,18 +197,15 @@ where
             definition_id,
             name: String::from_utf8_lossy(&definition.name.into()).to_string(),
             status: match definition.status {
-                pallet_primitives::DefinitionStatus::Creating => "Creating".to_string(),
                 pallet_primitives::DefinitionStatus::Active => "Active".to_string(),
                 pallet_primitives::DefinitionStatus::Inactive => "Inactive".to_string(),
             },
             definition_steps: definition_steps.map(|definition_steps| {
                 definition_steps
                     .into_iter()
-
                     .map(|(definition_step_index, definition_step)| {
                         (definition_step_index, definition_step).into()
                     })
-
                     .collect()
             }),
         }
@@ -221,7 +216,7 @@ where
 pub struct DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex> {
     pub definition_step_index: DefinitionStepIndex,
     pub name: String,
-    pub attestor: Option<AccountId>,
+    pub attestor: AccountId,
     pub threshold: MemberCount,
 }
 
@@ -318,7 +313,6 @@ where
                 process_steps
                     .into_iter()
                     .map(|process_step| ProcessStepResponse {
-                        attested: process_step.attested,
                         attributes: process_step
                             .attributes
                             .into_iter()
@@ -339,7 +333,6 @@ where
 }
 #[derive(Serialize, Deserialize)]
 pub struct ProcessStepResponse {
-    pub attested: bool,
     pub attributes: Vec<AttributeResponse>,
 }
 #[derive(Serialize, Deserialize)]
@@ -537,7 +530,6 @@ where
             .into())
     }
 
-
     fn get_definition_step(
         &self,
         registry_id: RegistryId,
@@ -555,7 +547,6 @@ where
 
         Ok(((step_index, definition_step)).into())
     }
-
 
     fn get_available_definitions(
         &self,
@@ -633,7 +624,6 @@ where
             process_steps,
         )
             .into())
-
     }
 
     fn get_processes_for_attestor_by_status(
@@ -688,7 +678,6 @@ where
             .collect())
     }
 
-
     fn get_process_step(
         &self,
         registry_id: RegistryId,
@@ -712,7 +701,6 @@ where
             .ok_or(not_found_error!())?;
 
         Ok(ProcessStepResponse {
-            attested: process_step.attested,
             attributes: process_step
                 .attributes
                 .into_iter()

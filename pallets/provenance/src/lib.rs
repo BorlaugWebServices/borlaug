@@ -11,24 +11,20 @@
 //! * `create_registry` - Creates a new **Registry** for organizing Definitions into collections
 //! * `update_registry` - Rename a **Registry**
 //! * `remove_registry` - Remove a **Registry** - **Registry** must be empty.
-//! * `create_definition` - Create a new **Process Definition**
-//! * `update_definition` - Rename a **Process Definition**
+//! * `create_definition` - Create a new **Process Definition**            
+//! * `set_definition_inactive` - Set a **Process Definition** to 'inactive'.
+//!                             Once a **Process Definition** is made inactive, new processes cannot be created against it.
 //! * `set_definition_active` - Set a **Process Definition** to 'active'.
 //!                             Once a **Process Definition** is made active, it cannot be renamed and steps cannot be added or removed.
 //!                             Only attestor settings may be changed.
 //! * `remove_definition` - Remove a **Process Definition**. It must not have any related Processes.
-//! * `create_definition_step` - Add a step to a **Process Definition**.
 //! * `update_definition_step` - Update a step of a **Process Definition**.
-//!                              You can rename the step or change attestors or threshold.
-//!                              Renaming is only possible before the **Process Definition** is set to 'active'.
-//! * `delete_definition_step` - Delete a step of a **Process Definition**.
-//!                              Deletion is only possible before the **Process Definition** is set to 'active'.
+//!                              You can change attestors or threshold.
 //! * `update_process` - A **Process Definition** creator is allowed to rename **Processes** (attestors cannot).
 //! * `remove_process` - A **Process Definition** creator is allowed to remove a **Processes** (attestors cannot).
 //!
 //! #### For Attestors
 //! * `create_process` - An attestor of the first step of a **Process Definition** may create a new Process.
-//! * `update_process_step` - An attestor may update the attributes of a process step. All attributes are replaced on each update.
 //!                           A Process Step can only be updated after the previous step has been attested and before the step itself is attested.
 //! * `attest_process_step` - Attest that the attributes for a process step are accurate.
 //!                           This is done once for each step in order and the process moves on to the next or completes if it is the last step.
@@ -139,14 +135,7 @@ pub mod pallet {
         DefinitionSetInactive(T::AccountId, T::AccountId, T::RegistryId, T::DefinitionId),
         /// A Definition was Removed (account_id,group_account,registry_id, definition_id)
         DefinitionRemoved(T::AccountId, T::AccountId, T::RegistryId, T::DefinitionId),
-        /// A DefinitionStep was Created (account_id,group_account,registry_id, definition_id, definition_step_index)
-        DefinitionStepCreated(
-            T::AccountId,
-            T::AccountId,
-            T::RegistryId,
-            T::DefinitionId,
-            T::DefinitionStepIndex,
-        ),
+
         /// A DefinitionStep was Updated (account_id,group_account,registry_id, definition_id, definition_step_index)
         DefinitionStepUpdated(
             T::AccountId,
@@ -213,6 +202,8 @@ pub mod pallet {
             T::ProcessId,
             T::DefinitionStepIndex,
         ),
+        /// A new Process was completed (account_id,registry_id, definition_id, process_id)
+        ProcessCompleted(T::AccountId, T::RegistryId, T::DefinitionId, T::ProcessId),
     }
 
     #[pallet::error]
@@ -221,14 +212,18 @@ pub mod pallet {
         NoneValue,
         /// Not authorized
         NotAuthorized,
+        /// A definition must have at least one step.
+        DefinitionStepsRequired,
         /// A registry must be empty before you remove it.
         RegistryNotEmpty,
         /// All processes must be removed before removing a definition.
         ProcessesExist,
         /// A string exceeds the maximum allowed length
         StringLengthLimitExceeded,
-        /// IncorrectStatus
+        /// Incorrect Status
         IncorrectStatus,
+        /// User tried to attest a step that is not the current step of a Process
+        ProcessStepNotCurrent,
         /// No id was found (either user is not owner, or entity does not exist)
         NotFound,
         /// Cannot delete non-empty registry
@@ -483,11 +478,14 @@ pub mod pallet {
         /// - `name` name of the definition        
         #[pallet::weight(<T as Config>::WeightInfo::create_definition(
             name.len() as u32,
+            steps.len() as u32,
+            get_max_step_name::<T::AccountId,T::MemberCount>(steps) as u32
         ))]
         pub fn create_definition(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
             name: Vec<u8>,
+            steps: Vec<(Vec<u8>, T::AccountId, T::MemberCount)>,
         ) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
@@ -495,6 +493,8 @@ pub mod pallet {
                 <Registries<T>>::contains_key(&group_account, registry_id),
                 Error::<T>::NotAuthorized
             );
+
+            ensure!(steps.len() > 0, Error::<T>::DefinitionStepsRequired);
 
             let bounded_name = enforce_limit!(name);
 
@@ -504,59 +504,48 @@ pub mod pallet {
                 &group_account,
             );
 
+            let mut new_steps = vec![];
+            for (name, attestor, threshold) in steps {
+                let bounded_name = enforce_limit!(name);
+                new_steps.push((bounded_name, attestor, threshold));
+            }
+
             let definition_id = next_id!(NextDefinitionId<T>, T);
 
             let definition = Definition {
                 name: bounded_name,
-                status: DefinitionStatus::Creating,
+                status: DefinitionStatus::Active,
             };
 
             <Definitions<T>>::insert(registry_id, definition_id, definition);
 
+            new_steps
+                .into_iter()
+                .enumerate()
+                .for_each(|(index, (name, attestor, threshold))| {
+                    let definition_step = DefinitionStep {
+                        name,
+                        attestor: attestor.clone(),
+                        threshold,
+                    };
+
+                    let definition_step_index =
+                        T::DefinitionStepIndex::unique_saturated_from(index);
+
+                    <DefinitionSteps<T>>::insert(
+                        (registry_id, definition_id),
+                        definition_step_index,
+                        definition_step,
+                    );
+
+                    <DefinitionStepsByAttestor<T>>::insert(
+                        attestor,
+                        (registry_id, definition_id, definition_step_index),
+                        (),
+                    );
+                });
+
             Self::deposit_event(Event::DefinitionCreated(
-                account_id,
-                group_account,
-                registry_id,
-                definition_id,
-            ));
-            Ok(().into())
-        }
-
-        /// Update definition. Status must be in status `Creating`
-        ///
-        /// Arguments:
-        /// - `registry_id` Registry the definition is in
-        /// - `name` new name of the definition
-        #[pallet::weight(<T as Config>::WeightInfo::update_definition(
-            name.len() as u32,
-        ))]
-        pub fn update_definition(
-            origin: OriginFor<T>,
-            registry_id: T::RegistryId,
-            definition_id: T::DefinitionId,
-            name: Vec<u8>,
-        ) -> DispatchResultWithPostInfo {
-            let (account_id, group_account) = ensure_account_or_executed!(origin);
-
-            ensure!(
-                <Registries<T>>::contains_key(&group_account, registry_id),
-                Error::<T>::NotAuthorized
-            );
-
-            let bounded_name = enforce_limit!(name);
-
-            let definition = <Definitions<T>>::get(registry_id, definition_id);
-            ensure!(definition.is_some(), Error::<T>::NotFound);
-            let mut definition = definition.unwrap();
-            ensure!(
-                definition.status == DefinitionStatus::Creating,
-                Error::<T>::IncorrectStatus
-            );
-
-            definition.name = bounded_name;
-            <Definitions<T>>::insert(registry_id, definition_id, definition);
-
-            Self::deposit_event(Event::DefinitionUpdated(
                 account_id,
                 group_account,
                 registry_id,
@@ -570,7 +559,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the definition is in
         /// - `definition_id` Definition to set active
-        #[pallet::weight(<T as Config>::WeightInfo::set_definition_active(<T as Config>::DefinitionStepLimit::get()))]
+        #[pallet::weight(<T as Config>::WeightInfo::set_definition_active())]
         pub fn set_definition_active(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
@@ -582,18 +571,6 @@ pub mod pallet {
                 <Registries<T>>::contains_key(&group_account, registry_id),
                 Error::<T>::NotAuthorized
             );
-
-            let mut attestor_set = true;
-            let mut step_count = 0;
-            <DefinitionSteps<T>>::iter_prefix((registry_id, definition_id)).for_each(
-                |(_step_index, definition_step)| {
-                    step_count = step_count + 1;
-                    if !definition_step.attestor.is_some() {
-                        attestor_set = false;
-                    }
-                },
-            );
-            ensure!(attestor_set, Error::<T>::AttestorNotSet);
 
             <Definitions<T>>::mutate_exists(registry_id, definition_id, |maybe_definition| {
                 if let Some(ref mut definition) = maybe_definition {
@@ -607,7 +584,7 @@ pub mod pallet {
                 registry_id,
                 definition_id,
             ));
-            Ok(Some(<T as Config>::WeightInfo::set_definition_active(step_count)).into())
+            Ok(().into())
         }
         /// Set definition inactive
         ///
@@ -670,10 +647,10 @@ pub mod pallet {
                     .is_none(),
                 Error::<T>::ProcessesExist
             );
-
+           
             let step_count =
                 <DefinitionSteps<T>>::drain_prefix((registry_id, definition_id)).count() as u32;
-
+          
             <Definitions<T>>::remove(registry_id, definition_id);
 
             Self::deposit_event(Event::DefinitionRemoved(
@@ -683,74 +660,7 @@ pub mod pallet {
                 definition_id,
             ));
             Ok(Some(<T as Config>::WeightInfo::remove_definition(step_count)).into())
-        }
-
-        //TODO: reorder steps?
-
-        /// Add a new definition step. Caller should ensure definition_step_index equals existing step count.
-        ///
-        /// Arguments:
-        /// - `registry_id` Registry the Definition is in
-        /// - `definition_id` the Definition
-        /// - `definition_step_index` New definition_step_index (should equal existing step count)
-        /// - `name` name of the Definition Step
-        /// - `attestor` Attestor for the step. Optional at this stage.
-        /// - `threshold` Required threshold if Attestor is a group account else set to 1
-        #[pallet::weight(<T as Config>::WeightInfo::create_definition_step(
-            name.len() as u32,
-        ))]
-        pub fn create_definition_step(
-            origin: OriginFor<T>,
-            registry_id: T::RegistryId,
-            definition_id: T::DefinitionId,
-            definition_step_index: T::DefinitionStepIndex,
-            name: Vec<u8>,
-            attestor: Option<T::AccountId>,
-            threshold: T::MemberCount,
-        ) -> DispatchResultWithPostInfo {
-            let (account_id, group_account) = ensure_account_or_executed!(origin);
-
-            ensure!(
-                <Registries<T>>::contains_key(&group_account, registry_id),
-                Error::<T>::NotAuthorized
-            );
-            let definition_maybe = <Definitions<T>>::get(registry_id, definition_id);
-            ensure!(definition_maybe.is_some(), Error::<T>::NotFound);
-            ensure!(
-                definition_maybe.unwrap().status == DefinitionStatus::Creating,
-                Error::<T>::IncorrectStatus
-            );
-
-            let bounded_name = enforce_limit!(name);
-
-            let definition_step = DefinitionStep {
-                name: bounded_name,
-                attestor: attestor.clone(),
-                threshold,
-            };
-
-            <DefinitionSteps<T>>::insert(
-                (registry_id, definition_id),
-                definition_step_index,
-                definition_step,
-            );
-
-            if let Some(attestor) = attestor {
-                <DefinitionStepsByAttestor<T>>::insert(
-                    attestor,
-                    (registry_id, definition_id, definition_step_index),
-                    (),
-                );
-            }
-
-            Self::deposit_event(Event::DefinitionStepCreated(
-                account_id,
-                group_account,
-                registry_id,
-                definition_id,
-                definition_step_index,
-            ));
-            Ok(().into())
+          
         }
 
         /// Update a definition_step
@@ -762,16 +672,14 @@ pub mod pallet {
         /// - `name` name of the Definition Step. Can only be changed when in status `Creating`
         /// - `attestor` Attestor for the step. Can only be set to None when in status `Creating`
         /// - `threshold` Required threshold if Attestor is a group account else set to 1
-        #[pallet::weight(<T as Config>::WeightInfo::update_definition_step(
-            name.as_ref().map_or(0,|a|a.len()) as u32,
-        ))]
+        
+        #[pallet::weight(<T as Config>::WeightInfo::update_definition_step(   ))]      
         pub fn update_definition_step(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             definition_step_index: T::DefinitionStepIndex,
-            name: Option<Vec<u8>>,
-            attestor: Option<Option<T::AccountId>>,
+            attestor: Option<T::AccountId>,
             threshold: Option<T::MemberCount>,
         ) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
@@ -782,19 +690,7 @@ pub mod pallet {
             );
             let definition_maybe = <Definitions<T>>::get(registry_id, definition_id);
             ensure!(definition_maybe.is_some(), Error::<T>::NotFound);
-            let definition = definition_maybe.unwrap();
-            //can only rename when in status `Creating`
-            ensure!(
-                name.is_none() || definition.status == DefinitionStatus::Creating,
-                Error::<T>::IncorrectStatus
-            );
-            //can only set attestor to None when in status `Creating`
-            ensure!(
-                attestor.is_none()
-                    || attestor.as_ref().unwrap().is_some()
-                    || definition.status == DefinitionStatus::Creating,
-                Error::<T>::IncorrectStatus
-            );
+
             ensure!(
                 <DefinitionSteps<T>>::contains_key(
                     (registry_id, definition_id),
@@ -803,32 +699,24 @@ pub mod pallet {
                 Error::<T>::NotFound
             );
 
-            let bounded_name = enforce_limit_option!(name);
-
             <DefinitionSteps<T>>::mutate_exists(
                 (registry_id, definition_id),
                 definition_step_index,
                 |maybe_definition_step| {
                     if let Some(ref mut definition_step) = maybe_definition_step {
-                        if let Some(bounded_name) = bounded_name {
-                            definition_step.name = bounded_name;
-                        }
                         if let Some(attestor) = &attestor {
-                            if let Some(old_attestor) = &definition_step.attestor {
-                                <DefinitionStepsByAttestor<T>>::remove(
-                                    old_attestor,
-                                    (registry_id, definition_id, definition_step_index),
-                                );
-                            }
+                            <DefinitionStepsByAttestor<T>>::remove(
+                                &definition_step.attestor,
+                                (registry_id, definition_id, definition_step_index),
+                            );
 
                             definition_step.attestor = attestor.clone();
-                            if let Some(new_attestor) = &attestor {
-                                <DefinitionStepsByAttestor<T>>::insert(
-                                    new_attestor,
-                                    (registry_id, definition_id, definition_step_index),
-                                    (),
-                                );
-                            }
+
+                            <DefinitionStepsByAttestor<T>>::insert(
+                                attestor,
+                                (registry_id, definition_id, definition_step_index),
+                                (),
+                            );
                         }
                         if let Some(threshold) = threshold {
                             definition_step.threshold = threshold;
@@ -845,94 +733,6 @@ pub mod pallet {
                 definition_step_index,
             ));
             Ok(().into())
-        }
-
-        /// Delete a definition_step
-        ///
-        /// Arguments:
-        /// - `registry_id` Registry the Definition is in
-        /// - `definition_id` Definition the process is related to
-        /// - `definition_step_index` index of definition step to be deleted
-        #[pallet::weight(<T as Config>::WeightInfo::delete_definition_step(
-            <T as Config>::DefinitionStepLimit::get()
-        ))]
-        pub fn delete_definition_step(
-            origin: OriginFor<T>,
-            registry_id: T::RegistryId,
-            definition_id: T::DefinitionId,
-            mut definition_step_index: T::DefinitionStepIndex,
-        ) -> DispatchResultWithPostInfo {
-            let (account_id, group_account) = ensure_account_or_executed!(origin);
-
-            ensure!(
-                <Registries<T>>::contains_key(&group_account, registry_id),
-                Error::<T>::NotAuthorized
-            );
-            let definition_maybe = <Definitions<T>>::get(registry_id, definition_id);
-            ensure!(definition_maybe.is_some(), Error::<T>::NotFound);
-            let definition = definition_maybe.unwrap();
-            ensure!(
-                definition.status == DefinitionStatus::Creating,
-                Error::<T>::IncorrectStatus
-            );
-            ensure!(
-                <DefinitionSteps<T>>::contains_key(
-                    (registry_id, definition_id),
-                    definition_step_index
-                ),
-                Error::<T>::NotFound
-            );
-
-            let one = T::DefinitionStepIndex::unique_saturated_from(1u32);
-
-            let mut step_count = 0u32;
-            loop {
-                step_count = step_count + 1;
-                definition_step_index = definition_step_index.saturating_add(one);
-                let next_step =
-                    <DefinitionSteps<T>>::take((registry_id, definition_id), definition_step_index);
-                match next_step {
-                    Some(next_step) => {
-                        if let Some(attestor) = &next_step.attestor {
-                            <DefinitionStepsByAttestor<T>>::remove(
-                                attestor,
-                                (registry_id, definition_id, definition_step_index),
-                            );
-                            <DefinitionStepsByAttestor<T>>::insert(
-                                attestor,
-                                (
-                                    registry_id,
-                                    definition_id,
-                                    definition_step_index.saturating_sub(one),
-                                ),
-                                (),
-                            );
-                        }
-                        <DefinitionSteps<T>>::insert(
-                            (registry_id, definition_id),
-                            definition_step_index.saturating_sub(one),
-                            next_step,
-                        );
-                    }
-                    None => {
-                        <DefinitionSteps<T>>::remove(
-                            (registry_id, definition_id),
-                            definition_step_index.saturating_sub(one),
-                        );
-
-                        break;
-                    }
-                };
-            }
-
-            Self::deposit_event(Event::DefinitionStepRemoved(
-                account_id,
-                group_account,
-                registry_id,
-                definition_id,
-                definition_step_index,
-            ));
-            Ok(Some(<T as Config>::WeightInfo::set_definition_active(step_count)).into())
         }
 
         /// Add a new process - any attestor on the first step can create a new process  (no voting required)
@@ -969,7 +769,7 @@ pub mod pallet {
             .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                definition_step.attestor == Some(group_account.clone()),
+                definition_step.attestor == group_account.clone(),
                 Error::<T>::NotAttestor
             );
 
@@ -987,17 +787,6 @@ pub mod pallet {
             };
 
             <Processes<T>>::insert((registry_id, definition_id), process_id, process);
-
-            let process_step = ProcessStep {
-                attested: false,
-                attributes: vec![],
-            };
-
-            <ProcessSteps<T>>::insert(
-                (registry_id, definition_id, process_id),
-                T::DefinitionStepIndex::unique_saturated_from(0u32),
-                process_step,
-            );
 
             Self::deposit_event(Event::ProcessCreated(
                 account_id,
@@ -1098,63 +887,7 @@ pub mod pallet {
                 definition_id,
                 process_id,
             ));
-            Ok(Some(<T as Config>::WeightInfo::set_definition_active(step_count)).into())
-        }
-
-        /// Update a process_step - any attestor on the step can update the step (no voting required)
-        ///
-        /// Arguments:
-        /// - `registry_id` Registry the Definition is in
-        /// - `definition_id` Definition the process is related to
-        /// - `process_id` the Process
-        /// - `definition_step_index` index of step to be updated
-        /// - `attributes` attributes of step (any previous attributes are replaced)
-        #[pallet::weight(<T as Config>::WeightInfo::update_process_step(
-            attributes.len() as u32,
-            get_max_attribute_name_len(attributes),
-            get_max_attribute_fact_len(attributes)
-        ))]
-        pub fn update_process_step(
-            origin: OriginFor<T>,
-            registry_id: T::RegistryId,
-            definition_id: T::DefinitionId,
-            process_id: T::ProcessId,
-            definition_step_index: T::DefinitionStepIndex,
-            attributes: Vec<Attribute<Vec<u8>, Vec<u8>>>,
-        ) -> DispatchResultWithPostInfo {
-            let (account_id, group_account) = ensure_account_or_executed!(origin);
-
-            let definition_step =
-                <DefinitionSteps<T>>::get((registry_id, definition_id), definition_step_index)
-                    .ok_or(Error::<T>::NotFound)?;
-
-            ensure!(
-                definition_step.attestor == Some(group_account.clone()),
-                Error::<T>::NotAttestor
-            );
-
-            let attributes = enforce_limit_attributes!(attributes);
-
-            <ProcessSteps<T>>::mutate_exists(
-                (registry_id, definition_id, process_id),
-                definition_step_index,
-                |maybe_process_step| {
-                    if let Some(ref mut process_step) = maybe_process_step {
-                        process_step.attributes = attributes;
-                    }
-                },
-            );
-
-            Self::deposit_event(Event::ProcessStepUpdated(
-                account_id,
-                group_account,
-                registry_id,
-                definition_id,
-                process_id,
-                definition_step_index,
-            ));
-
-            Ok(().into())
+            Ok(Some(<T as Config>::WeightInfo::remove_process(step_count)).into())
         }
 
         /// Attest a process_step - attestors on the step must propose and vote up to the required threshold
@@ -1164,13 +897,19 @@ pub mod pallet {
         /// - `definition_id` Definition the process is related to
         /// - `process_id` the Process
         /// - `definition_step_index` index of step to be attested        
-        #[pallet::weight(<T as Config>::WeightInfo::attest_process_step( ))]
+        #[pallet::weight(<T as Config>::WeightInfo::attest_process_step( 
+            attributes.len() as u32,
+            get_max_attribute_name_len(attributes),
+            get_max_attribute_fact_len(attributes),
+
+        ))]
         pub fn attest_process_step(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
             definition_step_index: T::DefinitionStepIndex,
+            attributes: Vec<Attribute<Vec<u8>, Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
             //TODO: use macro
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
@@ -1184,7 +923,7 @@ pub mod pallet {
                     .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                definition_step.attestor == Some(sender.clone()),
+                definition_step.attestor == sender.clone(),
                 Error::<T>::NotAttestor
             );
 
@@ -1193,33 +932,41 @@ pub mod pallet {
                 Error::<T>::IncorrectThreshold
             );
 
-            <ProcessSteps<T>>::mutate_exists(
+            let one = T::DefinitionStepIndex::unique_saturated_from(1u32);
+
+            ensure!(
+                definition_step_index == T::DefinitionStepIndex::unique_saturated_from(0u32)
+                    || <ProcessSteps<T>>::contains_key(
+                        (registry_id, definition_id, process_id),
+                        definition_step_index.saturating_sub(one)
+                    ),
+                Error::<T>::ProcessStepNotCurrent
+            );
+
+            ensure!(
+                !<ProcessSteps<T>>::contains_key(
+                    (registry_id, definition_id, process_id),
+                    definition_step_index
+                ),
+                Error::<T>::ProcessStepNotCurrent
+            );
+
+            let attributes = enforce_limit_attributes!(attributes);
+
+            let process_step = ProcessStep { attributes };
+
+            <ProcessSteps<T>>::insert(
                 (registry_id, definition_id, process_id),
                 definition_step_index,
-                |maybe_process_step| {
-                    if let Some(ref mut process_step) = maybe_process_step {
-                        process_step.attested = true;
-                    }
-                },
+                process_step,
             );
 
             let one = T::DefinitionStepIndex::unique_saturated_from(1u32);
 
-            if <DefinitionSteps<T>>::contains_key(
+            if !<DefinitionSteps<T>>::contains_key(
                 (registry_id, definition_id),
                 definition_step_index.saturating_add(one),
             ) {
-                let process_step = ProcessStep {
-                    attested: false,
-                    attributes: vec![],
-                };
-
-                <ProcessSteps<T>>::insert(
-                    (registry_id, definition_id, process_id),
-                    definition_step_index.saturating_add(one),
-                    process_step,
-                );
-            } else {
                 <Processes<T>>::mutate_exists(
                     (registry_id, definition_id),
                     process_id,
@@ -1229,6 +976,13 @@ pub mod pallet {
                         }
                     },
                 );
+
+                Self::deposit_event(Event::ProcessCompleted(
+                    sender.clone(),
+                    registry_id,
+                    definition_id,
+                    process_id,
+                ));
             }
 
             Self::deposit_event(Event::ProcessStepAttested(
@@ -1428,20 +1182,24 @@ pub mod pallet {
                     <Processes<T>>::iter_prefix((registry_id, definition_id)).for_each(
                         |(process_id, process)| {
                             if process.status == ProcessStatus::InProgress {
-                                let process_step_maybe = <ProcessSteps<T>>::get(
+                                if !<ProcessSteps<T>>::contains_key(
                                     (registry_id, definition_id, process_id),
                                     step_index,
-                                );
-                                //if process step has been created but is not attested then it is pending
-                                if let Some(process_step) = process_step_maybe {
-                                    if !process_step.attested {
-                                        processes.push((
-                                            *registry_id,
-                                            *definition_id,
-                                            process_id,
-                                            process,
-                                        ))
-                                    }
+                                ) && (*step_index
+                                    == T::DefinitionStepIndex::unique_saturated_from(0u32)
+                                    || <ProcessSteps<T>>::contains_key(
+                                        (registry_id, definition_id, process_id),
+                                        step_index.saturating_sub(
+                                            T::DefinitionStepIndex::unique_saturated_from(1u32),
+                                        ),
+                                    ))
+                                {
+                                    processes.push((
+                                        *registry_id,
+                                        *definition_id,
+                                        process_id,
+                                        process,
+                                    ))
                                 }
                             }
                         },
@@ -1509,6 +1267,16 @@ pub mod pallet {
         }};
     }
 
+    fn get_max_step_name<AccountId,MemberCount>(steps: &Vec<(Vec<u8>, AccountId, MemberCount)>)-> u32 {
+        let mut max_step_name_len = 0;
+        steps.into_iter().for_each(|(name,_,_)| {
+            if name.len() as u32 > max_step_name_len {
+                max_step_name_len = name.len() as u32;
+            };
+        });
+        max_step_name_len
+
+    }
     fn get_max_attribute_name_len(attributes: &Vec<Attribute<Vec<u8>, Vec<u8>>>) -> u32 {
         let mut max_attribute_name_len = 0;
         attributes.into_iter().for_each(|attribute| {

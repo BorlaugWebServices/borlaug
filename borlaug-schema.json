@@ -114,7 +114,7 @@
   "ObservationId": "u32",
   "Observation": {
     "compliance": "Option<Compliance>",
-    "procedural_note": "Option<[u8; 32]>"
+    "procedural_note_hash": "Option<[u8; 32]>"
   },
   "Compliance": {
     "_enum": [
