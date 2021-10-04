@@ -157,9 +157,9 @@ impl<AccountId, ProposalId, AuditId> From<(AuditId, Audit<AccountId, ProposalId>
 pub struct ObservationResponse<ObservationId> {
     pub observation_id: ObservationId,
     pub compliance: Option<String>,
-    pub procedural_note: Option<String>,
+    pub procedural_note_hash: Option<[u8; 32]>,
 }
-
+//TODO: send enums as enums not as strings
 impl<ObservationId> From<(ObservationId, Observation)> for ObservationResponse<ObservationId> {
     fn from((observation_id, observation): (ObservationId, Observation)) -> Self {
         ObservationResponse {
@@ -169,9 +169,7 @@ impl<ObservationId> From<(ObservationId, Observation)> for ObservationResponse<O
                 Compliance::NonCompliant => "NonCompliant".to_string(),
                 Compliance::NotApplicable => "NotApplicable".to_string(),
             }),
-            procedural_note: observation
-                .procedural_note
-                .map(|procedural_note| String::from_utf8_lossy(&procedural_note).to_string()),
+            procedural_note_hash: observation.procedural_note_hash,
         }
     }
 }
@@ -478,7 +476,6 @@ where
 
     fn get_evidence_by_proposal(
         &self,
-
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<EvidenceResponse<EvidenceId, ProposalId>> {
@@ -486,9 +483,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let (evidence_id, evidence) = api
-
             .get_evidence_by_proposal(&at, proposal_id)
-
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((evidence_id, evidence).into())

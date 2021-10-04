@@ -524,7 +524,7 @@ pub mod pallet {
 
         })]
         pub fn register_did_for_bulk(
-            origin: OriginFor<T>,
+            origin: OriginFor<T>,            
             dids: Vec<(T::AccountId, Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)>,
         ) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
