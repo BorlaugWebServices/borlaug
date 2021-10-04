@@ -28,6 +28,8 @@ sp_api::decl_runtime_apis! {
 
         fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition<BoundedStringName>>;
 
+        fn get_definition_step(registry_id:RegistryId,definition_id:DefinitionId,step_index: DefinitionStepIndex) -> Option<DefinitionStep<AccountId,MemberCount,BoundedStringName>>;
+
         fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<AccountId,MemberCount,BoundedStringName>)>;
 
         fn get_available_definitions(account_id: AccountId) -> Vec<(RegistryId,DefinitionId,Definition<BoundedStringName>)>;

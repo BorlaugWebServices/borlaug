@@ -14,6 +14,17 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     #[rpc(name = "member_of")]
     fn member_of(&self, account: AccountId, at: Option<BlockHash>) -> Result<Vec<GroupId>>;
 
+    #[rpc(name = "is_member")]
+    fn is_member(
+        &self,
+        group_id: GroupId,
+        account: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<bool>;
+
+    #[rpc(name = "get_group_account")]
+    fn get_group_account(&self, group_id: GroupId, at: Option<BlockHash>) -> Result<AccountId>;
+
     #[rpc(name = "get_group")]
     fn get_group(
         &self,
@@ -49,14 +60,15 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
-    ) -> Result<VoteResponse<AccountId, ProposalId, MemberCount>>;
+    ) -> Result<VotesResponse<AccountId, ProposalId, MemberCount>>;
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct GroupResponse<GroupId, AccountId, MemberCount> {
     pub group_id: GroupId,
     pub name: String,
-    pub members: Vec<AccountId>,
+    pub total_vote_weight: MemberCount,
+    pub members: Vec<(AccountId, MemberCount)>,
     pub threshold: MemberCount,
     pub anonymous_account: AccountId,
     pub parent: Option<GroupId>,
@@ -65,20 +77,23 @@ impl<GroupId, AccountId, MemberCount, BoundedString>
     From<(
         GroupId,
         Group<GroupId, AccountId, MemberCount, BoundedString>,
+        Vec<(AccountId, MemberCount)>,
     )> for GroupResponse<GroupId, AccountId, MemberCount>
 where
     BoundedString: Into<Vec<u8>>,
 {
     fn from(
-        (group_id, group): (
+        (group_id, group, members): (
             GroupId,
             Group<GroupId, AccountId, MemberCount, BoundedString>,
+            Vec<(AccountId, MemberCount)>,
         ),
     ) -> Self {
         GroupResponse {
             group_id,
             name: String::from_utf8_lossy(&group.name.into()).to_string(),
-            members: group.members,
+            total_vote_weight: group.total_vote_weight,
+            members: members,
             threshold: group.threshold,
             anonymous_account: group.anonymous_account,
             parent: group.parent,
@@ -106,21 +121,23 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct VoteResponse<AccountId, ProposalId, MemberCount> {
+pub struct VotesResponse<AccountId, ProposalId, MemberCount> {
     pub proposal_id: ProposalId,
     pub threshold: MemberCount,
-    pub ayes: Vec<AccountId>,
-    pub nays: Vec<AccountId>,
+    pub total_vote_weight: MemberCount,
+    pub ayes: Vec<(AccountId, MemberCount)>,
+    pub nays: Vec<(AccountId, MemberCount)>,
 }
 impl<AccountId, ProposalId, MemberCount> From<(ProposalId, Votes<AccountId, MemberCount>)>
-    for VoteResponse<AccountId, ProposalId, MemberCount>
+    for VotesResponse<AccountId, ProposalId, MemberCount>
 {
-    fn from((proposal_id, vote): (ProposalId, Votes<AccountId, MemberCount>)) -> Self {
-        VoteResponse {
+    fn from((proposal_id, votes): (ProposalId, Votes<AccountId, MemberCount>)) -> Self {
+        VotesResponse {
             proposal_id,
-            threshold: vote.threshold,
-            ayes: vote.ayes,
-            nays: vote.nays,
+            threshold: votes.threshold,
+            total_vote_weight: votes.total_vote_weight,
+            ayes: votes.ayes,
+            nays: votes.nays,
         }
     }
 }
@@ -195,12 +212,38 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let runtime_api_result = api.member_of(&at, account);
-        runtime_api_result.map_err(|e| RpcError {
-            code: ErrorCode::ServerError(9876), // No real reason for this value
-            message: "Something wrong".into(),
-            data: Some(format!("{:?}", e).into()),
-        })
+        let groups = api.member_of(&at, account).map_err(convert_error!())?;
+        Ok(groups)
+    }
+
+    fn is_member(
+        &self,
+        group_id: GroupId,
+        account: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<bool> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let is_member = api
+            .is_member(&at, group_id, account)
+            .map_err(convert_error!())?;
+        Ok(is_member)
+    }
+
+    fn get_group_account(
+        &self,
+        group_id: GroupId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<AccountId> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let account_id = api
+            .get_group_account(&at, group_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok(account_id)
     }
 
     fn get_group(
@@ -211,12 +254,13 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let group = api
+        let (group, members) = api
             .get_group(&at, group_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((group_id, group).into())
+        Ok((group_id, group, members).into())
     }
+
     fn get_sub_groups(
         &self,
         group_id: GroupId,
@@ -227,12 +271,11 @@ where
 
         let groups = api
             .get_sub_groups(&at, group_id)
-            .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .map_err(convert_error!())?;
 
         Ok(groups
             .into_iter()
-            .map(|(sub_group_id, group)| (sub_group_id, group).into())
+            .map(|(sub_group_id, group, members)| (sub_group_id, group, members).into())
             .collect())
     }
 
@@ -274,7 +317,7 @@ where
         group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<VoteResponse<AccountId, ProposalId, MemberCount>> {
+    ) -> Result<VotesResponse<AccountId, ProposalId, MemberCount>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 

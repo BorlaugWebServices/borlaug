@@ -149,7 +149,7 @@ pub mod pallet {
         /// Value was None
         NoneValue,
         /// A string exceeds the maximum allowed length
-        BadString,
+        StringLengthLimitExceeded,
         /// the calling account is not the subject of owner_did
         NotDidSubject,
         /// A non-registry owner account attempted to  modify a registry or asset in the registry
@@ -261,6 +261,7 @@ pub mod pallet {
         Blake2_128Concat,
         T::LeaseId,
         LeaseAgreement<
+            T::ProposalId,
             T::RegistryId,
             T::AssetId,
             T::Moment,
@@ -524,11 +525,12 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn new_lease(
             origin: OriginFor<T>,
-            lease: LeaseAgreement<T::RegistryId, T::AssetId, T::Moment, Vec<u8>>,
+            //TODO: separate to parameters?
+            lease: LeaseAgreement<T::ProposalId, T::RegistryId, T::AssetId, T::Moment, Vec<u8>>,
         ) -> DispatchResultWithPostInfo {
-            let (_sender, group_account) = ensure_account_or_executed!(origin);
+            let (sender, proposal_id) = ensure_account_or_threshold!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &lease.lessor),
+                <identity::DidBySubject<T>>::contains_key(&sender, &lease.lessor),
                 Error::<T>::NotDidSubject
             );
 
@@ -541,7 +543,7 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Lease as u8),
-                &group_account,
+                &sender,
             );
 
             let lessor = lease.lessor;
@@ -554,6 +556,7 @@ pub mod pallet {
             });
 
             let lease = LeaseAgreement {
+                proposal_id,
                 contract_number: contract_number_limited,
                 lessor: lease.lessor,
                 lessee: lease.lessee,
@@ -582,9 +585,10 @@ pub mod pallet {
             lessor: Did,
             lease_id: T::LeaseId,
         ) -> DispatchResultWithPostInfo {
-            let (_sender, group_account) = ensure_account_or_executed!(origin);
+            //TODO: can this be handled from the API?
+            let (sender, _) = ensure_account_or_threshold!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &lessor),
+                <identity::DidBySubject<T>>::contains_key(&sender, &lessor),
                 Error::<T>::NotDidSubject
             );
 
@@ -672,6 +676,7 @@ pub mod pallet {
         ) -> Vec<(
             T::LeaseId,
             LeaseAgreement<
+                T::ProposalId,
                 T::RegistryId,
                 T::AssetId,
                 T::Moment,
@@ -689,6 +694,7 @@ pub mod pallet {
             lease_id: T::LeaseId,
         ) -> Option<
             LeaseAgreement<
+                T::ProposalId,
                 T::RegistryId,
                 T::AssetId,
                 T::Moment,

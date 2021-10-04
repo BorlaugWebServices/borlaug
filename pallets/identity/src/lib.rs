@@ -30,11 +30,11 @@
 //! * `rename_catalog` - Rename a Catalog
 //! * `remove_catalog` - Remove a Catalog
 //! * `add_dids_to_catalog` - Add dids to a Catalog
-//! * `rename_did_in_catalog` - Change the label of a DID in a catalog
 //! * `remove_dids_from_catalog` - Remove a DID from in a catalog
 //!
 //! #### For Controllers
 //! * `register_did_for` - Registers a new DID for a subject and adds caller as a controller
+//! * `register_did_for_bulk` - Registers a collection of DIDs for subjects and adds caller as a controller
 //! * `update_did` - Update properties of a DID Document
 //! * `replace_did` - Replace all the properties of a DID Document
 //! * `manage_controllers` - Add or remove controllers for the did. Subject cannot be removed.
@@ -160,45 +160,70 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A new DID was registered (Subject, Controller, DID)
-        Registered(T::AccountId, T::AccountId, Did),
-        /// A DIDs were bulk registered (Controller, count)
-        BulkRegistered(T::AccountId, u32),
-        /// Did updated (Controller, DID)
-        DidUpdated(T::AccountId, Did),
-        /// Did replaced (Controller, DID)
-        DidReplaced(T::AccountId, Did),
-        /// Claim consumers added
-        ClaimConsumersAdded(Did, Vec<ClaimConsumer<T::AccountId, T::Moment>>),
-        /// Claim consumers removed
-        ClaimConsumersRemoved(Did, Vec<T::AccountId>),
-        /// Claim issuers added
-        ClaimIssuersAdded(Did, Vec<ClaimIssuer<T::AccountId, T::Moment>>),
-        /// Claim issuers removed
-        ClaimIssuersRemoved(Did, Vec<T::AccountId>),
-        /// Claim was made against a DID (target DID, index of claim, group_id)
-        ClaimMade(Did, T::ClaimId, T::AccountId),
-        /// Claim was attested (target DID, index of claim, group_id)
-        ClaimAttested(Did, T::ClaimId, T::AccountId),
-        /// Claim attestation revoked (target DID, index of claim, group_id)
-        ClaimAttestationRevoked(Did, T::ClaimId, T::AccountId),
-        /// Catalog added (account, Catalog Id)
-        CatalogCreated(T::AccountId, T::CatalogId),
-        /// Catalog removed (account, Catalog Id)
-        CatalogRemoved(T::AccountId, T::CatalogId),
-        /// Dids added to catalog (account, Catalog Id)
-        CatalogDidsAdded(T::AccountId, T::CatalogId),
-        /// Did short_name in catalog changed (account, catalog_id, did)
-        CatalogDidRenamed(T::AccountId, T::CatalogId, Did),
-        /// Dids removed from catalog (account, catalog_id)
-        CatalogDidsRemoved(T::AccountId, T::CatalogId),
-        /// DID Controller updated (account, target_did, added_controllers,removed_controllers)
+        /// A new DID was registered
+        /// (caller, subject, controller, did)
+        Registered(T::AccountId, T::AccountId, T::AccountId, Did),
+        /// DIDs were bulk registered
+        /// (caller, controller, count)
+        BulkRegistered(T::AccountId, T::AccountId, u32),
+        /// Did updated
+        /// (caller, controller, did)
+        DidUpdated(T::AccountId, T::AccountId, Did),
+        /// Did replaced
+        /// (caller, controller, did)
+        DidReplaced(T::AccountId, T::AccountId, Did),
+        /// DID Controller updated
+        /// (caller, controller, target_did, added_controllers, removed_controllers)
         DidControllerUpdated(
+            T::AccountId,
             T::AccountId,
             Did,
             Option<Vec<T::AccountId>>,
             Option<Vec<T::AccountId>>,
         ),
+        /// Claim consumers added
+        /// (caller, controller, did, claim_consumers)
+        ClaimConsumersAuthorized(
+            T::AccountId,
+            T::AccountId,
+            Did,
+            Vec<ClaimConsumer<T::AccountId, T::Moment>>,
+        ),
+        /// Claim consumers removed
+        /// (caller, controller, did, claim_consumers)
+        ClaimConsumersRevoked(T::AccountId, T::AccountId, Did, Vec<T::AccountId>),
+        /// Claim issuers added
+        /// (caller, controller, did, claim_consumers)
+        ClaimIssuersAuthorized(
+            T::AccountId,
+            T::AccountId,
+            Did,
+            Vec<ClaimIssuer<T::AccountId, T::Moment>>,
+        ),
+        /// Claim issuers removed
+        /// (caller, controller, did, claim_consumers)
+        ClaimIssuersRevoked(T::AccountId, T::AccountId, Did, Vec<T::AccountId>),
+        /// Claim was made against a DID
+        /// (caller, issuer, target_did, claim_id)
+        ClaimMade(T::AccountId, T::AccountId, Did, T::ClaimId),
+        /// Claim was attested
+        /// ( attester, target_did, claim_id)
+        ClaimAttested(T::AccountId, Did, T::ClaimId),
+        /// Claim attestation revoked
+        /// (attester, target_did, claim_id)
+        ClaimAttestationRevoked(T::AccountId, Did, T::ClaimId),
+        /// Catalog added
+        /// (caller, controller, catalog_id)
+        CatalogCreated(T::AccountId, T::AccountId, T::CatalogId),
+        /// Catalog removed
+        /// (caller, controller, catalog_id)
+        CatalogRemoved(T::AccountId, T::AccountId, T::CatalogId),
+        /// Dids added to catalog
+        /// (caller, controller, catalog_id)
+        CatalogDidsAdded(T::AccountId, T::AccountId, T::CatalogId),
+        /// Dids removed from catalog
+        /// (caller, controller, catalog_id)
+        CatalogDidsRemoved(T::AccountId, T::AccountId, T::CatalogId),
     }
 
     #[pallet::error]
@@ -206,7 +231,7 @@ pub mod pallet {
         /// Value was None
         NoneValue,
         /// A string exceeds the maximum allowed length
-        BadString,
+        StringLengthLimitExceeded,
         /// Value was not found
         NotFound,
         /// Too many properties
@@ -298,13 +323,8 @@ pub mod pallet {
     /// Did => DidDocument
     #[pallet::storage]
     #[pallet::getter(fn did_documents)]
-    pub type DidDocuments<T: Config> = StorageMap<
-        _,
-        Blake2_128Concat,
-        Did,
-        DidDocument<T::AccountId, BoundedVec<u8, <T as Config>::NameLimit>>,
-        OptionQuery,
-    >;
+    pub type DidDocuments<T: Config> =
+        StorageMap<_, Blake2_128Concat, Did, DidDocument<T::AccountId>, OptionQuery>;
 
     //TODO: when Full BoundedVec support released, use BoundedVec not hash for storage key and remove name from DidProperty and use Fact here.
 
@@ -409,7 +429,7 @@ pub mod pallet {
         T::AccountId,
         Blake2_128Concat,
         T::CatalogId,
-        Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
+        (),
         OptionQuery,
     >;
 
@@ -417,37 +437,25 @@ pub mod pallet {
     /// For each catalog index, we keep a mapping of `Did` an index name
     #[pallet::storage]
     #[pallet::getter(fn dids_by_catalog)]
-    pub type DidsByCatalog<T: Config> = StorageDoubleMap<
-        _,
-        Blake2_128Concat,
-        T::CatalogId,
-        Blake2_128Concat,
-        Did,
-        BoundedVec<u8, <T as Config>::NameLimit>,
-        OptionQuery,
-    >;
+    pub type DidsByCatalog<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::CatalogId, Blake2_128Concat, Did, (), OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Register a new DID for caller. Subject calls to create a new DID.
         ///   
-        /// Arguments:
-        /// - `short_name` an optional short name for the DID
-        /// - `properties` initial DID properties to be added to the new DID
-        #[pallet::weight(<T as Config>::WeightInfo::register_did(
-            short_name.as_ref().map_or(0,|name|name.len()) as u32,
+        /// Arguments:       
+        /// - `properties` initial DID properties to be added to the new DID        
+        #[pallet::weight(<T as Config>::WeightInfo::register_did(           
             get_max_property_name_len_option(properties),
             get_max_property_fact_len_option(properties),
             properties.as_ref().map_or(0,|properties|properties.len()) as u32,
         ))]
         pub fn register_did(
             origin: OriginFor<T>,
-            short_name: Option<Vec<u8>>,
             properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
-
-            let bounded_name = enforce_limit_option!(short_name.clone());
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let property_count = properties.as_ref().map_or(0, |p| p.len());
 
@@ -461,10 +469,10 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Did as u8),
-                &sender,
+                &group_account,
             );
 
-            Self::mint_did(sender.clone(), sender, bounded_name, properties);
+            Self::mint_did(&account_id, &group_account, &group_account, properties);
 
             Ok(().into())
         }
@@ -472,11 +480,9 @@ pub mod pallet {
         /// Register a new DID on behalf of another user (subject).
         ///        
         /// Arguments:
-        /// - `subject` the Subject of the DID
-        /// - `short_name` an optional short name for the DID
-        /// - `properties` initial DID properties to be added to the new DID
-        #[pallet::weight(<T as Config>::WeightInfo::register_did(
-            short_name.as_ref().map_or(0,|name|name.len()) as u32,
+        /// - `subject` the Subject of the DID        
+        /// - `properties` initial DID properties to be added to the new DID      
+        #[pallet::weight(<T as Config>::WeightInfo::register_did(       
             get_max_property_name_len_option(properties),
             get_max_property_fact_len_option(properties),
             properties.as_ref().map_or(0,|properties|properties.len()) as u32,
@@ -484,12 +490,9 @@ pub mod pallet {
         pub fn register_did_for(
             origin: OriginFor<T>,
             subject: T::AccountId,
-            short_name: Option<Vec<u8>>,
             properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
-
-            let bounded_name = enforce_limit_option!(short_name);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let property_count = properties.as_ref().map_or(0, |p| p.len());
 
@@ -503,30 +506,28 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Did as u8),
-                &sender,
+                &group_account,
             );
 
-            Self::mint_did(subject, sender, bounded_name, properties);
+            Self::mint_did(&account_id, &subject, &group_account, properties);
             Ok(().into())
         }
 
         /// Register a number of new DIDs on behalf of users (subject). Note the client should be smart and avoid exceeding block weight and size limits.
         ///        
         /// Arguments:
-        /// - `dids` the DIDs to be created
+        /// - `dids` the DIDs to be created        
         #[pallet::weight({
-            let (a,b,c,d)=get_did_for_bulk_lens::<T>(dids);
-            <T as Config>::WeightInfo::register_did_for(a,b,c,d).saturating_mul(dids.len() as Weight)
+
+            let (b,c,d)=get_did_for_bulk_lens::<T>(dids);
+            <T as Config>::WeightInfo::register_did_for(b,c,d).saturating_mul(dids.len() as Weight)
+
         })]
         pub fn register_did_for_bulk(
             origin: OriginFor<T>,
-            dids: Vec<(
-                T::AccountId,
-                Option<Vec<u8>>,
-                Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
-            )>,
+            dids: Vec<(T::AccountId, Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let did_count = dids.len();
 
@@ -537,8 +538,7 @@ pub mod pallet {
 
             let dids = dids
                 .into_iter()
-                .map(|(subject, short_name, properties)| {
-                    let bounded_name = enforce_limit_option!(short_name);
+                .map(|(subject, properties)| {
                     let property_count = properties.as_ref().map_or(0, |p| p.len());
 
                     ensure!(
@@ -548,34 +548,37 @@ pub mod pallet {
 
                     let properties = enforce_limit_did_properties_option!(properties);
 
-                    Ok((subject, bounded_name, properties))
+                    Ok((subject, properties))
                 })
                 .collect::<Result<Vec<_>, Error<T>>>()?;
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(did_count as u8 * ExtrinsicIndex::Did as u8),
-                &sender,
+                &group_account,
             );
 
-            dids.into_iter()
-                .for_each(|(subject, bounded_name, properties)| {
-                    Self::mint_did(subject, sender.clone(), bounded_name, properties);
-                });
+            dids.into_iter().for_each(|(subject, properties)| {
+                Self::mint_did(&account_id, &subject, &group_account, properties);
+            });
 
-            Self::deposit_event(Event::BulkRegistered(sender, did_count as u32));
+            Self::deposit_event(Event::BulkRegistered(
+                account_id,
+                group_account,
+                did_count as u32,
+            ));
 
             Ok(().into())
         }
 
-        /// Append given collection of Did properties provided the caller is a controller and/or update short_name
+        /// Append given collection of Did properties provided the caller is a controller 
         ///
         /// Arguments:
         /// - `did` DID to which properties are to be added
         /// - `add_properties` DID properties to be added
         /// - `remove_keys` Keys of DID properties to be removed
-        #[pallet::weight(<T as Config>::WeightInfo::update_did(
-            short_name.as_ref().map_or(0,|name|name.as_ref().map_or(0,|name|name.len())) as u32,
+       
+        #[pallet::weight(<T as Config>::WeightInfo::update_did(          
             get_max_property_name_len_option(add_properties),
             get_max_property_fact_len_option(add_properties),
             add_properties.as_ref().map_or(0,|properties|properties.len()) as u32,
@@ -585,16 +588,10 @@ pub mod pallet {
         pub fn update_did(
             origin: OriginFor<T>,
             did: Did,
-            short_name: Option<Option<Vec<u8>>>,
             add_properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
             remove_keys: Option<Vec<Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
-
-            let bounded_short_name = match short_name {
-                Some(short_name) => Some(enforce_limit_option!(short_name)),
-                None => None,
-            };
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             let add_properties_count = add_properties.as_ref().map_or(0, |p| p.len());
 
@@ -622,17 +619,9 @@ pub mod pallet {
                 .map_or(Ok(None), |r| r.map(Some))?;
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &did),
+                <DidByController<T>>::contains_key(&group_account, &did),
                 Error::<T>::NotController
             );
-
-            <DidDocuments<T>>::mutate_exists(&did, |maybe_did_doc| {
-                if let Some(ref mut did_doc) = maybe_did_doc {
-                    if let Some(bounded_short_name) = bounded_short_name {
-                        did_doc.short_name = bounded_short_name;
-                    }
-                }
-            });
 
             if let Some(remove_keys) = remove_keys {
                 remove_keys.into_iter().for_each(|remove_key| {
@@ -647,7 +636,7 @@ pub mod pallet {
                 });
             }
 
-            Self::deposit_event(Event::DidUpdated(sender, did));
+            Self::deposit_event(Event::DidUpdated(account_id, group_account, did));
             Ok(().into())
         }
 
@@ -667,10 +656,10 @@ pub mod pallet {
             did: Did,
             properties: Vec<DidProperty<Vec<u8>, Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &did),
+                <DidByController<T>>::contains_key(&group_account, &did),
                 Error::<T>::NotController
             );
 
@@ -688,8 +677,8 @@ pub mod pallet {
                 <DidDocumentProperties<T>>::insert(&did, &hash, property);
             });
 
-            Self::deposit_event(Event::DidReplaced(sender, did));
-            //TODO: consider measuring how many properties were removed, and refund weight accordingly.
+            Self::deposit_event(Event::DidReplaced(account_id, group_account, did));
+            
             Ok(().into())
         }
 
@@ -709,10 +698,9 @@ pub mod pallet {
             add: Option<Vec<T::AccountId>>,
             remove: Option<Vec<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
-
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -742,7 +730,13 @@ pub mod pallet {
                     <DidControllers<T>>::insert(&target_did, &add, ());
                 });
             }
-            Self::deposit_event(Event::DidControllerUpdated(sender, target_did, add, remove));
+            Self::deposit_event(Event::DidControllerUpdated(
+                account_id,
+                group_account,
+                target_did,
+                add,
+                remove,
+            ));
             Ok(().into())
         }
 
@@ -759,10 +753,10 @@ pub mod pallet {
             target_did: Did,
             claim_consumers: Vec<ClaimConsumer<T::AccountId, T::Moment>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -784,7 +778,12 @@ pub mod pallet {
                 );
             });
 
-            Self::deposit_event(Event::ClaimConsumersAdded(target_did, claim_consumers));
+            Self::deposit_event(Event::ClaimConsumersAuthorized(
+                account_id,
+                group_account,
+                target_did,
+                claim_consumers,
+            ));
             Ok(().into())
         }
 
@@ -801,10 +800,10 @@ pub mod pallet {
             target_did: Did,
             claim_consumers: Vec<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -818,7 +817,12 @@ pub mod pallet {
                 <DidsByConsumer<T>>::remove(claim_consumer, &target_did);
             });
 
-            Self::deposit_event(Event::ClaimConsumersRemoved(target_did, claim_consumers));
+            Self::deposit_event(Event::ClaimConsumersRevoked(
+                account_id,
+                group_account,
+                target_did,
+                claim_consumers,
+            ));
             Ok(().into())
         }
 
@@ -835,10 +839,10 @@ pub mod pallet {
             target_did: Did,
             claim_issuers: Vec<ClaimIssuer<T::AccountId, T::Moment>>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -860,7 +864,12 @@ pub mod pallet {
                 );
             });
 
-            Self::deposit_event(Event::ClaimIssuersAdded(target_did, claim_issuers));
+            Self::deposit_event(Event::ClaimIssuersAuthorized(
+                account_id,
+                group_account,
+                target_did,
+                claim_issuers,
+            ));
             Ok(().into())
         }
 
@@ -877,10 +886,10 @@ pub mod pallet {
             target_did: Did,
             claim_issuers: Vec<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&sender, &target_did),
+                <DidByController<T>>::contains_key(&group_account, &target_did),
                 Error::<T>::NotController
             );
 
@@ -894,7 +903,12 @@ pub mod pallet {
                 <DidsByIssuer<T>>::remove(claim_issuer, &target_did);
             });
 
-            Self::deposit_event(Event::ClaimIssuersRemoved(target_did, claim_issuers));
+            Self::deposit_event(Event::ClaimIssuersRevoked(
+                account_id,
+                group_account,
+                target_did,
+                claim_issuers,
+            ));
             Ok(().into())
         }
 
@@ -919,10 +933,10 @@ pub mod pallet {
             statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
             threshold: T::MemberCount,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                Self::is_valid_consumer(&target_did, &sender),
+                Self::is_valid_consumer(&target_did, &group_account),
                 Error::<T>::NotAuthorized
             );
 
@@ -945,7 +959,7 @@ pub mod pallet {
             let claim = Claim {
                 description: enforce_limit!(description),
                 statements,
-                created_by: sender.clone(),
+                created_by: group_account.clone(),
                 attestation: None,
                 threshold,
             };
@@ -953,14 +967,19 @@ pub mod pallet {
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Claim as u8),
-                &sender,
+                &group_account,
             );
 
             let claim_id = next_id!(NextClaimId<T>, T);
 
             <Claims<T>>::insert(&target_did, claim_id, claim);
 
-            Self::deposit_event(Event::ClaimMade(target_did, claim_id, sender));
+            Self::deposit_event(Event::ClaimMade(
+                account_id,
+                group_account,
+                target_did,
+                claim_id,
+            ));
             Ok(().into())
         }
 
@@ -985,14 +1004,15 @@ pub mod pallet {
             statements: Vec<Statement<Vec<u8>, Vec<u8>>>,
             valid_until: T::Moment,
         ) -> DispatchResultWithPostInfo {
+            //TODO: use macro
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
-            let (sender, yes_votes) = match either {
+            let (account_id, yes_votes) = match either {
                 Either::Left(account_id) => (account_id, None),
                 Either::Right((_, _, yes_votes, _, group_account)) => (group_account, yes_votes),
             };
 
             ensure!(
-                Self::is_valid_issuer(&target_did, &sender),
+                Self::is_valid_issuer(&target_did, &account_id),
                 Error::<T>::NotAuthorized
             );
 
@@ -1042,13 +1062,13 @@ pub mod pallet {
                     claim.statements.retain(|s| !names.contains(&s.name));
                     claim.statements.append(&mut stmts);
                     claim.attestation = Some(Attestation {
-                        attested_by: sender.clone(),
+                        attested_by: account_id.clone(),
                         valid_until,
                     });
                 }
             });
 
-            Self::deposit_event(Event::ClaimAttested(target_did, claim_id, sender));
+            Self::deposit_event(Event::ClaimAttested(account_id, target_did, claim_id));
 
             Ok(Some(<T as Config>::WeightInfo::attest_claim(
                 statements_len as u32,
@@ -1074,12 +1094,25 @@ pub mod pallet {
             target_did: Did,
             claim_id: T::ClaimId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
+            let (account_id, yes_votes) = match either {
+                Either::Left(account_id) => (account_id, None),
+                Either::Right((_, _, yes_votes, _, group_account)) => (group_account, yes_votes),
+            };
 
             ensure!(
-                Self::is_valid_issuer(&target_did, &sender),
+                Self::is_valid_issuer(&target_did, &account_id),
                 Error::<T>::NotAuthorized
             );
+
+            if yes_votes.is_some() {
+                let claim = <Claims<T>>::get(&target_did, claim_id);
+                ensure!(claim.is_some(), Error::<T>::NotFound);
+                ensure!(
+                    yes_votes.unwrap() >= claim.unwrap().threshold,
+                    Error::<T>::ThresholdNotMet
+                );
+            }
 
             let mut existing_statements_len = 0;
             let mut max_statement_name_len = 0;
@@ -1098,7 +1131,9 @@ pub mod pallet {
                 }
             });
 
-            Self::deposit_event(Event::ClaimAttestationRevoked(target_did, claim_id, sender));
+            Self::deposit_event(Event::ClaimAttestationRevoked(
+                account_id, target_did, claim_id,
+            ));
             Ok(Some(<T as Config>::WeightInfo::revoke_attestation(
                 existing_statements_len as u32,
                 max_statement_name_len as u32,
@@ -1111,53 +1146,21 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `name` name of the catalog
-        #[pallet::weight(<T as Config>::WeightInfo::create_catalog(
-            name.len() as u32
-        ))]
-        pub fn create_catalog(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
-
-            let bounded_name = enforce_limit!(name);
+        #[pallet::weight(<T as Config>::WeightInfo::create_catalog())]
+        pub fn create_catalog(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
                 &(ExtrinsicIndex::Catalog as u8),
-                &sender,
+                &group_account,
             );
 
             let catalog_id = next_id!(NextCatalogId<T>, T);
 
-            <Catalogs<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
+            <Catalogs<T>>::insert(&group_account, catalog_id, ());
 
-            Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
-            Ok(().into())
-        }
-
-        /// Rename a catalog
-        ///
-        /// Arguments:
-        /// - `catalog_id` id of catalog
-        /// - `name` new name of catalog
-        #[pallet::weight(<T as Config>::WeightInfo::rename_catalog(
-            name.len() as u32
-        ))]
-        pub fn rename_catalog(
-            origin: OriginFor<T>,
-            catalog_id: T::CatalogId,
-            name: Vec<u8>,
-        ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
-
-            ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
-                Error::<T>::NotController
-            );
-
-            let bounded_name = enforce_limit!(name);
-
-            <Catalogs<T>>::insert(&sender, catalog_id, Catalog { name: bounded_name });
-
-            Self::deposit_event(Event::CatalogCreated(sender, catalog_id));
+            Self::deposit_event(Event::CatalogCreated(account_id, group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1170,18 +1173,18 @@ pub mod pallet {
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&group_account, catalog_id),
                 Error::<T>::NotController
             );
 
-            <Catalogs<T>>::remove(&sender, catalog_id);
+            <Catalogs<T>>::remove(&group_account, catalog_id);
             //TODO: fix this for weights
             <DidsByCatalog<T>>::remove_prefix(&catalog_id);
 
-            Self::deposit_event(Event::CatalogRemoved(sender, catalog_id));
+            Self::deposit_event(Event::CatalogRemoved(account_id, group_account, catalog_id));
             Ok(().into())
         }
 
@@ -1190,19 +1193,21 @@ pub mod pallet {
         /// Arguments:       
         /// - `catalog_id` Catalog to which DID are to be added
         /// - `dids` DIDs are to be added
-        #[pallet::weight(<T as Config>::WeightInfo::add_dids_to_catalog(
-            dids.len() as u32,
-            get_max_did_short_name_len(dids)
-        ))]
+        //TODO: fix weights
+        #[pallet::weight(10_000)]
+        // #[pallet::weight(<T as Config>::WeightInfo::add_dids_to_catalog(
+        //     dids.len() as u32,
+        //     get_max_did_short_name_len(dids)
+        // ))]
         pub fn add_dids_to_catalog(
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,
-            dids: Vec<(Did, Vec<u8>)>,
+            dids: Vec<Did>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&group_account, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -1211,46 +1216,15 @@ pub mod pallet {
                 Error::<T>::CatalogDidLimitExceeded
             );
 
-            let dids = dids
-                .into_iter()
-                .map(|(did, short_name)| Ok((did, enforce_limit!(short_name))))
-                .collect::<Result<Vec<_>, Error<T>>>()?;
-
-            for (did, short_name) in dids.into_iter() {
-                <DidsByCatalog<T>>::insert(catalog_id, did, short_name);
+            for did in dids.into_iter() {
+                <DidsByCatalog<T>>::insert(catalog_id, did, ());
             }
 
-            Self::deposit_event(Event::CatalogDidsAdded(sender, catalog_id));
-            Ok(().into())
-        }
-
-        /// Rename DID in catalog. Changes the short_name stored in the catalog.
-        ///
-        /// Arguments:       
-        /// - `catalog_id` Catalog if DID
-        /// - `target_did` DID to be renamed
-        /// - `short_name` new short_name of did in catalog
-        #[pallet::weight(<T as Config>::WeightInfo::rename_did_in_catalog(
-            short_name.len() as u32,
-        ))]
-        pub fn rename_did_in_catalog(
-            origin: OriginFor<T>,
-            catalog_id: T::CatalogId,
-            target_did: Did,
-            short_name: Vec<u8>,
-        ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
-
-            ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
-                Error::<T>::NotController
-            );
-
-            let bounded_name = enforce_limit!(short_name);
-
-            <DidsByCatalog<T>>::insert(&catalog_id, &target_did, bounded_name);
-
-            Self::deposit_event(Event::CatalogDidRenamed(sender, catalog_id, target_did));
+            Self::deposit_event(Event::CatalogDidsAdded(
+                account_id,
+                group_account,
+                catalog_id,
+            ));
             Ok(().into())
         }
 
@@ -1267,10 +1241,10 @@ pub mod pallet {
             catalog_id: T::CatalogId,
             dids: Vec<Did>,
         ) -> DispatchResultWithPostInfo {
-            let sender = ensure_account_or_group!(origin);
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <Catalogs<T>>::contains_key(&sender, catalog_id),
+                <Catalogs<T>>::contains_key(&group_account, catalog_id),
                 Error::<T>::NotController
             );
 
@@ -1283,7 +1257,11 @@ pub mod pallet {
                 <DidsByCatalog<T>>::remove(catalog_id, did);
             }
 
-            Self::deposit_event(Event::CatalogDidsRemoved(sender, catalog_id));
+            Self::deposit_event(Event::CatalogDidsRemoved(
+                account_id,
+                group_account,
+                catalog_id,
+            ));
             Ok(().into())
         }
     }
@@ -1291,31 +1269,16 @@ pub mod pallet {
     impl<T: Config> Module<T> {
         // -- rpc api functions --
 
-        pub fn get_catalogs(
-            account_id: T::AccountId,
-        ) -> Vec<(
-            T::CatalogId,
-            Catalog<BoundedVec<u8, <T as Config>::NameLimit>>,
-        )> {
+        pub fn get_catalogs(account_id: T::AccountId) -> Vec<T::CatalogId> {
             let mut catalogs = Vec::new();
             <Catalogs<T>>::iter_prefix(account_id)
-                .for_each(|(catalog_id, catalog)| catalogs.push((catalog_id, catalog)));
+                .for_each(|(catalog_id, _)| catalogs.push(catalog_id));
             catalogs
         }
 
-        pub fn get_catalog(
-            account_id: T::AccountId,
-            catalog_id: T::CatalogId,
-        ) -> Option<Catalog<BoundedVec<u8, <T as Config>::NameLimit>>> {
-            <Catalogs<T>>::get(account_id, catalog_id)
-        }
-
-        pub fn get_dids_in_catalog(
-            catalog_id: T::CatalogId,
-        ) -> Vec<(Did, BoundedVec<u8, <T as Config>::NameLimit>)> {
+        pub fn get_dids_in_catalog(catalog_id: T::CatalogId) -> Vec<Did> {
             let mut dids = Vec::new();
-            <DidsByCatalog<T>>::iter_prefix(catalog_id)
-                .for_each(|(did, name)| dids.push((did, name.into())));
+            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| dids.push(did));
             dids
         }
 
@@ -1323,8 +1286,7 @@ pub mod pallet {
             catalog_id: T::CatalogId,
             did: Did,
         ) -> Option<(
-            BoundedVec<u8, <T as Config>::NameLimit>,
-            DidDocument<T::AccountId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            DidDocument<T::AccountId>,
             Vec<
                 DidProperty<
                     BoundedVec<u8, <T as Config>::NameLimit>,
@@ -1333,24 +1295,26 @@ pub mod pallet {
             >,
             Vec<T::AccountId>,
         )> {
-            let short_name = <DidsByCatalog<T>>::get(catalog_id, did);
-            short_name.and_then(|short_name| {
-                <DidDocuments<T>>::get(did).map(|did_document| {
-                    let mut properties = Vec::new();
-                    <DidDocumentProperties<T>>::iter_prefix(&did)
-                        .for_each(|(_hash, property)| properties.push(property));
-                    let mut controllers = Vec::new();
-                    <DidControllers<T>>::iter_prefix(&did)
-                        .for_each(|(controller, _)| controllers.push(controller));
-                    (short_name, did_document, properties, controllers)
+            let exists = <DidsByCatalog<T>>::contains_key(catalog_id, did);
+            exists
+                .then(|| {
+                    <DidDocuments<T>>::get(did).map(|did_document| {
+                        let mut properties = Vec::new();
+                        <DidDocumentProperties<T>>::iter_prefix(&did)
+                            .for_each(|(_hash, property)| properties.push(property));
+                        let mut controllers = Vec::new();
+                        <DidControllers<T>>::iter_prefix(&did)
+                            .for_each(|(controller, _)| controllers.push(controller));
+                        (did_document, properties, controllers)
+                    })
                 })
-            })
+                .flatten()
         }
 
         pub fn get_did(
             did: Did,
         ) -> Option<(
-            DidDocument<T::AccountId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            DidDocument<T::AccountId>,
             Vec<
                 DidProperty<
                     BoundedVec<u8, <T as Config>::NameLimit>,
@@ -1370,33 +1334,16 @@ pub mod pallet {
             })
         }
 
-        pub fn get_dids_by_subject(
-            subject: T::AccountId,
-        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::NameLimit>>)> {
+        pub fn get_dids_by_subject(subject: T::AccountId) -> Vec<Did> {
             let mut did_documents = Vec::new();
-            <DidBySubject<T>>::iter_prefix(subject).for_each(|(did, _)| {
-                did_documents.push((
-                    did,
-                    <DidDocuments<T>>::get(&did)
-                        .map(|did_document| did_document.short_name)
-                        .flatten(),
-                ))
-            });
+            <DidBySubject<T>>::iter_prefix(subject).for_each(|(did, _)| did_documents.push(did));
             did_documents
         }
 
-        pub fn get_dids_by_controller(
-            controller: T::AccountId,
-        ) -> Vec<(Did, Option<BoundedVec<u8, <T as Config>::NameLimit>>)> {
+        pub fn get_dids_by_controller(controller: T::AccountId) -> Vec<Did> {
             let mut did_documents = Vec::new();
-            <DidByController<T>>::iter_prefix(controller).for_each(|(did, _)| {
-                did_documents.push((
-                    did,
-                    <DidDocuments<T>>::get(did)
-                        .map(|did_document| did_document.short_name)
-                        .flatten(),
-                ))
-            });
+            <DidByController<T>>::iter_prefix(controller)
+                .for_each(|(did, _)| did_documents.push(did));
             did_documents
         }
 
@@ -1515,9 +1462,9 @@ pub mod pallet {
 
         /// Creates a Did with given properties
         fn mint_did(
-            subject: T::AccountId,
-            controller: T::AccountId,
-            short_name: Option<BoundedVec<u8, <T as Config>::NameLimit>>,
+            caller: &T::AccountId,
+            subject: &T::AccountId,
+            controller: &T::AccountId,
             properties: Option<
                 Vec<
                     DidProperty<
@@ -1529,21 +1476,20 @@ pub mod pallet {
         ) {
             let nonce = Self::next_nonce();
             let random = <randomness::Module<T>>::random(&b"mint_did context"[..]);
-            let encoded = (random, subject.clone(), nonce).encode();
+            let encoded = (random, subject, nonce).encode();
             let id = sp_io::hashing::blake2_256(&encoded);
 
             let did = Did { id };
 
-            <DidBySubject<T>>::insert(&subject, &did, ());
-            <DidByController<T>>::insert(&controller, &did, ());
-            <DidControllers<T>>::insert(&did, &controller, ());
-            if subject != controller {
-                <DidByController<T>>::insert(&subject, &did, ());
-                <DidControllers<T>>::insert(&did, &subject, ());
+            <DidBySubject<T>>::insert(subject, &did, ());
+            <DidByController<T>>::insert(controller, &did, ());
+            <DidControllers<T>>::insert(&did, controller, ());
+            if *subject != *controller {
+                <DidByController<T>>::insert(subject, &did, ());
+                <DidControllers<T>>::insert(&did, subject, ());
             }
 
             let did_doc = DidDocument {
-                short_name,
                 subject: subject.clone(),
             };
             <DidDocuments<T>>::insert(&did, did_doc);
@@ -1555,7 +1501,12 @@ pub mod pallet {
                 });
             }
 
-            Self::deposit_event(Event::Registered(subject, controller, did));
+            Self::deposit_event(Event::Registered(
+                caller.clone(),
+                subject.clone(),
+                controller.clone(),
+                did,
+            ));
         }
     }
     // -- for use in weights --
@@ -1682,37 +1633,24 @@ pub mod pallet {
             })
         });
         max_keys_len
-    }
-    fn get_max_did_short_name_len(catalog_dids: &Vec<(Did, Vec<u8>)>) -> u32 {
-        let mut max_did_short_name_len = 0;
-
-        catalog_dids.into_iter().for_each(|(_, short_name)| {
-            if short_name.len() as u32 > max_did_short_name_len {
-                max_did_short_name_len = short_name.len() as u32;
-            };
-        });
-        max_did_short_name_len
-    }
+    }  
 
     fn get_did_for_bulk_lens<T: Config>(
         dids: &Vec<(
-            T::AccountId,
-            Option<Vec<u8>>,
+            T::AccountId,            
             Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
         )>,
-    ) -> (u32, u32, u32, u32) {
+    ) -> (u32, u32, u32) {
         fn div_up(a: u32, b: u32) -> u32 {
             a / b + (a % b != 0) as u32
         }
-        let mut short_name_tot = 0;
+       
         let mut property_count_tot = 0;
         let mut property_name_tot = 0;
         let mut property_fact_tot = 0;
         let did_count = dids.len() as u32;
         dids.iter()
-            .for_each(|(_, short_name_maybe, properties_maybe)| {
-                short_name_tot =
-                    short_name_tot + short_name_maybe.as_ref().map_or(0, |name| name.len()) as u32;
+            .for_each(|(_, properties_maybe)| {               
 
                 if let Some(properties) = properties_maybe.as_ref() {
                     property_count_tot = property_count_tot + properties.len() as u32;
@@ -1729,18 +1667,19 @@ pub mod pallet {
             });
         //avoid divide by zero errors
         if did_count == 0 {
-            return (0, 0, 0, 0);
+
+            return (0, 0, 0);
         }
-        let short_name_avg = div_up(short_name_tot, did_count);
+       
         let property_count_avg = div_up(property_count_tot, did_count);
         if property_count_tot == 0 {
-            return (short_name_avg, 0, 0, property_count_avg);
+            return ( 0, 0, property_count_avg);
         }
+
         let property_name_avg = div_up(property_name_tot, property_count_tot);
         let property_fact_avg = div_up(property_fact_tot, property_count_tot);
 
-        (
-            short_name_avg,
+        (          
             property_name_avg,
             property_fact_avg,
             property_count_avg,

@@ -5,6 +5,20 @@ use frame_support::assert_ok;
 use primitives::*;
 use std::convert::TryInto;
 
+fn create_group(member: u64, group_id: u32) -> u64 {
+    assert_ok!(Groups::create_group(
+        Origin::signed(member),
+        "Test".to_string().into(),
+        vec![(member, 1)],
+        1,
+        10_000,
+    ));
+    let group_maybe = Groups::get_group(group_id);
+    assert!(group_maybe.is_some());
+    let (group, _) = group_maybe.unwrap();
+    group.anonymous_account
+}
+
 #[test]
 fn create_registry_should_work() {
     new_test_ext().execute_with(|| {
@@ -101,50 +115,42 @@ fn create_definition_should_work() {
 #[test]
 fn remove_definition_should_work() {
     new_test_ext().execute_with(|| {
-        // 1 creates a Group
-        assert_ok!(Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
-            10_000
-        ));
 
-        // 1 creates a Registry for itself
-        assert_ok!(Groups::propose(
+        assert_ok!(Provenance::create_registry(
             Origin::signed(1),
-            1,
-            Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
-                b"John Doe".to_vec()
-            ))),
-            1,
-            100
+            b"John Doe".to_vec()
         ));
-
-        // 1 creates a definition in the registry
-        assert_ok!(Groups::propose(
+        let registry_id = 1u32;
+        assert_ok!(Provenance::create_definition(
             Origin::signed(1),
-            1,
-            Box::new(crate::mock::Call::Provenance(
-                super::Call::create_definition(1u32, b"Test".to_vec(),)
-            )),
-            1,
-            100
+            registry_id,
+            b"Test".to_vec()
         ));
+        let definition_id = 1u32;
+        assert!(Definitions::<Test>::contains_key(
+            registry_id,
+            definition_id
+        ));
+        let definition = Definitions::<Test>::get(registry_id, definition_id).unwrap();
+        assert_eq!(
+            Definition {
+                name: b"Test".to_vec().try_into().unwrap(),
+                status: DefinitionStatus::Creating
+            },
+            definition
+        );
 
         // remove definition
-        assert_ok!(Groups::propose(
+        assert_ok!(Provenance::remove_definition(
             Origin::signed(1),
-            1,
-            Box::new(crate::mock::Call::Provenance(
-                super::Call::remove_definition(1u32, 1u32)
-            )),
-            1,
-            100
+            registry_id,
+            definition_id
         ));
-
         // verify definition was removed
-        assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), false);
+        assert_eq!(
+            Definitions::<Test>::contains_key(registry_id, definition_id),
+            false
+        );
     });
 }
 
@@ -152,13 +158,7 @@ fn remove_definition_should_work() {
 fn create_definition_step_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Group
-        assert_ok!(Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
-            10_000
-        ));
+        let group_account = create_group(1, 1);
         // 1 creates a Registry for itself
         assert_ok!(Groups::propose(
             Origin::signed(1),
@@ -166,16 +166,21 @@ fn create_definition_step_should_work() {
             Box::new(crate::mock::Call::Provenance(super::Call::create_registry(
                 b"John Doe".to_vec()
             ))),
+
             1,
             100
         ));
 
+
         // 1 creates a definition in the registry
+
         assert_ok!(Groups::propose(
             Origin::signed(1),
             1,
             Box::new(crate::mock::Call::Provenance(
+
                 super::Call::create_definition(1u32, b"Test".to_vec(),)
+
             )),
             1,
             100
@@ -183,11 +188,6 @@ fn create_definition_step_should_work() {
 
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
-
-        let group_maybe = Groups::get_group(1);
-        assert!(group_maybe.is_some());
-        let group = group_maybe.unwrap();
-        let group_account = group.anonymous_account;
 
         // 1 adds step to definition
         assert_ok!(Groups::propose(
@@ -203,9 +203,11 @@ fn create_definition_step_should_work() {
                     1
                 )
             )),
+
             1,
             100
         ));
+
 
         assert!(DefinitionSteps::<Test>::contains_key((1, 1), 0));
     });
@@ -215,13 +217,7 @@ fn create_definition_step_should_work() {
 fn update_definition_step_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Group
-        assert_ok!(Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
-            10_000
-        ));
+        let group_account = create_group(1, 1);
 
         // 1 creates a Registry for itself
         assert_ok!(Groups::propose(
@@ -235,23 +231,23 @@ fn update_definition_step_should_work() {
         ));
 
         // 1 creates a definition in the registry
+
         assert_ok!(Groups::propose(
             Origin::signed(1),
             1,
             Box::new(crate::mock::Call::Provenance(
+
                 super::Call::create_definition(1u32, b"Test".to_vec(),)
+
             )),
             1,
             100
         ));
 
+
         // verify definition was created
         assert_eq!(Definitions::<Test>::contains_key(1u32, 1u32), true);
 
-        let group_maybe = Groups::get_group(1);
-        assert!(group_maybe.is_some());
-        let group = group_maybe.unwrap();
-        let group_account = group.anonymous_account;
 
         // 1 adds step to definition
         assert_ok!(Groups::propose(
@@ -441,13 +437,9 @@ fn update_definition_step_should_work() {
 fn create_process_should_work() {
     new_test_ext().execute_with(|| {
         // 1 creates a Group
-        assert_ok!(Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
-            10_000
-        ));
+
+        let group_account = create_group(1, 1);
+
 
         // 1 creates a Registry for itself
         assert_ok!(Groups::propose(
@@ -471,10 +463,6 @@ fn create_process_should_work() {
             100
         ));
 
-        let group_maybe = Groups::get_group(1);
-        assert!(group_maybe.is_some());
-        let group = group_maybe.unwrap();
-        let group_account = group.anonymous_account;
 
         // 1 adds step to definition
         assert_ok!(Groups::propose(
@@ -506,6 +494,7 @@ fn create_process_should_work() {
             1,
             100
         ));
+
 
         let definition = Provenance::get_definition(1, 1).unwrap();
         // Verify definition is active

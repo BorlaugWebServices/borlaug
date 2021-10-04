@@ -172,6 +172,7 @@ where
     C::Api: asset_registry_runtime_api::AssetRegistryApi<
         Block,
         AccountId,
+        ProposalId,
         RegistryId,
         AssetId,
         LeaseId,

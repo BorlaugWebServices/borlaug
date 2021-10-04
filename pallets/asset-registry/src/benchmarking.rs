@@ -28,7 +28,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        identity::Pallet::<T>::register_did(origin, Some(vec![42u8]), None)?;
+        identity::Pallet::<T>::register_did(origin, None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_controller.push(did);
@@ -54,7 +54,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        identity::Pallet::<T>::register_did(origin.clone(), Some(vec![42u8]), None)?;
+        identity::Pallet::<T>::register_did(origin.clone(),None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_controller.push(did);
@@ -81,7 +81,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        identity::Pallet::<T>::register_did(origin.clone(), Some(vec![42u8]), None)?;
+        identity::Pallet::<T>::register_did(origin.clone(),None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_controller.push(did);
@@ -111,7 +111,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        identity::Pallet::<T>::register_did(origin.clone(), Some(vec![42u8]), None)?;
+        identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_controller.push(did);
@@ -166,7 +166,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        identity::Pallet::<T>::register_did(origin.clone(), Some(vec![42u8]), None)?;
+        identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_controller.push(did);
@@ -226,7 +226,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        identity::Pallet::<T>::register_did(origin.clone(), Some(vec![42u8]), None)?;
+        identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_controller.push(did);
@@ -266,7 +266,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        identity::Pallet::<T>::register_did(origin.clone(), Some(vec![42u8]), None)?;
+        identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_controller.push(did);
@@ -302,6 +302,7 @@ benchmarks! {
         }
 
         let lease=LeaseAgreement{
+            proposal_id:None,
             contract_number: vec![42u8; a as usize],
             lessor: did.clone(),
             lessee: did.clone(),
@@ -328,7 +329,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        identity::Pallet::<T>::register_did(origin.clone(), Some(vec![42u8]), None)?;
+        identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
             dids_by_controller.push(did);
@@ -364,6 +365,7 @@ benchmarks! {
         }
 
         let lease=LeaseAgreement{
+            proposal_id:None,
             contract_number: vec![42u8],
             lessor: did.clone(),
             lessee: did.clone(),

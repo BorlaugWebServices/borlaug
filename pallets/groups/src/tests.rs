@@ -1,52 +1,129 @@
 //! Tests for the module.
 
-use crate::mock::*;
-use frame_support::{assert_ok, codec::Encode};
+use crate::{mock::*, GroupMembers};
+use core::convert::TryInto;
+use frame_support::assert_ok;
+use primitives::*;
+
+const MINIMUM_BALANCE: u128 = 1;
 
 #[test]
 fn creating_new_group_should_work() {
     new_test_ext().execute_with(|| {
-        //required for randomness_collective_flip module
-        System::set_block_number(1);
+        let caller = 1u64;
 
-        // 1 creates a Group
+        // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
             1_000_000_000u128
         ));
 
+        let group_id = 1u32;
+
         // verify group was created
-        assert_eq!(super::Groups::<Test>::contains_key(1u32), true);
+        assert!(super::Groups::<Test>::contains_key(group_id));
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+
+        assert_eq!(
+            Group {
+                name: b"Test".to_vec().try_into().unwrap(),
+                total_vote_weight: 1u32,
+                threshold: 1u32,
+                anonymous_account: group.anonymous_account.clone(),
+                parent: None,
+            },
+            group
+        );
+
+        assert!(GroupMembers::<Test>::contains_key(group_id, 1));
+    });
+}
+
+#[test]
+fn update_group_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+        let member_2 = 2u64;
+        let member_3 = 3u64;
+
+        // 1 creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1), (member_2, 1)],
+            1u32,
+            1_000_000_000u128
+        ));
+
+        let group_id = 1u32;
+
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::update_group(
+                Some(b"Test_2".to_vec().try_into().unwrap()),
+                Some(vec![(member_3, 1)]),
+                Some(vec![member_2]),
+                Some(2)
+            ))),
+            1,
+            100
+        ));
+
+        assert!(super::Groups::<Test>::contains_key(group_id));
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+
+        assert_eq!(
+            Group {
+                name: b"Test_2".to_vec().try_into().unwrap(),
+                total_vote_weight: 2u32,
+                threshold: 2u32,
+                anonymous_account: group.anonymous_account.clone(),
+                parent: None,
+            },
+            group
+        );
+
+        assert!(GroupMembers::<Test>::contains_key(group_id, caller));
+        assert!(!GroupMembers::<Test>::contains_key(group_id, member_2));
+        assert!(GroupMembers::<Test>::contains_key(group_id, member_3));
     });
 }
 
 #[test]
 fn creating_new_sub_group_should_work() {
     new_test_ext().execute_with(|| {
-        //required for randomness_collective_flip module
-        System::set_block_number(1);
+        let caller = 1u64;
 
         // 1 creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
             1_000_000_000u128
         ));
 
+        let group_id = 1u32;
+
         // verify group was created
-        assert_eq!(super::Groups::<Test>::contains_key(1u32), true);
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        let member_2 = 2u64;
+        let member_3 = 3u64;
 
         assert_ok!(Groups::propose(
-            Origin::signed(1),
+            Origin::signed(caller),
             1,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 "Test".to_string().into(),
-                vec![2, 3],
+                vec![(member_2, 1), (member_3, 1)],
                 2,
                 1_000_000_000u128
             ))),
@@ -54,113 +131,913 @@ fn creating_new_sub_group_should_work() {
             100
         ));
 
-        // verify sub group was created
-        assert_eq!(super::GroupChildren::<Test>::contains_key(1u32), true);
+        let sub_group_id = 2u32;
+
+        assert_eq!(
+            super::GroupChildren::<Test>::contains_key(group_id, sub_group_id),
+            true
+        );
+
+        assert!(super::Groups::<Test>::contains_key(sub_group_id));
+        let sub_group = super::Groups::<Test>::get(sub_group_id).unwrap();
+
+        assert_eq!(
+            Group {
+                name: b"Test".to_vec().try_into().unwrap(),
+                total_vote_weight: 2u32,
+                threshold: 2u32,
+                anonymous_account: sub_group.anonymous_account,
+                parent: Some(group_id),
+            },
+            sub_group
+        );
+
+        assert_eq!(
+            crate::mock::Balances::free_balance(&sub_group.anonymous_account),
+            1_000_000_000u128 + MINIMUM_BALANCE,
+        );
+
+        assert!(GroupMembers::<Test>::contains_key(sub_group_id, member_2));
+        assert!(GroupMembers::<Test>::contains_key(sub_group_id, member_3));
+        assert_eq!(GroupMembers::<Test>::iter_prefix(sub_group_id).count(), 2);
     });
 }
-
 #[test]
-fn update_group_should_work() {
+fn update_sub_group_should_work() {
     new_test_ext().execute_with(|| {
-        //required for randomness_collective_flip module
-        System::set_block_number(1);
+        let caller = 1u64;
 
         // 1 creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
-            1,
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
             1_000_000_000u128
         ));
 
+        let group_id = 1u32;
+
         // verify group was created
-        assert_eq!(super::Groups::<Test>::contains_key(1u32), true);
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        let member_2 = 2u64;
+        let member_3 = 3u64;
 
         assert_ok!(Groups::propose(
-            Origin::signed(1),
-            1,
-            Box::new(crate::mock::Call::Groups(super::Call::update_group(
-                1u32,
-                Some("Test_2".to_string().into()),
-                Some(vec![3, 2]),
-                Some(2)
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
+                b"Test".to_vec().try_into().unwrap(),
+                vec![(member_2, 1), (member_3, 1)],
+                2,
+                1_000_000_000u128
             ))),
             1,
             100
         ));
 
-        let group = Groups::get_group(1).unwrap();
+        let sub_group_id = 2u32;
 
-        // Verify name updated
-        // assert_eq!(b"Test_2".to_vec().try_into().unwrap(), group.name);
-        // Verify members updated
-        assert_eq!(vec![2, 3], group.members);
+        assert!(super::Groups::<Test>::contains_key(sub_group_id));
+        let sub_group = super::Groups::<Test>::get(sub_group_id).unwrap();
+
+        assert_eq!(
+            Group {
+                name: b"Test".to_vec().try_into().unwrap(),
+                total_vote_weight: 2u32,
+                threshold: 2u32,
+                anonymous_account: sub_group.anonymous_account,
+                parent: Some(group_id),
+            },
+            sub_group
+        );
+
+        let member_4 = 4u64;
+        let member_5 = 5u64;
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::update_sub_group(
+                sub_group_id,
+                Some(b"New Test".to_vec().try_into().unwrap()),
+                Some(vec![(member_3, 2), (member_4, 1), (member_5, 1)]),
+                Some(vec![member_2]),
+                Some(3),
+            ))),
+            1,
+            100
+        ));
+
+        assert!(super::Groups::<Test>::contains_key(sub_group_id));
+        let sub_group = super::Groups::<Test>::get(sub_group_id).unwrap();
+
+        assert_eq!(
+            Group {
+                name: b"New Test".to_vec().try_into().unwrap(),
+                total_vote_weight: 4u32,
+                threshold: 3u32,
+                anonymous_account: sub_group.anonymous_account,
+                parent: Some(group_id),
+            },
+            sub_group
+        );
+
+        assert!(!GroupMembers::<Test>::contains_key(sub_group_id, member_2));
+        assert!(GroupMembers::<Test>::contains_key(sub_group_id, member_3));
+        assert_eq!(
+            GroupMembers::<Test>::get(sub_group_id, member_3).unwrap(),
+            2
+        );
+        assert!(GroupMembers::<Test>::contains_key(sub_group_id, member_4));
+        assert!(GroupMembers::<Test>::contains_key(sub_group_id, member_5));
+        assert_eq!(GroupMembers::<Test>::iter_prefix(sub_group_id).count(), 3);
     });
 }
 
 #[test]
 fn remove_group_should_work() {
     new_test_ext().execute_with(|| {
-        //required for randomness_collective_flip module
-        System::set_block_number(1);
+        let caller = 1u64;
+        let member_2 = 2u64;
 
-        // 1 creates a Group
+        // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1],
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1), (member_2, 1)],
             1,
-            1_000_000_000u128
+            1_000_000u128
         ));
+        let group_id = 1u32;
         // verify group was created
-        assert_eq!(super::Groups::<Test>::contains_key(1u32), true);
+        assert!(super::Groups::<Test>::contains_key(group_id));
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+
+        // verify group got funds
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            1_000_000u128 + MINIMUM_BALANCE
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&caller),
+            2_000_000_000u128 - 1_000_000u128 - MINIMUM_BALANCE
+        );
+        assert!(super::GroupMembers::<Test>::contains_key(group_id, caller));
+
+        // Create a proposal
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::update_group(
+                None, None, None, None,
+            ))),
+            2,
+            100
+        ));
+
+        let proposal_id = 1u32;
+
+        assert!(super::Proposals::<Test>::contains_key(
+            &group_id,
+            &proposal_id
+        ));
+        assert!(super::ProposalHashes::<Test>::iter_prefix(&group_id)
+            .next()
+            .is_some());
 
         assert_ok!(Groups::propose(
-            Origin::signed(1),
-            1,
-            Box::new(crate::mock::Call::Groups(super::Call::remove_group(1, 1))),
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::remove_group(
+                group_id, caller
+            ))),
             1,
             100
         ));
 
-        // verify group was created
-        assert_eq!(super::Groups::<Test>::contains_key(1u32), false);
+        // verify storage cleaned up
+        assert!(!super::Groups::<Test>::contains_key(group_id));
+        assert!(!super::GroupMembers::<Test>::contains_key(group_id, caller));
+        assert!(!super::GroupMembers::<Test>::contains_key(
+            group_id, member_2
+        ));
+        assert!(super::Proposals::<Test>::iter_prefix(&group_id)
+            .next()
+            .is_none());
+        assert!(super::ProposalHashes::<Test>::iter_prefix(&group_id)
+            .next()
+            .is_none());
+
+        // verify funds were returned
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            0u128
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&caller),
+            2_000_000_000u128
+        );
     });
 }
 
-fn make_proposal(value: u64) -> Call {
-    Call::System(frame_system::Call::remark(value.encode()))
-}
-
 #[test]
-fn vote_in_a_group_should_work() {
+fn remove_sub_group_should_work() {
     new_test_ext().execute_with(|| {
-        // 1 creates a Group
-        assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(1),
-            "Test".to_string().into(),
-            vec![1, 2, 3],
-            3,
-            1_000_000_000u128
-        ));
-        // verify group was created
-        assert_eq!(super::Groups::<Test>::contains_key(1u32), true);
+        let caller = 1u64;
 
-        let proposal = make_proposal(42);
-        // Create Propose
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
+            2_000_000u128
+        ));
+        let group_id = 1u32;
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+
+        let member_2 = 2u64;
+
         assert_ok!(Groups::propose(
-            Origin::signed(1),
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
+                b"Test".to_vec().try_into().unwrap(),
+                vec![(member_2, 1)],
+                2,
+                1_000_000u128
+            ))),
             1,
-            Box::new(proposal.clone()),
+            100
+        ));
+
+        let sub_group_id = 2u32;
+
+        assert!(super::Groups::<Test>::contains_key(sub_group_id));
+        let sub_group = super::Groups::<Test>::get(sub_group_id).unwrap();
+
+        // verify subgroup got funds
+        assert_eq!(
+            crate::mock::Balances::free_balance(&sub_group.anonymous_account),
+            1_000_000u128 + MINIMUM_BALANCE
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            1_000_000u128
+        );
+        assert!(super::GroupChildren::<Test>::contains_key(
+            group_id,
+            sub_group_id
+        ));
+        assert!(super::GroupMembers::<Test>::contains_key(
+            sub_group_id,
+            member_2
+        ));
+
+        // Create a proposal
+        assert_ok!(Groups::propose(
+            Origin::signed(member_2),
+            sub_group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::update_sub_group(
+                sub_group_id,
+                None,
+                None,
+                None,
+                None,
+            ))),
             3,
             100
         ));
 
-        // Making vote by 2nd member
-        assert_ok!(Groups::vote(Origin::signed(2), 1, 1, true));
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::remove_sub_group(
+                sub_group_id
+            ))),
+            1,
+            100
+        ));
 
-        // Making vote by 3rd member
-        assert_ok!(Groups::vote(Origin::signed(3), 1, 1, true));
+        // verify storage cleaned up
+        assert!(!super::Groups::<Test>::contains_key(sub_group_id));
+        assert!(!super::GroupChildren::<Test>::contains_key(
+            group_id,
+            sub_group_id
+        ));
+        assert!(!super::GroupMembers::<Test>::contains_key(
+            sub_group_id,
+            member_2
+        ));
+        assert!(super::Proposals::<Test>::iter_prefix(&sub_group_id)
+            .next()
+            .is_none());
+        assert!(super::ProposalHashes::<Test>::iter_prefix(&sub_group_id)
+            .next()
+            .is_none());
+
+        // verify funds were returned
+        assert_eq!(
+            crate::mock::Balances::free_balance(&sub_group.anonymous_account),
+            0u128
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            2_000_000u128 + MINIMUM_BALANCE
+        );
+    });
+}
+
+#[test]
+fn execute_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
+            1_000_000_000u128
+        ));
+
+        let group_id = 1u32;
+
+        assert_ok!(Groups::execute(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::update_group(
+                None, None, None, None,
+            ))),
+            100
+        ));
+
+        //TODO: detect event?
+    });
+}
+
+#[test]
+fn vote_with_close_and_approve_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+        let member_2 = 2u64;
+
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1), (member_2, 2)],
+            3u32,
+            2_000_000u128
+        ));
+        let group_id = 1u32;
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        // Create a proposal
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::update_group(
+                Some(b"Updated".to_vec()),
+                None,
+                None,
+                None,
+            ))),
+            2,
+            100
+        ));
+
+        let proposal_id = 1u32;
+
+        assert!(super::Proposals::<Test>::contains_key(
+            &group_id,
+            proposal_id
+        ));
+
+        let hash_maybe = super::ProposalHashes::<Test>::iter_prefix(&group_id).next();
+        assert!(hash_maybe.is_some());
+        let (hash, _) = hash_maybe.unwrap();
+
+        // Making vote by 2nd member
+        assert_ok!(Groups::vote(
+            Origin::signed(member_2),
+            group_id,
+            proposal_id,
+            true
+        ));
+
+        //proposal still exists
+        assert!(super::Proposals::<Test>::contains_key(
+            &group_id,
+            proposal_id
+        ));
+        assert!(super::ProposalHashes::<Test>::contains_key(
+            &group_id, &hash
+        ));
+
+        //votes exists
+
+        assert!(super::Voting::<Test>::contains_key(&group_id, &proposal_id));
+        let voting = super::Voting::<Test>::get(&group_id, &proposal_id).unwrap();
+        assert_eq!(voting.ayes.len(), 2);
+        assert_eq!(voting.nays.len(), 0);
+
+        let caller_vote_maybe = voting.ayes.iter().find(|(account, _)| account == &caller);
+        assert!(caller_vote_maybe.is_some());
+        let caller_vote = caller_vote_maybe.unwrap();
+        assert_eq!(*caller_vote, (caller, 1u32));
+        let member_2_vote_maybe = voting.ayes.iter().find(|(account, _)| account == &member_2);
+        assert!(member_2_vote_maybe.is_some());
+        let member_2_vote = member_2_vote_maybe.unwrap();
+        assert_eq!(*member_2_vote, (member_2, 2u32));
+
+        //close the proposal
+        assert_ok!(Groups::close(
+            Origin::signed(caller),
+            group_id,
+            proposal_id,
+            10_000_000,
+            100
+        ));
+
+        //proposal storage cleaned up
+        assert!(!super::Proposals::<Test>::contains_key(
+            &group_id,
+            proposal_id
+        ));
+        assert!(!super::ProposalHashes::<Test>::contains_key(
+            &group_id, &hash
+        ));
+
+        assert!(super::Groups::<Test>::contains_key(group_id));
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+        //Check that proposal was executed
+        assert_eq!(group.name, b"Updated".to_vec());
+    });
+}
+
+//TODO: test more variations
+
+#[test]
+fn vote_with_close_and_disapprove_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+        let member_2 = 2u64;
+
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1), (member_2, 2)],
+            3u32,
+            2_000_000u128
+        ));
+        let group_id = 1u32;
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        // Create a proposal
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::update_group(
+                Some(b"Updated".to_vec()),
+                None,
+                None,
+                None,
+            ))),
+            2,
+            100
+        ));
+
+        let proposal_id = 1u32;
+
+        assert!(super::Proposals::<Test>::contains_key(
+            &group_id,
+            proposal_id
+        ));
+
+        let hash_maybe = super::ProposalHashes::<Test>::iter_prefix(&group_id).next();
+        assert!(hash_maybe.is_some());
+        let (hash, _) = hash_maybe.unwrap();
+
+        // Making vote by 2nd member
+        assert_ok!(Groups::vote(
+            Origin::signed(member_2),
+            group_id,
+            proposal_id,
+            false
+        ));
+
+        //proposal still exists
+        assert!(super::Proposals::<Test>::contains_key(
+            &group_id,
+            proposal_id
+        ));
+        assert!(super::ProposalHashes::<Test>::contains_key(
+            &group_id, &hash
+        ));
+
+        //votes exists
+
+        assert!(super::Voting::<Test>::contains_key(&group_id, &proposal_id));
+        let voting = super::Voting::<Test>::get(&group_id, &proposal_id).unwrap();
+        assert_eq!(voting.ayes.len(), 1);
+        assert_eq!(voting.nays.len(), 1);
+
+        let caller_vote_maybe = voting.ayes.iter().find(|(account, _)| account == &caller);
+        assert!(caller_vote_maybe.is_some());
+        let caller_vote = caller_vote_maybe.unwrap();
+        assert_eq!(*caller_vote, (caller, 1u32));
+        let member_2_vote_maybe = voting.nays.iter().find(|(account, _)| account == &member_2);
+        assert!(member_2_vote_maybe.is_some());
+        let member_2_vote = member_2_vote_maybe.unwrap();
+        assert_eq!(*member_2_vote, (member_2, 2u32));
+
+        //close the proposal
+        assert_ok!(Groups::close(
+            Origin::signed(caller),
+            group_id,
+            proposal_id,
+            10_000_000,
+            100
+        ));
+
+        //proposal storage cleaned up
+        assert!(!super::Proposals::<Test>::contains_key(
+            &group_id,
+            proposal_id
+        ));
+        assert!(!super::ProposalHashes::<Test>::contains_key(
+            &group_id, &hash
+        ));
+
+        assert!(super::Groups::<Test>::contains_key(group_id));
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+        //Check that proposal was NOT executed
+        assert_ne!(group.name, b"Updated".to_vec());
+    });
+}
+
+#[test]
+fn veto_yes_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
+            3_000_000u128
+        ));
+        let group_id = 1u32;
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        let member_2 = 2u64;
+        let member_3 = 3u64;
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
+                "Test".to_string().into(),
+                vec![(member_2, 1), (member_3, 1)],
+                2,
+                2_000_000u128
+            ))),
+            1,
+            100
+        ));
+        let sub_group_id = 2u32;
+
+        //subgroup proposes creating another subgroup
+        let member_4 = 2u64;
+        assert_ok!(Groups::propose(
+            Origin::signed(member_2),
+            sub_group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
+                "SubSubGroup".to_string().into(),
+                vec![(member_4, 1)],
+                1,
+                1_000_000u128
+            ))),
+            2,
+            100
+        ));
+
+        let sub_sub_group_id = 3u32;
+
+        let proposal_id = 2u32;
+
+        assert!(super::Proposals::<Test>::contains_key(
+            &sub_group_id,
+            proposal_id
+        ));
+
+        let hash_maybe = super::ProposalHashes::<Test>::iter_prefix(&sub_group_id).next();
+        assert!(hash_maybe.is_some());
+        let (hash, _) = hash_maybe.unwrap();
+
+        // Caller vetos proposal in the affirmative
+        assert_ok!(Groups::veto(
+            Origin::signed(caller),
+            sub_group_id,
+            proposal_id,
+            true,
+            100_000_000,
+            100
+        ));
+
+        //proposal storage cleaned up
+        assert!(!super::Proposals::<Test>::contains_key(
+            &group_id,
+            proposal_id
+        ));
+        assert!(!super::ProposalHashes::<Test>::contains_key(
+            &group_id, &hash
+        ));
+        //subsubgroup was created
+        assert!(super::Groups::<Test>::contains_key(sub_sub_group_id));
+        let sub_sub_group = super::Groups::<Test>::get(group_id).unwrap();
+        assert_ne!(sub_sub_group.name, b"SubSubGroup".to_vec());
+    });
+}
+
+#[test]
+fn veto_no_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
+            3_000_000u128
+        ));
+        let group_id = 1u32;
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        let member_2 = 2u64;
+        let member_3 = 3u64;
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
+                "Test".to_string().into(),
+                vec![(member_2, 1), (member_3, 1)],
+                2,
+                2_000_000u128
+            ))),
+            1,
+            100
+        ));
+        let sub_group_id = 2u32;
+
+        //subgroup proposes creating another subgroup
+        let member_4 = 2u64;
+        assert_ok!(Groups::propose(
+            Origin::signed(member_2),
+            sub_group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
+                "SubSubGroup".to_string().into(),
+                vec![(member_4, 1)],
+                1,
+                1_000_000u128
+            ))),
+            2,
+            100
+        ));
+
+        let sub_sub_group_id = 3u32;
+
+        let proposal_id = 2u32;
+
+        assert!(super::Proposals::<Test>::contains_key(
+            &sub_group_id,
+            proposal_id
+        ));
+
+        let hash_maybe = super::ProposalHashes::<Test>::iter_prefix(&sub_group_id).next();
+        assert!(hash_maybe.is_some());
+        let (hash, _) = hash_maybe.unwrap();
+
+        // Caller vetos proposal in the affirmative
+        assert_ok!(Groups::veto(
+            Origin::signed(caller),
+            sub_group_id,
+            proposal_id,
+            false,
+            100_000_000,
+            100
+        ));
+
+        //proposal storage cleaned up
+        assert!(!super::Proposals::<Test>::contains_key(
+            &group_id,
+            proposal_id
+        ));
+        assert!(!super::ProposalHashes::<Test>::contains_key(
+            &group_id, &hash
+        ));
+        //subsubgroup was NOT created
+        assert!(!super::Groups::<Test>::contains_key(sub_sub_group_id));
+    });
+}
+
+#[test]
+fn withdraw_funds_group_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
+            2_000_000u128
+        ));
+        let group_id = 1u32;
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(
+                super::Call::withdraw_funds_group(caller, 1_000_000u128)
+            )),
+            1,
+            100
+        ));
+
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+
+        // verify funds were returned
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            1_000_000u128 + MINIMUM_BALANCE
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&caller),
+            2_000_000_000u128 - 1_000_000u128 - MINIMUM_BALANCE
+        );
+    });
+}
+
+#[test]
+fn withdraw_funds_sub_group_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
+            3_000_000u128
+        ));
+        let group_id = 1u32;
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        let member_2 = 2u64;
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
+                b"Test".to_vec().try_into().unwrap(),
+                vec![(member_2, 1)],
+                2,
+                2_000_000u128
+            ))),
+            1,
+            100
+        ));
+
+        let sub_group_id = 2u32;
+
+        assert!(super::Groups::<Test>::contains_key(sub_group_id));
+        let sub_group = super::Groups::<Test>::get(sub_group_id).unwrap();
+
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+        // verify subgroup got funds
+        assert_eq!(
+            crate::mock::Balances::free_balance(&sub_group.anonymous_account),
+            2_000_000u128 + MINIMUM_BALANCE
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            1_000_000u128
+        );
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(
+                super::Call::withdraw_funds_sub_group(sub_group_id, 1_000_000u128)
+            )),
+            1,
+            100
+        ));
+
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+
+        // verify funds were returned
+        assert_eq!(
+            crate::mock::Balances::free_balance(&sub_group.anonymous_account),
+            1_000_000u128 + MINIMUM_BALANCE
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            2_000_000u128
+        );
+    });
+}
+
+#[test]
+fn send_funds_to_sub_group_should_work() {
+    new_test_ext().execute_with(|| {
+        let caller = 1u64;
+
+        // caller creates a Group
+        assert_ok!(crate::mock::Groups::create_group(
+            Origin::signed(caller),
+            b"Test".to_vec(),
+            vec![(caller, 1)],
+            1u32,
+            3_000_000u128
+        ));
+        let group_id = 1u32;
+        // verify group was created
+        assert!(super::Groups::<Test>::contains_key(group_id));
+
+        let member_2 = 2u64;
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
+                b"Test".to_vec().try_into().unwrap(),
+                vec![(member_2, 1)],
+                2,
+                1_000_000u128
+            ))),
+            1,
+            100
+        ));
+
+        let sub_group_id = 2u32;
+
+        assert!(super::Groups::<Test>::contains_key(sub_group_id));
+        let sub_group = super::Groups::<Test>::get(sub_group_id).unwrap();
+
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+        // verify subgroup got funds
+        assert_eq!(
+            crate::mock::Balances::free_balance(&sub_group.anonymous_account),
+            1_000_000u128 + MINIMUM_BALANCE
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            2_000_000u128
+        );
+
+        assert_ok!(Groups::propose(
+            Origin::signed(caller),
+            group_id,
+            Box::new(crate::mock::Call::Groups(
+                super::Call::send_funds_to_sub_group(sub_group_id, 1_000_000u128)
+            )),
+            1,
+            100
+        ));
+
+        let group = super::Groups::<Test>::get(group_id).unwrap();
+
+        // verify funds were returned
+        assert_eq!(
+            crate::mock::Balances::free_balance(&sub_group.anonymous_account),
+            2_000_000u128 + MINIMUM_BALANCE
+        );
+        assert_eq!(
+            crate::mock::Balances::free_balance(&group.anonymous_account),
+            1_000_000u128
+        );
     });
 }

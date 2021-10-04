@@ -1198,27 +1198,33 @@ impl_runtime_apis! {
 
 
     impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName> for Runtime {
-        fn member_of(account:AccountId) -> Vec<GroupId>  {
-            Groups::member_of(account)
+        fn member_of(account_id:AccountId) -> Vec<GroupId>  {
+            Groups::member_of(account_id)
         }
-        fn get_group(group:GroupId) -> Option<Group<GroupId, AccountId, MemberCount,BoundedStringName>>{
-            Groups::get_group(group)
+        fn is_member(group_id:GroupId,account_id:AccountId) -> bool  {
+            Groups::is_member(group_id,&account_id)
         }
-        fn get_sub_groups(group:GroupId) -> Option<Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>)>>{
-            Groups::get_sub_groups(group)
+        fn get_group_account(group_id:GroupId) -> Option<AccountId>  {
+            Groups::get_group_account(group_id)
         }
-        fn get_proposal(group:GroupId,proposal_id:ProposalId) ->Option<(Hash,u32)>{
-            Groups::get_proposal(group,proposal_id)
+        fn get_group(group_id:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+            Groups::get_group(group_id)
         }
-        fn get_proposals(group:GroupId) -> Vec<(ProposalId, Hash,u32)>{
-            Groups::get_proposals(group)
+        fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+            Groups::get_sub_groups(group_id)
         }
-        fn get_voting(group:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
-            Groups::get_voting(group, proposal)
+        fn get_proposal(group_id:GroupId,proposal_id:ProposalId) ->Option<(Hash,u32)>{
+            Groups::get_proposal(group_id,proposal_id)
+        }
+        fn get_proposals(group_id:GroupId) -> Vec<(ProposalId, Hash,u32)>{
+            Groups::get_proposals(group_id)
+        }
+        fn get_voting(group_id:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
+            Groups::get_voting(group_id, proposal)
         }
     }
 
-    impl asset_registry_runtime_api::AssetRegistryApi<Block,AccountId,RegistryId,AssetId,LeaseId,Moment,Balance,BoundedStringName,BoundedStringFact> for Runtime {
+    impl asset_registry_runtime_api::AssetRegistryApi<Block,AccountId,ProposalId,RegistryId,AssetId,LeaseId,Moment,Balance,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_registries(did: Did) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
             AssetRegistry::get_registries(did)
         }
@@ -1235,11 +1241,11 @@ impl_runtime_apis! {
             AssetRegistry::get_asset(registry_id,asset_id)
         }
 
-        fn get_leases(lessor: Did) -> Vec<(LeaseId,LeaseAgreement<RegistryId,AssetId,Moment,BoundedStringName>)>{
+        fn get_leases(lessor: Did) -> Vec<(LeaseId,LeaseAgreement<ProposalId,RegistryId,AssetId,Moment,BoundedStringName>)>{
             AssetRegistry::get_leases(lessor)
         }
 
-        fn get_lease(lessor: Did, lease_id:LeaseId) -> Option<LeaseAgreement<RegistryId,AssetId,Moment,BoundedStringName>>{
+        fn get_lease(lessor: Did, lease_id:LeaseId) -> Option<LeaseAgreement<ProposalId,RegistryId,AssetId,Moment,BoundedStringName>>{
             AssetRegistry::get_lease(lessor,lease_id)
         }
 
@@ -1261,6 +1267,9 @@ impl_runtime_apis! {
         }
         fn get_definition(registry_id:RegistryId,definition_id:DefinitionId) -> Option<Definition<BoundedStringName>>  {
             Provenance::get_definition(registry_id,definition_id)
+        }
+        fn get_definition_step(registry_id:RegistryId,definition_id:DefinitionId,step_index: DefinitionStepIndex) -> Option<DefinitionStep<AccountId, MemberCount,BoundedStringName>>  {
+            Provenance::get_definition_step(registry_id,definition_id,step_index)
         }
         fn get_definition_steps(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionStepIndex,DefinitionStep<AccountId, MemberCount,BoundedStringName>)>  {
             Provenance::get_definition_steps(registry_id,definition_id)
@@ -1288,25 +1297,22 @@ impl_runtime_apis! {
         }
     }
     impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
-        fn get_catalogs(account_id:AccountId) -> Vec<(CatalogId,Catalog<BoundedStringName>)> {
+        fn get_catalogs(account_id:AccountId) -> Vec<CatalogId> {
             Identity::get_catalogs(account_id)
         }
-        fn get_catalog(account_id:AccountId,catalog_id:CatalogId) -> Option<Catalog<BoundedStringName>> {
-            Identity::get_catalog(account_id,catalog_id)
-        }
-        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<(Did,BoundedStringName)>  {
+        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<Did>  {
             Identity::get_dids_in_catalog(catalog_id)
         }
-        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<(BoundedStringName, DidDocument<AccountId,  BoundedStringName>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
+        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<( DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
             Identity::get_did_in_catalog(catalog_id,did)
         }
-        fn get_did(did:Did) -> Option<(DidDocument<AccountId,  BoundedStringName>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
+        fn get_did(did:Did) -> Option<(DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
             Identity::get_did(did)
         }
-        fn get_dids_by_subject( subject: AccountId) -> Vec<(Did, Option<BoundedStringName>)>  {
+        fn get_dids_by_subject( subject: AccountId) -> Vec<Did>  {
             Identity::get_dids_by_subject(subject)
         }
-        fn get_dids_by_controller( controller: AccountId) -> Vec<(Did, Option<BoundedStringName>)>  {
+        fn get_dids_by_controller( controller: AccountId) -> Vec<Did>  {
             Identity::get_dids_by_controller(controller)
         }
         fn get_claims( did: Did) -> Vec<(ClaimId, Claim<AccountId,MemberCount,Moment,BoundedStringName,BoundedStringFact>)>  {
@@ -1345,6 +1351,9 @@ impl_runtime_apis! {
         fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>{
             Audits::get_observation(audit_id,control_point_id,observation_id)
         }
+        fn get_observation_by_proposal(proposal_id: ProposalId)->Option<(ObservationId,Observation)>{
+            Audits::get_observation_by_proposal(proposal_id)
+        }
         fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation)>{
             Audits::get_observation_by_control_point(audit_id,control_point_id)
         }
@@ -1355,8 +1364,9 @@ impl_runtime_apis! {
             Audits::get_evidence_by_audit(audit_id)
         }
 
-        fn get_evidence_by_proposal(audit_id: AuditId,proposal_id:ProposalId)->Option<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
-            Audits::get_evidence_by_proposal(audit_id,proposal_id)
+        fn get_evidence_by_proposal(proposal_id:ProposalId)->Option<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
+            Audits::get_evidence_by_proposal(proposal_id)
+
         }
         fn get_evidence_links_by_evidence(evidence_id:EvidenceId)->Vec<ObservationId>{
             Audits::get_evidence_links_by_evidence(evidence_id)

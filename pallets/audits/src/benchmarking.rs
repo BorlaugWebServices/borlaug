@@ -185,14 +185,14 @@ benchmarks! {
         let auditors:T::AccountId=whitelisted_caller();
         let audit_id=audit_create_and_assign::<T>(auditors.clone())?;
 
-        let evidence = Evidence{
-            name:vec![42u8;a as usize],
-            content_type:vec![42u8;b as usize],
-            url:Some(vec![42u8;c as usize]),
-            hash:vec![42u8;d as usize]
-        };
 
-    }: _(SystemOrigin::Signed(auditors), audit_id, evidence.clone())
+        let  name=vec![42u8;a as usize];
+        let  content_type=vec![42u8;b as usize];
+        let  url=Some(vec![42u8;c as usize]);
+        let   hash=vec![42u8;d as usize];
+
+
+    }: _(SystemOrigin::Signed(auditors), audit_id, name ,content_type,url,hash)
 
     verify {
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
@@ -211,14 +211,12 @@ benchmarks! {
         let auditors_origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(auditors.clone()).into();
 
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
-        let evidence = Evidence{
-            name:vec![42u8;<T as Config>::NameLimit::get() as usize],
-            content_type:vec![42u8;<T as Config>::NameLimit::get() as usize],
-            url:Some(vec![42u8;<T as Config>::NameLimit::get() as usize]),
-            hash:vec![42u8;<T as Config>::NameLimit::get() as usize]
-        };
+        let  name=vec![42u8;<T as Config>::NameLimit::get() as usize];
+            let  content_type=vec![42u8;<T as Config>::NameLimit::get() as usize];
+            let  url=Some(vec![42u8;<T as Config>::NameLimit::get() as usize]);
+            let   hash=vec![42u8;<T as Config>::NameLimit::get() as usize];
 
-        AuditsPallet::<T>::create_evidence(auditors_origin.clone(),audit_id,evidence.clone())?;
+        AuditsPallet::<T>::create_evidence(auditors_origin.clone(),audit_id,name ,content_type,url,hash)?;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
         let observation = Observation{
             compliance:Some(Compliance::Compliant),
@@ -243,14 +241,16 @@ benchmarks! {
 
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
 
-        let evidence = Evidence{
-            name:vec![42u8;<T as Config>::NameLimit::get() as usize],
-            content_type:vec![42u8;<T as Config>::NameLimit::get() as usize],
-            url:Some(vec![42u8;<T as Config>::NameLimit::get() as usize]),
-            hash:vec![42u8;<T as Config>::NameLimit::get() as usize]
-        };
 
-        AuditsPallet::<T>::create_evidence(auditors_origin.clone(),audit_id,evidence.clone())?;
+
+
+            let  name=vec![42u8;<T as Config>::NameLimit::get() as usize];
+            let  content_type=vec![42u8;<T as Config>::NameLimit::get() as usize];
+            let  url=Some(vec![42u8;<T as Config>::NameLimit::get() as usize]);
+            let   hash=vec![42u8;<T as Config>::NameLimit::get() as usize];
+
+
+        AuditsPallet::<T>::create_evidence(auditors_origin.clone(),audit_id,name ,content_type,url,hash)?;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
 
         let observation = Observation{
@@ -284,16 +284,17 @@ benchmarks! {
 
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
 
-        let evidence = Evidence{
-            name:vec![42u8;<T as Config>::NameLimit::get() as usize],
-            content_type:vec![42u8;<T as Config>::NameLimit::get() as usize],
-            url:Some(vec![42u8;<T as Config>::NameLimit::get() as usize]),
-            hash:vec![42u8;<T as Config>::NameLimit::get() as usize]
-        };
+        let  name=vec![42u8;<T as Config>::NameLimit::get() as usize];
+        let  content_type=vec![42u8;<T as Config>::NameLimit::get() as usize];
+        let  url=Some(vec![42u8;<T as Config>::NameLimit::get() as usize]);
+        let   hash=vec![42u8;<T as Config>::NameLimit::get() as usize];
+        AuditsPallet::<T>::create_evidence(auditors_origin.clone(),audit_id,name ,content_type,url,hash)?;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
 
+
+
         for i in 0..a {
-            AuditsPallet::<T>::create_evidence(auditors_origin.clone(),audit_id,evidence.clone())?;
+
             let observation = Observation{
                 compliance:Some(Compliance::Compliant),
                 procedural_note:Some([42u8;32])
