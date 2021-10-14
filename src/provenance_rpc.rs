@@ -132,6 +132,25 @@ pub trait ProvenanceApi<
         definition_step_index: DefinitionStepIndex,
         at: Option<BlockHash>,
     ) -> Result<ProcessStepResponse>;
+
+    #[rpc(name = "can_view_definition")]
+    fn can_view_definition(
+        &self,
+        account_id: AccountId,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        at: Option<BlockHash>,
+    ) -> Result<bool>;
+
+    #[rpc(name = "is_attestor")]
+    fn is_attestor(
+        &self,
+        account_id: AccountId,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        definition_step_index: DefinitionStepIndex,
+        at: Option<BlockHash>,
+    ) -> Result<bool>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -710,5 +729,46 @@ where
                 })
                 .collect(),
         })
+    }
+    fn can_view_definition(
+        &self,
+        account_id: AccountId,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<bool> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let can_veiw = api
+            .can_view_definition(&at, account_id, registry_id, definition_id)
+            .map_err(convert_error!())?;
+
+        Ok(can_veiw)
+    }
+
+    fn is_attestor(
+        &self,
+        account_id: AccountId,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        definition_step_index: DefinitionStepIndex,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<bool> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let can_veiw = api
+            .is_attestor(
+                &at,
+                account_id,
+                registry_id,
+                definition_id,
+                definition_step_index,
+            )
+            .map_err(convert_error!())?;
+
+        Ok(can_veiw)
     }
 }

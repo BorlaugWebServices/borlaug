@@ -1295,6 +1295,12 @@ impl_runtime_apis! {
         fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<BoundedStringName,BoundedStringFact>>  {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
+        fn can_view_definition(account_id: AccountId,registry_id:RegistryId,definition_id:DefinitionId) -> bool  {
+            Provenance::can_view_definition(account_id,registry_id,definition_id)
+        }
+        fn is_attestor(account_id: AccountId,registry_id:RegistryId,definition_id:DefinitionId,definition_step_index: DefinitionStepIndex ) -> bool  {
+            Provenance::is_attestor(account_id,registry_id,definition_id,definition_step_index)
+        }
     }
     impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_catalogs(account_id:AccountId) -> Vec<CatalogId> {

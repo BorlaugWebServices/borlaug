@@ -46,6 +46,9 @@ sp_api::decl_runtime_apis! {
 
         fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<BoundedStringName, BoundedStringFact>>;
 
+        fn can_view_definition( account_id: AccountId,registry_id:RegistryId,definition_id:DefinitionId) -> bool;
+
+        fn is_attestor( account_id: AccountId,registry_id:RegistryId,definition_id:DefinitionId,definition_step_index: DefinitionStepIndex ) -> bool;
 
     }
 }

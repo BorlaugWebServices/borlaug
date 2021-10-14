@@ -50,6 +50,7 @@ where
 
 fn get_endowed_accounts() -> Vec<AccountId> {
     vec![
+        //Test user org-admin
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
                 "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
@@ -57,41 +58,7 @@ fn get_endowed_accounts() -> Vec<AccountId> {
             .unwrap(),
         )
         .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5DkytoJY83z31QNKdgDitEc4K1ttLyWVW3NJfjyXqKy8DQcg",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5FX5WmY8WHXj7H9V7zSL3CSQ9JadBxEDsFuSGG7gUbgnm5EW",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5H9X5JSJTBAeUYxtMNsVSVMAyiNxyMBKqSGvgvjV4PMGgpDM",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5CfMkF8xrakzXaA4dW4S5iEG9PgrSbs8BkE3ooHYn9fckrQS",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5EbzuvEYgSgcmDZNsEdCCMwCw4mrzCTNNUk7dAAog9WwotS7",
-            )
-            .unwrap(),
-        )
-        .into_account(),
+        //Test user attester 2
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
                 "5HDfARwo5GGHTr7E7vDuwKkJKt31xoJUCUFWRdzkifDQW5HK",
@@ -99,6 +66,7 @@ fn get_endowed_accounts() -> Vec<AccountId> {
             .unwrap(),
         )
         .into_account(),
+        //Test user attester 1
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
                 "5GnGy76zKS2Yy77vvvwyhzBDxPku6yZ3Y8cBB9eiZKpQ7rUW",
@@ -106,13 +74,20 @@ fn get_endowed_accounts() -> Vec<AccountId> {
             .unwrap(),
         )
         .into_account(),
+        //initial council member
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
-                "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
+                "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
             )
             .unwrap(),
         )
         .into_account(),
+    ]
+}
+
+fn get_initial_council() -> Vec<AccountId> {
+    vec![
+        //initial council member
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
                 "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
@@ -140,13 +115,7 @@ fn create_genesis(root_key: AccountId, endowed_accounts: Vec<AccountId>) -> Gene
         }),
         pallet_sudo: Some(SudoConfig { key: root_key }),
         pallet_collective_Instance1: Some(CouncilConfig {
-            members: vec![AccountPublic::from(
-                sp_core::sr25519::Public::from_ss58check(
-                    "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
-                )
-                .unwrap(),
-            )
-            .into_account()],
+            members: get_initial_council(),
             phantom: PhantomData,
         }),
         settings: Some(SettingsConfig {

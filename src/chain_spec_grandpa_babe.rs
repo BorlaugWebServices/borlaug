@@ -22,6 +22,7 @@ use sp_runtime::{
     traits::{IdentifyAccount, Verify},
     Perbill,
 };
+use std::marker::PhantomData;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -95,22 +96,8 @@ pub fn authority_keys_from_seed(
 }
 
 fn get_endowed_accounts() -> Vec<AccountId> {
-    // vec![
-    //     get_account_id_from_seed::<sr25519::Public>("Alice"),
-    //     get_account_id_from_seed::<sr25519::Public>("Bob"),
-    //     get_account_id_from_seed::<sr25519::Public>("Charlie"),
-    //     get_account_id_from_seed::<sr25519::Public>("Dave"),
-    //     get_account_id_from_seed::<sr25519::Public>("Eve"),
-    //     get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-    //     get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-    //     get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-    //     get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-    //     get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-    //     get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-    //     get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-    // ]
-
     vec![
+        //Test user org-admin
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
                 "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
@@ -118,41 +105,7 @@ fn get_endowed_accounts() -> Vec<AccountId> {
             .unwrap(),
         )
         .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5DkytoJY83z31QNKdgDitEc4K1ttLyWVW3NJfjyXqKy8DQcg",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5FX5WmY8WHXj7H9V7zSL3CSQ9JadBxEDsFuSGG7gUbgnm5EW",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5H9X5JSJTBAeUYxtMNsVSVMAyiNxyMBKqSGvgvjV4PMGgpDM",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5CfMkF8xrakzXaA4dW4S5iEG9PgrSbs8BkE3ooHYn9fckrQS",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5EbzuvEYgSgcmDZNsEdCCMwCw4mrzCTNNUk7dAAog9WwotS7",
-            )
-            .unwrap(),
-        )
-        .into_account(),
+        //Test user attester 2
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
                 "5HDfARwo5GGHTr7E7vDuwKkJKt31xoJUCUFWRdzkifDQW5HK",
@@ -160,6 +113,7 @@ fn get_endowed_accounts() -> Vec<AccountId> {
             .unwrap(),
         )
         .into_account(),
+        //Test user attester 1
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
                 "5GnGy76zKS2Yy77vvvwyhzBDxPku6yZ3Y8cBB9eiZKpQ7rUW",
@@ -167,9 +121,52 @@ fn get_endowed_accounts() -> Vec<AccountId> {
             .unwrap(),
         )
         .into_account(),
+        //initial council member
         AccountPublic::from(
             sp_core::sr25519::Public::from_ss58check(
-                "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
+                "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
+            )
+            .unwrap(),
+        )
+        .into_account(),
+    ]
+}
+
+fn get_initial_council() -> Vec<AccountId> {
+    vec![
+        //initial council member
+        AccountPublic::from(
+            sp_core::sr25519::Public::from_ss58check(
+                "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
+            )
+            .unwrap(),
+        )
+        .into_account(),
+    ]
+}
+
+fn get_initial_validators_babe() -> Vec<AccountId> {
+    vec![
+        //initial authority Alpha
+        AccountPublic::from(
+            sp_core::sr25519::Public::from_ss58check(
+                "5G3WSp2yNJgRZxXvndY3qQ4VhM4mofpzpiVUuWQRVdFvDNzU",
+            )
+            .unwrap(),
+        )
+        .into_account(),
+        //initial authority Beta
+        AccountPublic::from(
+            sp_core::sr25519::Public::from_ss58check(
+                "5Fej3rJdS3w2f7jkufxrNyhBMoy5zNvGVBCtRWGms7r4zsJU",
+            )
+            .unwrap(),
+        )
+        .into_account(),
+        //initial authority Gama
+        AccountPublic::from(
+            sp_core::sr25519::Public::from_ss58check(
+                "5Hive2LzHTqobHaDhJLs2PuDw6a1AV5eyyYX6fmu1RfwdQwT",
             )
             .unwrap(),
         )
@@ -234,7 +231,10 @@ fn create_genesis(
             slash_reward_fraction: Perbill::from_percent(10),
             ..Default::default()
         }),
-        pallet_collective_Instance1: Some(CouncilConfig::default()),
+        pallet_collective_Instance1: Some(CouncilConfig {
+            members: get_initial_council(),
+            phantom: PhantomData,
+        }),
         settings: Some(SettingsConfig {
             transaction_byte_fee: 10_000u32.into(),
             fee_split_ratio: 80,
