@@ -40,6 +40,8 @@
 //! * `get_process` - Get a specific **Process**.
 //! * `get_process_steps` - Get the collection of steps of a **Process**.
 //! * `get_process_step` - Get a specific step of a **Process**.
+//! * `can_view_definition` - Is the account the creator of the definition or an attestor on any step.
+//! * `is_attestor` - Is the account the attestor for the step. (Attestors may be an individual account or a group, check if a user is a member of the group seperately.)
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -60,7 +62,7 @@ pub mod pallet {
     use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use primitives::{bounded_vec::BoundedVec, *};
+    use primitives::{*, bounded_vec::BoundedVec};
     use sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, One, Saturating, UniqueSaturatedFrom},
         Either,
@@ -119,24 +121,23 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A new Registry was created (account_id,group_account,registry_id)
+        /// A new Registry was created (account_id,group_account_id,registry_id)
         RegistryCreated(T::AccountId, T::AccountId, T::RegistryId),
         /// A Registry was Updated (account_id,group_account_id,registry_id)
         RegistryUpdated(T::AccountId, T::AccountId, T::RegistryId),
-        /// A Registry was Removed (account_id,group_account,registry_id)
+        /// A Registry was Removed (account_id,group_account_id,registry_id)
         RegistryRemoved(T::AccountId, T::AccountId, T::RegistryId),
-        /// A new Definition was created (account_id,group_account,registry_id, definition_id)
+        /// A new Definition was created (account_id,group_account_id,registry_id, definition_id)
         DefinitionCreated(T::AccountId, T::AccountId, T::RegistryId, T::DefinitionId),
-        /// A new Definition was updated (account_id,group_account,registry_id, definition_id)
-        DefinitionUpdated(T::AccountId, T::AccountId, T::RegistryId, T::DefinitionId),
-        /// A Definition was updated to 'active' state (account_id,group_account,registry_id, definition_id)
+        
+        /// A Definition was updated to 'active' state (account_id,group_account_id,registry_id, definition_id)
         DefinitionSetActive(T::AccountId, T::AccountId, T::RegistryId, T::DefinitionId),
-        /// A Definition was updated to 'inactive' state (account_id,group_account,registry_id, definition_id)
+        /// A Definition was updated to 'inactive' state (account_id,group_account_id,registry_id, definition_id)
         DefinitionSetInactive(T::AccountId, T::AccountId, T::RegistryId, T::DefinitionId),
-        /// A Definition was Removed (account_id,group_account,registry_id, definition_id)
+        /// A Definition was Removed (account_id,group_account_id,registry_id, definition_id)
         DefinitionRemoved(T::AccountId, T::AccountId, T::RegistryId, T::DefinitionId),
 
-        /// A DefinitionStep was Updated (account_id,group_account,registry_id, definition_id, definition_step_index)
+        /// A DefinitionStep was Updated (account_id,group_account_id,registry_id, definition_id, definition_step_index)
         DefinitionStepUpdated(
             T::AccountId,
             T::AccountId,
@@ -144,15 +145,8 @@ pub mod pallet {
             T::DefinitionId,
             T::DefinitionStepIndex,
         ),
-        /// A DefinitionStep was Removed (account_id,group_account,registry_id, definition_id, definition_step_index)
-        DefinitionStepRemoved(
-            T::AccountId,
-            T::AccountId,
-            T::RegistryId,
-            T::DefinitionId,
-            T::DefinitionStepIndex,
-        ),
-        /// A new Process was created (account_id,group_account,registry_id, definition_id, process_id)
+       
+        /// A new Process was created (account_id,group_account_id,registry_id, definition_id, process_id)
         ProcessCreated(
             T::AccountId,
             T::AccountId,
@@ -160,7 +154,7 @@ pub mod pallet {
             T::DefinitionId,
             T::ProcessId,
         ),
-        /// A Process was Removed (account_id,group_account,registry_id, definition_id, process_id)
+        /// A Process was Removed (account_id,group_account_id,registry_id, definition_id, process_id)
         ProcessUpdated(
             T::AccountId,
             T::AccountId,
@@ -168,7 +162,7 @@ pub mod pallet {
             T::DefinitionId,
             T::ProcessId,
         ),
-        /// A Process was Removed (account_id,group_account,registry_id, definition_id, process_id)
+        /// A Process was Removed (account_id,group_account_id,registry_id, definition_id, process_id)
         ProcessRemoved(
             T::AccountId,
             T::AccountId,
@@ -176,16 +170,8 @@ pub mod pallet {
             T::DefinitionId,
             T::ProcessId,
         ),
-        /// A new ProcessStep was created (account_id,group_account,registry_id, definition_id, process_id, definition_step_index)
-        ProcessStepCreated(
-            T::AccountId,
-            T::AccountId,
-            T::RegistryId,
-            T::DefinitionId,
-            T::ProcessId,
-            T::DefinitionStepIndex,
-        ),
-        /// A  ProcessStep was updated (account_id,group_account,registry_id, definition_id, process_id, definition_step_index)
+       
+        /// A  ProcessStep was updated (account_id,group_account_id,registry_id, definition_id, process_id, definition_step_index)
         ProcessStepUpdated(
             T::AccountId,
             T::AccountId,
@@ -668,9 +654,8 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` the Definition
-        /// - `definition_step_index` index of definition step to be updated
-        /// - `name` name of the Definition Step. Can only be changed when in status `Creating`
-        /// - `attestor` Attestor for the step. Can only be set to None when in status `Creating`
+        /// - `definition_step_index` index of definition step to be updated        
+        /// - `attestor` Attestor for the step. 
         /// - `threshold` Required threshold if Attestor is a group account else set to 1
         
         #[pallet::weight(<T as Config>::WeightInfo::update_definition_step(   ))]      
@@ -1248,6 +1233,33 @@ pub mod pallet {
                 (registry_id, definition_id, process_id),
                 definition_step_index,
             )
+        }
+
+        // Definition creators and attestors can view definitions and processes derived from them.
+        pub fn can_view_definition(
+            account_id: T::AccountId,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,            
+        ) -> bool
+         {
+            
+            if <Registries<T>>::contains_key(&account_id,registry_id){
+                true
+            }else {
+                let attestor_on=<DefinitionSteps<T>>::iter_prefix((registry_id, definition_id)).find(|(_definition_step_index,definition_step)| definition_step.attestor==account_id );
+                attestor_on.is_some()
+            }            
+        }
+        
+         pub fn is_attestor(
+            account_id: T::AccountId,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,       
+            definition_step_index: T::DefinitionStepIndex     
+        ) -> bool
+         {   
+             let definition_step_maybe=   <DefinitionSteps<T>>::get((registry_id, definition_id),definition_step_index);
+             definition_step_maybe.map_or(false,|definition_step|definition_step.attestor==account_id)
         }
 
         // -- private functions --

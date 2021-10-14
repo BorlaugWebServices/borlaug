@@ -26,6 +26,8 @@
 //! * `link_evidence` - An Auditor links evidence to an observation
 //! * `unlink_evidence` - An Auditor removes a link between evidence and an observation
 //! * `delete_evidence` - An Auditor removes a link between evidence and an observation
+//! * `link_audit` - An Auditor links to another audit
+//! * `unlink_audit` - An Auditor removes a link to another audit
 //!
 //! ### RPC Methods
 //!
@@ -122,11 +124,9 @@ pub mod pallet {
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-
         /// New registry created (auditing_org, proposal_id, audit_id)
         AuditCreated(T::AccountId, T::ProposalId, T::AuditId),
         /// Audit deleted (auditing_org, proposal_id, audit_id)
-
         AuditRemoved(T::AccountId, T::ProposalId, T::AuditId),
         /// Audit was accepted (auditing_org, proposal_id, audit_id)
         AuditAccepted(T::AccountId, T::ProposalId, T::AuditId),
@@ -361,7 +361,6 @@ pub mod pallet {
     #[pallet::getter(fn evidence_by_proposal)]
     /// Evidence by proposal_id
     pub type EvidenceByProposal<T: Config> =
-
         StorageMap<_, Blake2_128Concat, T::ProposalId, (T::AuditId, T::EvidenceId), OptionQuery>;
 
     #[pallet::storage]
@@ -614,8 +613,7 @@ pub mod pallet {
         /// Arguments:
         /// - `parent_audit_id`
         /// - `child_audit_id`
-        //TODO: benchmarking
-        #[pallet::weight(10_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::link_audit())]
         pub fn link_audit(
             origin: OriginFor<T>,
             parent_audit_id: T::AuditId,
@@ -666,8 +664,7 @@ pub mod pallet {
         /// Arguments:
         /// - `parent_audit_id`
         /// - `child_audit_id`
-        //TODO: benchmarking
-        #[pallet::weight(10_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::unlink_audit())]
         pub fn unlink_audit(
             origin: OriginFor<T>,
             parent_audit_id: T::AuditId,
@@ -826,7 +823,6 @@ pub mod pallet {
             <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
 
             <EvidenceByProposal<T>>::insert(&proposal_id, (audit_id, evidence_id));
-
 
             Self::deposit_event(Event::EvidenceAttached(
                 group_account,
@@ -1117,15 +1113,12 @@ pub mod pallet {
         }
 
         pub fn get_evidence_by_proposal(
-
             proposal_id: T::ProposalId,
         ) -> Option<(
             T::EvidenceId,
             Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
         )> {
-
             <EvidenceByProposal<T>>::get(proposal_id).map(|(audit_id, evidence_id)| {
-
                 (
                     evidence_id,
                     <Evidences<T>>::get(audit_id, evidence_id).unwrap(),
