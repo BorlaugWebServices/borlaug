@@ -27,7 +27,6 @@
 //! #### For general users
 //! * `register_did` - Creates a new DID and registers it for the caller
 //! * `create_catalog` - Creates a new Catalog for organizing DIDs into collections
-//! * `rename_catalog` - Rename a Catalog
 //! * `remove_catalog` - Remove a Catalog
 //! * `add_dids_to_catalog` - Add dids to a Catalog
 //! * `remove_dids_from_catalog` - Remove a DID from in a catalog
@@ -128,8 +127,7 @@ pub mod pallet {
         /// The maximum number of statements a Claim may have
         #[pallet::constant]
         type StatementLimit: Get<u32>;
-
-        //TODO: if we add remove_did option then be sure to deal with cleanup of supporting storage carefully.
+        
         /// The maximum number of controllers you can add/remove at one time (does not limit total)
         #[pallet::constant]
         type ControllerLimit: Get<u32>;
@@ -1192,13 +1190,10 @@ pub mod pallet {
         ///
         /// Arguments:       
         /// - `catalog_id` Catalog to which DID are to be added
-        /// - `dids` DIDs are to be added
-        //TODO: fix weights
-        #[pallet::weight(10_000)]
-        // #[pallet::weight(<T as Config>::WeightInfo::add_dids_to_catalog(
-        //     dids.len() as u32,
-        //     get_max_did_short_name_len(dids)
-        // ))]
+        /// - `dids` DIDs are to be added       
+        #[pallet::weight(<T as Config>::WeightInfo::add_dids_to_catalog(
+            dids.len() as u32,       
+        ))]
         pub fn add_dids_to_catalog(
             origin: OriginFor<T>,
             catalog_id: T::CatalogId,

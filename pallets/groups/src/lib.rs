@@ -766,7 +766,7 @@ pub mod pallet {
         ///
         /// - `group_id`: Group to be updated
         /// - `return_funds_too`: account to transfer remaining group funds to
-        //TODO: does remove_prefix only cost one db write?
+        
         #[pallet::weight(T::WeightInfo::remove_group())]
         pub fn remove_group(
             origin: OriginFor<T>,
@@ -808,7 +808,7 @@ pub mod pallet {
         /// Remove a Sub-group. Remove all child groups first. Can only be called via a proposal from any group in the parent chain. Funds returned to immediate parent.
         ///
         /// - `sub_group_id`: Group to be updated   
-        //TODO: does remove_prefix only cost one db write?
+        
         #[pallet::weight(T::WeightInfo::remove_sub_group())]
         pub fn remove_sub_group(
             origin: OriginFor<T>,

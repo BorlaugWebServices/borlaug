@@ -184,16 +184,17 @@ benchmarks! {
         assert_eq!(sub_group.threshold,2u32.into());
     }
 
-
-
     remove_group {
+
+        let m in 1 .. T::MaxMembers::get().unique_saturated_into();
+        let p in 1 .. T::MaxProposals::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
 
         let mut members = vec![(caller.clone(),1u32.into())];
-        for i in 1 .. T::MaxMembers::get().unique_saturated_into() {
+        for i in 1 .. m {
             let member = account("member", i, SEED);
             members.push((member,1u32.into()));
         }
@@ -202,7 +203,7 @@ benchmarks! {
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
-        for i in 0 .. T::MaxProposals::get() {
+        for i in 0 .. p {
             let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; T::MaxProposalLength::get()  as usize]).into();
             let hash=T::Hashing::hash_of(&proposal);
             let proposal_id:T::ProposalId=i.into();
@@ -225,6 +226,9 @@ benchmarks! {
 
     remove_sub_group {
 
+        let m in 1 .. T::MaxMembers::get().unique_saturated_into();
+        let p in 1 .. T::MaxProposals::get();
+
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
@@ -235,7 +239,7 @@ benchmarks! {
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
 
         let mut members = vec![];
-        for i in 0 .. T::MaxMembers::get().unique_saturated_into() {
+        for i in 0 .. m {
             let member = account("member", i, SEED);
             members.push((member,1u32.into()));
         }
@@ -246,7 +250,7 @@ benchmarks! {
         let sub_group_id:T::GroupId=2u32.into();
         assert!(Groups::<T>::contains_key(sub_group_id));
 
-        for i in 0 .. T::MaxProposals::get() {
+        for i in 0 .. p {
             let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; T::MaxProposalLength::get()  as usize]).into();
             let hash=T::Hashing::hash_of(&proposal);
             let proposal_id:T::ProposalId=i.into();
