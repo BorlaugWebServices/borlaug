@@ -14,6 +14,12 @@ use std::marker::PhantomData;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
+static ORG_ADMIN: &str = "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu";
+static ATTESTER_1: &str = "5GnGy76zKS2Yy77vvvwyhzBDxPku6yZ3Y8cBB9eiZKpQ7rUW";
+static ATTESTER_2: &str = "5HDfARwo5GGHTr7E7vDuwKkJKt31xoJUCUFWRdzkifDQW5HK";
+
+static COUNCIL: &str = "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68";
+
 // Note this is the URL for the telemetry server
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -50,51 +56,21 @@ where
 
 fn get_endowed_accounts() -> Vec<AccountId> {
     vec![
-        //Test user org-admin
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        //Test user attester 2
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5HDfARwo5GGHTr7E7vDuwKkJKt31xoJUCUFWRdzkifDQW5HK",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        //Test user attester 1
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5GnGy76zKS2Yy77vvvwyhzBDxPku6yZ3Y8cBB9eiZKpQ7rUW",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        //initial council member
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
-            )
-            .unwrap(),
-        )
-        .into_account(),
+        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(ORG_ADMIN).unwrap())
+            .into_account(),
+        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(ATTESTER_1).unwrap())
+            .into_account(),
+        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(ATTESTER_2).unwrap())
+            .into_account(),
+        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(COUNCIL).unwrap())
+            .into_account(),
     ]
 }
 
 fn get_initial_council() -> Vec<AccountId> {
     vec![
-        //initial council member
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
-            )
-            .unwrap(),
-        )
-        .into_account(),
+        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(COUNCIL).unwrap())
+            .into_account(),
     ]
 }
 
