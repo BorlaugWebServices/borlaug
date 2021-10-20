@@ -26,6 +26,28 @@ use std::marker::PhantomData;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
+static ORG_ADMIN: &str = "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu";
+static ATTESTER_1: &str = "5GnGy76zKS2Yy77vvvwyhzBDxPku6yZ3Y8cBB9eiZKpQ7rUW";
+static ATTESTER_2: &str = "5HDfARwo5GGHTr7E7vDuwKkJKt31xoJUCUFWRdzkifDQW5HK";
+
+static ALPHA_STAKE: &str = "5CGFWKb8cjTLDYBiXYcpTDA9vGs6gZrXJFS3QUtpbPkxqAFr";
+static ALPHA_STASH: &str = "5DFHAPPQoewbEwmsM2aEirLbMRK7nT6f8koGdyzcnqoYgD7Q";
+static ALPHA: &str = "5G3WSp2yNJgRZxXvndY3qQ4VhM4mofpzpiVUuWQRVdFvDNzU";
+static ALPHA_ED: &str = "5GnYdMRexbUBoP1WpbmHgvsCw1fRSH5Em44xHMqQsYHk4cRK";
+
+static BETA_STAKE: &str = "5DAafuwmSD5gzgxZ9he6HYUjYsCc7dJZDEJJH8ij9djCgkU9";
+static BETA_STASH: &str = "5HEWcEDui4nFP4rSrNajqvPMrL6tDdsV8dm2BBm69m7nHABz";
+static BETA: &str = "5Fej3rJdS3w2f7jkufxrNyhBMoy5zNvGVBCtRWGms7r4zsJU";
+static BETA_ED: &str = "5FwYgvMWN1oBF4tWcCQWYZxBda17d3GvxL596A7APXMwgSdb";
+
+static GAMA_STAKE: &str = "5FHP4Je4ehSZpySvZvH7LK443a1UhFcs8WM8U4ypBwcA9yUP";
+static GAMA_STASH: &str = "5EqPyU2nMXb2r1nAVFiMFB4oz2BRBkYvaAfMbn8BJ3Rtaivy";
+static GAMA: &str = "5Hive2LzHTqobHaDhJLs2PuDw6a1AV5eyyYX6fmu1RfwdQwT";
+static GAMA_ED: &str = "5DkBNwcyqZufh68Rz6Vg3C5Uqw12HpuUmeoMwTpBGD64ntMg";
+
+static COUNCIL: &str = "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68";
+static SUDO: &str = "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29";
+
 // Note this is the URL for the telemetry server
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -97,81 +119,36 @@ pub fn authority_keys_from_seed(
 
 fn get_endowed_accounts() -> Vec<AccountId> {
     vec![
-        //Test user org-admin
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5EZ7gNcZidoanKK45JK4YVQNDpEScbcCNbV4BU7fJWJdAFsu",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        //Test user attester 2
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5HDfARwo5GGHTr7E7vDuwKkJKt31xoJUCUFWRdzkifDQW5HK",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        //Test user attester 1
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5GnGy76zKS2Yy77vvvwyhzBDxPku6yZ3Y8cBB9eiZKpQ7rUW",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        //initial council member
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
-            )
-            .unwrap(),
-        )
-        .into_account(),
+        ORG_ADMIN,
+        ATTESTER_1,
+        ATTESTER_2,
+        COUNCIL,
+        ALPHA_STAKE,
+        ALPHA_STASH,
+        ALPHA,
+        BETA_STAKE,
+        BETA_STASH,
+        BETA,
+        GAMA_STAKE,
+        GAMA_STASH,
+        GAMA,
     ]
+    .into_iter()
+    .map(|public_key| {
+        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(public_key).unwrap())
+            .into_account()
+    })
+    .collect()
 }
 
 fn get_initial_council() -> Vec<AccountId> {
-    vec![
-        //initial council member
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5CD9YDBg4nohwKQJ3CzwjZZsy7yka3srB6oxmuHn9rNJPx68",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-    ]
-}
-
-fn get_initial_validators_babe() -> Vec<AccountId> {
-    vec![
-        //initial authority Alpha
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5G3WSp2yNJgRZxXvndY3qQ4VhM4mofpzpiVUuWQRVdFvDNzU",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        //initial authority Beta
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5Fej3rJdS3w2f7jkufxrNyhBMoy5zNvGVBCtRWGms7r4zsJU",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-        //initial authority Gama
-        AccountPublic::from(
-            sp_core::sr25519::Public::from_ss58check(
-                "5Hive2LzHTqobHaDhJLs2PuDw6a1AV5eyyYX6fmu1RfwdQwT",
-            )
-            .unwrap(),
-        )
-        .into_account(),
-    ]
+    vec![COUNCIL]
+        .into_iter()
+        .map(|public_key| {
+            AccountPublic::from(sp_core::sr25519::Public::from_ss58check(public_key).unwrap())
+                .into_account()
+        })
+        .collect()
 }
 
 fn create_genesis(
@@ -246,7 +223,6 @@ fn create_genesis(
         }),
         pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
         pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-
         pallet_grandpa: Some(GrandpaConfig {
             authorities: vec![],
         }),
@@ -291,24 +267,46 @@ pub fn development_config() -> ChainSpec {
     )
 }
 
+/// Helper function to generate stash, controller and session key from public key
+pub fn authority_keys_from_public_keys(
+    public_keys: Vec<(&str, &str, &str, &str)>,
+) -> Vec<(
+    AccountId,
+    AccountId,
+    GrandpaId,
+    BabeId,
+    ImOnlineId,
+    AuthorityDiscoveryId,
+)> {
+    public_keys
+        .into_iter()
+        .map(|(staker, stash, babe, grandpa)| {
+            let staker = sp_core::sr25519::Public::from_ss58check(staker).unwrap();
+            let stash = sp_core::sr25519::Public::from_ss58check(stash).unwrap();
+            let babe = sp_core::sr25519::Public::from_ss58check(babe).unwrap();
+            let grandpa = sp_core::ed25519::Public::from_ss58check(grandpa).unwrap();
+            (
+                AccountPublic::from(staker).into_account(),
+                AccountPublic::from(stash).into_account(),
+                grandpa.into(),
+                babe.into(),
+                babe.into(),
+                babe.into(),
+            )
+        })
+        .collect()
+}
+
 pub fn aztec_config_genesis() -> GenesisConfig {
     //TODO: set up initial authorities
-    let initial_authorities: Vec<(
-        AccountId,
-        AccountId,
-        GrandpaId,
-        BabeId,
-        ImOnlineId,
-        AuthorityDiscoveryId,
-    )> = vec![];
+    let initial_authorities = authority_keys_from_public_keys(vec![
+        (ALPHA_STAKE, ALPHA_STASH, ALPHA, ALPHA_ED),
+        (BETA_STAKE, BETA_STASH, BETA, BETA_ED),
+        (GAMA_STAKE, GAMA_STASH, GAMA, GAMA_ED),
+    ]);
 
-    let root_key = AccountPublic::from(
-        sp_core::sr25519::Public::from_ss58check(
-            "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29",
-        )
-        .unwrap(),
-    )
-    .into_account();
+    let root_key =
+        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(SUDO).unwrap()).into_account();
 
     let endowed_accounts = get_endowed_accounts();
 
@@ -320,7 +318,7 @@ pub fn aztec_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Borlaug Aztec",
         "borlaug_aztec",
-        ChainType::Local,
+        ChainType::Live,
         aztec_config_genesis,
         vec![],
         None,
