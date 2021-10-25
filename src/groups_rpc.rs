@@ -12,7 +12,11 @@ use std::sync::Arc;
 #[rpc]
 pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash> {
     #[rpc(name = "member_of")]
-    fn member_of(&self, account: AccountId, at: Option<BlockHash>) -> Result<Vec<GroupId>>;
+    fn member_of(
+        &self,
+        account: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
 
     #[rpc(name = "is_member")]
     fn is_member(
@@ -208,12 +212,12 @@ where
         &self,
         account: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<GroupId>> {
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let groups = api.member_of(&at, account).map_err(convert_error!())?;
-        Ok(groups)
+        Ok(groups.into_iter().map(|g| g.into()).collect())
     }
 
     fn is_member(

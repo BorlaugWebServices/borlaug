@@ -659,7 +659,7 @@ pub mod pallet {
             let (caller_group_id, _proposal_id, _yes_votes, _no_votes, caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
-            ensure!(members.len() > 0, Error::<T>::MembersRequired);
+            ensure!(!members.is_empty(), Error::<T>::MembersRequired);
             ensure!(threshold > Zero::zero(), Error::<T>::InvalidThreshold);
             let bounded_name = enforce_limit!(name);
 
@@ -767,7 +767,7 @@ pub mod pallet {
         /// - `group_id`: Group to be updated
         /// - `return_funds_too`: account to transfer remaining group funds to
         
-        #[pallet::weight(T::WeightInfo::remove_group())]
+        #[pallet::weight(T::WeightInfo::remove_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
         pub fn remove_group(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -802,6 +802,8 @@ pub mod pallet {
 
             Self::deposit_event(Event::GroupRemoved(group_id, return_funds_too));
 
+            //TODO: count members/proposals and refund weight
+
             Ok(().into())
         }
 
@@ -809,7 +811,7 @@ pub mod pallet {
         ///
         /// - `sub_group_id`: Group to be updated   
         
-        #[pallet::weight(T::WeightInfo::remove_sub_group())]
+        #[pallet::weight(T::WeightInfo::remove_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
         pub fn remove_sub_group(
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,
@@ -846,6 +848,8 @@ pub mod pallet {
             <ProposalHashes<T>>::remove_prefix(&sub_group_id);
 
             Self::deposit_event(Event::SubGroupRemoved(caller_group_id, sub_group_id));
+
+            //TODO: count members/proposals and refund weight
 
             Ok(().into())
         }
@@ -884,7 +888,7 @@ pub mod pallet {
                 RawOrigin::ProposalExecuted(
                     group_id,
                     sender.clone(),
-                    group.anonymous_account.clone(),
+                    group.anonymous_account,
                 )
                 .into(),
             );
@@ -962,7 +966,7 @@ pub mod pallet {
                         proposal_id,
                         weight,
                         0u32.into(),
-                        group.anonymous_account.clone(),
+                        group.anonymous_account,
                     )
                     .into(),
                 );
@@ -1040,7 +1044,7 @@ pub mod pallet {
                 if position_yes.is_none() {
                     voting.ayes.push((sender.clone(), weight));
                 } else {
-                    Err(Error::<T>::DuplicateVote)?
+                     Err(Error::<T>::DuplicateVote)?;
                 }
                 if let Some(pos) = position_no {
                     voting.nays.swap_remove(pos);
@@ -1049,7 +1053,7 @@ pub mod pallet {
                 if position_no.is_none() {
                     voting.nays.push((sender.clone(), weight));
                 } else {
-                    Err(Error::<T>::DuplicateVote)?
+                     Err(Error::<T>::DuplicateVote)?;
                 }
                 if let Some(pos) = position_yes {
                     voting.ayes.swap_remove(pos);
@@ -1138,7 +1142,7 @@ pub mod pallet {
                         proposal_id,
                         yes_votes,
                         no_votes,
-                        group.anonymous_account.clone(),
+                        group.anonymous_account,
                     )
                     .into(),
                 );
@@ -1251,7 +1255,7 @@ pub mod pallet {
                         group_id,
                         proposal_id,
                         sender.clone(),
-                        group.anonymous_account.clone(),
+                        group.anonymous_account,
                     )
                     .into(),
                 );
@@ -1409,11 +1413,16 @@ pub mod pallet {
 
     impl<T: Config> Module<T> {
         // -- rpc api functions --
-        pub fn member_of(account: T::AccountId) -> Vec<T::GroupId> {
-            <Groups<T>>::iter()
-                .filter_map(|(group_id, _)| {
-                    <GroupMembers<T>>::contains_key(group_id, &account).then(|| group_id)
-                })
+        pub fn member_of(account: T::AccountId) -> Vec<(T::GroupId, Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,Vec<(T::AccountId, T::MemberCount)>)> {
+           <Groups<T>>::iter()
+                .filter_map(|(group_id, group)|                     
+                    <GroupMembers<T>>::contains_key(group_id, &account).then(|| {
+                        let members = <GroupMembers<T>>::iter_prefix(group_id)
+                        .map(|(account, weight)| (account, weight))
+                        .collect();
+                        (group_id,group, members)
+                    })
+                )
                 .collect()
         }
 

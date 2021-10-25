@@ -1,7 +1,7 @@
 [alias]
 # Run commands as CI does
 ci-check = "check --all --all-targets --all-features"
-ci-clippy = "clippy --all --all-targets --all-features -- -Dwarnings -Drust-2018-idioms -Adeprecated -Aclippy::unused_unit -Aclippy::large_enum_variant"
+ci-clippy = "clippy --all --all-targets --features grandpa_babe -- -Dwarnings -Drust-2018-idioms -Adeprecated"
 ci-fmt = "fmt --all -- --check"
 
 # Format Rust code with stable-compatible nightly features

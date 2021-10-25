@@ -18,7 +18,7 @@ sp_api::decl_runtime_apis! {
     Hash: Codec + AsRef<[u8]>,
     BoundedString: Codec + Into<Vec<u8>>
     {
-        fn member_of(account:AccountId) -> Vec<GroupId>;
+        fn member_of(account:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedString>,Vec<(AccountId, MemberCount)>)> ;
         fn is_member(group:GroupId,account:AccountId) -> bool;
         fn get_group_account(group:GroupId) -> Option<AccountId>;
         fn get_group(group:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedString>,Vec<(AccountId, MemberCount)>)>;

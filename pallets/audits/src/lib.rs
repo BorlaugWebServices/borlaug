@@ -479,10 +479,7 @@ pub mod pallet {
                 audit.status == AuditStatus::Requested,
                 <Error<T>>::AuditIsNotRequested
             );
-            ensure!(
-                audit.auditing_org == group_account.clone(),
-                <Error<T>>::NotAuditor
-            );
+            ensure!(audit.auditing_org == group_account, <Error<T>>::NotAuditor);
             audit.status = AuditStatus::Accepted;
 
             <Audits<T>>::insert(audit_id, audit);
@@ -513,10 +510,7 @@ pub mod pallet {
                 audit.status == AuditStatus::Accepted || audit.status == AuditStatus::InProgress,
                 <Error<T>>::AuditIsNotAcceptedOrInProgress
             );
-            ensure!(
-                audit.auditing_org == group_account.clone(),
-                <Error<T>>::NotAuditor
-            );
+            ensure!(audit.auditing_org == group_account, <Error<T>>::NotAuditor);
 
             let replacing = audit.auditors.is_some();
             if replacing {
@@ -563,10 +557,7 @@ pub mod pallet {
                 audit.status == AuditStatus::Requested,
                 <Error<T>>::AuditIsNotRequested
             );
-            ensure!(
-                audit.auditing_org == group_account.clone(),
-                <Error<T>>::NotAuditor
-            );
+            ensure!(audit.auditing_org == group_account, <Error<T>>::NotAuditor);
 
             audit.status = AuditStatus::Rejected;
 
@@ -595,10 +586,7 @@ pub mod pallet {
                 audit.status == AuditStatus::InProgress,
                 <Error<T>>::AuditIsNotInProgress
             );
-            ensure!(
-                audit.auditing_org == group_account.clone(),
-                <Error<T>>::NotAuditor
-            );
+            ensure!(audit.auditing_org == group_account, <Error<T>>::NotAuditor);
 
             audit.status = AuditStatus::Completed;
 
@@ -626,7 +614,7 @@ pub mod pallet {
             ensure!(maybe_parent_audit.is_some(), <Error<T>>::AuditNotFound);
             let parent_audit = maybe_parent_audit.unwrap();
             ensure!(
-                parent_audit.auditing_org == group_account.clone(),
+                parent_audit.auditing_org == group_account,
                 <Error<T>>::NotAuditor
             );
             ensure!(
@@ -640,7 +628,7 @@ pub mod pallet {
             ensure!(maybe_child_audit.is_some(), <Error<T>>::AuditNotFound);
             let child_audit = maybe_child_audit.unwrap();
             ensure!(
-                child_audit.auditing_org == group_account.clone(),
+                child_audit.auditing_org == group_account,
                 <Error<T>>::NotAuditor
             );
             ensure!(
@@ -677,7 +665,7 @@ pub mod pallet {
             ensure!(maybe_parent_audit.is_some(), <Error<T>>::AuditNotFound);
             let parent_audit = maybe_parent_audit.unwrap();
             ensure!(
-                parent_audit.auditing_org == group_account.clone(),
+                parent_audit.auditing_org == group_account,
                 <Error<T>>::NotAuditor
             );
 
@@ -685,7 +673,7 @@ pub mod pallet {
             ensure!(maybe_child_audit.is_some(), <Error<T>>::AuditNotFound);
             let child_audit = maybe_child_audit.unwrap();
             ensure!(
-                child_audit.auditing_org == group_account.clone(),
+                child_audit.auditing_org == group_account,
                 <Error<T>>::NotAuditor
             );
 
@@ -724,7 +712,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                *audit.auditors.as_ref().unwrap() == group_account.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account,
                 <Error<T>>::NotAuditor
             );
 
@@ -795,7 +783,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                *audit.auditors.as_ref().unwrap() == group_account.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account,
                 <Error<T>>::NotAuditor
             );
 
@@ -859,7 +847,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                *audit.auditors.as_ref().unwrap() == group_account.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account,
                 <Error<T>>::NotAuditor
             );
             ensure!(
@@ -911,7 +899,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                *audit.auditors.as_ref().unwrap() == group_account.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account,
                 <Error<T>>::NotAuditor
             );
             ensure!(
@@ -961,7 +949,7 @@ pub mod pallet {
             );
             ensure!(audit.auditors.is_some(), <Error<T>>::AuditorNotAssigned);
             ensure!(
-                *audit.auditors.as_ref().unwrap() == group_account.clone(),
+                *audit.auditors.as_ref().unwrap() == group_account,
                 <Error<T>>::NotAuditor
             );
             let maybe_evidence = <Evidences<T>>::get(audit_id, evidence_id);
@@ -984,7 +972,7 @@ pub mod pallet {
                     return Ok(().into());
                 }
                 <EvidenceLinksByObservation<T>>::remove(observation_id, evidence_id);
-                i = i + 1;
+                i += 1;
             }
 
             <Evidences<T>>::remove(&audit_id, &evidence_id);

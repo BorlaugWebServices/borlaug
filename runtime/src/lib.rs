@@ -1198,7 +1198,7 @@ impl_runtime_apis! {
 
 
     impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName> for Runtime {
-        fn member_of(account_id:AccountId) -> Vec<GroupId>  {
+        fn member_of(account_id:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedStringName>,Vec<(AccountId, MemberCount)>)>  {
             Groups::member_of(account_id)
         }
         fn is_member(group_id:GroupId,account_id:AccountId) -> bool  {
