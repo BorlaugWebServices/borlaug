@@ -777,7 +777,7 @@ pub mod pallet {
         }};
     }
 
-    fn get_max_property_name_len(properties: &Vec<AssetProperty<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_property_name_len(properties: &[AssetProperty<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_property_name_len = 0;
         properties.iter().for_each(|property| {
             if property.name.len() as u32 > max_property_name_len {
@@ -787,7 +787,7 @@ pub mod pallet {
         max_property_name_len
     }
 
-    fn get_max_property_fact_len(properties: &Vec<AssetProperty<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_property_fact_len(properties: &[AssetProperty<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_fact_len = 0;
         properties.iter().for_each(|property| {
             max_fact_len!(property.fact, max_fact_len);

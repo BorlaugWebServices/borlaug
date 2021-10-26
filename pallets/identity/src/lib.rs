@@ -1522,14 +1522,14 @@ pub mod pallet {
         properties: &Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
     ) -> u32 {
         let mut max_property_name_len = 0;
-        properties.as_ref().and_then(|properties| {
-            Some({
+        properties.as_ref().map(|properties| {
+            {
                 properties.into_iter().for_each(|property| {
                     if property.name.len() as u32 > max_property_name_len {
                         max_property_name_len = property.name.len() as u32;
                     };
                 })
-            })
+            }
         });
         max_property_name_len
     }
@@ -1538,17 +1538,17 @@ pub mod pallet {
         properties: &Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
     ) -> u32 {
         let mut max_fact_len = 0;
-        properties.as_ref().and_then(|properties| {
-            Some({
+        properties.as_ref().map(|properties| {
+            {
                 properties.into_iter().for_each(|property| {
                     max_fact_len!(property.fact, max_fact_len);
                 })
-            })
+            }
         });
         max_fact_len
     }
 
-    fn get_max_property_name_len(properties: &Vec<DidProperty<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_property_name_len(properties: &[DidProperty<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_property_name_len = 0;
         properties.into_iter().for_each(|property| {
             if property.name.len() as u32 > max_property_name_len {
@@ -1558,7 +1558,7 @@ pub mod pallet {
         max_property_name_len
     }
 
-    fn get_max_property_fact_len(properties: &Vec<DidProperty<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_property_fact_len(properties: &[DidProperty<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_fact_len = 0;
         properties.into_iter().for_each(|property| {
             max_fact_len!(property.fact, max_fact_len);
@@ -1566,7 +1566,7 @@ pub mod pallet {
         max_fact_len
     }
 
-    fn get_max_statement_name_len(statements: &Vec<Statement<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_statement_name_len(statements: &[Statement<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_statement_name_len = 0;
         statements.into_iter().for_each(|statement| {
             if statement.name.len() as u32 > max_statement_name_len {
@@ -1576,7 +1576,7 @@ pub mod pallet {
         max_statement_name_len
     }
 
-    fn get_max_statement_fact_len(statements: &Vec<Statement<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_statement_fact_len(statements: &[Statement<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_fact_len = 0;
         statements.into_iter().for_each(|statement| {
             max_fact_len!(statement.fact, max_fact_len);
@@ -1585,12 +1585,12 @@ pub mod pallet {
     }
 
     fn get_max_statement_name_bounded_len<T: Config>(
-        statements: &Vec<
+        statements: &[
             Statement<
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
-            >,
-        >,
+            >
+        ],
     ) -> u32 {
         let mut max_statement_name_len = 0;
         statements.into_iter().for_each(|statement| {
@@ -1602,12 +1602,12 @@ pub mod pallet {
     }
 
     fn get_max_statement_fact_bounded_len<T: Config>(
-        statements: &Vec<
+        statements: &[
             Statement<
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
-            >,
-        >,
+            >
+        ],
     ) -> u32 {
         let mut max_fact_len = 0;
         statements.into_iter().for_each(|statement| {
@@ -1618,14 +1618,14 @@ pub mod pallet {
 
     fn get_max_key_len(keys: &Option<Vec<Vec<u8>>>) -> u32 {
         let mut max_keys_len = 0;
-        keys.as_ref().and_then(|keys| {
-            Some({
+        keys.as_ref().map(|keys| {
+            {
                 keys.into_iter().for_each(|key| {
                     if key.len() as u32 > max_keys_len {
                         max_keys_len = key.len() as u32;
                     };
                 })
-            })
+            }
         });
         max_keys_len
     }  

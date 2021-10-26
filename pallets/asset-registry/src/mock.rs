@@ -3,6 +3,8 @@
 use crate as pallet_asset_registry;
 use frame_support::parameter_types;
 use frame_system::{self as system, EnsureOneOf, EnsureSigned};
+use runtime::primitives::{FactStringLimit, NameLimit};
+use runtime::{AssetPropertyLimit, LeaseAssetLimit};
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -31,11 +33,6 @@ frame_support::construct_runtime!(
 
 type AccountId = u64;
 type Balance = u64;
-
-parameter_types! {
-    pub const NameLimit: u32 = 100;
-    pub const FactStringLimit: u32 = 100;
-}
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
@@ -159,11 +156,6 @@ impl identity::Config for Test {
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
     type BulkDidLimit = BulkDidLimit;
-}
-
-parameter_types! {
-    pub const AssetPropertyLimit: u32 = 100;
-    pub const LeaseAssetLimit: u32 = 100;
 }
 
 impl pallet_asset_registry::Config for Test {

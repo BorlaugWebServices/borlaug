@@ -3908,6 +3908,7 @@ dependencies = [
 name = "pallet-asset-registry"
 version = "0.1.0"
 dependencies = [
+ "borlaug-runtime",
  "chrono",
  "extrinsic-extra",
  "frame-benchmarking",
@@ -3932,6 +3933,7 @@ dependencies = [
 name = "pallet-audits"
 version = "0.1.0"
 dependencies = [
+ "borlaug-runtime",
  "chrono",
  "extrinsic-extra",
  "frame-benchmarking",

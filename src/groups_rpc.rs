@@ -14,7 +14,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     #[rpc(name = "member_of")]
     fn member_of(
         &self,
-        account: AccountId,
+        account_id: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
 
@@ -22,7 +22,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     fn is_member(
         &self,
         group_id: GroupId,
-        account: AccountId,
+        account_id: AccountId,
         at: Option<BlockHash>,
     ) -> Result<bool>;
 
@@ -49,22 +49,25 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
-    ) -> Result<ProposalResponse<ProposalId>>;
+    ) -> Result<ProposalResponse<ProposalId, AccountId, MemberCount>>;
 
-    #[rpc(name = "get_proposals")]
-    fn get_proposals(
+    #[rpc(name = "get_proposals_by_group")]
+    fn get_proposals_by_group(
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ProposalResponse<ProposalId>>>;
-
-    #[rpc(name = "get_voting")]
-    fn get_voting(
+    ) -> Result<Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>>;
+    #[rpc(name = "get_proposals_by_account")]
+    fn get_proposals_by_account(
         &self,
-        group_id: GroupId,
-        proposal_id: ProposalId,
+        account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<VotesResponse<AccountId, ProposalId, MemberCount>>;
+    ) -> Result<
+        Vec<(
+            GroupId,
+            Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>,
+        )>,
+    >;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -106,38 +109,51 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ProposalResponse<ProposalId> {
+pub struct ProposalResponse<ProposalId, AccountId, MemberCount> {
     pub proposal_id: ProposalId,
-    pub hash: String,
-    pub proposal_len: u32,
+    pub hash: Option<String>,
+    pub proposal_len: Option<u32>,
+    pub votes: VotesResponse<AccountId, MemberCount>,
 }
-impl<ProposalId, Hash> From<(ProposalId, Hash, u32)> for ProposalResponse<ProposalId>
+impl<ProposalId, Hash, AccountId, MemberCount>
+    From<(
+        ProposalId,
+        Option<(Hash, u32)>,
+        Votes<AccountId, MemberCount>,
+    )> for ProposalResponse<ProposalId, AccountId, MemberCount>
 where
     Hash: AsRef<[u8]>,
 {
-    fn from((proposal_id, hash, proposal_len): (ProposalId, Hash, u32)) -> Self {
+    fn from(
+        (proposal_id, proposal, votes): (
+            ProposalId,
+            Option<(Hash, u32)>,
+            Votes<AccountId, MemberCount>,
+        ),
+    ) -> Self {
         ProposalResponse {
             proposal_id,
-            hash: String::from_utf8_lossy(hash.as_ref()).to_string(),
-            proposal_len,
+            hash: proposal
+                .as_ref()
+                .map(|(hash, _len)| String::from_utf8_lossy(hash.as_ref()).to_string()),
+            proposal_len: proposal.map(|(_hash, len)| len),
+            votes: votes.into(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct VotesResponse<AccountId, ProposalId, MemberCount> {
-    pub proposal_id: ProposalId,
+pub struct VotesResponse<AccountId, MemberCount> {
     pub threshold: MemberCount,
     pub total_vote_weight: MemberCount,
     pub ayes: Vec<(AccountId, MemberCount)>,
     pub nays: Vec<(AccountId, MemberCount)>,
 }
-impl<AccountId, ProposalId, MemberCount> From<(ProposalId, Votes<AccountId, MemberCount>)>
-    for VotesResponse<AccountId, ProposalId, MemberCount>
+impl<AccountId, MemberCount> From<Votes<AccountId, MemberCount>>
+    for VotesResponse<AccountId, MemberCount>
 {
-    fn from((proposal_id, votes): (ProposalId, Votes<AccountId, MemberCount>)) -> Self {
+    fn from(votes: Votes<AccountId, MemberCount>) -> Self {
         VotesResponse {
-            proposal_id,
             threshold: votes.threshold,
             total_vote_weight: votes.total_vote_weight,
             ayes: votes.ayes,
@@ -210,27 +226,27 @@ where
 {
     fn member_of(
         &self,
-        account: AccountId,
+        account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let groups = api.member_of(&at, account).map_err(convert_error!())?;
+        let groups = api.member_of(&at, account_id).map_err(convert_error!())?;
         Ok(groups.into_iter().map(|g| g.into()).collect())
     }
 
     fn is_member(
         &self,
         group_id: GroupId,
-        account: AccountId,
+        account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<bool> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let is_member = api
-            .is_member(&at, group_id, account)
+            .is_member(&at, group_id, account_id)
             .map_err(convert_error!())?;
         Ok(is_member)
     }
@@ -288,47 +304,64 @@ where
         group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ProposalResponse<ProposalId>> {
+    ) -> Result<ProposalResponse<ProposalId, AccountId, MemberCount>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (hash, proposal_len) = api
+        let (proposal_id, proposal, votes) = api
             .get_proposal(&at, group_id, proposal_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
-        Ok((proposal_id, hash, proposal_len).into())
+        Ok((proposal_id, proposal, votes).into())
     }
 
-    fn get_proposals(
+    fn get_proposals_by_group(
         &self,
         group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ProposalResponse<ProposalId>>> {
+    ) -> Result<Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let proposals = api.get_proposals(&at, group_id).map_err(convert_error!())?;
+        let proposals = api
+            .get_proposals_by_group(&at, group_id)
+            .map_err(convert_error!())?;
 
         Ok(proposals
             .into_iter()
-            .map(|(proposal_id, hash, proposal_len)| (proposal_id, hash, proposal_len).into())
+            .map(|(proposal_id, proposal, votes)| (proposal_id, proposal, votes).into())
             .collect())
     }
 
-    fn get_voting(
+    fn get_proposals_by_account(
         &self,
-        group_id: GroupId,
-        proposal_id: ProposalId,
+        account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<VotesResponse<AccountId, ProposalId, MemberCount>> {
+    ) -> Result<
+        Vec<(
+            GroupId,
+            Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>,
+        )>,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let vote = api
-            .get_voting(&at, group_id, proposal_id)
-            .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
-        Ok((proposal_id, vote).into())
+        let proposals = api
+            .get_proposals_by_account(&at, account_id)
+            .map_err(convert_error!())?;
+
+        Ok(proposals
+            .into_iter()
+            .map(|(group_id, proposals)| {
+                (
+                    group_id,
+                    proposals
+                        .into_iter()
+                        .map(|(proposal_id, proposal, votes)| (proposal_id, proposal, votes).into())
+                        .collect(),
+                )
+            })
+            .collect())
     }
 }

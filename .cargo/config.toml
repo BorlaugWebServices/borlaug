@@ -1,3 +1,5 @@
+# build.incremental = false
+
 [alias]
 # Run commands as CI does
 ci-check = "check --all --all-targets --all-features"

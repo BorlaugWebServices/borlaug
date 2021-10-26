@@ -4,7 +4,7 @@ use super::*;
 use crate::mock::*;
 use chrono::Utc;
 use core::convert::TryInto;
-use frame_support::{assert_err, assert_ok};
+use frame_support::{assert_err, assert_ok, dispatch::Weight};
 use primitives::{bounded_vec::BoundedVec, *};
 
 fn create_did() -> Did {
@@ -395,5 +395,51 @@ fn voiding_lease_should_work() {
             &did_lessor,
             lease_id
         ));
+    });
+}
+
+//Make sure weights cannot exceed 10% of total allowance for block.
+
+#[test]
+fn weights_should_not_be_excessive() {
+    new_test_ext().execute_with(|| {
+        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+
+        let weight =
+            <Test as Config>::WeightInfo::create_registry(<Test as Config>::NameLimit::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::update_registry(<Test as Config>::NameLimit::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::delete_registry();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::create_asset(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+            <Test as Config>::AssetPropertyLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::update_asset(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+            <Test as Config>::AssetPropertyLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::delete_asset();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::new_lease(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::LeaseAssetLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::void_lease(<Test as Config>::LeaseAssetLimit::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
     });
 }

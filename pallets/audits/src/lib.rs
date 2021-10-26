@@ -446,10 +446,7 @@ pub mod pallet {
                 audit.status == AuditStatus::Requested,
                 <Error<T>>::AuditIsNotRequested
             );
-            ensure!(
-                audit.audit_creator == group_account.clone(),
-                <Error<T>>::NotCreator
-            );
+            ensure!(audit.audit_creator == group_account, <Error<T>>::NotCreator);
 
             <Audits<T>>::remove(&audit_id);
             <AuditByProposal<T>>::remove(&proposal_id);
@@ -960,9 +957,10 @@ pub mod pallet {
                 <Error<T>>::RemoveLinkLimitExceeded
             );
 
-            let mut i = 0;
-            for (observation_id, _) in <EvidenceLinksByEvidence<T>>::drain_prefix(evidence_id) {
-                if i >= link_count {
+            for (i, (observation_id, _)) in
+                <EvidenceLinksByEvidence<T>>::drain_prefix(evidence_id).enumerate()
+            {
+                if i as u32 >= link_count {
                     Self::deposit_event(Event::EvidenceDeleteFailed(
                         group_account,
                         proposal_id,
@@ -972,7 +970,6 @@ pub mod pallet {
                     return Ok(().into());
                 }
                 <EvidenceLinksByObservation<T>>::remove(observation_id, evidence_id);
-                i += 1;
             }
 
             <Evidences<T>>::remove(&audit_id, &evidence_id);

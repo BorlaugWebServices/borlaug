@@ -37,72 +37,67 @@
 // --output=./weights/settings/weights.rs
 // --template=./frame-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
+#![allow(clippy::many_single_char_names)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_settings.
 pub trait WeightInfo {
-fn set_weight_to_fee_coefficients(a: u32, ) -> Weight;
-fn set_transaction_byte_fee() -> Weight;
-fn set_fee_split_ratio() -> Weight;
-fn set_extrinsic_extra() -> Weight;
-fn remove_extrinsic_extra() -> Weight;
+    fn set_weight_to_fee_coefficients(a: u32) -> Weight;
+    fn set_transaction_byte_fee() -> Weight;
+    fn set_fee_split_ratio() -> Weight;
+    fn set_extrinsic_extra() -> Weight;
+    fn remove_extrinsic_extra() -> Weight;
 }
 
 /// Weights for pallet_settings using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
-		impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-				fn set_weight_to_fee_coefficients(a: u32, ) -> Weight {
-				(67_451_000 as Weight)
-				// Standard Error: 101_000
-				.saturating_add((144_000 as Weight).saturating_mul(a as Weight))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn set_transaction_byte_fee() -> Weight {
-				(65_995_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn set_fee_split_ratio() -> Weight {
-				(63_364_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn set_extrinsic_extra() -> Weight {
-				(70_264_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn remove_extrinsic_extra() -> Weight {
-				(65_461_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				}
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+    fn set_weight_to_fee_coefficients(a: u32) -> Weight {
+        (67_451_000 as Weight)
+            // Standard Error: 101_000
+            .saturating_add((144_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn set_transaction_byte_fee() -> Weight {
+        (65_995_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn set_fee_split_ratio() -> Weight {
+        (63_364_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn set_extrinsic_extra() -> Weight {
+        (70_264_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn remove_extrinsic_extra() -> Weight {
+        (65_461_000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+}
 
-				// For backwards compatibility and tests
-				impl WeightInfo for () {
-				fn set_weight_to_fee_coefficients(a: u32, ) -> Weight {
-				(67_451_000 as Weight)
-				// Standard Error: 101_000
-				.saturating_add((144_000 as Weight).saturating_mul(a as Weight))
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn set_transaction_byte_fee() -> Weight {
-				(65_995_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn set_fee_split_ratio() -> Weight {
-				(63_364_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn set_extrinsic_extra() -> Weight {
-				(70_264_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn remove_extrinsic_extra() -> Weight {
-				(65_461_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				}
+// For backwards compatibility and tests
+impl WeightInfo for () {
+    fn set_weight_to_fee_coefficients(a: u32) -> Weight {
+        (67_451_000 as Weight)
+            // Standard Error: 101_000
+            .saturating_add((144_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn set_transaction_byte_fee() -> Weight {
+        (65_995_000 as Weight).saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn set_fee_split_ratio() -> Weight {
+        (63_364_000 as Weight).saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn set_extrinsic_extra() -> Weight {
+        (70_264_000 as Weight).saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn remove_extrinsic_extra() -> Weight {
+        (65_461_000 as Weight).saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+}
