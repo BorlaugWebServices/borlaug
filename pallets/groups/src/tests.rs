@@ -1,8 +1,9 @@
 //! Tests for the module.
 
+use super::*;
 use crate::{mock::*, GroupMembers};
 use core::convert::TryInto;
-use frame_support::assert_ok;
+use frame_support::{assert_ok, dispatch::Weight};
 use primitives::*;
 
 const MINIMUM_BALANCE: u128 = 1;
@@ -14,7 +15,7 @@ fn creating_new_group_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -51,7 +52,7 @@ fn update_group_should_work() {
 
         // 1 creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1), (member_2, 1)],
             1u32,
@@ -63,8 +64,8 @@ fn update_group_should_work() {
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_group(
                 Some(b"Test_2".to_vec().try_into().unwrap()),
@@ -103,7 +104,7 @@ fn creating_new_sub_group_should_work() {
 
         // 1 creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -118,8 +119,8 @@ fn creating_new_sub_group_should_work() {
         let member_2 = 2u64;
         let member_3 = 3u64;
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             1,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 "Test".to_string().into(),
@@ -169,7 +170,7 @@ fn update_sub_group_should_work() {
 
         // 1 creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -184,8 +185,8 @@ fn update_sub_group_should_work() {
         let member_2 = 2u64;
         let member_3 = 3u64;
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 b"Test".to_vec().try_into().unwrap(),
@@ -216,8 +217,8 @@ fn update_sub_group_should_work() {
         let member_4 = 4u64;
         let member_5 = 5u64;
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_sub_group(
                 sub_group_id,
@@ -264,7 +265,7 @@ fn remove_group_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1), (member_2, 1)],
             1,
@@ -287,8 +288,8 @@ fn remove_group_should_work() {
         assert!(super::GroupMembers::<Test>::contains_key(group_id, caller));
 
         // Create a proposal
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_group(
                 None, None, None, None,
@@ -307,8 +308,8 @@ fn remove_group_should_work() {
             .next()
             .is_some());
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::remove_group(
                 group_id, caller
@@ -349,7 +350,7 @@ fn remove_sub_group_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -362,8 +363,8 @@ fn remove_sub_group_should_work() {
 
         let member_2 = 2u64;
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 b"Test".to_vec().try_into().unwrap(),
@@ -399,8 +400,8 @@ fn remove_sub_group_should_work() {
         ));
 
         // Create a proposal
-        assert_ok!(Groups::propose(
-            Origin::signed(member_2),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(member_2),
             sub_group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_sub_group(
                 sub_group_id,
@@ -413,8 +414,8 @@ fn remove_sub_group_should_work() {
             100
         ));
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::remove_sub_group(
                 sub_group_id
@@ -459,7 +460,7 @@ fn execute_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -468,8 +469,8 @@ fn execute_should_work() {
 
         let group_id = 1u32;
 
-        assert_ok!(Groups::execute(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::execute(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_group(
                 None, None, None, None,
@@ -489,7 +490,7 @@ fn vote_with_close_and_approve_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1), (member_2, 2)],
             3u32,
@@ -500,8 +501,8 @@ fn vote_with_close_and_approve_should_work() {
         assert!(super::Groups::<Test>::contains_key(group_id));
 
         // Create a proposal
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_group(
                 Some(b"Updated".to_vec()),
@@ -525,8 +526,8 @@ fn vote_with_close_and_approve_should_work() {
         let (hash, _) = hash_maybe.unwrap();
 
         // Making vote by 2nd member
-        assert_ok!(Groups::vote(
-            Origin::signed(member_2),
+        assert_ok!(mock::Groups::vote(
+            mock::Origin::signed(member_2),
             group_id,
             proposal_id,
             true
@@ -558,11 +559,11 @@ fn vote_with_close_and_approve_should_work() {
         assert_eq!(*member_2_vote, (member_2, 2u32));
 
         //close the proposal
-        assert_ok!(Groups::close(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::close(
+            mock::Origin::signed(caller),
             group_id,
             proposal_id,
-            10_000_000,
+            1_000_000_000,
             100
         ));
 
@@ -592,7 +593,7 @@ fn vote_with_close_and_disapprove_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1), (member_2, 2)],
             3u32,
@@ -603,8 +604,8 @@ fn vote_with_close_and_disapprove_should_work() {
         assert!(super::Groups::<Test>::contains_key(group_id));
 
         // Create a proposal
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_group(
                 Some(b"Updated".to_vec()),
@@ -628,8 +629,8 @@ fn vote_with_close_and_disapprove_should_work() {
         let (hash, _) = hash_maybe.unwrap();
 
         // Making vote by 2nd member
-        assert_ok!(Groups::vote(
-            Origin::signed(member_2),
+        assert_ok!(mock::Groups::vote(
+            mock::Origin::signed(member_2),
             group_id,
             proposal_id,
             false
@@ -661,11 +662,11 @@ fn vote_with_close_and_disapprove_should_work() {
         assert_eq!(*member_2_vote, (member_2, 2u32));
 
         //close the proposal
-        assert_ok!(Groups::close(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::close(
+            mock::Origin::signed(caller),
             group_id,
             proposal_id,
-            10_000_000,
+            100_000_000,
             100
         ));
 
@@ -692,7 +693,7 @@ fn veto_yes_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -705,8 +706,8 @@ fn veto_yes_should_work() {
         let member_2 = 2u64;
         let member_3 = 3u64;
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 "Test".to_string().into(),
@@ -721,8 +722,8 @@ fn veto_yes_should_work() {
 
         //subgroup proposes creating another subgroup
         let member_4 = 2u64;
-        assert_ok!(Groups::propose(
-            Origin::signed(member_2),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(member_2),
             sub_group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 "SubSubGroup".to_string().into(),
@@ -748,12 +749,12 @@ fn veto_yes_should_work() {
         let (hash, _) = hash_maybe.unwrap();
 
         // Caller vetos proposal in the affirmative
-        assert_ok!(Groups::veto(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::veto(
+            mock::Origin::signed(caller),
             sub_group_id,
             proposal_id,
             true,
-            100_000_000,
+            10_000_000_000,
             100
         ));
 
@@ -779,7 +780,7 @@ fn veto_no_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -792,8 +793,8 @@ fn veto_no_should_work() {
         let member_2 = 2u64;
         let member_3 = 3u64;
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 "Test".to_string().into(),
@@ -808,8 +809,8 @@ fn veto_no_should_work() {
 
         //subgroup proposes creating another subgroup
         let member_4 = 2u64;
-        assert_ok!(Groups::propose(
-            Origin::signed(member_2),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(member_2),
             sub_group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 "SubSubGroup".to_string().into(),
@@ -835,8 +836,8 @@ fn veto_no_should_work() {
         let (hash, _) = hash_maybe.unwrap();
 
         // Caller vetos proposal in the affirmative
-        assert_ok!(Groups::veto(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::veto(
+            mock::Origin::signed(caller),
             sub_group_id,
             proposal_id,
             false,
@@ -864,7 +865,7 @@ fn withdraw_funds_group_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -874,8 +875,8 @@ fn withdraw_funds_group_should_work() {
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(
                 super::Call::withdraw_funds_group(caller, 1_000_000u128)
@@ -905,7 +906,7 @@ fn withdraw_funds_sub_group_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -917,8 +918,8 @@ fn withdraw_funds_sub_group_should_work() {
 
         let member_2 = 2u64;
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 b"Test".to_vec().try_into().unwrap(),
@@ -946,8 +947,8 @@ fn withdraw_funds_sub_group_should_work() {
             1_000_000u128
         );
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(
                 super::Call::withdraw_funds_sub_group(sub_group_id, 1_000_000u128)
@@ -977,7 +978,7 @@ fn send_funds_to_sub_group_should_work() {
 
         // caller creates a Group
         assert_ok!(crate::mock::Groups::create_group(
-            Origin::signed(caller),
+            mock::Origin::signed(caller),
             b"Test".to_vec(),
             vec![(caller, 1)],
             1u32,
@@ -989,8 +990,8 @@ fn send_funds_to_sub_group_should_work() {
 
         let member_2 = 2u64;
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
                 b"Test".to_vec().try_into().unwrap(),
@@ -1018,8 +1019,8 @@ fn send_funds_to_sub_group_should_work() {
             2_000_000u128
         );
 
-        assert_ok!(Groups::propose(
-            Origin::signed(caller),
+        assert_ok!(mock::Groups::propose(
+            mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(
                 super::Call::send_funds_to_sub_group(sub_group_id, 1_000_000u128)
@@ -1039,5 +1040,79 @@ fn send_funds_to_sub_group_should_work() {
             crate::mock::Balances::free_balance(&group.anonymous_account),
             1_000_000u128
         );
+    });
+}
+
+//Make sure weights cannot exceed 10% of total allowance for block.
+
+#[test]
+fn weights_should_not_be_excessive() {
+    new_test_ext().execute_with(|| {
+        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+
+        let weight = <Test as Config>::WeightInfo::create_group(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::MaxMembers::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::update_group(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::MaxMembers::get(),
+            <Test as Config>::MaxMembers::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::create_sub_group(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::MaxMembers::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::update_sub_group(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::MaxMembers::get(),
+            <Test as Config>::MaxMembers::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::remove_group(
+            <Test as Config>::MaxMembers::get(),
+            <Test as Config>::MaxProposals::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::remove_sub_group(
+            <Test as Config>::MaxMembers::get(),
+            <Test as Config>::MaxProposals::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::execute(<Test as Config>::MaxProposalLength::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::propose_execute(
+            <Test as Config>::MaxProposalLength::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::propose_proposed(
+            <Test as Config>::MaxProposalLength::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::vote(<Test as Config>::MaxMembers::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::close_disapproved(<Test as Config>::MaxMembers::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::close_approved(
+            <Test as Config>::MaxProposalLength::get(),
+            <Test as Config>::MaxMembers::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::veto_disapproved();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::veto_approved(<Test as Config>::MaxProposalLength::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::withdraw_funds_group();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::withdraw_funds_sub_group();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::send_funds_to_sub_group();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
     });
 }

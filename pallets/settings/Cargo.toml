@@ -21,6 +21,7 @@ extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = fal
 [dev-dependencies]
 chrono = "0.4"
 pallet-balances = "3.0.0"
+runtime = {package = "borlaug-runtime", path = "../../runtime", default-features = false}
 sp-core = {version = "3.0.0", default-features = false}
 
 [features]

@@ -57,6 +57,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         group_id: GroupId,
         at: Option<BlockHash>,
     ) -> Result<Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>>;
+
     #[rpc(name = "get_proposals_by_account")]
     fn get_proposals_by_account(
         &self,
@@ -180,7 +181,7 @@ macro_rules! convert_error {
     () => {{
         |e| RpcError {
             code: ErrorCode::ServerError(1),
-            message: "Error in Provenance API".into(),
+            message: "Error in Groups API".into(),
             data: Some(format!("{:?}", e).into()),
         }
     }};

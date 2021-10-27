@@ -813,13 +813,13 @@ impl groups::Config for Runtime {
 }
 
 parameter_types! {
-    pub const PropertyLimit: u32 = 1000;
+    pub const PropertyLimit: u32 = 500;
     pub const StatementLimit: u32 = 500;
     pub const ControllerLimit: u32 = 50;
     pub const ClaimConsumerLimit: u32 = 50;
     pub const ClaimIssuerLimit: u32 = 50;
-    pub const CatalogDidLimit: u32 = 500;
-    pub const BulkDidLimit: u32 = 10000;
+    pub const CatalogDidLimit: u32 = 1_000;
+    pub const BulkDidLimit: u32 = 15;
 }
 impl identity::Config for Runtime {
     type CatalogId = CatalogId;

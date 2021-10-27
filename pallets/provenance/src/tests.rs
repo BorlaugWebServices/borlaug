@@ -1,7 +1,7 @@
 //! Tests for the module.
 use super::*;
 use crate::mock::*;
-use frame_support::assert_ok;
+use frame_support::{assert_ok, dispatch::Weight};
 use primitives::*;
 use std::convert::TryInto;
 
@@ -492,5 +492,57 @@ fn attest_process_step_should_work() {
                 status: ProcessStatus::Completed
             }
         );
+    });
+}
+
+//Make sure weights cannot exceed 10% of total allowance for block.
+
+#[test]
+fn weights_should_not_be_excessive() {
+    new_test_ext().execute_with(|| {
+        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+
+        let weight =
+            <Test as Config>::WeightInfo::create_registry(<Test as Config>::NameLimit::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::update_registry(<Test as Config>::NameLimit::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+
+        let weight = <Test as Config>::WeightInfo::remove_registry();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+
+        let weight = <Test as Config>::WeightInfo::create_definition(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::DefinitionStepLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::set_definition_active();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::set_definition_inactive();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::remove_definition(
+            <Test as Config>::DefinitionStepLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::update_definition_step();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::create_process(<Test as Config>::NameLimit::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::update_process(<Test as Config>::NameLimit::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::remove_process(
+            <Test as Config>::DefinitionStepLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::attest_process_step(
+            <Test as Config>::AttributeLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
     });
 }

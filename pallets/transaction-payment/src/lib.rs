@@ -88,15 +88,15 @@ type BalanceOf<T> = <<T as Config>::OnChargeTransaction as OnChargeTransaction<T
 /// system pallet.
 ///
 /// given:
-/// 	s = previous block weight
-/// 	s'= ideal block weight
-/// 	m = maximum block weight
-///		diff = (s - s')/m
-///		v = 0.00001
-///		t1 = (v * diff)
-///		t2 = (v * diff)^2 / 2
-///	then:
-/// 	next_multiplier = prev_multiplier * (1 + t1 + t2)
+///    s = previous block weight
+///    s'= ideal block weight
+///    m = maximum block weight
+///    diff = (s - s')/m
+///    v = 0.00001
+///    t1 = (v * diff)
+///    t2 = (v * diff)^2 / 2
+/// then:
+///    next_multiplier = prev_multiplier * (1 + t1 + t2)
 ///
 /// Where `(s', v)` must be given as the `Get` implementation of the `T` generic type. Moreover, `M`
 /// must provide the minimum allowed value for the multiplier. Note that a runtime should ensure
@@ -700,7 +700,6 @@ where
     ) -> Result<Self::Pre, TransactionValidityError> {
         let who = match call.is_sub_type() {
             Some(groups::Call::propose(group_id, ..)) => {
-
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {
@@ -708,7 +707,6 @@ where
                 }
             }
             Some(groups::Call::execute(group_id, ..)) => {
-
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {
@@ -723,7 +721,6 @@ where
                 }
             }
             Some(groups::Call::veto(group_id, ..)) => {
-
                 if let Some(group) = groups::Module::<T>::groups(group_id) {
                     group.anonymous_account
                 } else {

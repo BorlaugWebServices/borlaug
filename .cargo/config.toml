@@ -1,4 +1,4 @@
-# build.incremental = false
+build.incremental = false
 
 [alias]
 # Run commands as CI does

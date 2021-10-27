@@ -537,7 +537,7 @@ pub mod pallet {
             initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            ensure!(members.len() > 0, Error::<T>::MembersRequired);
+            ensure!(!members.is_empty(), Error::<T>::MembersRequired);
             ensure!(threshold > Zero::zero(), Error::<T>::InvalidThreshold);
 
             let bounded_name = enforce_limit!(name);

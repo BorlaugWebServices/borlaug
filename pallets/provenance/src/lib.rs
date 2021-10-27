@@ -480,7 +480,7 @@ pub mod pallet {
                 Error::<T>::NotAuthorized
             );
 
-            ensure!(steps.len() > 0, Error::<T>::DefinitionStepsRequired);
+            ensure!(!steps.is_empty() , Error::<T>::DefinitionStepsRequired);
 
             let bounded_name = enforce_limit!(name);
 
@@ -754,7 +754,7 @@ pub mod pallet {
             .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                definition_step.attestor == group_account.clone(),
+                definition_step.attestor == group_account,
                 Error::<T>::NotAttestor
             );
 
@@ -908,7 +908,7 @@ pub mod pallet {
                     .ok_or(Error::<T>::NotFound)?;
 
             ensure!(
-                definition_step.attestor == sender.clone(),
+                definition_step.attestor == sender,
                 Error::<T>::NotAttestor
             );
 
@@ -1068,12 +1068,11 @@ pub mod pallet {
                     if step_index == T::DefinitionStepIndex::unique_saturated_from(0u32) {
                         let maybe_definition = <Definitions<T>>::get(registry_id, definition_id);
                         if let Some(definition) = maybe_definition {
-                            if definitions
+                            if !definitions
                                 .iter()
-                                .find(|(r_id, d_id, _)| {
+                                .any(|(r_id, d_id, _)| {
                                     *r_id == registry_id && *d_id == definition_id
-                                })
-                                .is_none()
+                                })                                
                             {
                                 definitions.push((registry_id, definition_id, definition));
                             }
@@ -1118,10 +1117,10 @@ pub mod pallet {
             let mut definitions = Vec::new();
             <DefinitionStepsByAttestor<T>>::iter_prefix(account_id).for_each(
                 |((registry_id, definition_id, _), _)| {
-                    if definitions
+                    if !definitions
                         .iter()
-                        .find(|(r_id, d_id)| *r_id == registry_id && *d_id == definition_id)
-                        .is_none()
+                        .any(|(r_id, d_id)| *r_id == registry_id && *d_id == definition_id)
+                        
                     {
                         definitions.push((registry_id, definition_id));
                     }
@@ -1166,6 +1165,7 @@ pub mod pallet {
                 .for_each(|(registry_id, definition_id, step_index)| {
                     <Processes<T>>::iter_prefix((registry_id, definition_id)).for_each(
                         |(process_id, process)| {
+                            #[allow(clippy::collapsible_if)]
                             if process.status == ProcessStatus::InProgress {
                                 if !<ProcessSteps<T>>::contains_key(
                                     (registry_id, definition_id, process_id),
@@ -1279,9 +1279,9 @@ pub mod pallet {
         }};
     }
 
-    fn get_max_step_name<AccountId,MemberCount>(steps: &Vec<(Vec<u8>, AccountId, MemberCount)>)-> u32 {
+    fn get_max_step_name<AccountId,MemberCount>(steps: &[(Vec<u8>, AccountId, MemberCount)])-> u32 {
         let mut max_step_name_len = 0;
-        steps.into_iter().for_each(|(name,_,_)| {
+        steps.iter().for_each(|(name,_,_)| {
             if name.len() as u32 > max_step_name_len {
                 max_step_name_len = name.len() as u32;
             };
@@ -1289,9 +1289,9 @@ pub mod pallet {
         max_step_name_len
 
     }
-    fn get_max_attribute_name_len(attributes: &Vec<Attribute<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_attribute_name_len(attributes: &[Attribute<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_attribute_name_len = 0;
-        attributes.into_iter().for_each(|attribute| {
+        attributes.iter().for_each(|attribute| {
             if attribute.name.len() as u32 > max_attribute_name_len {
                 max_attribute_name_len = attribute.name.len() as u32;
             };
@@ -1299,9 +1299,9 @@ pub mod pallet {
         max_attribute_name_len
     }
 
-    fn get_max_attribute_fact_len(attributes: &Vec<Attribute<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_attribute_fact_len(attributes: &[Attribute<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_fact_len = 0;
-        attributes.into_iter().for_each(|attribute| {
+        attributes.iter().for_each(|attribute| {
             max_fact_len!(attribute.fact, max_fact_len);
         });
         max_fact_len
