@@ -3,6 +3,10 @@
 use crate as pallet_groups;
 use frame_support::{ord_parameter_types, parameter_types};
 use frame_system::{self as system, EnsureOneOf, EnsureSigned};
+use runtime::{
+    primitives::NameLimit, GroupChainLimit, GroupMaxMembers, GroupMaxProposalLength,
+    GroupMaxProposals,
+};
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -76,14 +80,6 @@ impl pallet_balances::Config for Test {
     type WeightInfo = ();
 }
 
-parameter_types! {
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxProposalLength: u32 = 1000;
-    pub const GroupMaxMembers: u32 = 100;
-    pub const GroupChainLimit: u32 = 100;
-    pub const NameLimit: u32 = 100;
-}
-
 impl pallet_groups::Config for Test {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = pallet_groups::EnsureThreshold<Test>;
@@ -104,7 +100,7 @@ impl pallet_groups::Config for Test {
     type MaxProposals = GroupMaxProposals;
     type MaxProposalLength = GroupMaxProposalLength;
     type MaxMembers = GroupMaxMembers;
-    type WeightInfo = pallet_groups::weights::SubstrateWeight<Test>;
+    type WeightInfo = ();
     type GetExtrinsicExtraSource = Settings;
     type NameLimit = NameLimit;
     type GroupChainLimit = GroupChainLimit;

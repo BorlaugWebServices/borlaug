@@ -3,7 +3,7 @@
 use super::*;
 use crate::mock::*;
 use core::convert::TryInto;
-use frame_support::assert_ok;
+use frame_support::{assert_ok, dispatch::Weight};
 use primitives::*;
 use sp_core::blake2_256;
 
@@ -11,13 +11,13 @@ fn create_group(member: u64, group_id: u32) -> u64 {
     assert_ok!(Groups::create_group(
         Origin::signed(member),
         b"Test".to_vec(),
-        vec![member],
+        vec![(member, 1)],
         1,
         10_000,
     ));
     let group_maybe = Groups::get_group(group_id);
     assert!(group_maybe.is_some());
-    let group = group_maybe.unwrap();
+    let (group, _members) = group_maybe.unwrap();
     group.anonymous_account
 }
 
@@ -763,5 +763,49 @@ fn delete_evidence_should_have_link_limit() {
 
         //check that evidence was not actually deleted
         assert!(Evidences::<Test>::contains_key(audit_id, evidence_id));
+    });
+}
+
+//Make sure weights cannot exceed 10% of total allowance for block.
+
+#[test]
+fn weights_should_not_be_excessive() {
+    new_test_ext().execute_with(|| {
+        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+
+        let weight = <Test as Config>::WeightInfo::create_audit();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::delete_audit();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::link_audit();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::unlink_audit();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::accept_audit();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::assign_auditors_initial_assign();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::assign_auditors_replace();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::reject_audit();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::complete_audit();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::create_observation();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::create_evidence(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::NameLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::link_evidence();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::unlink_evidence();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight =
+            <Test as Config>::WeightInfo::delete_evidence(<Test as Config>::MaxLinkRemove::get());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
     });
 }

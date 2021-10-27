@@ -3,7 +3,7 @@ use super::*;
 use crate::mock::*;
 use chrono::Utc;
 use core::convert::TryInto;
-use frame_support::assert_ok;
+use frame_support::{assert_ok, dispatch::Weight};
 use primitives::*;
 
 #[test]
@@ -574,5 +574,103 @@ fn attest_claim_without_proposal_should_work() {
         let claim_after_attestation = Claims::<Test>::get(&did, &1).unwrap();
 
         assert!(claim_after_attestation.attestation.is_some());
+    });
+}
+
+//Make sure weights cannot exceed 10% of total allowance for block.
+
+#[test]
+fn weights_should_not_be_excessive() {
+    new_test_ext().execute_with(|| {
+        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+
+        let weight = <Test as Config>::WeightInfo::register_did(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+            <Test as Config>::PropertyLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::register_did_for(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+            <Test as Config>::PropertyLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        //register_did_for_bulk
+        let weight = <Test as Config>::WeightInfo::register_did_for(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+            <Test as Config>::PropertyLimit::get() / 10,
+        )
+        .saturating_mul(<Test as Config>::BulkDidLimit::get().into());
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::update_did(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+            <Test as Config>::PropertyLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::PropertyLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::replace_did(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+            <Test as Config>::PropertyLimit::get(),
+            <Test as Config>::PropertyLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::manage_controllers(
+            <Test as Config>::ControllerLimit::get(),
+            <Test as Config>::ControllerLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::authorize_claim_consumers(
+            <Test as Config>::ClaimConsumerLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::revoke_claim_consumers(
+            <Test as Config>::ClaimConsumerLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::authorize_claim_issuers(
+            <Test as Config>::ClaimIssuerLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::revoke_claim_issuers(
+            <Test as Config>::ClaimIssuerLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::make_claim(
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::StatementLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::attest_claim(
+            <Test as Config>::StatementLimit::get(),
+            <Test as Config>::StatementLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::revoke_attestation(
+            <Test as Config>::StatementLimit::get(),
+            <Test as Config>::NameLimit::get(),
+            <Test as Config>::FactStringLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::create_catalog();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::remove_catalog();
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::add_dids_to_catalog(
+            <Test as Config>::CatalogDidLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        let weight = <Test as Config>::WeightInfo::remove_dids_from_catalog(
+            <Test as Config>::CatalogDidLimit::get(),
+        );
+        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
     });
 }

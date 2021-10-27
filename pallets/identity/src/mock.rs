@@ -3,6 +3,11 @@
 use crate as pallet_identity;
 use frame_support::parameter_types;
 use frame_system::{self as system, EnsureOneOf, EnsureSigned};
+use runtime::{
+    primitives::{FactStringLimit, NameLimit},
+    BulkDidLimit, CatalogDidLimit, ClaimConsumerLimit, ClaimIssuerLimit, ControllerLimit,
+    PropertyLimit, StatementLimit,
+};
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -95,18 +100,6 @@ impl settings::Config for Test {
     type Currency = Balances;
     type Balance = Balance;
     type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const NameLimit: u32 = 50;
-    pub const FactStringLimit: u32 = 500;
-    pub const PropertyLimit: u32 = 500;
-    pub const StatementLimit: u32 = 500;
-    pub const ControllerLimit: u32 = 500;
-    pub const ClaimConsumerLimit: u32 = 500;
-    pub const ClaimIssuerLimit: u32 = 500;
-    pub const CatalogDidLimit: u32 = 500;
-    pub const BulkDidLimit: u32 = 500;
 }
 
 impl pallet_identity::Config for Test {

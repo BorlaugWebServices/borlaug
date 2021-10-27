@@ -3,6 +3,11 @@
 use crate as pallet_audits;
 use frame_support::parameter_types;
 use frame_system::{self as system, EnsureOneOf, EnsureSigned};
+use runtime::primitives::NameLimit;
+use runtime::{
+    GroupChainLimit, GroupMaxMembers, GroupMaxProposalLength, GroupMaxProposals, MaxLinkRemove,
+};
+
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -83,11 +88,6 @@ impl settings::Config for Test {
     type WeightInfo = ();
 }
 
-parameter_types! {
-    pub const NameLimit: u32 = 50;
-    pub const MaxLinkRemove: u32 = 50;
-
-}
 impl pallet_audits::Config for Test {
     type AuditId = u32;
     type ControlPointId = u32;
@@ -97,13 +97,6 @@ impl pallet_audits::Config for Test {
     type WeightInfo = ();
     type NameLimit = NameLimit;
     type MaxLinkRemove = MaxLinkRemove;
-}
-
-parameter_types! {
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxProposalLength: u32 = 1000;
-    pub const GroupMaxMembers: u32 = 100;
-    pub const GroupChainLimit: u32 = 100;
 }
 
 impl groups::Config for Test {

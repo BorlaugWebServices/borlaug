@@ -71,7 +71,7 @@ pub mod pallet {
     };
     use frame_system::{self as system, pallet_prelude::*};
     use group_info::GroupInfo;
-    use primitives::{bounded_vec::BoundedVec, *};
+    use primitives::{*, Votes, bounded_vec::BoundedVec};
     use sp_io::hashing::blake2_256;
     use sp_runtime::{ Either, traits::{
             AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Hash, One, Saturating,
@@ -537,7 +537,7 @@ pub mod pallet {
             initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            ensure!(members.len() > 0, Error::<T>::MembersRequired);
+            ensure!(!members.is_empty(), Error::<T>::MembersRequired);
             ensure!(threshold > Zero::zero(), Error::<T>::InvalidThreshold);
 
             let bounded_name = enforce_limit!(name);
@@ -659,7 +659,7 @@ pub mod pallet {
             let (caller_group_id, _proposal_id, _yes_votes, _no_votes, caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
-            ensure!(members.len() > 0, Error::<T>::MembersRequired);
+            ensure!(!members.is_empty(), Error::<T>::MembersRequired);
             ensure!(threshold > Zero::zero(), Error::<T>::InvalidThreshold);
             let bounded_name = enforce_limit!(name);
 
@@ -767,7 +767,7 @@ pub mod pallet {
         /// - `group_id`: Group to be updated
         /// - `return_funds_too`: account to transfer remaining group funds to
         
-        #[pallet::weight(T::WeightInfo::remove_group())]
+        #[pallet::weight(T::WeightInfo::remove_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
         pub fn remove_group(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -802,6 +802,8 @@ pub mod pallet {
 
             Self::deposit_event(Event::GroupRemoved(group_id, return_funds_too));
 
+            //TODO: count members/proposals and refund weight
+
             Ok(().into())
         }
 
@@ -809,7 +811,7 @@ pub mod pallet {
         ///
         /// - `sub_group_id`: Group to be updated   
         
-        #[pallet::weight(T::WeightInfo::remove_sub_group())]
+        #[pallet::weight(T::WeightInfo::remove_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
         pub fn remove_sub_group(
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,
@@ -846,6 +848,8 @@ pub mod pallet {
             <ProposalHashes<T>>::remove_prefix(&sub_group_id);
 
             Self::deposit_event(Event::SubGroupRemoved(caller_group_id, sub_group_id));
+
+            //TODO: count members/proposals and refund weight
 
             Ok(().into())
         }
@@ -884,7 +888,7 @@ pub mod pallet {
                 RawOrigin::ProposalExecuted(
                     group_id,
                     sender.clone(),
-                    group.anonymous_account.clone(),
+                    group.anonymous_account,
                 )
                 .into(),
             );
@@ -962,7 +966,7 @@ pub mod pallet {
                         proposal_id,
                         weight,
                         0u32.into(),
-                        group.anonymous_account.clone(),
+                        group.anonymous_account,
                     )
                     .into(),
                 );
@@ -1040,7 +1044,8 @@ pub mod pallet {
                 if position_yes.is_none() {
                     voting.ayes.push((sender.clone(), weight));
                 } else {
-                    Err(Error::<T>::DuplicateVote)?
+                    #[allow(clippy::try_err)]
+                     Err(Error::<T>::DuplicateVote)?;
                 }
                 if let Some(pos) = position_no {
                     voting.nays.swap_remove(pos);
@@ -1049,7 +1054,8 @@ pub mod pallet {
                 if position_no.is_none() {
                     voting.nays.push((sender.clone(), weight));
                 } else {
-                    Err(Error::<T>::DuplicateVote)?
+                    #[allow(clippy::try_err)]
+                     Err(Error::<T>::DuplicateVote)?;
                 }
                 if let Some(pos) = position_yes {
                     voting.ayes.swap_remove(pos);
@@ -1138,7 +1144,7 @@ pub mod pallet {
                         proposal_id,
                         yes_votes,
                         no_votes,
-                        group.anonymous_account.clone(),
+                        group.anonymous_account,
                     )
                     .into(),
                 );
@@ -1201,13 +1207,14 @@ pub mod pallet {
         /// - `approve`: approval.
         /// - `proposal_weight_bound`: maximum expected weight of the proposal.
         /// - `length_bound`: length of the proposal.
+        #[allow(clippy::needless_return)]
         #[pallet::weight(	{
             let a = *length_bound;            
             let p = *proposal_weight_bound;          
                 T::WeightInfo::veto_approved(a,  )
                 .max(T::WeightInfo::veto_disapproved())
                 .saturating_add(p)
-        })]
+        })]        
         pub fn veto(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -1251,7 +1258,7 @@ pub mod pallet {
                         group_id,
                         proposal_id,
                         sender.clone(),
-                        group.anonymous_account.clone(),
+                        group.anonymous_account,
                     )
                     .into(),
                 );
@@ -1268,7 +1275,7 @@ pub mod pallet {
                 <ProposalHashes<T>>::remove(group_id, proposal_hash);
 
                 let proposal_weight = Self::get_result_weight(result).unwrap_or(dispatch_weight);
-
+                
                 return Ok((
                     Some(
                         T::WeightInfo::veto_approved(
@@ -1282,8 +1289,7 @@ pub mod pallet {
             } else {
                 Self::deposit_event(Event::DisapprovedByVeto(sender, group_id, proposal_id));
                 <Proposals<T>>::remove(group_id, proposal_id);
-                <ProposalHashes<T>>::remove(group_id, proposal_hash);
-
+                <ProposalHashes<T>>::remove(group_id, proposal_hash);                
                 return Ok((
                     Some(T::WeightInfo::veto_disapproved()),
                     Pays::Yes,
@@ -1409,11 +1415,17 @@ pub mod pallet {
 
     impl<T: Config> Module<T> {
         // -- rpc api functions --
-        pub fn member_of(account: T::AccountId) -> Vec<T::GroupId> {
-            <Groups<T>>::iter()
-                .filter_map(|(group_id, _)| {
-                    <GroupMembers<T>>::contains_key(group_id, &account).then(|| group_id)
-                })
+        pub fn member_of(account_id: T::AccountId) -> Vec<(T::GroupId, Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,Vec<(T::AccountId, T::MemberCount)>)> {
+            //TODO: add member_of storage
+           <Groups<T>>::iter()
+                .filter_map(|(group_id, group)|                     
+                    <GroupMembers<T>>::contains_key(group_id, &account_id).then(|| {
+                        let members = <GroupMembers<T>>::iter_prefix(group_id)
+                        .map(|(account_id, weight)| (account_id, weight))
+                        .collect();
+                        (group_id,group, members)
+                    })
+                )
                 .collect()
         }
 
@@ -1457,36 +1469,42 @@ pub mod pallet {
                 .collect()
         }
 
-        pub fn get_proposal(
+        pub fn get_proposal( 
             group_id: T::GroupId,
             proposal_id: T::ProposalId,
-        ) -> Option<(T::Hash, u32)> {
-            <Proposals<T>>::get(group_id, proposal_id).map(|proposal| {
-                (
-                    T::Hashing::hash_of(&proposal),
-                    proposal.encoded_size() as u32,
-                )
-            })
+        ) -> Option<(T::ProposalId, Option<(T::Hash,u32)>,Votes<T::AccountId, T::MemberCount>)> {
+            <Voting<T>>::get(group_id, proposal_id).map (|voting|{               
+               proposal_with_votes::<T>(group_id,proposal_id,voting)
+        })
         }
 
-        pub fn get_proposals(group_id: T::GroupId) -> Vec<(T::ProposalId, T::Hash, u32)> {
-            <Proposals<T>>::iter_prefix(group_id)
-                .map(|(proposal_id, proposal)| {
-                    (
-                        proposal_id,
-                        T::Hashing::hash_of(&proposal),
-                        proposal.encoded_size() as u32,
-                    )
+        pub fn get_proposals_by_group(group_id: T::GroupId) -> Vec<(T::ProposalId, Option<(T::Hash,u32)>,Votes<T::AccountId, T::MemberCount>)> {
+            <Voting<T>>::iter_prefix(group_id)
+                .map(
+                    |(proposal_id,voting)|{
+                       proposal_with_votes::<T>(group_id,proposal_id,voting)
+                }).collect()                
+        }
+
+        pub fn get_proposals_by_account(account_id: T::AccountId) ->Vec<(T::GroupId, Vec<(T::ProposalId, Option<(T::Hash,u32)>,Votes<T::AccountId, T::MemberCount>)>)> {
+//TODO: add member_of storage
+            <Groups<T>>::iter()
+                .filter_map(|(group_id, _group)| {                    
+                    <GroupMembers<T>>::contains_key(group_id, &account_id).then(|| {
+                        (
+                            group_id,
+                            <Voting<T>>::iter_prefix(group_id)
+                                .map(
+                                    |(proposal_id,voting)|{
+                                        proposal_with_votes::<T>(group_id,proposal_id,voting)
+                                }).collect()                        
+                        )                  
+                    })
                 })
-                .collect()
+                .collect()           
         }
 
-        pub fn get_voting(
-            group_id: T::GroupId,
-            proposal_id: T::ProposalId,
-        ) -> Option<Votes<T::AccountId, T::MemberCount>> {
-            <Voting<T>>::get(group_id, proposal_id)
-        }
+      
 
         // -- private functions --
 
@@ -1574,6 +1592,25 @@ pub mod pallet {
                 (b"modlpy/proxy____", who, height, ext_index, index).using_encoded(blake2_256);
             T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()
         }
+    }
+
+    //helper fn
+    fn proposal_with_votes<T>( 
+        group_id: T::GroupId,
+        proposal_id: T::ProposalId,
+        voting:Votes<T::AccountId, T::MemberCount>
+    )-> (T::ProposalId, Option<(T::Hash,u32)>,Votes<T::AccountId, T::MemberCount>)
+    where T:Config{
+        (
+            proposal_id,
+            <Proposals<T>>::get(group_id, proposal_id).map(|proposal| {
+                (
+                    T::Hashing::hash_of(&proposal),
+                    proposal.encoded_size() as u32,
+                )
+            }),
+            voting
+        )
     }
 
     impl<T: Config> GroupInfo for Module<T> {

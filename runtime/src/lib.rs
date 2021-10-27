@@ -155,7 +155,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 3,
+    spec_version: 4,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -813,13 +813,13 @@ impl groups::Config for Runtime {
 }
 
 parameter_types! {
-    pub const PropertyLimit: u32 = 1000;
+    pub const PropertyLimit: u32 = 500;
     pub const StatementLimit: u32 = 500;
     pub const ControllerLimit: u32 = 50;
     pub const ClaimConsumerLimit: u32 = 50;
     pub const ClaimIssuerLimit: u32 = 50;
-    pub const CatalogDidLimit: u32 = 500;
-    pub const BulkDidLimit: u32 = 10000;
+    pub const CatalogDidLimit: u32 = 1_000;
+    pub const BulkDidLimit: u32 = 15;
 }
 impl identity::Config for Runtime {
     type CatalogId = CatalogId;
@@ -1198,7 +1198,7 @@ impl_runtime_apis! {
 
 
     impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName> for Runtime {
-        fn member_of(account_id:AccountId) -> Vec<GroupId>  {
+        fn member_of(account_id:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedStringName>,Vec<(AccountId, MemberCount)>)>  {
             Groups::member_of(account_id)
         }
         fn is_member(group_id:GroupId,account_id:AccountId) -> bool  {
@@ -1213,15 +1213,16 @@ impl_runtime_apis! {
         fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
             Groups::get_sub_groups(group_id)
         }
-        fn get_proposal(group_id:GroupId,proposal_id:ProposalId) ->Option<(Hash,u32)>{
+        fn get_proposal(group_id:GroupId,proposal_id:ProposalId) ->Option<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
             Groups::get_proposal(group_id,proposal_id)
         }
-        fn get_proposals(group_id:GroupId) -> Vec<(ProposalId, Hash,u32)>{
-            Groups::get_proposals(group_id)
+        fn get_proposals_by_group(group_id:GroupId) -> Vec<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
+            Groups::get_proposals_by_group(group_id)
         }
-        fn get_voting(group_id:GroupId, proposal:ProposalId) -> Option<Votes<AccountId, MemberCount>>{
-            Groups::get_voting(group_id, proposal)
+        fn get_proposals_by_account(account_id: AccountId) -> Vec<(GroupId, Vec<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>)>{
+            Groups::get_proposals_by_account(account_id)
         }
+
     }
 
     impl asset_registry_runtime_api::AssetRegistryApi<Block,AccountId,ProposalId,RegistryId,AssetId,LeaseId,Moment,Balance,BoundedStringName,BoundedStringFact> for Runtime {

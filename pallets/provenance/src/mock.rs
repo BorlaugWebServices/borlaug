@@ -2,11 +2,17 @@
 use crate as pallet_provenance;
 use frame_support::parameter_types;
 use frame_system::{self as system, EnsureOneOf, EnsureSigned};
+use runtime::{
+    primitives::{FactStringLimit, NameLimit},
+    AttributeLimit, DefinitionStepLimit, GroupChainLimit, GroupMaxMembers, GroupMaxProposalLength,
+    GroupMaxProposals,
+};
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
 };
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -24,11 +30,6 @@ frame_support::construct_runtime!(
         Provenance: pallet_provenance::{Module, Call, Storage, Event<T>},
     }
 );
-
-parameter_types! {
-    pub const NameLimit: u32 = 50;
-    pub const FactStringLimit: u32 = 500;
-}
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
@@ -90,13 +91,6 @@ impl timestamp::Config for Test {
     type WeightInfo = ();
 }
 
-parameter_types! {
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxProposalLength: u32 = 1000;
-    pub const GroupMaxMembers: u32 = 100;
-    pub const GroupChainLimit: u32 = 100;
-}
-
 impl groups::Config for Test {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Test>;
@@ -121,11 +115,6 @@ impl groups::Config for Test {
     type WeightInfo = ();
     type NameLimit = NameLimit;
     type GroupChainLimit = GroupChainLimit;
-}
-
-parameter_types! {
-    pub const DefinitionStepLimit: u32 = 100;
-    pub const AttributeLimit: u32 = 100;
 }
 
 impl pallet_provenance::Config for Test {

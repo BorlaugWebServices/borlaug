@@ -22,6 +22,7 @@ primitives = {package = "pallet-primitives", path = "../primitives", default-fea
 [dev-dependencies]
 chrono = "0.4"
 pallet-balances = "3.0.0"
+runtime = {package = "borlaug-runtime", path = "../../runtime", default-features = false}
 serde = "1.0"
 settings = {package = "pallet-settings", path = "../settings", default-features = false}
 sp-core = {version = "3.0.0", default-features = false}

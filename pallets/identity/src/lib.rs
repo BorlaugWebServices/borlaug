@@ -538,9 +538,10 @@ pub mod pallet {
                 .into_iter()
                 .map(|(subject, properties)| {
                     let property_count = properties.as_ref().map_or(0, |p| p.len());
-
+                    //Use a lower property limit for bulk uploads
+                    //TODO: is it safe to only require this limit for average?                    
                     ensure!(
-                        property_count <= T::PropertyLimit::get() as usize,
+                        property_count <= (T::PropertyLimit::get()/10) as usize,
                         Error::<T>::PropertyLimitExceeded
                     );
 
@@ -576,6 +577,7 @@ pub mod pallet {
         /// - `add_properties` DID properties to be added
         /// - `remove_keys` Keys of DID properties to be removed
        
+        //TODO: split this into two functions for weight reasons.
         #[pallet::weight(<T as Config>::WeightInfo::update_did(          
             get_max_property_name_len_option(add_properties),
             get_max_property_fact_len_option(add_properties),
@@ -1406,9 +1408,8 @@ pub mod pallet {
         pub fn get_outstanding_claims(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();
             <DidsByConsumer<T>>::iter_prefix(&account).for_each(|(did, expiry)| {
-                if <Claims<T>>::iter_prefix(did)
-                    .find(|(_, claim)| claim.created_by == account)
-                    .is_none()
+                if !<Claims<T>>::iter_prefix(did)
+                    .any(|(_, claim)| claim.created_by == account)                   
                 {
                     dids.push((did, expiry))
                 }
@@ -1419,9 +1420,8 @@ pub mod pallet {
         pub fn get_outstanding_attestations(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();
             <DidsByIssuer<T>>::iter_prefix(account).for_each(|(did, expiry)| {
-                if <Claims<T>>::iter_prefix(did)
-                    .find(|(_, claim)| claim.attestation.is_some())
-                    .is_none()
+                if !<Claims<T>>::iter_prefix(did)
+                    .any(|(_, claim)| claim.attestation.is_some())                    
                 {
                     dids.push((did, expiry))
                 }
@@ -1522,15 +1522,13 @@ pub mod pallet {
         properties: &Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
     ) -> u32 {
         let mut max_property_name_len = 0;
-        properties.as_ref().and_then(|properties| {
-            Some({
-                properties.into_iter().for_each(|property| {
-                    if property.name.len() as u32 > max_property_name_len {
-                        max_property_name_len = property.name.len() as u32;
-                    };
-                })
-            })
-        });
+        if let Some(properties) = properties.as_ref() { 
+            properties.iter().for_each(|property| {
+            if property.name.len() as u32 > max_property_name_len {
+            max_property_name_len = property.name.len() as u32;
+            };
+            }) 
+        }      
         max_property_name_len
     }
 
@@ -1538,19 +1536,15 @@ pub mod pallet {
         properties: &Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
     ) -> u32 {
         let mut max_fact_len = 0;
-        properties.as_ref().and_then(|properties| {
-            Some({
-                properties.into_iter().for_each(|property| {
+        if let Some(properties) = properties.as_ref() { properties.iter().for_each(|property| {
                     max_fact_len!(property.fact, max_fact_len);
-                })
-            })
-        });
+                }) }
         max_fact_len
     }
 
-    fn get_max_property_name_len(properties: &Vec<DidProperty<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_property_name_len(properties: &[DidProperty<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_property_name_len = 0;
-        properties.into_iter().for_each(|property| {
+        properties.iter().for_each(|property| {
             if property.name.len() as u32 > max_property_name_len {
                 max_property_name_len = property.name.len() as u32;
             };
@@ -1558,17 +1552,17 @@ pub mod pallet {
         max_property_name_len
     }
 
-    fn get_max_property_fact_len(properties: &Vec<DidProperty<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_property_fact_len(properties: &[DidProperty<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_fact_len = 0;
-        properties.into_iter().for_each(|property| {
+        properties.iter().for_each(|property| {
             max_fact_len!(property.fact, max_fact_len);
         });
         max_fact_len
     }
 
-    fn get_max_statement_name_len(statements: &Vec<Statement<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_statement_name_len(statements: &[Statement<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_statement_name_len = 0;
-        statements.into_iter().for_each(|statement| {
+        statements.iter().for_each(|statement| {
             if statement.name.len() as u32 > max_statement_name_len {
                 max_statement_name_len = statement.name.len() as u32;
             };
@@ -1576,24 +1570,24 @@ pub mod pallet {
         max_statement_name_len
     }
 
-    fn get_max_statement_fact_len(statements: &Vec<Statement<Vec<u8>, Vec<u8>>>) -> u32 {
+    fn get_max_statement_fact_len(statements: &[Statement<Vec<u8>, Vec<u8>>]) -> u32 {
         let mut max_fact_len = 0;
-        statements.into_iter().for_each(|statement| {
+        statements.iter().for_each(|statement| {
             max_fact_len!(statement.fact, max_fact_len);
         });
         max_fact_len
     }
 
     fn get_max_statement_name_bounded_len<T: Config>(
-        statements: &Vec<
+        statements: &[
             Statement<
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
-            >,
-        >,
+            >
+        ],
     ) -> u32 {
         let mut max_statement_name_len = 0;
-        statements.into_iter().for_each(|statement| {
+        statements.iter().for_each(|statement| {
             if statement.name.len() as u32 > max_statement_name_len {
                 max_statement_name_len = statement.name.len() as u32;
             };
@@ -1602,15 +1596,15 @@ pub mod pallet {
     }
 
     fn get_max_statement_fact_bounded_len<T: Config>(
-        statements: &Vec<
+        statements: &[
             Statement<
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
-            >,
-        >,
+            >
+        ],
     ) -> u32 {
         let mut max_fact_len = 0;
-        statements.into_iter().for_each(|statement| {
+        statements.iter().for_each(|statement| {
             max_fact_len!(statement.fact, max_fact_len);
         });
         max_fact_len
@@ -1618,23 +1612,19 @@ pub mod pallet {
 
     fn get_max_key_len(keys: &Option<Vec<Vec<u8>>>) -> u32 {
         let mut max_keys_len = 0;
-        keys.as_ref().and_then(|keys| {
-            Some({
-                keys.into_iter().for_each(|key| {
+        if let Some(keys) = keys.as_ref() { keys.iter().for_each(|key| {
                     if key.len() as u32 > max_keys_len {
                         max_keys_len = key.len() as u32;
                     };
-                })
-            })
-        });
+                }) }
         max_keys_len
     }  
 
     fn get_did_for_bulk_lens<T: Config>(
-        dids: &Vec<(
+        dids: &[(
             T::AccountId,            
             Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
-        )>,
+        )],
     ) -> (u32, u32, u32) {
         fn div_up(a: u32, b: u32) -> u32 {
             a / b + (a % b != 0) as u32
@@ -1648,15 +1638,15 @@ pub mod pallet {
             .for_each(|(_, properties_maybe)| {               
 
                 if let Some(properties) = properties_maybe.as_ref() {
-                    property_count_tot = property_count_tot + properties.len() as u32;
+                    property_count_tot += properties.len() as u32;
 
-                    properties.into_iter().for_each(|property| {
-                        property_name_tot = property_name_tot + property.name.len() as u32;
+                    properties.iter().for_each(|property| {
+                        property_name_tot += property.name.len() as u32;
                         let fact_len = match &property.fact {
                             Fact::Text(string) => string.len() as u32,
                             _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
                         };
-                        property_fact_tot = property_fact_tot + fact_len;
+                        property_fact_tot += fact_len;
                     })
                 };
             });

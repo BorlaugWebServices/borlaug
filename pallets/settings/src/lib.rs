@@ -403,11 +403,8 @@ pub mod pallet {
             extrinsic_index: &T::ExtrinsicIndex,
             account: &T::AccountId,
         ) {
-            match <ExtrinsicExtra<T>>::get(module_index, extrinsic_index) {
-                Some(fee) => {
-                    let (_deducted, _) = T::Currency::slash(&account, fee.into());
-                }
-                None => (),
+            if let Some(fee) = <ExtrinsicExtra<T>>::get(module_index, extrinsic_index) {
+                let (_deducted, _) = T::Currency::slash(&account, fee.into());
             }
         }
     }

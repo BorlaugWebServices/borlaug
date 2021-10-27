@@ -3908,6 +3908,7 @@ dependencies = [
 name = "pallet-asset-registry"
 version = "0.1.0"
 dependencies = [
+ "borlaug-runtime",
  "chrono",
  "extrinsic-extra",
  "frame-benchmarking",
@@ -3932,6 +3933,7 @@ dependencies = [
 name = "pallet-audits"
 version = "0.1.0"
 dependencies = [
+ "borlaug-runtime",
  "chrono",
  "extrinsic-extra",
  "frame-benchmarking",
@@ -4068,6 +4070,7 @@ dependencies = [
 name = "pallet-groups"
 version = "0.1.0"
 dependencies = [
+ "borlaug-runtime",
  "chrono",
  "extrinsic-extra",
  "frame-benchmarking",
@@ -4089,6 +4092,7 @@ dependencies = [
 name = "pallet-identity"
 version = "0.1.0"
 dependencies = [
+ "borlaug-runtime",
  "chrono",
  "extrinsic-extra",
  "frame-benchmarking",
@@ -4176,6 +4180,7 @@ dependencies = [
 name = "pallet-provenance"
 version = "0.1.0"
 dependencies = [
+ "borlaug-runtime",
  "chrono",
  "extrinsic-extra",
  "frame-benchmarking",
@@ -4250,6 +4255,7 @@ dependencies = [
 name = "pallet-settings"
 version = "0.1.0"
 dependencies = [
+ "borlaug-runtime",
  "chrono",
  "extrinsic-extra",
  "frame-benchmarking",
