@@ -5,7 +5,8 @@ use frame_support::parameter_types;
 use frame_system::{self as system, EnsureOneOf, EnsureSigned};
 use runtime::{
     primitives::{FactStringLimit, NameLimit},
-    BulkDidLimit, CatalogDidLimit, ClaimConsumerLimit, ClaimIssuerLimit, ControllerLimit,
+    BulkDidLimit, BulkDidPropertyLimit, CatalogDidLimit, ClaimConsumerLimit, ClaimIssuerLimit,
+    ControllerLimit, GroupChainLimit, GroupMaxMembers, GroupMaxProposalLength, GroupMaxProposals,
     PropertyLimit, StatementLimit,
 };
 use sp_core::H256;
@@ -116,13 +117,7 @@ impl pallet_identity::Config for Test {
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
     type BulkDidLimit = BulkDidLimit;
-}
-
-parameter_types! {
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxProposalLength: u32 = 1000;
-    pub const GroupMaxMembers: u32 = 100;
-    pub const GroupChainLimit: u32 = 100;
+    type BulkDidPropertyLimit = BulkDidPropertyLimit;
 }
 
 impl groups::Config for Test {

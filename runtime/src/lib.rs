@@ -820,6 +820,7 @@ parameter_types! {
     pub const ClaimIssuerLimit: u32 = 50;
     pub const CatalogDidLimit: u32 = 1_000;
     pub const BulkDidLimit: u32 = 15;
+    pub const BulkDidPropertyLimit: u32 = 50;
 }
 impl identity::Config for Runtime {
     type CatalogId = CatalogId;
@@ -835,6 +836,7 @@ impl identity::Config for Runtime {
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
     type BulkDidLimit = BulkDidLimit;
+    type BulkDidPropertyLimit = BulkDidPropertyLimit;
 }
 parameter_types! {
     pub const AssetPropertyLimit: u32 = 500;

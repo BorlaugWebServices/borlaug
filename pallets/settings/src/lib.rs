@@ -178,12 +178,12 @@ pub mod pallet {
     pub(super) type WeightToFeePolinomialCoefficients<T: Config> =
         StorageValue<_, Vec<WeightToFeeCoefficient<T::Balance>>, ValueQuery>;
 
-    /// The fee charged per byte for extrinsics (added to weight and fixed fees)   
+    /// The fee charged per byte for extrinsics (added to weight and fixed fees)  
     #[pallet::storage]
     #[pallet::getter(fn transaction_byte_fee)]
     pub(super) type TransactionByteFee<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
 
-    /// Ratio of fees to be split between Treasury and Author  value stored is percentage to go to Treasury    
+    /// Ratio of fees to be split between Treasury and Author  value stored is percentage to go to Treasury   
     #[pallet::storage]
     #[pallet::getter(fn fee_split_ratio)]
     pub(super) type FeeSplitRatio<T: Config> = StorageValue<_, u32, ValueQuery>;

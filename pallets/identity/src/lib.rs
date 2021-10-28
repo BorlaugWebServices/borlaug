@@ -34,8 +34,8 @@
 //! #### For Controllers
 //! * `register_did_for` - Registers a new DID for a subject and adds caller as a controller
 //! * `register_did_for_bulk` - Registers a collection of DIDs for subjects and adds caller as a controller
-//! * `update_did` - Update properties of a DID Document
-//! * `replace_did` - Replace all the properties of a DID Document
+//! * `add_did_properties` - Add properties to a DID Document
+//! * `remove_did_properties` - Remove properties from a DID Document
 //! * `manage_controllers` - Add or remove controllers for the did. Subject cannot be removed.
 //! * `authorize_claim_consumers` - Grant permission to claim consumers to add claims to a DID
 //! * `revoke_claim_consumers` - Remove permission from claim consumers to add claims to a DID
@@ -114,20 +114,20 @@ pub mod pallet {
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
 
-        /// The maximum length of a name or symbol stored on-chain.        
+        /// The maximum length of a name or symbol stored on-chain.
         type NameLimit: Get<u32>;
 
-        /// The maximum length of a name or symbol stored on-chain.        
+        /// The maximum length of a name or symbol stored on-chain.
         type FactStringLimit: Get<u32>;
 
-        /// The maximum number of properties a DID may have
+        /// The maximum number of properties you can add to a DID at one time (does not limit total)
         #[pallet::constant]
         type PropertyLimit: Get<u32>;
 
         /// The maximum number of statements a Claim may have
         #[pallet::constant]
         type StatementLimit: Get<u32>;
-        
+
         /// The maximum number of controllers you can add/remove at one time (does not limit total)
         #[pallet::constant]
         type ControllerLimit: Get<u32>;
@@ -143,6 +143,9 @@ pub mod pallet {
         /// The maximum number of dids you can register in bulk at one time. Watch out for weight and block size limits too.
         #[pallet::constant]
         type BulkDidLimit: Get<u32>;
+        /// The maximum number of properties you can add to a DID using bulk did route
+        #[pallet::constant]
+        type BulkDidPropertyLimit: Get<u32>;
     }
 
     #[pallet::event]
@@ -150,7 +153,7 @@ pub mod pallet {
         T::AccountId = "AccountId",
         T::Moment = "Moment",
         T::CatalogId = "CatalogId",
-        T::ClaimId = "ClaimId",      
+        T::ClaimId = "ClaimId",
         Vec<ClaimConsumer<T::AccountId, T::Moment>> = "ClaimConsumers",
         Vec<ClaimIssuer<T::AccountId, T::Moment>> = "ClaimIssuers",
         Vec<T::AccountId> = "AccountIds",
@@ -164,12 +167,12 @@ pub mod pallet {
         /// DIDs were bulk registered
         /// (caller, controller, count)
         BulkRegistered(T::AccountId, T::AccountId, u32),
-        /// Did updated
+        /// Did properties added
         /// (caller, controller, did)
-        DidUpdated(T::AccountId, T::AccountId, Did),
-        /// Did replaced
+        DidPropertiesAdded(T::AccountId, T::AccountId, Did),       
+        /// Did properties removed
         /// (caller, controller, did)
-        DidReplaced(T::AccountId, T::AccountId, Did),
+        DidPropertiesRemoved(T::AccountId, T::AccountId, Did),       
         /// DID Controller updated
         /// (caller, controller, target_did, added_controllers, removed_controllers)
         DidControllerUpdated(
@@ -343,7 +346,7 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// Claim consumers request a claim to offer protected services    
+    /// Claim consumers request a claim to offer protected services
     /// Subject DID => DIDs of claim consumers
     #[pallet::storage]
     #[pallet::getter(fn claim_comsumers)]
@@ -357,7 +360,7 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// Claim consumers request a claim to offer protected services    
+    /// Claim consumers request a claim to offer protected services
     /// Subject DID => DIDs of claim consumers
     #[pallet::storage]
     #[pallet::getter(fn dids_by_consumer)]
@@ -441,10 +444,10 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Register a new DID for caller. Subject calls to create a new DID.
-        ///   
-        /// Arguments:       
-        /// - `properties` initial DID properties to be added to the new DID        
-        #[pallet::weight(<T as Config>::WeightInfo::register_did(           
+        ///
+        /// Arguments:
+        /// - `properties` initial DID properties to be added to the new DID
+        #[pallet::weight(<T as Config>::WeightInfo::register_did(
             get_max_property_name_len_option(properties),
             get_max_property_fact_len_option(properties),
             properties.as_ref().map_or(0,|properties|properties.len()) as u32,
@@ -476,11 +479,11 @@ pub mod pallet {
         }
 
         /// Register a new DID on behalf of another user (subject).
-        ///        
+        ///
         /// Arguments:
-        /// - `subject` the Subject of the DID        
-        /// - `properties` initial DID properties to be added to the new DID      
-        #[pallet::weight(<T as Config>::WeightInfo::register_did(       
+        /// - `subject` the Subject of the DID
+        /// - `properties` initial DID properties to be added to the new DID
+        #[pallet::weight(<T as Config>::WeightInfo::register_did(
             get_max_property_name_len_option(properties),
             get_max_property_fact_len_option(properties),
             properties.as_ref().map_or(0,|properties|properties.len()) as u32,
@@ -511,18 +514,17 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Register a number of new DIDs on behalf of users (subject). Note the client should be smart and avoid exceeding block weight and size limits.
-        ///        
+        /// Register a number of new DIDs on behalf of users (subject).
+        ///
         /// Arguments:
-        /// - `dids` the DIDs to be created        
+        /// - `dids` the DIDs to be created
         #[pallet::weight({
-
-            let (b,c,d)=get_did_for_bulk_lens::<T>(dids);
-            <T as Config>::WeightInfo::register_did_for(b,c,d).saturating_mul(dids.len() as Weight)
+            let (a,b,c)=get_did_for_bulk_lens::<T>(dids);
+            <T as Config>::WeightInfo::register_did_for(a,b,c).saturating_mul(dids.len() as Weight)
 
         })]
         pub fn register_did_for_bulk(
-            origin: OriginFor<T>,            
+            origin: OriginFor<T>,
             dids: Vec<(T::AccountId, Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)>,
         ) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
@@ -538,10 +540,9 @@ pub mod pallet {
                 .into_iter()
                 .map(|(subject, properties)| {
                     let property_count = properties.as_ref().map_or(0, |p| p.len());
-                    //Use a lower property limit for bulk uploads
-                    //TODO: is it safe to only require this limit for average?                    
+
                     ensure!(
-                        property_count <= (T::PropertyLimit::get()/10) as usize,
+                        property_count <= (T::BulkDidPropertyLimit::get()) as usize,
                         Error::<T>::PropertyLimitExceeded
                     );
 
@@ -570,98 +571,22 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Append given collection of Did properties provided the caller is a controller 
+        /// Append given collection of Did properties provided the caller is a controller
         ///
         /// Arguments:
         /// - `did` DID to which properties are to be added
-        /// - `add_properties` DID properties to be added
-        /// - `remove_keys` Keys of DID properties to be removed
-       
-        //TODO: split this into two functions for weight reasons.
-        #[pallet::weight(<T as Config>::WeightInfo::update_did(          
-            get_max_property_name_len_option(add_properties),
-            get_max_property_fact_len_option(add_properties),
-            add_properties.as_ref().map_or(0,|properties|properties.len()) as u32,
-            get_max_key_len(remove_keys),
-            remove_keys.as_ref().map_or(0,|keys|keys.len()) as u32,
-        ))]
-        pub fn update_did(
-            origin: OriginFor<T>,
-            did: Did,
-            add_properties: Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
-            remove_keys: Option<Vec<Vec<u8>>>,
-        ) -> DispatchResultWithPostInfo {
-            let (account_id, group_account) = ensure_account_or_executed!(origin);
-
-            let add_properties_count = add_properties.as_ref().map_or(0, |p| p.len());
-
-            ensure!(
-                add_properties_count < T::PropertyLimit::get() as usize,
-                Error::<T>::PropertyLimitExceeded
-            );
-
-            let remove_keys_count = remove_keys.as_ref().map_or(0, |p| p.len());
-
-            ensure!(
-                remove_keys_count < T::PropertyLimit::get() as usize,
-                Error::<T>::PropertyLimitExceeded
-            );
-
-            let add_properties = enforce_limit_did_properties_option!(add_properties);
-
-            let remove_keys = remove_keys
-                .map(|remove_keys| {
-                    remove_keys
-                        .into_iter()
-                        .map(|remove_key| Ok(enforce_limit!(remove_key)))
-                        .collect::<Result<Vec<_>, Error<T>>>()
-                })
-                .map_or(Ok(None), |r| r.map(Some))?;
-
-            ensure!(
-                <DidByController<T>>::contains_key(&group_account, &did),
-                Error::<T>::NotController
-            );
-
-            if let Some(remove_keys) = remove_keys {
-                remove_keys.into_iter().for_each(|remove_key| {
-                    let hash = T::Hashing::hash_of(&remove_key);
-                    <DidDocumentProperties<T>>::remove(&did, &hash);
-                });
-            }
-            if let Some(add_properties) = add_properties {
-                add_properties.into_iter().for_each(|add_property| {
-                    let hash = T::Hashing::hash_of(&add_property.name);
-                    <DidDocumentProperties<T>>::insert(&did, &hash, add_property);
-                });
-            }
-
-            Self::deposit_event(Event::DidUpdated(account_id, group_account, did));
-            Ok(().into())
-        }
-
-        /// Replace given collection of Did properties provided the caller is a controller
-        ///
-        /// Arguments:
-        /// - `did` DID to which properties are to be added
-        /// - `properties` DID properties to be added
-        #[pallet::weight(<T as Config>::WeightInfo::replace_did(
+        /// - `properties` DID properties to be added       
+        #[pallet::weight(<T as Config>::WeightInfo::add_did_properties(
             get_max_property_name_len(properties),
             get_max_property_fact_len(properties),
-            properties.len() as u32,
-            <T as Config>::PropertyLimit::get() //We don't know how many properties exist.
+            properties.len() as u32,           
         ))]
-        pub fn replace_did(
+        pub fn add_did_properties(
             origin: OriginFor<T>,
             did: Did,
             properties: Vec<DidProperty<Vec<u8>, Vec<u8>>>,
         ) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
-
-            ensure!(
-                <DidByController<T>>::contains_key(&group_account, &did),
-                Error::<T>::NotController
-            );
 
             ensure!(
                 properties.len() < T::PropertyLimit::get() as usize,
@@ -670,15 +595,58 @@ pub mod pallet {
 
             let properties = enforce_limit_did_properties!(properties);
 
-            <DidDocumentProperties<T>>::remove_prefix(&did);
+            ensure!(
+                <DidByController<T>>::contains_key(&group_account, &did),
+                Error::<T>::NotController
+            );
 
-            properties.into_iter().for_each(|property| {
-                let hash = T::Hashing::hash_of(&property.name);
-                <DidDocumentProperties<T>>::insert(&did, &hash, property);
+            properties.into_iter().for_each(|add_property| {
+                let hash = T::Hashing::hash_of(&add_property.name);
+                <DidDocumentProperties<T>>::insert(&did, &hash, add_property);
             });
 
-            Self::deposit_event(Event::DidReplaced(account_id, group_account, did));
-            
+            Self::deposit_event(Event::DidPropertiesAdded(account_id, group_account, did));
+            Ok(().into())
+        }
+
+        /// Append given collection of Did properties provided the caller is a controller
+        ///
+        /// Arguments:
+        /// - `did` DID to which properties are to be added
+        /// - `keys` Keys of DID properties to be removed     
+        #[pallet::weight(<T as Config>::WeightInfo::remove_did_properties(
+          
+            get_max_key_len(keys),
+            keys.len() as u32,
+        ))]
+        pub fn remove_did_properties(
+            origin: OriginFor<T>,
+            did: Did,
+            keys: Vec<Vec<u8>>,
+        ) -> DispatchResultWithPostInfo {
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
+
+            ensure!(
+                keys.len() < T::PropertyLimit::get() as usize,
+                Error::<T>::PropertyLimitExceeded
+            );
+
+            let keys = keys
+                .into_iter()
+                .map(|key| Ok(enforce_limit!(key)))
+                .collect::<Result<Vec<_>, Error<T>>>()?;
+
+            ensure!(
+                <DidByController<T>>::contains_key(&group_account, &did),
+                Error::<T>::NotController
+            );
+
+            keys.into_iter().for_each(|key| {
+                let hash = T::Hashing::hash_of(&key);
+                <DidDocumentProperties<T>>::remove(&did, &hash);
+            });
+
+            Self::deposit_event(Event::DidPropertiesRemoved(account_id, group_account, did));
             Ok(().into())
         }
 
@@ -985,7 +953,7 @@ pub mod pallet {
 
         /// Claim issuer attests `claim_id` against `target_did` with given `statements`
         ///
-        /// Arguments:        
+        /// Arguments:
         /// - `target_did` DID against which claims are to be attested
         /// - `claim_id` Claim to be attested
         /// - `statements` Claim issuer overwrites these statements
@@ -1081,7 +1049,7 @@ pub mod pallet {
 
         /// Claim issuer revokes `claim_id`
         ///
-        /// Arguments:        
+        /// Arguments:
         /// - `target_did` DID against which claims are to be attested
         /// - `claim_id` Claim to be attested
         #[pallet::weight(<T as Config>::WeightInfo::revoke_attestation(
@@ -1166,7 +1134,7 @@ pub mod pallet {
 
         /// Remove a catalog
         ///
-        /// Arguments:        
+        /// Arguments:
         /// - `catalog_id` Catalog to be removed
         #[pallet::weight(<T as Config>::WeightInfo::remove_catalog())]
         pub fn remove_catalog(
@@ -1190,11 +1158,11 @@ pub mod pallet {
 
         /// Add DIDs to a catalog
         ///
-        /// Arguments:       
+        /// Arguments:
         /// - `catalog_id` Catalog to which DID are to be added
-        /// - `dids` DIDs are to be added       
+        /// - `dids` DIDs are to be added
         #[pallet::weight(<T as Config>::WeightInfo::add_dids_to_catalog(
-            dids.len() as u32,       
+            dids.len() as u32,
         ))]
         pub fn add_dids_to_catalog(
             origin: OriginFor<T>,
@@ -1227,7 +1195,7 @@ pub mod pallet {
 
         /// Remove DIDs from a catalog
         ///
-        /// Arguments:        
+        /// Arguments:
         /// - `catalog_id` Catalog to which DID are to be removed
         /// - `dids` DIDs are to be removed
         #[pallet::weight(<T as Config>::WeightInfo::remove_dids_from_catalog(
@@ -1408,9 +1376,7 @@ pub mod pallet {
         pub fn get_outstanding_claims(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();
             <DidsByConsumer<T>>::iter_prefix(&account).for_each(|(did, expiry)| {
-                if !<Claims<T>>::iter_prefix(did)
-                    .any(|(_, claim)| claim.created_by == account)                   
-                {
+                if !<Claims<T>>::iter_prefix(did).any(|(_, claim)| claim.created_by == account) {
                     dids.push((did, expiry))
                 }
             });
@@ -1420,9 +1386,7 @@ pub mod pallet {
         pub fn get_outstanding_attestations(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();
             <DidsByIssuer<T>>::iter_prefix(account).for_each(|(did, expiry)| {
-                if !<Claims<T>>::iter_prefix(did)
-                    .any(|(_, claim)| claim.attestation.is_some())                    
-                {
+                if !<Claims<T>>::iter_prefix(did).any(|(_, claim)| claim.attestation.is_some()) {
                     dids.push((did, expiry))
                 }
             });
@@ -1522,13 +1486,13 @@ pub mod pallet {
         properties: &Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
     ) -> u32 {
         let mut max_property_name_len = 0;
-        if let Some(properties) = properties.as_ref() { 
+        if let Some(properties) = properties.as_ref() {
             properties.iter().for_each(|property| {
-            if property.name.len() as u32 > max_property_name_len {
-            max_property_name_len = property.name.len() as u32;
-            };
-            }) 
-        }      
+                if property.name.len() as u32 > max_property_name_len {
+                    max_property_name_len = property.name.len() as u32;
+                };
+            })
+        }
         max_property_name_len
     }
 
@@ -1536,9 +1500,11 @@ pub mod pallet {
         properties: &Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
     ) -> u32 {
         let mut max_fact_len = 0;
-        if let Some(properties) = properties.as_ref() { properties.iter().for_each(|property| {
-                    max_fact_len!(property.fact, max_fact_len);
-                }) }
+        if let Some(properties) = properties.as_ref() {
+            properties.iter().for_each(|property| {
+                max_fact_len!(property.fact, max_fact_len);
+            })
+        }
         max_fact_len
     }
 
@@ -1579,12 +1545,10 @@ pub mod pallet {
     }
 
     fn get_max_statement_name_bounded_len<T: Config>(
-        statements: &[
-            Statement<
-                BoundedVec<u8, <T as Config>::NameLimit>,
-                BoundedVec<u8, <T as Config>::FactStringLimit>,
-            >
-        ],
+        statements: &[Statement<
+            BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::FactStringLimit>,
+        >],
     ) -> u32 {
         let mut max_statement_name_len = 0;
         statements.iter().for_each(|statement| {
@@ -1596,12 +1560,10 @@ pub mod pallet {
     }
 
     fn get_max_statement_fact_bounded_len<T: Config>(
-        statements: &[
-            Statement<
-                BoundedVec<u8, <T as Config>::NameLimit>,
-                BoundedVec<u8, <T as Config>::FactStringLimit>,
-            >
-        ],
+        statements: &[Statement<
+            BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::FactStringLimit>,
+        >],
     ) -> u32 {
         let mut max_fact_len = 0;
         statements.iter().for_each(|statement| {
@@ -1610,64 +1572,54 @@ pub mod pallet {
         max_fact_len
     }
 
-    fn get_max_key_len(keys: &Option<Vec<Vec<u8>>>) -> u32 {
+    fn get_max_key_len(keys: &Vec<Vec<u8>>) -> u32 {
         let mut max_keys_len = 0;
-        if let Some(keys) = keys.as_ref() { keys.iter().for_each(|key| {
-                    if key.len() as u32 > max_keys_len {
-                        max_keys_len = key.len() as u32;
-                    };
-                }) }
+        keys.iter().for_each(|key| {
+            if key.len() as u32 > max_keys_len {
+                max_keys_len = key.len() as u32;
+            };
+        });
         max_keys_len
-    }  
+    }
 
     fn get_did_for_bulk_lens<T: Config>(
-        dids: &[(
-            T::AccountId,            
-            Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>,
-        )],
+        dids: &[(T::AccountId, Option<Vec<DidProperty<Vec<u8>, Vec<u8>>>>)],
     ) -> (u32, u32, u32) {
         fn div_up(a: u32, b: u32) -> u32 {
             a / b + (a % b != 0) as u32
         }
-       
+
         let mut property_count_tot = 0;
         let mut property_name_tot = 0;
         let mut property_fact_tot = 0;
         let did_count = dids.len() as u32;
-        dids.iter()
-            .for_each(|(_, properties_maybe)| {               
+        dids.iter().for_each(|(_, properties_maybe)| {
+            if let Some(properties) = properties_maybe.as_ref() {
+                property_count_tot += properties.len() as u32;
 
-                if let Some(properties) = properties_maybe.as_ref() {
-                    property_count_tot += properties.len() as u32;
-
-                    properties.iter().for_each(|property| {
-                        property_name_tot += property.name.len() as u32;
-                        let fact_len = match &property.fact {
-                            Fact::Text(string) => string.len() as u32,
-                            _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
-                        };
-                        property_fact_tot += fact_len;
-                    })
-                };
-            });
+                properties.iter().for_each(|property| {
+                    property_name_tot += property.name.len() as u32;
+                    let fact_len = match &property.fact {
+                        Fact::Text(string) => string.len() as u32,
+                        _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
+                    };
+                    property_fact_tot += fact_len;
+                })
+            };
+        });
         //avoid divide by zero errors
         if did_count == 0 {
-
             return (0, 0, 0);
         }
-       
+
         let property_count_avg = div_up(property_count_tot, did_count);
         if property_count_tot == 0 {
-            return ( 0, 0, property_count_avg);
+            return (0, 0, property_count_avg);
         }
 
         let property_name_avg = div_up(property_name_tot, property_count_tot);
         let property_fact_avg = div_up(property_fact_tot, property_count_tot);
 
-        (          
-            property_name_avg,
-            property_fact_avg,
-            property_count_avg,
-        )
+        (property_name_avg, property_fact_avg, property_count_avg)
     }
 }
