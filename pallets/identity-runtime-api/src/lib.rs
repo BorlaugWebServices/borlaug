@@ -20,6 +20,8 @@ sp_api::decl_runtime_apis! {
     BoundedStringFact: Codec + Into<Vec<u8>>
 
      {
+        fn is_catalog_owner(account_id: AccountId, catalog_id:CatalogId) -> bool;
+
         fn get_catalogs(account_id: AccountId) -> Vec<CatalogId>;
 
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<Did>;

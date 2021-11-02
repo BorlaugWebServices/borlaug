@@ -51,7 +51,7 @@
 //!
 //! ### RPC Methods
 //! * `get_catalogs` - Get the collection of catalogs owned by the caller.
-//! * `get_catalog` - Get a catalog name.
+//! * `is_catalog_owner` - Get a catalog name.
 //! * `get_dids_in_catalog` - Get the collection of DIDs in a catalog.
 //! * `get_did_in_catalog` - Get a DID with its catalog label and its DID Document.
 //! * `get_did` - Get a DID with its short name and its DID Document.
@@ -1232,7 +1232,11 @@ pub mod pallet {
     }
 
     impl<T: Config> Module<T> {
-        // -- rpc api functions --
+        // -- rpc api functions --        
+
+        pub fn is_catalog_owner(account_id: T::AccountId,catalog_id: T::CatalogId) -> bool {            
+            <Catalogs<T>>::contains_key(account_id,catalog_id)               
+        }
 
         pub fn get_catalogs(account_id: T::AccountId) -> Vec<T::CatalogId> {
             let mut catalogs = Vec::new();

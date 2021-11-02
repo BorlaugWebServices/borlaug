@@ -1306,6 +1306,9 @@ impl_runtime_apis! {
         }
     }
     impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
+        fn is_catalog_owner(account_id:AccountId, catalog_id:CatalogId) -> bool {
+            Identity::is_catalog_owner(account_id,catalog_id)
+        }
         fn get_catalogs(account_id:AccountId) -> Vec<CatalogId> {
             Identity::get_catalogs(account_id)
         }

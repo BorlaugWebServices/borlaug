@@ -20,6 +20,14 @@ use std::sync::Arc;
 
 #[rpc]
 pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Moment> {
+    #[rpc(name = "is_catalog_owner")]
+    fn is_catalog_owner(
+        &self,
+        account_id: AccountId,
+        catalog_id: CatalogId,
+        at: Option<BlockHash>,
+    ) -> Result<bool>;
+
     #[rpc(name = "get_catalogs")]
     fn get_catalogs(
         &self,
@@ -540,6 +548,21 @@ where
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
     BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
+    fn is_catalog_owner(
+        &self,
+        account_id: AccountId,
+        catalog_id: CatalogId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<bool> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let is_owner = api
+            .is_catalog_owner(&at, account_id, catalog_id)
+            .map_err(convert_error!())?;
+        Ok(is_owner)
+    }
+
     fn get_catalogs(
         &self,
         account_id: AccountId,
