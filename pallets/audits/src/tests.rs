@@ -100,12 +100,10 @@ fn get_proposal_id() -> u32 {
         .last()
         .unwrap()
         .clone();
-    let local_event = crate::mock::Event::from(last_event.event);
-    let proposal_id = match local_event {
+    match last_event.event {
         mock::Event::groups(groups::Event::Approved(_, proposal_id, _, _, _, _)) => proposal_id,
         _ => panic!("unexpected event"),
-    };
-    proposal_id
+    }
 }
 
 fn create_observation(auditors_member: u64, auditors_group_id: u32, audit_id: u32) {
@@ -736,8 +734,7 @@ fn delete_evidence_should_have_link_limit() {
             .last()
             .unwrap()
             .clone();
-        let local_event = crate::mock::Event::from(last_event.event);
-        let success = match local_event {
+        let success = match last_event.event {
             mock::Event::groups(groups::Event::Approved(_, _, _, _, success, _)) => success,
             _ => panic!("unexpected event"),
         };

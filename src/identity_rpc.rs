@@ -384,6 +384,29 @@ where
                 data_type: String::from("Text"),
                 value: String::from_utf8_lossy(&value.into()).to_string(),
             },
+            Fact::Attachment(hash, filename) => FactResponse {
+                data_type: String::from("Attachment"),
+                value: format!(
+                    "0x{};{}",
+                    hex::encode(hash),
+                    String::from_utf8_lossy(&filename.into()).to_string()
+                ),
+            },
+            Fact::Location(lat, lng) => FactResponse {
+                data_type: String::from("Location"),
+                value: format!("{},{}", lat.to_string(), lng.to_string()),
+            },
+            Fact::Did(did) => {
+                let did: Did = did.into();
+                FactResponse {
+                    data_type: String::from("Did"),
+                    value: did.to_string(),
+                }
+            }
+            Fact::Float(value) => FactResponse {
+                data_type: String::from("Float"),
+                value: f64::from_le_bytes(value).to_string(),
+            },
             Fact::U8(value) => FactResponse {
                 data_type: String::from("U8"),
                 value: value.to_string(),
@@ -604,7 +627,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let (did_document, properties, controllers) = api
-            .get_did_in_catalog(&at, catalog_id, did.clone().into())
+            .get_did_in_catalog(&at, catalog_id, did.into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((did_document, properties, controllers).into())
@@ -619,7 +642,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let (did_document, properties, controllers) = api
-            .get_did(&at, did.clone().into())
+            .get_did(&at, did.into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((did_document, properties, controllers).into())
@@ -661,9 +684,7 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let claims = api
-            .get_claims(&at, did.clone().into())
-            .map_err(convert_error!())?;
+        let claims = api.get_claims(&at, did.into()).map_err(convert_error!())?;
         Ok(claims
             .into_iter()
             .map(|(claim_id, claim)| (claim_id, claim).into())
@@ -680,7 +701,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let claim = api
-            .get_claim(&at, did.into(), claim_id.into())
+            .get_claim(&at, did.into(), claim_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((claim_id, claim).into())

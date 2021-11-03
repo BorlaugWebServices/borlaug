@@ -18,7 +18,7 @@
 //! Runtime API definition for transaction payment module.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
+#![allow(clippy::unnecessary_mut_passed, clippy::too_many_arguments)]
 use codec::Codec;
 use sp_runtime::traits::MaybeDisplay;
 

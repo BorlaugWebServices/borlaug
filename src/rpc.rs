@@ -124,7 +124,7 @@ where
     ));
     // Add the settings api
     io.extend_with(crate::settings_rpc::SettingsApi::to_delegate(
-        crate::settings_rpc::Settings::new(client.clone()),
+        crate::settings_rpc::Settings::new(client),
     ));
 
     // The final RPC extension receives commands for the manual seal consensus engine.

@@ -38,6 +38,15 @@ macro_rules! enforce_limit_fact {
                     .map_err(|_| Error::<T>::StringLengthLimitExceeded)?;
                 Fact::Text(bounded_string)
             }
+            Fact::Attachment(hash, filename) => {
+                let bounded_filename: BoundedVec<u8, <T as Config>::FactStringLimit> = filename
+                    .try_into()
+                    .map_err(|_| Error::<T>::StringLengthLimitExceeded)?;
+                Fact::Attachment(hash, bounded_filename)
+            }
+            Fact::Location(lat, lng) => Fact::Location(lat, lng),
+            Fact::Did(v) => Fact::Did(v),
+            Fact::Float(v) => Fact::Float(v),
             Fact::U8(v) => Fact::U8(v),
             Fact::U16(v) => Fact::U16(v),
             Fact::U32(v) => Fact::U32(v),

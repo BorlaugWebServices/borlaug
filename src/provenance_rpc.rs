@@ -564,7 +564,7 @@ where
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
-        Ok(((step_index, definition_step)).into())
+        Ok((step_index, definition_step).into())
     }
 
     fn get_available_definitions(

@@ -101,7 +101,7 @@ where
             group_id,
             name: String::from_utf8_lossy(&group.name.into()).to_string(),
             total_vote_weight: group.total_vote_weight,
-            members: members,
+            members,
             threshold: group.threshold,
             anonymous_account: group.anonymous_account,
             parent: group.parent,

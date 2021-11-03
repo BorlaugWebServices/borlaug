@@ -1576,7 +1576,7 @@ pub mod pallet {
         max_fact_len
     }
 
-    fn get_max_key_len(keys: &Vec<Vec<u8>>) -> u32 {
+    fn get_max_key_len(keys: &[Vec<u8>]) -> u32 {
         let mut max_keys_len = 0;
         keys.iter().for_each(|key| {
             if key.len() as u32 > max_keys_len {

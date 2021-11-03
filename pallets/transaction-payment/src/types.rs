@@ -81,7 +81,7 @@ impl<Balance: AtLeast32BitUnsigned + Copy> FeeDetails<Balance> {
         self.inclusion_fee
             .as_ref()
             .map(|i| i.inclusion_fee())
-            .unwrap_or_else(|| Zero::zero())
+            .unwrap_or_else(Zero::zero)
             .saturating_add(self.tip)
     }
 }

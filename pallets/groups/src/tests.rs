@@ -33,7 +33,7 @@ fn creating_new_group_should_work() {
                 name: b"Test".to_vec().try_into().unwrap(),
                 total_vote_weight: 1u32,
                 threshold: 1u32,
-                anonymous_account: group.anonymous_account.clone(),
+                anonymous_account: group.anonymous_account,
                 parent: None,
             },
             group
@@ -68,7 +68,7 @@ fn update_group_should_work() {
             mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_group(
-                Some(b"Test_2".to_vec().try_into().unwrap()),
+                Some(b"Test_2".to_vec()),
                 Some(vec![(member_3, 1)]),
                 Some(vec![member_2]),
                 Some(2)
@@ -85,7 +85,7 @@ fn update_group_should_work() {
                 name: b"Test_2".to_vec().try_into().unwrap(),
                 total_vote_weight: 2u32,
                 threshold: 2u32,
-                anonymous_account: group.anonymous_account.clone(),
+                anonymous_account: group.anonymous_account,
                 parent: None,
             },
             group
@@ -134,10 +134,10 @@ fn creating_new_sub_group_should_work() {
 
         let sub_group_id = 2u32;
 
-        assert_eq!(
-            super::GroupChildren::<Test>::contains_key(group_id, sub_group_id),
-            true
-        );
+        assert!(super::GroupChildren::<Test>::contains_key(
+            group_id,
+            sub_group_id
+        ));
 
         assert!(super::Groups::<Test>::contains_key(sub_group_id));
         let sub_group = super::Groups::<Test>::get(sub_group_id).unwrap();
@@ -189,7 +189,7 @@ fn update_sub_group_should_work() {
             mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
-                b"Test".to_vec().try_into().unwrap(),
+                b"Test".to_vec(),
                 vec![(member_2, 1), (member_3, 1)],
                 2,
                 1_000_000_000u128
@@ -222,7 +222,7 @@ fn update_sub_group_should_work() {
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::update_sub_group(
                 sub_group_id,
-                Some(b"New Test".to_vec().try_into().unwrap()),
+                Some(b"New Test".to_vec()),
                 Some(vec![(member_3, 2), (member_4, 1), (member_5, 1)]),
                 Some(vec![member_2]),
                 Some(3),
@@ -367,7 +367,7 @@ fn remove_sub_group_should_work() {
             mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
-                b"Test".to_vec().try_into().unwrap(),
+                b"Test".to_vec(),
                 vec![(member_2, 1)],
                 2,
                 1_000_000u128
@@ -922,7 +922,7 @@ fn withdraw_funds_sub_group_should_work() {
             mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
-                b"Test".to_vec().try_into().unwrap(),
+                b"Test".to_vec(),
                 vec![(member_2, 1)],
                 2,
                 2_000_000u128
@@ -994,7 +994,7 @@ fn send_funds_to_sub_group_should_work() {
             mock::Origin::signed(caller),
             group_id,
             Box::new(crate::mock::Call::Groups(super::Call::create_sub_group(
-                b"Test".to_vec().try_into().unwrap(),
+                b"Test".to_vec(),
                 vec![(member_2, 1)],
                 2,
                 1_000_000u128
