@@ -1306,17 +1306,20 @@ impl_runtime_apis! {
         }
     }
     impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
-        fn is_catalog_owner(account_id:AccountId, catalog_id:CatalogId) -> bool {
+        fn is_catalog_owner(account_id: AccountId, catalog_id: CatalogId) -> bool {
             Identity::is_catalog_owner(account_id,catalog_id)
         }
-        fn get_catalogs(account_id:AccountId) -> Vec<CatalogId> {
+        fn get_catalogs(account_id: AccountId) -> Vec<CatalogId> {
             Identity::get_catalogs(account_id)
         }
-        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<Did>  {
+        fn get_dids_in_catalog(catalog_id: CatalogId) -> Vec<Did>  {
             Identity::get_dids_in_catalog(catalog_id)
         }
-        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<( DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
-            Identity::get_did_in_catalog(catalog_id,did)
+        fn get_did_in_catalog(catalog_id: CatalogId, did: Did) ->  Option<( DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)> {
+            Identity::get_did_in_catalog(catalog_id, did)
+        }
+        fn is_controller(account_id: AccountId,did:Did) -> bool  {
+            Identity::is_controller(account_id, did)
         }
         fn get_did(did:Did) -> Option<(DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
             Identity::get_did(did)

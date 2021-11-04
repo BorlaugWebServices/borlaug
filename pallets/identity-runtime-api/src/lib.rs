@@ -28,6 +28,8 @@ sp_api::decl_runtime_apis! {
 
         fn get_did_in_catalog(catalog_id:CatalogId, did:Did) -> Option<(DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>;
 
+        fn is_controller(account_id: AccountId, did:Did) -> bool;
+
         fn get_did(did:Did) -> Option<(DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>;
 
         fn get_dids_by_subject( subject: AccountId) -> Vec<Did>;

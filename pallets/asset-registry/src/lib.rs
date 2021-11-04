@@ -768,8 +768,18 @@ pub mod pallet {
     macro_rules! max_fact_len {
         ($fact:expr,$max_fact_len:ident) => {{
             let fact_len = match &$fact {
+                Fact::Bool(..) => 1u32,
                 Fact::Text(string) => string.len() as u32,
-                _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
+                Fact::Attachment(_hash, filename) => 32u32 + (filename.len() as u32),
+                Fact::Location(..) => 2u32,
+                Fact::Did(..) => 32u32,
+                Fact::Float(..) => 8u32,
+                Fact::U8(..) => 1u32,
+                Fact::U16(..) => 2u32,
+                Fact::U32(..) => 4u32,
+                Fact::U128(..) => 16u32,
+                Fact::Date(..) => 4u32,
+                Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
             };
             if fact_len > $max_fact_len {
                 $max_fact_len = fact_len;

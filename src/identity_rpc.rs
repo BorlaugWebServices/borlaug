@@ -50,6 +50,10 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         at: Option<BlockHash>,
     ) -> Result<DidDocumentResponse<AccountId>>;
 
+    #[rpc(name = "is_controller")]
+    fn is_controller(&self, account_id: AccountId, did: Did, at: Option<BlockHash>)
+        -> Result<bool>;
+
     #[rpc(name = "get_did")]
     fn get_did(&self, did: Did, at: Option<BlockHash>) -> Result<DidDocumentResponse<AccountId>>;
 
@@ -392,10 +396,14 @@ where
                     String::from_utf8_lossy(&filename.into()).to_string()
                 ),
             },
-            Fact::Location(lat, lng) => FactResponse {
-                data_type: String::from("Location"),
-                value: format!("{},{}", lat.to_string(), lng.to_string()),
-            },
+            Fact::Location(lat, lng) => {
+                let lat = (lat as f64) / 1_000_000f64;
+                let lng = (lng as f64) / 1_000_000f64;
+                FactResponse {
+                    data_type: String::from("Location"),
+                    value: format!("{},{}", lat.to_string(), lng.to_string()),
+                }
+            }
             Fact::Did(did) => {
                 let did: Did = did.into();
                 FactResponse {
@@ -631,6 +639,21 @@ where
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((did_document, properties, controllers).into())
+    }
+
+    fn is_controller(
+        &self,
+        account_id: AccountId,
+        did: Did,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<bool> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let is_controller = api
+            .is_controller(&at, account_id, did.into())
+            .map_err(convert_error!())?;
+        Ok(is_controller)
     }
 
     fn get_did(

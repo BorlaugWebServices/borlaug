@@ -52,6 +52,7 @@ macro_rules! enforce_limit_fact {
             Fact::U32(v) => Fact::U32(v),
             Fact::U128(v) => Fact::U128(v),
             Fact::Date(a, b, c) => Fact::Date(a, b, c),
+            //TODO: make sure timezone cannot exceed 10 chars
             Fact::Iso8601(a, b, c, d, e, f, g) => Fact::Iso8601(a, b, c, d, e, f, g),
         };
         fact

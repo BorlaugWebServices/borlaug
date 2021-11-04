@@ -12,7 +12,7 @@ pub struct Claim<AccountId, MemberCount, Moment, BoundedStringName, BoundedStrin
     pub statements: Vec<Statement<BoundedStringName, BoundedStringFact>>,
     /// Claim consumer creates a claim
     pub created_by: AccountId,
-    /// Attesttation by claim verifier
+    /// Attestation by claim verifier
     pub attestation: Option<Attestation<AccountId, Moment>>,
     /// Minimum number of votes required for attestation
     pub threshold: MemberCount,
