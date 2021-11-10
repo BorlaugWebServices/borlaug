@@ -1049,19 +1049,53 @@ pub mod pallet {
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
             observation_id: T::ObservationId,
-        ) -> Option<Observation> {
-            <Observations<T>>::get((audit_id, control_point_id), observation_id)
+        ) -> Option<(
+            Observation,
+            Vec<(
+                T::EvidenceId,
+                Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            )>,
+        )> {
+            <Observations<T>>::get((audit_id, control_point_id), observation_id).map(
+                |observation| {
+                    let mut evidences = Vec::new();
+                    <EvidenceLinksByObservation<T>>::iter_prefix(observation_id).for_each(
+                        |(evidence_id, _)| {
+                            if let Some(evidence) = <Evidences<T>>::get(audit_id, evidence_id) {
+                                evidences.push((evidence_id, evidence));
+                            }
+                        },
+                    );
+                    (observation, evidences)
+                },
+            )
         }
 
         pub fn get_observation_by_proposal(
             proposal_id: T::ProposalId,
-        ) -> Option<(T::ObservationId, Observation)> {
+        ) -> Option<(
+            T::ObservationId,
+            Observation,
+            Vec<(
+                T::EvidenceId,
+                Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            )>,
+        )> {
             <ObservationByProposal<T>>::get(proposal_id).map(
                 |(audit_id, control_point_id, observation_id)| {
+                    let mut evidences = Vec::new();
+                    <EvidenceLinksByObservation<T>>::iter_prefix(observation_id).for_each(
+                        |(evidence_id, _)| {
+                            if let Some(evidence) = <Evidences<T>>::get(audit_id, evidence_id) {
+                                evidences.push((evidence_id, evidence));
+                            }
+                        },
+                    );
                     (
                         observation_id,
                         <Observations<T>>::get((audit_id, control_point_id), observation_id)
                             .unwrap(),
+                        evidences,
                     )
                 },
             )
@@ -1070,10 +1104,27 @@ pub mod pallet {
         pub fn get_observation_by_control_point(
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
-        ) -> Vec<(T::ObservationId, Observation)> {
+        ) -> Vec<(
+            T::ObservationId,
+            Observation,
+            Vec<(
+                T::EvidenceId,
+                Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            )>,
+        )> {
             let mut observations = Vec::new();
             <Observations<T>>::iter_prefix((audit_id, control_point_id)).for_each(
-                |(observation_id, observation)| observations.push((observation_id, observation)),
+                |(observation_id, observation)| {
+                    let mut evidences = Vec::new();
+                    <EvidenceLinksByObservation<T>>::iter_prefix(observation_id).for_each(
+                        |(evidence_id, _)| {
+                            if let Some(evidence) = <Evidences<T>>::get(audit_id, evidence_id) {
+                                evidences.push((evidence_id, evidence));
+                            }
+                        },
+                    );
+                    observations.push((observation_id, observation, evidences))
+                },
             );
             observations
         }

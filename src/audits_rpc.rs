@@ -70,14 +70,14 @@ pub trait AuditsApi<
         control_point_id: ControlPointId,
         observation_id: ObservationId,
         at: Option<BlockHash>,
-    ) -> Result<ObservationResponse<ObservationId>>;
+    ) -> Result<ObservationResponse<ObservationId, EvidenceId, ProposalId>>;
 
     #[rpc(name = "get_observation_by_proposal")]
     fn get_observation_by_proposal(
         &self,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
-    ) -> Result<ObservationResponse<ObservationId>>;
+    ) -> Result<ObservationResponse<ObservationId, EvidenceId, ProposalId>>;
 
     #[rpc(name = "get_observation_by_control_point")]
     fn get_observation_by_control_point(
@@ -85,7 +85,7 @@ pub trait AuditsApi<
         audit_id: AuditId,
         control_point_id: ControlPointId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ObservationResponse<ObservationId>>>;
+    ) -> Result<Vec<ObservationResponse<ObservationId, EvidenceId, ProposalId>>>;
 
     #[rpc(name = "get_evidence")]
     fn get_evidence(
@@ -154,14 +154,29 @@ impl<AccountId, ProposalId, AuditId> From<(AuditId, Audit<AccountId, ProposalId>
     }
 }
 #[derive(Serialize, Deserialize)]
-pub struct ObservationResponse<ObservationId> {
+pub struct ObservationResponse<ObservationId, EvidenceId, ProposalId> {
     pub observation_id: ObservationId,
     pub compliance: Option<String>,
     pub procedural_note_hash: Option<[u8; 32]>,
+    pub evidences: Vec<EvidenceResponse<EvidenceId, ProposalId>>,
 }
 //TODO: send enums as enums not as strings
-impl<ObservationId> From<(ObservationId, Observation)> for ObservationResponse<ObservationId> {
-    fn from((observation_id, observation): (ObservationId, Observation)) -> Self {
+impl<ObservationId, EvidenceId, ProposalId, BoundedString>
+    From<(
+        ObservationId,
+        Observation,
+        Vec<(EvidenceId, Evidence<ProposalId, BoundedString>)>,
+    )> for ObservationResponse<ObservationId, EvidenceId, ProposalId>
+where
+    BoundedString: Into<Vec<u8>>,
+{
+    fn from(
+        (observation_id, observation, evidences): (
+            ObservationId,
+            Observation,
+            Vec<(EvidenceId, Evidence<ProposalId, BoundedString>)>,
+        ),
+    ) -> Self {
         ObservationResponse {
             observation_id,
             compliance: observation.compliance.map(|compliance| match compliance {
@@ -170,6 +185,10 @@ impl<ObservationId> From<(ObservationId, Observation)> for ObservationResponse<O
                 Compliance::NotApplicable => "NotApplicable".to_string(),
             }),
             procedural_note_hash: observation.procedural_note_hash,
+            evidences: evidences
+                .into_iter()
+                .map(|(evidence_id, evidence)| (evidence_id, evidence).into())
+                .collect(),
         }
     }
 }
@@ -397,30 +416,30 @@ where
         control_point_id: ControlPointId,
         observation_id: ObservationId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ObservationResponse<ObservationId>> {
+    ) -> Result<ObservationResponse<ObservationId, EvidenceId, ProposalId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let observation = api
+        let (observation, evidences) = api
             .get_observation(&at, audit_id, control_point_id, observation_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((observation_id, observation).into())
+        Ok((observation_id, observation, evidences).into())
     }
 
     fn get_observation_by_proposal(
         &self,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ObservationResponse<ObservationId>> {
+    ) -> Result<ObservationResponse<ObservationId, EvidenceId, ProposalId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (observation_id, observation) = api
+        let (observation_id, observation, evidences) = api
             .get_observation_by_proposal(&at, proposal_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((observation_id, observation).into())
+        Ok((observation_id, observation, evidences).into())
     }
 
     fn get_observation_by_control_point(
@@ -428,7 +447,7 @@ where
         audit_id: AuditId,
         control_point_id: ControlPointId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ObservationResponse<ObservationId>>> {
+    ) -> Result<Vec<ObservationResponse<ObservationId, EvidenceId, ProposalId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -437,7 +456,9 @@ where
             .map_err(convert_error!())?;
         Ok(observations
             .into_iter()
-            .map(|(observation_id, observation)| (observation_id, observation).into())
+            .map(|(observation_id, observation, evidences)| {
+                (observation_id, observation, evidences).into()
+            })
             .collect())
     }
 

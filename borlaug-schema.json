@@ -159,7 +159,7 @@
   "MemberCount": "u32",
   "Group": {
     "name": "Vec<u8>",
-    "members": "Vec<AccountId>",
+    "total_vote_weight": "MemberCount",
     "threshold": "MemberCount",
     "anonymous_account": "AccountId",
     "parent": "Option<GroupId>"

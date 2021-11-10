@@ -155,7 +155,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 4,
+    spec_version: 5,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -1363,13 +1363,13 @@ impl_runtime_apis! {
         fn get_audit_by_proposal(proposal_id:ProposalId) -> Option<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audit_by_proposal(proposal_id)
         }
-        fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>{
+        fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<(Observation,Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>)>{
             Audits::get_observation(audit_id,control_point_id,observation_id)
         }
-        fn get_observation_by_proposal(proposal_id: ProposalId)->Option<(ObservationId,Observation)>{
+        fn get_observation_by_proposal(proposal_id: ProposalId)->Option<(ObservationId,Observation,Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>)>{
             Audits::get_observation_by_proposal(proposal_id)
         }
-        fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation)>{
+        fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation,Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>)>{
             Audits::get_observation_by_control_point(audit_id,control_point_id)
         }
         fn get_evidence(audit_id:AuditId,evidence_id:EvidenceId)->Option<Evidence<ProposalId,BoundedStringName>>{
