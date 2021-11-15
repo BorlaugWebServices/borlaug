@@ -155,7 +155,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 5,
+    spec_version: 7,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -435,10 +435,8 @@ impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
     type TransactionByteFee = settings::TransactionByteFeeGet<Runtime>;
     type WeightToFee = settings::CustomizableFee<Runtime>;
-    type FeeMultiplierUpdate = ();
-    //TODO: put this back. Removed temporarily to make fee analysis easier
-    // type FeeMultiplierUpdate =
-    //     TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+    type FeeMultiplierUpdate =
+        TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1205,6 +1203,9 @@ impl_runtime_apis! {
         }
         fn is_member(group_id:GroupId,account_id:AccountId) -> bool  {
             Groups::is_member(group_id,&account_id)
+        }
+        fn get_group_by_account(account_id:AccountId) -> Option<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+            Groups::get_group_by_account(account_id)
         }
         fn get_group_account(group_id:GroupId) -> Option<AccountId>  {
             Groups::get_group_account(group_id)

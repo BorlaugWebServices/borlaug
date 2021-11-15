@@ -26,6 +26,13 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         at: Option<BlockHash>,
     ) -> Result<bool>;
 
+    #[rpc(name = "get_group_by_account")]
+    fn get_group_by_account(
+        &self,
+        account_id: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>>;
+
     #[rpc(name = "get_group_account")]
     fn get_group_account(&self, group_id: GroupId, at: Option<BlockHash>) -> Result<AccountId>;
 
@@ -250,6 +257,21 @@ where
             .is_member(&at, group_id, account_id)
             .map_err(convert_error!())?;
         Ok(is_member)
+    }
+
+    fn get_group_by_account(
+        &self,
+        account_id: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let (group_id, group, members) = api
+            .get_group_by_account(&at, account_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok((group_id, group, members).into())
     }
 
     fn get_group_account(

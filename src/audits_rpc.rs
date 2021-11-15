@@ -116,6 +116,7 @@ pub trait AuditsApi<
         at: Option<BlockHash>,
     ) -> Result<Vec<ObservationId>>;
 
+    //TODO: this is no-longer needed
     #[rpc(name = "get_evidence_links_by_observation")]
     fn get_evidence_links_by_observation(
         &self,

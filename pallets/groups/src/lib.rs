@@ -38,6 +38,8 @@
 //! ### RPC Methods
 //!
 //! * `member_of` - Get the collection of **Groups** that an account is a member of.
+//! * `get_group_by_account` - Get a **Group** by the groups account
+//! * `get_group_account` - Get the group's account
 //! * `get_group` - Get a **Group**
 //! * `get_sub_groups` - Get the collection of **Sub-groups** of a **Group**
 //! * `get_proposal` - Get a **Proposal**
@@ -413,7 +415,18 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        // Initialize GroupByAccount storage
+        #[allow(clippy::unnecessary_cast)]
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            let mut weight: Weight = 0;
+            <Groups<T>>::iter().for_each(|(group_id, group)| {
+                weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
+                <GroupByAccount<T>>::insert(group.anonymous_account, group_id);
+            });
+            weight
+        }
+    }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -442,6 +455,13 @@ pub mod pallet {
         Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
         OptionQuery,
     >;
+
+    /// Helper to find a group by its account
+    /// AccountId => GroupId
+    #[pallet::storage]
+    #[pallet::getter(fn group_by_account)]
+    pub(super) type GroupByAccount<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, T::GroupId, OptionQuery>;
 
     /// Groups have members which are weighted.
     /// GroupId,AccountId => MemberCount
@@ -584,6 +604,7 @@ pub mod pallet {
             Self::add_members(&mut group, group_id, members);
 
             <Groups<T>>::insert(group_id, group);
+            <GroupByAccount<T>>::insert(&anonymous_account, group_id);
 
             Self::deposit_event(Event::GroupCreated(
                 sender,
@@ -703,6 +724,7 @@ pub mod pallet {
             Self::add_members(&mut sub_group, sub_group_id, members);
 
             <Groups<T>>::insert(sub_group_id, sub_group);
+            <GroupByAccount<T>>::insert(&anonymous_account, sub_group_id);
             <GroupChildren<T>>::insert(caller_group_id, sub_group_id, ());
 
             Self::deposit_event(Event::SubGroupCreated(
@@ -805,6 +827,7 @@ pub mod pallet {
             )?;
 
             <Groups<T>>::remove(group_id);
+            <GroupByAccount<T>>::remove(&group.anonymous_account);
             let mut member_count = 0;
             <GroupMembers<T>>::iter_prefix(group_id).for_each(|(account_id, _)| {
                 <MemberOf<T>>::remove(&account_id, group_id);
@@ -857,6 +880,7 @@ pub mod pallet {
             )?;
 
             <Groups<T>>::remove(&sub_group_id);
+            <GroupByAccount<T>>::remove(&sub_group.anonymous_account);
             <GroupChildren<T>>::remove(caller_group_id, sub_group_id);
             let mut member_count = 0;
             <GroupMembers<T>>::iter_prefix(sub_group_id).for_each(|(account_id, _)| {
@@ -1424,6 +1448,7 @@ pub mod pallet {
 
     impl<T: Config> Module<T> {
         // -- rpc api functions --
+
         pub fn member_of(
             account_id: T::AccountId,
         ) -> Vec<(
@@ -1443,8 +1468,27 @@ pub mod pallet {
                 .collect()
         }
 
-        pub fn is_member(group_id: T::GroupId, account: &T::AccountId) -> bool {
-            <GroupMembers<T>>::contains_key(group_id, account)
+        pub fn is_member(group_id: T::GroupId, account_id: &T::AccountId) -> bool {
+            <GroupMembers<T>>::contains_key(group_id, account_id)
+        }
+
+        pub fn get_group_by_account(
+            account_id: T::AccountId,
+        ) -> Option<(
+            T::GroupId,
+            Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
+            Vec<(T::AccountId, T::MemberCount)>,
+        )> {
+            <GroupByAccount<T>>::get(account_id)
+                .map(|group_id| {
+                    <Groups<T>>::get(group_id).map(|group| {
+                        let members = <GroupMembers<T>>::iter_prefix(group_id)
+                            .map(|(account, weight)| (account, weight))
+                            .collect();
+                        (group_id, group, members)
+                    })
+                })
+                .flatten()
         }
 
         pub fn get_group_account(group_id: T::GroupId) -> Option<T::AccountId> {

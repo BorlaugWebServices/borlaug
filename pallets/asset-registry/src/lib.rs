@@ -49,7 +49,7 @@ pub mod pallet {
     use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use primitives::{bounded_vec::BoundedVec, *};
+    use primitives::{bounded_vec::BoundedVec, AssetAllocation, *};
     use sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
         Either,
@@ -436,7 +436,9 @@ pub mod pallet {
 
             let asset_id = next_id!(NextAssetId<T>, T);
 
-            <Assets<T>>::insert(&registry_id, &asset_id, asset);
+            <Assets<T>>::insert(registry_id, asset_id, asset);
+            let allocations: Vec<(T::LeaseId, u64, T::Moment)> = vec![];
+            <LeaseAllocations<T>>::insert(registry_id, asset_id, allocations);
             Self::deposit_event(Event::AssetCreated(registry_id, asset_id));
 
             Ok(().into())
