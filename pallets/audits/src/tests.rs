@@ -107,17 +107,18 @@ fn get_proposal_id() -> u32 {
 }
 
 fn create_observation(auditors_member: u64, auditors_group_id: u32, audit_id: u32) {
-    let observation = Observation {
-        compliance: Some(Compliance::Compliant),
-        procedural_note_hash: Some(blake2_256(b"test note")),
-    };
     let control_point_id = 1;
 
     assert_ok!(Groups::propose(
         Origin::signed(auditors_member),
         auditors_group_id,
         Box::new(crate::mock::Call::AuditsModule(
-            super::Call::create_observation(audit_id, control_point_id, observation,)
+            super::Call::create_observation(
+                audit_id,
+                control_point_id,
+                Some(Compliance::Compliant),
+                Some(blake2_256(b"test note"))
+            )
         )),
         1,
         100
@@ -139,6 +140,7 @@ fn create_observation(auditors_member: u64, auditors_group_id: u32, audit_id: u3
     assert_eq!(
         observation,
         Observation {
+            proposal_id,
             compliance: Some(Compliance::Compliant),
             procedural_note_hash: Some(blake2_256(b"test note")),
         }

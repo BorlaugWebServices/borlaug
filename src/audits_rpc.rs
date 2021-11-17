@@ -157,6 +157,7 @@ impl<AccountId, ProposalId, AuditId> From<(AuditId, Audit<AccountId, ProposalId>
 #[derive(Serialize, Deserialize)]
 pub struct ObservationResponse<ObservationId, EvidenceId, ProposalId> {
     pub observation_id: ObservationId,
+    pub proposal_id: ProposalId,
     pub compliance: Option<String>,
     pub procedural_note_hash: Option<[u8; 32]>,
     pub evidences: Vec<EvidenceResponse<EvidenceId, ProposalId>>,
@@ -165,7 +166,7 @@ pub struct ObservationResponse<ObservationId, EvidenceId, ProposalId> {
 impl<ObservationId, EvidenceId, ProposalId, BoundedString>
     From<(
         ObservationId,
-        Observation,
+        Observation<ProposalId>,
         Vec<(EvidenceId, Evidence<ProposalId, BoundedString>)>,
     )> for ObservationResponse<ObservationId, EvidenceId, ProposalId>
 where
@@ -174,12 +175,13 @@ where
     fn from(
         (observation_id, observation, evidences): (
             ObservationId,
-            Observation,
+            Observation<ProposalId>,
             Vec<(EvidenceId, Evidence<ProposalId, BoundedString>)>,
         ),
     ) -> Self {
         ObservationResponse {
             observation_id,
+            proposal_id: observation.proposal_id,
             compliance: observation.compliance.map(|compliance| match compliance {
                 Compliance::Compliant => "Compliant".to_string(),
                 Compliance::NonCompliant => "NonCompliant".to_string(),

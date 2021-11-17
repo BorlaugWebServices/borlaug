@@ -53,8 +53,12 @@ mod mock;
 mod tests;
 
 pub mod weights;
+
+pub mod migration;
+
 #[frame_support::pallet]
 pub mod pallet {
+
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
@@ -71,6 +75,12 @@ pub mod pallet {
         Audit = 51,
         Observation = 52,
         Evidence = 53,
+    }
+
+    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    pub enum Releases {
+        V1,
+        V2,
     }
 
     #[pallet::config]
@@ -223,11 +233,42 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            super::migration::migrate_to_v2::<T>()
+        }
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        phantom: PhantomData<T>,
+    }
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig {
+                phantom: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <StorageVersion<T>>::put(Releases::V2);
+        }
+    }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    /// Storage version of the pallet.
+    ///
+    /// V2 - added proposal_id to observation struct
+    pub type StorageVersion<T> = StorageValue<_, Releases, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
@@ -340,7 +381,7 @@ pub mod pallet {
         (T::AuditId, T::ControlPointId),
         Blake2_128Concat,
         T::ObservationId,
-        Observation,
+        Observation<T::ProposalId>,
         OptionQuery,
     >;
 
@@ -695,7 +736,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
-            observation: Observation,
+            compliance: Option<Compliance>,
+            procedural_note_hash: Option<[u8; 32]>,
         ) -> DispatchResultWithPostInfo {
             let (_, proposal_id, _, _, group_account) =
                 <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
@@ -731,6 +773,12 @@ pub mod pallet {
             );
 
             let observation_id = next_id!(NextObservationId<T>, T);
+
+            let observation = Observation {
+                proposal_id,
+                compliance,
+                procedural_note_hash,
+            };
 
             <Observations<T>>::insert((&audit_id, &control_point_id), &observation_id, observation);
             <ObservationByProposal<T>>::insert(
@@ -1050,7 +1098,7 @@ pub mod pallet {
             control_point_id: T::ControlPointId,
             observation_id: T::ObservationId,
         ) -> Option<(
-            Observation,
+            Observation<T::ProposalId>,
             Vec<(
                 T::EvidenceId,
                 Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
@@ -1075,7 +1123,7 @@ pub mod pallet {
             proposal_id: T::ProposalId,
         ) -> Option<(
             T::ObservationId,
-            Observation,
+            Observation<T::ProposalId>,
             Vec<(
                 T::EvidenceId,
                 Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
@@ -1106,7 +1154,7 @@ pub mod pallet {
             control_point_id: T::ControlPointId,
         ) -> Vec<(
             T::ObservationId,
-            Observation,
+            Observation<T::ProposalId>,
             Vec<(
                 T::EvidenceId,
                 Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,

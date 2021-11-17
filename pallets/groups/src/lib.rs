@@ -417,15 +417,15 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         // Initialize GroupByAccount storage
-        #[allow(clippy::unnecessary_cast)]
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            let mut weight: Weight = 0;
-            <Groups<T>>::iter().for_each(|(group_id, group)| {
-                weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
-                <GroupByAccount<T>>::insert(group.anonymous_account, group_id);
-            });
-            weight
-        }
+        // #[allow(clippy::unnecessary_cast)]
+        // fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        //     let mut weight: Weight = 0;
+        //     <Groups<T>>::iter().for_each(|(group_id, group)| {
+        //         weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
+        //         <GroupByAccount<T>>::insert(group.anonymous_account, group_id);
+        //     });
+        //     weight
+        // }
     }
 
     #[pallet::pallet]
@@ -603,6 +603,10 @@ pub mod pallet {
 
             Self::add_members(&mut group, group_id, members);
 
+            if group.threshold > group.total_vote_weight {
+                group.threshold = group.total_vote_weight;
+            }
+
             <Groups<T>>::insert(group_id, group);
             <GroupByAccount<T>>::insert(&anonymous_account, group_id);
 
@@ -645,8 +649,8 @@ pub mod pallet {
                 Error::<T>::GroupMissing
             );
 
-            <Groups<T>>::mutate(caller_group_id, |group_option| {
-                if let Some(group) = group_option {
+            <Groups<T>>::mutate(caller_group_id, |group_maybe| {
+                if let Some(group) = group_maybe {
                     if let Some(remove_members) = remove_members {
                         Self::remove_members(group, caller_group_id, remove_members);
                     }
@@ -660,6 +664,9 @@ pub mod pallet {
                         if threshold > Zero::zero() {
                             group.threshold = threshold;
                         }
+                    }
+                    if group.threshold > group.total_vote_weight {
+                        group.threshold = group.total_vote_weight;
                     }
                 }
             });
@@ -723,6 +730,10 @@ pub mod pallet {
 
             Self::add_members(&mut sub_group, sub_group_id, members);
 
+            if sub_group.threshold > sub_group.total_vote_weight {
+                sub_group.threshold = sub_group.total_vote_weight;
+            }
+
             <Groups<T>>::insert(sub_group_id, sub_group);
             <GroupByAccount<T>>::insert(&anonymous_account, sub_group_id);
             <GroupChildren<T>>::insert(caller_group_id, sub_group_id, ());
@@ -784,6 +795,9 @@ pub mod pallet {
                         if threshold > Zero::zero() {
                             sub_group.threshold = threshold;
                         }
+                    }
+                    if sub_group.threshold > sub_group.total_vote_weight {
+                        sub_group.threshold = sub_group.total_vote_weight;
                     }
                 }
             });
