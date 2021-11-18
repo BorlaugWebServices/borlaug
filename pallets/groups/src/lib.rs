@@ -1071,6 +1071,7 @@ pub mod pallet {
                 veto: None,
             };
             <Voting<T>>::insert(group_id, proposal_id, votes);
+            <GroupByProposal<T>>::insert(proposal_id, group_id);
 
             if threshold == weight {
                 let result = proposal.dispatch(
@@ -1099,7 +1100,6 @@ pub mod pallet {
             } else {
                 <ProposalHashes<T>>::insert(group_id, proposal_hash, ());
                 <Proposals<T>>::insert(group_id, proposal_id, proposal);
-                <GroupByProposal<T>>::insert(proposal_id, group_id);
 
                 Self::deposit_event(Event::Proposed(sender, group_id, proposal_id, threshold));
 
