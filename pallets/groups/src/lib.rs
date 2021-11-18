@@ -435,7 +435,9 @@ pub mod pallet {
         //     weight
         // }
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            super::migration::migrate_to_v2::<T>()
+            let mut weight: Weight = 0;
+            weight += super::migration::migrate_to_v2::<T>();
+            weight
         }
     }
 
@@ -1061,8 +1063,16 @@ pub mod pallet {
 
             let proposal_id = next_id!(NextProposalId<T>, T);
 
+            let votes = Votes {
+                threshold,
+                total_vote_weight: group.total_vote_weight,
+                ayes: vec![(sender.clone(), weight)],
+                nays: vec![],
+                veto: None,
+            };
+            <Voting<T>>::insert(group_id, proposal_id, votes);
+
             if threshold == weight {
-                //TODO: should we create votes here?
                 let result = proposal.dispatch(
                     RawOrigin::ProposalApproved(
                         group_id,
@@ -1090,15 +1100,6 @@ pub mod pallet {
                 <ProposalHashes<T>>::insert(group_id, proposal_hash, ());
                 <Proposals<T>>::insert(group_id, proposal_id, proposal);
                 <GroupByProposal<T>>::insert(proposal_id, group_id);
-
-                let votes = Votes {
-                    threshold,
-                    total_vote_weight: group.total_vote_weight,
-                    ayes: vec![(sender.clone(), weight)],
-                    nays: vec![],
-                    veto: None,
-                };
-                <Voting<T>>::insert(group_id, proposal_id, votes);
 
                 Self::deposit_event(Event::Proposed(sender, group_id, proposal_id, threshold));
 

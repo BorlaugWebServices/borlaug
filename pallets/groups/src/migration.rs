@@ -13,8 +13,11 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
             <GroupByProposal<T>>::insert(proposal_id, group_id);
             weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
         });
+
+        <StorageVersion<T>>::set(Some(Releases::V2));
     } else {
         frame_support::debug::info!(" >>> Unused migration!");
     }
+
     weight
 }

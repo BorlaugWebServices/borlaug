@@ -239,7 +239,9 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            super::migration::migrate_to_v2::<T>()
+            //forgot to update version number so removed
+            // super::migration::migrate_to_v2::<T>()
+            0
         }
     }
 
