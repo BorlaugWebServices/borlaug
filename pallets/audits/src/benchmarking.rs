@@ -213,11 +213,7 @@ benchmarks! {
     complete_audit {
         let (auditors,audit_id,origin) = audit_create_and_assign::<T>()?;
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
-        let observation = Observation{
-            compliance:Some(Compliance::Compliant),
-            procedural_note_hash:Some([42u8;32])
-        };
-        let call = Call::<T>::create_observation(audit_id,control_point_id,observation.clone());
+        let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
         call.dispatch_bypass_filter(origin.clone())?;
         let call = Call::<T>::complete_audit(audit_id);
     }: { call.dispatch_bypass_filter(origin)? }
@@ -232,11 +228,7 @@ benchmarks! {
     create_observation {
         let (auditors,audit_id,origin) = audit_create_and_assign::<T>()?;
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
-        let observation = Observation{
-            compliance:Some(Compliance::Compliant),
-            procedural_note_hash:Some([42u8;32])
-        };
-        let call = Call::<T>::create_observation(audit_id,control_point_id,observation.clone());
+        let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -244,23 +236,28 @@ benchmarks! {
         let stored_observation=<Observations<T>>::get((audit_id,control_point_id),observation_id);
         assert!(stored_observation.is_some());
         let stored_observation=stored_observation.unwrap();
-        assert_eq!(stored_observation,observation);
+        let proposal_id=T::ProposalId::unique_saturated_from(1u32);
+        assert_eq!(stored_observation,Observation{
+            proposal_id,
+            compliance:Some(Compliance::Compliant),
+            procedural_note_hash:Some([42u8;32])
+        });
     }
 
     create_evidence {
         let a in 1 .. <T as Config>::NameLimit::get(); //name
         let b in 1 .. <T as Config>::NameLimit::get(); //content_type
-        let c in 1 .. <T as Config>::NameLimit::get(); //url
+        let c in 1 .. <T as Config>::UrlLimit::get(); //url
         let d in 1 .. <T as Config>::NameLimit::get(); //hash
 
         let (auditors,audit_id,origin) = audit_create_and_assign::<T>()?;
 
-        let  name=vec![42u8;a as usize];
-        let  content_type=vec![42u8;b as usize];
-        let  url=Some(vec![42u8;c as usize]);
-        let   hash=vec![42u8;d as usize];
+        let name=vec![42u8;a as usize];
+        let content_type=vec![42u8;b as usize];
+        let url=Some(vec![42u8;c as usize]);
+        let hash=vec![42u8;d as usize];
 
-        let call = Call::<T>::create_evidence(audit_id, name ,content_type,url,hash);
+        let call = Call::<T>::create_evidence(audit_id, name, content_type, url, hash);
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -285,12 +282,7 @@ benchmarks! {
         let call = Call::<T>::create_evidence(audit_id, name ,content_type,url,hash);
         call.dispatch_bypass_filter(origin.clone())? ;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
-
-        let observation = Observation{
-            compliance:Some(Compliance::Compliant),
-            procedural_note_hash:Some([42u8;32])
-        };
-        let call = Call::<T>::create_observation(audit_id,control_point_id,observation.clone());
+        let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
         call.dispatch_bypass_filter(origin.clone())?;
 
         let observation_id=T::ObservationId::unique_saturated_from(1u32);
@@ -313,12 +305,7 @@ benchmarks! {
         let call = Call::<T>::create_evidence(audit_id, name ,content_type,url,hash);
         call.dispatch_bypass_filter(origin.clone())?;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
-
-        let observation = Observation{
-            compliance:Some(Compliance::Compliant),
-            procedural_note_hash:Some([42u8;32])
-        };
-        let call = Call::<T>::create_observation(audit_id,control_point_id,observation.clone());
+        let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
         call.dispatch_bypass_filter(origin.clone())?;
         let observation_id=T::ObservationId::unique_saturated_from(1u32);
         let call = Call::<T>::link_evidence(audit_id,control_point_id,observation_id,evidence_id);
@@ -340,20 +327,16 @@ benchmarks! {
         let (auditors,audit_id,origin) = audit_create_and_assign::<T>()?;
 
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
-        let  name=vec![42u8;<T as Config>::NameLimit::get() as usize];
-        let  content_type=vec![42u8;<T as Config>::NameLimit::get() as usize];
-        let  url=Some(vec![42u8;<T as Config>::NameLimit::get() as usize]);
-        let   hash=vec![42u8;<T as Config>::NameLimit::get() as usize];
+        let name=vec![42u8;<T as Config>::NameLimit::get() as usize];
+        let content_type=vec![42u8;<T as Config>::NameLimit::get() as usize];
+        let url=Some(vec![42u8;<T as Config>::NameLimit::get() as usize]);
+        let hash=vec![42u8;<T as Config>::NameLimit::get() as usize];
         let call = Call::<T>::create_evidence(audit_id, name ,content_type,url,hash);
         call.dispatch_bypass_filter(origin.clone())?;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
 
         for i in 0..a {
-            let observation = Observation{
-                compliance:Some(Compliance::Compliant),
-                procedural_note_hash:Some([42u8;32])
-            };
-            let call = Call::<T>::create_observation(audit_id,control_point_id,observation.clone());
+            let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
             call.dispatch_bypass_filter(origin.clone())?;
             let observation_id=T::ObservationId::unique_saturated_from(i+1);
             let call = Call::<T>::link_evidence(audit_id,control_point_id,observation_id,evidence_id);

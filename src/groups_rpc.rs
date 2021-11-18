@@ -53,7 +53,6 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     #[rpc(name = "get_proposal")]
     fn get_proposal(
         &self,
-        group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
     ) -> Result<ProposalResponse<ProposalId, AccountId, MemberCount>>;
@@ -324,7 +323,6 @@ where
 
     fn get_proposal(
         &self,
-        group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<ProposalResponse<ProposalId, AccountId, MemberCount>> {
@@ -332,7 +330,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let (proposal_id, proposal, votes) = api
-            .get_proposal(&at, group_id, proposal_id)
+            .get_proposal(&at, proposal_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 

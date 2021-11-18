@@ -96,6 +96,21 @@ macro_rules! enforce_limit_option {
 }
 
 #[macro_export]
+macro_rules! enforce_url_limit_option {
+    ($id:expr) => {{
+        let bounded_string = match $id {
+            Some(id) => {
+                let bounded_string: BoundedVec<u8, <T as Config>::UrlLimit> =
+                    id.try_into().map_err(|_| Error::<T>::UrLLimitExceeded)?;
+                Some(bounded_string)
+            }
+            None => None,
+        };
+        bounded_string
+    }};
+}
+
+#[macro_export]
 macro_rules! enforce_limit_did_properties_option {
     ($properties:expr) => {{
         $properties

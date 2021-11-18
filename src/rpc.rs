@@ -9,6 +9,7 @@ use runtime::primitives::{
     GroupId, Hash, Index, LeaseId, MemberCount, ModuleIndex, Moment, ObservationId, ProcessId,
     ProposalId, RegistryId,
 };
+use runtime::BoundedStringUrl;
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
     EngineCommand,
@@ -79,6 +80,7 @@ where
         EvidenceId,
         ObservationId,
         BoundedStringName,
+        BoundedStringUrl,
     >,
     C::Api: asset_registry_runtime_api::AssetRegistryApi<
         Block,

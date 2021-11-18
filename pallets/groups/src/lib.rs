@@ -58,6 +58,8 @@ mod tests;
 
 pub mod weights;
 
+pub mod migration;
+
 #[frame_support::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
@@ -91,6 +93,12 @@ pub mod pallet {
         Group = 1,
         SubGroup = 2,
         Proposal = 3,
+    }
+
+    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    pub enum Releases {
+        V1,
+        V2,
     }
 
     #[pallet::config]
@@ -426,11 +434,40 @@ pub mod pallet {
         //     });
         //     weight
         // }
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            super::migration::migrate_to_v2::<T>()
+        }
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        phantom: PhantomData<T>,
+    }
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig {
+                phantom: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <StorageVersion<T>>::put(Releases::V2);
+        }
     }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    /// Storage version of the pallet.
+    ///
+    /// V2 - added proposal_id to observation struct
+    pub type StorageVersion<T> = StorageValue<_, Releases, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_group_id)]
@@ -546,6 +583,13 @@ pub mod pallet {
         Votes<T::AccountId, T::MemberCount>,
         OptionQuery,
     >;
+
+    /// Get group_id of a proposal
+    /// ProposalId => GroupId
+    #[pallet::storage]
+    #[pallet::getter(fn group_by_proposal)]
+    pub(super) type GroupByProposal<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::ProposalId, T::GroupId, OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -1045,6 +1089,7 @@ pub mod pallet {
             } else {
                 <ProposalHashes<T>>::insert(group_id, proposal_hash, ());
                 <Proposals<T>>::insert(group_id, proposal_id, proposal);
+                <GroupByProposal<T>>::insert(proposal_id, group_id);
 
                 let votes = Votes {
                     threshold,
@@ -1542,15 +1587,18 @@ pub mod pallet {
         }
 
         pub fn get_proposal(
-            group_id: T::GroupId,
             proposal_id: T::ProposalId,
         ) -> Option<(
             T::ProposalId,
             Option<(T::Hash, u32)>,
             Votes<T::AccountId, T::MemberCount>,
         )> {
-            <Voting<T>>::get(group_id, proposal_id)
-                .map(|voting| proposal_with_votes::<T>(group_id, proposal_id, voting))
+            <GroupByProposal<T>>::get(proposal_id)
+                .map(|group_id| {
+                    <Voting<T>>::get(group_id, proposal_id)
+                        .map(|voting| proposal_with_votes::<T>(group_id, proposal_id, voting))
+                })
+                .flatten()
         }
 
         pub fn get_proposals_by_group(

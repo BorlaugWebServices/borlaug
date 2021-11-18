@@ -6,6 +6,7 @@ use frame_system::{self as system, EnsureOneOf, EnsureSigned};
 use runtime::primitives::NameLimit;
 use runtime::{
     GroupChainLimit, GroupMaxMembers, GroupMaxProposalLength, GroupMaxProposals, MaxLinkRemove,
+    UrlLimit,
 };
 
 use sp_core::H256;
@@ -96,6 +97,7 @@ impl pallet_audits::Config for Test {
     type Event = Event;
     type WeightInfo = ();
     type NameLimit = NameLimit;
+    type UrlLimit = UrlLimit;
     type MaxLinkRemove = MaxLinkRemove;
 }
 

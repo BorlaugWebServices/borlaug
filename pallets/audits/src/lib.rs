@@ -119,6 +119,8 @@ pub mod pallet {
         type WeightInfo: WeightInfo;
         /// The maximum length of a name or symbol stored on-chain.
         type NameLimit: Get<u32>;
+        /// The maximum length of a url (evidence).
+        type UrlLimit: Get<u32>;
         /// The maximum number of evidence_links that can be removed in one attempt when deleting evidence.
         type MaxLinkRemove: Get<u32>;
     }
@@ -212,6 +214,8 @@ pub mod pallet {
         EvidenceNotFound,
         /// The max Evidence link limit was exceeded
         RemoveLinkLimitExceeded,
+        /// The maximum allowed url length was exceeded
+        UrLLimitExceeded,
     }
 
     #[pallet::type_value]
@@ -234,7 +238,6 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
             super::migration::migrate_to_v2::<T>()
         }
@@ -394,7 +397,11 @@ pub mod pallet {
         T::AuditId,
         Blake2_128Concat,
         T::EvidenceId,
-        Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+        Evidence<
+            T::ProposalId,
+            BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::UrlLimit>,
+        >,
         OptionQuery,
     >;
 
@@ -814,6 +821,7 @@ pub mod pallet {
             name: Vec<u8>,
             content_type: Vec<u8>,
             url: Option<Vec<u8>>,
+            //TODO: use [u8; 32]
             hash: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let (_, proposal_id, _, _, group_account) =
@@ -835,7 +843,7 @@ pub mod pallet {
             let bounded_content_type = enforce_limit!(content_type);
             let bounded_hash = enforce_limit!(hash);
             let bounded_name = enforce_limit!(name);
-            let bounded_url = enforce_limit_option!(url);
+            let bounded_url = enforce_url_limit_option!(url);
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
@@ -1101,7 +1109,11 @@ pub mod pallet {
             Observation<T::ProposalId>,
             Vec<(
                 T::EvidenceId,
-                Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+                Evidence<
+                    T::ProposalId,
+                    BoundedVec<u8, <T as Config>::NameLimit>,
+                    BoundedVec<u8, <T as Config>::UrlLimit>,
+                >,
             )>,
         )> {
             <Observations<T>>::get((audit_id, control_point_id), observation_id).map(
@@ -1126,7 +1138,11 @@ pub mod pallet {
             Observation<T::ProposalId>,
             Vec<(
                 T::EvidenceId,
-                Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+                Evidence<
+                    T::ProposalId,
+                    BoundedVec<u8, <T as Config>::NameLimit>,
+                    BoundedVec<u8, <T as Config>::UrlLimit>,
+                >,
             )>,
         )> {
             <ObservationByProposal<T>>::get(proposal_id).map(
@@ -1157,7 +1173,11 @@ pub mod pallet {
             Observation<T::ProposalId>,
             Vec<(
                 T::EvidenceId,
-                Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+                Evidence<
+                    T::ProposalId,
+                    BoundedVec<u8, <T as Config>::NameLimit>,
+                    BoundedVec<u8, <T as Config>::UrlLimit>,
+                >,
             )>,
         )> {
             let mut observations = Vec::new();
@@ -1180,7 +1200,13 @@ pub mod pallet {
         pub fn get_evidence(
             audit_id: T::AuditId,
             evidence_id: T::EvidenceId,
-        ) -> Option<Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>> {
+        ) -> Option<
+            Evidence<
+                T::ProposalId,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::UrlLimit>,
+            >,
+        > {
             <Evidences<T>>::get(audit_id, evidence_id)
         }
 
@@ -1188,7 +1214,11 @@ pub mod pallet {
             audit_id: T::AuditId,
         ) -> Vec<(
             T::EvidenceId,
-            Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            Evidence<
+                T::ProposalId,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::UrlLimit>,
+            >,
         )> {
             let mut evidences = Vec::new();
             <Evidences<T>>::iter_prefix(audit_id)
@@ -1200,7 +1230,11 @@ pub mod pallet {
             proposal_id: T::ProposalId,
         ) -> Option<(
             T::EvidenceId,
-            Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            Evidence<
+                T::ProposalId,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::UrlLimit>,
+            >,
         )> {
             <EvidenceByProposal<T>>::get(proposal_id).map(|(audit_id, evidence_id)| {
                 (
