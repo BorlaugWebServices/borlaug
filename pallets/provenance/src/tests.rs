@@ -438,6 +438,7 @@ fn attest_process_step_should_work() {
         assert_eq!(
             process_step,
             ProcessStep {
+                proposal_id: None,
                 attributes: vec![Attribute {
                     name: b"TestAttribute".to_vec().try_into().unwrap(),
                     fact: Fact::Text(b"TestFact".to_vec().try_into().unwrap())
@@ -478,6 +479,7 @@ fn attest_process_step_should_work() {
         assert_eq!(
             process_step,
             ProcessStep {
+                proposal_id: None,
                 attributes: vec![Attribute {
                     name: b"TestAttribute_2".to_vec().try_into().unwrap(),
                     fact: Fact::Text(b"TestFact_2".to_vec().try_into().unwrap())

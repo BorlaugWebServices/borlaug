@@ -145,6 +145,7 @@ where
         RegistryId,
         DefinitionId,
         ProcessId,
+        ProposalId,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,

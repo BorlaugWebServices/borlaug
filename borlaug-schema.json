@@ -165,10 +165,11 @@
     "parent": "Option<GroupId>"
   },
   "Votes": {
-    "proposal_id": "ProposalId",
     "threshold": "MemberCount",
-    "ayes": "Vec<AccountId>",
-    "nays": "Vec<AccountId>"
+    "total_vote_weight": "MemberCount",
+    "ayes": "Vec<(AccountId, MemberCount)>",
+    "nays": "Vec<(AccountId, MemberCount)>",
+    "veto": "Option<bool>"
   },
   "Registry": {
     "name": "Vec<u8>"

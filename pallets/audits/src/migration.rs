@@ -23,6 +23,7 @@ pub fn migrate_to_v2<T: Config>() -> Weight {
     if storage_version_maybe.is_none() || storage_version_maybe.unwrap() == Releases::V1 {
         <ObservationByProposal<T>>::iter().for_each(
             |(proposal_id, (_audit_id, _control_point_id, _observation_id))| {
+                //TODO: This is wrong.
                 <Observations<T>>::translate::<deprecated::OldObservation, _>(
                     |(_audit_id, _control_point_id), _observation_id, old_observation| {
                         weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);

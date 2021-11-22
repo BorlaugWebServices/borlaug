@@ -55,6 +55,8 @@ mod tests;
 
 pub mod weights;
 
+pub mod migration;
+
 #[frame_support::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
@@ -76,6 +78,12 @@ pub mod pallet {
         Registry = 31,
         Definition = 32,
         Process = 33,
+    }
+
+    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    pub enum Releases {
+        V1,
+        V2,
     }
 
     #[pallet::config]
@@ -243,11 +251,43 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            let mut weight: Weight = 0;
+            weight += super::migration::migrate_to_v2::<T>();
+            weight
+        }
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        phantom: PhantomData<T>,
+    }
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig {
+                phantom: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <StorageVersion<T>>::put(Releases::V2);
+        }
+    }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    /// Storage version of the pallet.
+    ///
+    /// V2 - added proposal_id to observation struct
+    pub type StorageVersion<T> = StorageValue<_, Releases, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn registries)]
@@ -330,6 +370,7 @@ pub mod pallet {
         Blake2_128Concat,
         T::DefinitionStepIndex,
         ProcessStep<
+            T::ProposalId,
             BoundedVec<u8, <T as Config>::NameLimit>,
             BoundedVec<u8, <T as Config>::FactStringLimit>,
         >,
@@ -897,9 +938,11 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             //TODO: use macro
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
-            let (sender, yes_votes) = match either {
-                Either::Left(account_id) => (account_id, None),
-                Either::Right((_, _, yes_votes, _, group_account)) => (group_account, yes_votes),
+            let (sender, yes_votes, proposal_id) = match either {
+                Either::Left(account_id) => (account_id, None, None),
+                Either::Right((_, proposal_id, yes_votes, _, group_account)) => {
+                    (group_account, yes_votes, Some(proposal_id))
+                }
             };
 
             let definition_step =
@@ -934,7 +977,10 @@ pub mod pallet {
 
             let attributes = enforce_limit_attributes!(attributes);
 
-            let process_step = ProcessStep { attributes };
+            let process_step = ProcessStep {
+                proposal_id,
+                attributes,
+            };
 
             <ProcessSteps<T>>::insert(
                 (registry_id, definition_id, process_id),
@@ -1192,6 +1238,7 @@ pub mod pallet {
             process_id: T::ProcessId,
         ) -> Vec<
             ProcessStep<
+                T::ProposalId,
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
             >,
@@ -1217,6 +1264,7 @@ pub mod pallet {
             definition_step_index: T::DefinitionStepIndex,
         ) -> Option<
             ProcessStep<
+                T::ProposalId,
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
             >,
