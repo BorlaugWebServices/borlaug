@@ -444,12 +444,12 @@ pub mod pallet {
         ///
         /// Arguments:
         /// `auditing_org` : account_id of the auditing_org (can be an individual account or a group)
-        /// `ref` : a reference to ensure that proposals remain unique.
+        /// `unique_ref` : a reference to ensure that proposals remain unique.
         #[pallet::weight(<T as Config>::WeightInfo::create_audit())]
         pub fn create_audit(
             origin: OriginFor<T>,
             auditing_org: T::AccountId,
-            ref:u32,
+            _unique_ref: u32,
         ) -> DispatchResultWithPostInfo {
             let (_, proposal_id, _, _, group_account) =
                 <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
