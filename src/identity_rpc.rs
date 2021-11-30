@@ -393,7 +393,7 @@ where
                 value: format!(
                     "0x{};{}",
                     hex::encode(hash),
-                    String::from_utf8_lossy(&filename.into()).to_string()
+                    String::from_utf8_lossy(&filename.into())
                 ),
             },
             Fact::Location(lat, lng) => {
@@ -401,7 +401,7 @@ where
                 let lng = (lng as f64) / 1_000_000f64;
                 FactResponse {
                     data_type: String::from("Location"),
-                    value: format!("{},{}", lat.to_string(), lng.to_string()),
+                    value: format!("{},{}", lat, lng),
                 }
             }
             Fact::Did(did) => {

@@ -1515,14 +1515,17 @@ pub mod pallet {
             T::GroupId,
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
             Vec<(T::AccountId, T::MemberCount)>,
+            <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <MemberOf<T>>::iter_prefix(&account_id)
                 .filter_map(|(group_id, ())| {
                     <Groups<T>>::get(group_id).map(|group| {
+                        let balance =
+                            <T as Config>::Currency::free_balance(&group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(group_id)
                             .map(|(account_id, weight)| (account_id, weight))
                             .collect();
-                        (group_id, group, members)
+                        (group_id, group, members, balance)
                     })
                 })
                 .collect()
@@ -1538,14 +1541,17 @@ pub mod pallet {
             T::GroupId,
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
             Vec<(T::AccountId, T::MemberCount)>,
+            <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <GroupByAccount<T>>::get(account_id)
                 .map(|group_id| {
                     <Groups<T>>::get(group_id).map(|group| {
+                        let balance =
+                            <T as Config>::Currency::free_balance(&group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(group_id)
                             .map(|(account, weight)| (account, weight))
                             .collect();
-                        (group_id, group, members)
+                        (group_id, group, members, balance)
                     })
                 })
                 .flatten()
@@ -1560,12 +1566,14 @@ pub mod pallet {
         ) -> Option<(
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
             Vec<(T::AccountId, T::MemberCount)>,
+            <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <Groups<T>>::get(group_id).map(|group| {
+                let balance = <T as Config>::Currency::free_balance(&group.anonymous_account);
                 let members = <GroupMembers<T>>::iter_prefix(group_id)
                     .map(|(account, weight)| (account, weight))
                     .collect();
-                (group, members)
+                (group, members, balance)
             })
         }
         pub fn get_sub_groups(
@@ -1574,14 +1582,17 @@ pub mod pallet {
             T::GroupId,
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
             Vec<(T::AccountId, T::MemberCount)>,
+            <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <GroupChildren<T>>::iter_prefix(group_id)
                 .filter_map(|(child_group_id, _)| {
                     <Groups<T>>::get(group_id).map(|group| {
+                        let balance =
+                            <T as Config>::Currency::free_balance(&group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(child_group_id)
                             .map(|(account, weight)| (account, weight))
                             .collect();
-                        (child_group_id, group, members)
+                        (child_group_id, group, members, balance)
                     })
                 })
                 .collect()

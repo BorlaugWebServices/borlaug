@@ -49,6 +49,7 @@ where
         ProposalId,
         Hash,
         BoundedStringName,
+        Balance,
     >,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,

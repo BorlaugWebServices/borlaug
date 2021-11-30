@@ -404,7 +404,7 @@ pub mod pallet {
             account: &T::AccountId,
         ) {
             if let Some(fee) = <ExtrinsicExtra<T>>::get(module_index, extrinsic_index) {
-                let (_deducted, _) = T::Currency::slash(&account, fee.into());
+                let (_deducted, _) = T::Currency::slash(account, fee.into());
             }
         }
     }

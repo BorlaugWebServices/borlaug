@@ -10,13 +10,13 @@ use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 
 #[rpc]
-pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash> {
+pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash, Balance> {
     #[rpc(name = "member_of")]
     fn member_of(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount, Balance>>>;
 
     #[rpc(name = "is_member")]
     fn is_member(
@@ -31,7 +31,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>>;
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount, Balance>>;
 
     #[rpc(name = "get_group_account")]
     fn get_group_account(&self, group_id: GroupId, at: Option<BlockHash>) -> Result<AccountId>;
@@ -41,14 +41,14 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
-    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>>;
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount, Balance>>;
 
     #[rpc(name = "get_sub_groups")]
     fn get_sub_groups(
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount, Balance>>>;
 
     #[rpc(name = "get_proposal")]
     fn get_proposal(
@@ -78,29 +78,32 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct GroupResponse<GroupId, AccountId, MemberCount> {
+pub struct GroupResponse<GroupId, AccountId, MemberCount, Balance> {
     pub group_id: GroupId,
     pub name: String,
     pub total_vote_weight: MemberCount,
     pub members: Vec<(AccountId, MemberCount)>,
     pub threshold: MemberCount,
     pub anonymous_account: AccountId,
+    pub balance: Balance,
     pub parent: Option<GroupId>,
 }
-impl<GroupId, AccountId, MemberCount, BoundedString>
+impl<GroupId, AccountId, MemberCount, BoundedString, Balance>
     From<(
         GroupId,
         Group<GroupId, AccountId, MemberCount, BoundedString>,
         Vec<(AccountId, MemberCount)>,
-    )> for GroupResponse<GroupId, AccountId, MemberCount>
+        Balance,
+    )> for GroupResponse<GroupId, AccountId, MemberCount, Balance>
 where
     BoundedString: Into<Vec<u8>>,
 {
     fn from(
-        (group_id, group, members): (
+        (group_id, group, members, balance): (
             GroupId,
             Group<GroupId, AccountId, MemberCount, BoundedString>,
             Vec<(AccountId, MemberCount)>,
+            Balance,
         ),
     ) -> Self {
         GroupResponse {
@@ -110,6 +113,7 @@ where
             members,
             threshold: group.threshold,
             anonymous_account: group.anonymous_account,
+            balance,
             parent: group.parent,
         }
     }
@@ -203,8 +207,8 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString>
-    GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId, Hash>
+impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString, Balance>
+    GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId, Hash, Balance>
     for Groups<
         C,
         (
@@ -222,20 +226,29 @@ where
     C: Send + Sync + 'static,
     C: ProvideRuntimeApi<Block>,
     C: HeaderBackend<Block>,
-    C::Api:
-        GroupsRuntimeApi<Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString>,
+    C::Api: GroupsRuntimeApi<
+        Block,
+        AccountId,
+        GroupId,
+        MemberCount,
+        ProposalId,
+        Hash,
+        BoundedString,
+        Balance,
+    >,
     GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     AccountId: Codec + Send + Sync + 'static,
     ProposalId: Codec + Copy + Send + Sync + 'static,
     Hash: Codec + Clone + Send + Sync + 'static + AsRef<[u8]>,
     BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+    Balance: Codec + Copy + Send + Sync + 'static,
 {
     fn member_of(
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>> {
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount, Balance>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -262,15 +275,15 @@ where
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>> {
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount, Balance>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (group_id, group, members) = api
+        let (group_id, group, members, balance) = api
             .get_group_by_account(&at, account_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((group_id, group, members).into())
+        Ok((group_id, group, members, balance).into())
     }
 
     fn get_group_account(
@@ -292,22 +305,22 @@ where
         &self,
         group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>> {
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount, Balance>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (group, members) = api
+        let (group, members, balance) = api
             .get_group(&at, group_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((group_id, group, members).into())
+        Ok((group_id, group, members, balance).into())
     }
 
     fn get_sub_groups(
         &self,
         group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>> {
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount, Balance>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -317,7 +330,9 @@ where
 
         Ok(groups
             .into_iter()
-            .map(|(sub_group_id, group, members)| (sub_group_id, group, members).into())
+            .map(|(sub_group_id, group, members, balance)| {
+                (sub_group_id, group, members, balance).into()
+            })
             .collect())
     }
 

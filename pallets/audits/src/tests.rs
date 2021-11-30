@@ -17,7 +17,7 @@ fn create_group(member: u64, group_id: u32) -> u64 {
     ));
     let group_maybe = Groups::get_group(group_id);
     assert!(group_maybe.is_some());
-    let (group, _members) = group_maybe.unwrap();
+    let (group, _members, _balance) = group_maybe.unwrap();
     group.anonymous_account
 }
 
@@ -30,7 +30,8 @@ fn create_audit(
         Origin::signed(audit_creator_member),
         1,
         Box::new(crate::mock::Call::AuditsModule(super::Call::create_audit(
-            auditing_org
+            auditing_org,
+            1u32
         ))),
         1,
         100

@@ -1201,23 +1201,23 @@ impl_runtime_apis! {
 // }
 
 
-    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName> for Runtime {
-        fn member_of(account_id:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedStringName>,Vec<(AccountId, MemberCount)>)>  {
+    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName,Balance> for Runtime {
+        fn member_of(account_id:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>  {
             Groups::member_of(account_id)
         }
         fn is_member(group_id:GroupId,account_id:AccountId) -> bool  {
             Groups::is_member(group_id,&account_id)
         }
-        fn get_group_by_account(account_id:AccountId) -> Option<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+        fn get_group_by_account(account_id:AccountId) -> Option<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
             Groups::get_group_by_account(account_id)
         }
         fn get_group_account(group_id:GroupId) -> Option<AccountId>  {
             Groups::get_group_account(group_id)
         }
-        fn get_group(group_id:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+        fn get_group(group_id:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
             Groups::get_group(group_id)
         }
-        fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+        fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
             Groups::get_sub_groups(group_id)
         }
         fn get_proposal(proposal_id:ProposalId) ->Option<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
