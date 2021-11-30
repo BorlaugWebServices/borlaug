@@ -6,17 +6,20 @@ use pallet_primitives::{Group, Votes};
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::{
+    generic::BlockId,
+    traits::{AtLeast32BitUnsigned, Block as BlockT},
+};
 use std::sync::Arc;
 
 #[rpc]
-pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash, Balance> {
+pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash> {
     #[rpc(name = "member_of")]
     fn member_of(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount, Balance>>>;
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
 
     #[rpc(name = "is_member")]
     fn is_member(
@@ -31,7 +34,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount, Balance>>;
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>>;
 
     #[rpc(name = "get_group_account")]
     fn get_group_account(&self, group_id: GroupId, at: Option<BlockHash>) -> Result<AccountId>;
@@ -41,14 +44,14 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
-    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount, Balance>>;
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>>;
 
     #[rpc(name = "get_sub_groups")]
     fn get_sub_groups(
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount, Balance>>>;
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>>;
 
     #[rpc(name = "get_proposal")]
     fn get_proposal(
@@ -78,14 +81,15 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct GroupResponse<GroupId, AccountId, MemberCount, Balance> {
+pub struct GroupResponse<GroupId, AccountId, MemberCount> {
     pub group_id: GroupId,
     pub name: String,
     pub total_vote_weight: MemberCount,
     pub members: Vec<(AccountId, MemberCount)>,
     pub threshold: MemberCount,
     pub anonymous_account: AccountId,
-    pub balance: Balance,
+    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
+    pub balance: u64,
     pub parent: Option<GroupId>,
 }
 impl<GroupId, AccountId, MemberCount, BoundedString, Balance>
@@ -94,9 +98,10 @@ impl<GroupId, AccountId, MemberCount, BoundedString, Balance>
         Group<GroupId, AccountId, MemberCount, BoundedString>,
         Vec<(AccountId, MemberCount)>,
         Balance,
-    )> for GroupResponse<GroupId, AccountId, MemberCount, Balance>
+    )> for GroupResponse<GroupId, AccountId, MemberCount>
 where
     BoundedString: Into<Vec<u8>>,
+    Balance: AtLeast32BitUnsigned,
 {
     fn from(
         (group_id, group, members, balance): (
@@ -113,7 +118,7 @@ where
             members,
             threshold: group.threshold,
             anonymous_account: group.anonymous_account,
-            balance,
+            balance: balance.unique_saturated_into(),
             parent: group.parent,
         }
     }
@@ -208,7 +213,7 @@ macro_rules! not_found_error {
 }
 
 impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString, Balance>
-    GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId, Hash, Balance>
+    GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId, Hash>
     for Groups<
         C,
         (
@@ -219,6 +224,7 @@ impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString,
             ProposalId,
             Hash,
             BoundedString,
+            Balance,
         ),
     >
 where
@@ -242,13 +248,13 @@ where
     ProposalId: Codec + Copy + Send + Sync + 'static,
     Hash: Codec + Clone + Send + Sync + 'static + AsRef<[u8]>,
     BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
-    Balance: Codec + Copy + Send + Sync + 'static,
+    Balance: Codec + Copy + Send + Sync + AtLeast32BitUnsigned + 'static,
 {
     fn member_of(
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount, Balance>>> {
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -275,7 +281,7 @@ where
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount, Balance>> {
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -305,7 +311,7 @@ where
         &self,
         group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount, Balance>> {
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -320,7 +326,7 @@ where
         &self,
         group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount, Balance>>> {
+    ) -> Result<Vec<GroupResponse<GroupId, AccountId, MemberCount>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
