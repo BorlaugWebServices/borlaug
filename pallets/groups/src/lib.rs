@@ -1586,13 +1586,13 @@ pub mod pallet {
         )> {
             <GroupChildren<T>>::iter_prefix(group_id)
                 .filter_map(|(child_group_id, _)| {
-                    <Groups<T>>::get(group_id).map(|group| {
+                    <Groups<T>>::get(child_group_id).map(|child_group| {
                         let balance =
-                            <T as Config>::Currency::free_balance(&group.anonymous_account);
+                            <T as Config>::Currency::free_balance(&child_group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(child_group_id)
                             .map(|(account, weight)| (account, weight))
                             .collect();
-                        (child_group_id, group, members, balance)
+                        (child_group_id, child_group, members, balance)
                     })
                 })
                 .collect()
