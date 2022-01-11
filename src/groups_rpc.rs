@@ -58,14 +58,14 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         &self,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
-    ) -> Result<ProposalResponse<ProposalId, AccountId, MemberCount>>;
+    ) -> Result<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>;
 
     #[rpc(name = "get_proposals_by_group")]
     fn get_proposals_by_group(
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>>;
+    ) -> Result<Vec<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>>;
 
     #[rpc(name = "get_proposals_by_account")]
     fn get_proposals_by_account(
@@ -75,7 +75,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     ) -> Result<
         Vec<(
             GroupId,
-            Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>,
+            Vec<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>,
         )>,
     >;
 }
@@ -125,30 +125,38 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ProposalResponse<ProposalId, AccountId, MemberCount> {
+pub struct ProposalResponse<ProposalId, GroupId, AccountId, MemberCount> {
     pub proposal_id: ProposalId,
+    pub group_id: GroupId,
+    pub members: Vec<(AccountId, MemberCount)>,
     pub hash: Option<String>,
     pub proposal_len: Option<u32>,
     pub votes: VotesResponse<AccountId, MemberCount>,
 }
-impl<ProposalId, Hash, AccountId, MemberCount>
+impl<ProposalId, GroupId, Hash, AccountId, MemberCount>
     From<(
         ProposalId,
+        GroupId,
+        Vec<(AccountId, MemberCount)>,
         Option<(Hash, u32)>,
         Votes<AccountId, MemberCount>,
-    )> for ProposalResponse<ProposalId, AccountId, MemberCount>
+    )> for ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>
 where
     Hash: AsRef<[u8]>,
 {
     fn from(
-        (proposal_id, proposal, votes): (
+        (proposal_id, group_id, members, proposal, votes): (
             ProposalId,
+            GroupId,
+            Vec<(AccountId, MemberCount)>,
             Option<(Hash, u32)>,
             Votes<AccountId, MemberCount>,
         ),
     ) -> Self {
         ProposalResponse {
             proposal_id,
+            group_id,
+            members,
             hash: proposal
                 .as_ref()
                 .map(|(hash, _len)| String::from_utf8_lossy(hash.as_ref()).to_string()),
@@ -346,23 +354,23 @@ where
         &self,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ProposalResponse<ProposalId, AccountId, MemberCount>> {
+    ) -> Result<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (proposal_id, proposal, votes) = api
+        let (proposal_id, group_id, members, proposal, votes) = api
             .get_proposal(&at, proposal_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
-        Ok((proposal_id, proposal, votes).into())
+        Ok((proposal_id, group_id, members, proposal, votes).into())
     }
 
     fn get_proposals_by_group(
         &self,
         group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>> {
+    ) -> Result<Vec<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -372,7 +380,9 @@ where
 
         Ok(proposals
             .into_iter()
-            .map(|(proposal_id, proposal, votes)| (proposal_id, proposal, votes).into())
+            .map(|(proposal_id, group_id, members, proposal, votes)| {
+                (proposal_id, group_id, members, proposal, votes).into()
+            })
             .collect())
     }
 
@@ -383,7 +393,7 @@ where
     ) -> Result<
         Vec<(
             GroupId,
-            Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>,
+            Vec<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>,
         )>,
     > {
         let api = self.client.runtime_api();
@@ -400,7 +410,9 @@ where
                     group_id,
                     proposals
                         .into_iter()
-                        .map(|(proposal_id, proposal, votes)| (proposal_id, proposal, votes).into())
+                        .map(|(proposal_id, group_id, members, proposal, votes)| {
+                            (proposal_id, group_id, members, proposal, votes).into()
+                        })
                         .collect(),
                 )
             })

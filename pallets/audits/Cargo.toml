@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 codec = {package = "parity-scale-codec", version = "2.0.0", default-features = false}
+frame-benchmarking = {default-features = false, version = "3.1.0", optional = true}
 frame-support = {version = "3.0.0", default-features = false}
 frame-system = {version = "3.0.0", default-features = false}
 randomness = {package = "pallet-randomness-collective-flip", version = "3.0.0", default-features = false}
@@ -13,8 +14,6 @@ serde = "1.0"
 sp-runtime = {version = "3.0.0", default-features = false}
 sp-std = {package = "sp-std", version = "3.0.0", default-features = false}
 timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
-
-frame-benchmarking = {default-features = false, version = "3.1.0", optional = true}
 
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
 groups = {package = "pallet-groups", path = "../groups", default-features = false}

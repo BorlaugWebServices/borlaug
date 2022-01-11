@@ -156,7 +156,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 11,
+    spec_version: 14,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -946,8 +946,6 @@ construct_runtime!(
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 
-
-
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
 
@@ -1220,13 +1218,13 @@ impl_runtime_apis! {
         fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
             Groups::get_sub_groups(group_id)
         }
-        fn get_proposal(proposal_id:ProposalId) ->Option<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
+        fn get_proposal(proposal_id:ProposalId) ->Option<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
             Groups::get_proposal(proposal_id)
         }
-        fn get_proposals_by_group(group_id:GroupId) -> Vec<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
+        fn get_proposals_by_group(group_id:GroupId) -> Vec<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>,Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
             Groups::get_proposals_by_group(group_id)
         }
-        fn get_proposals_by_account(account_id: AccountId) -> Vec<(GroupId, Vec<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>)>{
+        fn get_proposals_by_account(account_id: AccountId) -> Vec<(GroupId, Vec<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>,Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>)>{
             Groups::get_proposals_by_account(account_id)
         }
     }
@@ -1311,6 +1309,9 @@ impl_runtime_apis! {
         }
         fn get_dids_in_catalog(catalog_id: CatalogId) -> Vec<Did>  {
             Identity::get_dids_in_catalog(catalog_id)
+        }
+        fn get_catalogs_by_did(did:Did) -> Vec<CatalogId>  {
+            Identity::get_catalogs_by_did(did)
         }
         fn get_did_in_catalog(catalog_id: CatalogId, did: Did) ->  Option<( DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)> {
             Identity::get_did_in_catalog(catalog_id, did)

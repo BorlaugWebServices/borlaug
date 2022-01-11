@@ -26,6 +26,8 @@ sp_api::decl_runtime_apis! {
 
         fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<Did>;
 
+        fn get_catalogs_by_did(did:Did) -> Vec<CatalogId>;
+
         fn get_did_in_catalog(catalog_id:CatalogId, did:Did) -> Option<(DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>;
 
         fn is_controller(account_id: AccountId, did:Did) -> bool;

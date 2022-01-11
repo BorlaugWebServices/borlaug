@@ -77,6 +77,8 @@ mod tests;
 
 pub mod weights;
 
+pub mod migration;
+
 #[frame_support::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
@@ -102,6 +104,14 @@ pub mod pallet {
         Did = 22,
         Claim = 23,
     }
+
+    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    pub enum Releases {
+        V1,
+        V2,
+        V3
+    }
+    
     #[pallet::config]
     pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -277,11 +287,45 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {    
+            let mut weight: Weight = 0;       
+            weight += super::migration::migrate_to_v2::<T>() ;
+            weight += super::migration::migrate_to_v3::<T>()   ;       
+            weight  
+        }
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        phantom: PhantomData<T>,
+    }
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig {
+                phantom: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <StorageVersion<T>>::put(Releases::V3);
+        }
+    }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    /// Storage version of the pallet.
+    ///
+    /// V2 - added DidCatalogs
+    /// V3 - added issued to attestation
+    pub type StorageVersion<T> = StorageValue<_, Releases, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
@@ -421,7 +465,7 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// Catalogs
+    /// Dids may be organized into catalogs
     #[pallet::storage]
     #[pallet::getter(fn catalogs)]
     pub type Catalogs<T: Config> = StorageDoubleMap<
@@ -434,12 +478,18 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// DidsByCatalog
     /// For each catalog index, we keep a mapping of `Did` an index name
     #[pallet::storage]
     #[pallet::getter(fn dids_by_catalog)]
     pub type DidsByCatalog<T: Config> =
         StorageDoubleMap<_, Blake2_128Concat, T::CatalogId, Blake2_128Concat, Did, (), OptionQuery>;
+        
+
+    /// For each did we keep a record or which catalogs they are in
+    #[pallet::storage]
+    #[pallet::getter(fn did_catalogs)]
+    pub type DidCatalogs<T: Config> =
+        StorageDoubleMap<_,Blake2_128Concat, Did, Blake2_128Concat, T::CatalogId,  (), OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -1028,9 +1078,10 @@ pub mod pallet {
                         .collect::<Vec<_>>();
 
                     claim.statements.retain(|s| !names.contains(&s.name));
-                    claim.statements.append(&mut stmts);
+                    claim.statements.append(&mut stmts);                 
                     claim.attestation = Some(Attestation {
                         attested_by: account_id.clone(),
+                        issued: <timestamp::Module<T>>::get(),
                         valid_until,
                     });
                 }
@@ -1150,9 +1201,17 @@ pub mod pallet {
 
             <Catalogs<T>>::remove(&group_account, catalog_id);
             //TODO: fix this for weights
-            <DidsByCatalog<T>>::remove_prefix(&catalog_id);
+            let mut did_count = 0;
+            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
+                <DidCatalogs<T>>::remove(&did,catalog_id);                
+                <DidsByCatalog<T>>::remove(catalog_id,&did);
+                did_count+=1;
+            });
+
+            
 
             Self::deposit_event(Event::CatalogRemoved(account_id, group_account, catalog_id));
+            //TODO: refund weight
             Ok(().into())
         }
 
@@ -1182,7 +1241,8 @@ pub mod pallet {
             );
 
             for did in dids.into_iter() {
-                <DidsByCatalog<T>>::insert(catalog_id, did, ());
+                <DidsByCatalog<T>>::insert(catalog_id, &did, ());
+                <DidCatalogs<T>>::insert(&did, catalog_id, ());
             }
 
             Self::deposit_event(Event::CatalogDidsAdded(
@@ -1220,6 +1280,7 @@ pub mod pallet {
 
             for did in dids.into_iter() {
                 <DidsByCatalog<T>>::remove(catalog_id, did);
+                <DidCatalogs<T>>::remove(&did, catalog_id);
             }
 
             Self::deposit_event(Event::CatalogDidsRemoved(
@@ -1249,6 +1310,12 @@ pub mod pallet {
             let mut dids = Vec::new();
             <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| dids.push(did));
             dids
+        }
+
+        pub fn get_catalogs_by_did(did: Did) -> Vec<T::CatalogId> {
+            let mut catalogs = Vec::new();
+            <DidCatalogs<T>>::iter_prefix(did).for_each(|(catalog_id, _)| catalogs.push(catalog_id));
+            catalogs
         }
 
         pub fn get_did_in_catalog(
@@ -1372,14 +1439,14 @@ pub mod pallet {
             <DidsByConsumer<T>>::iter_prefix(account)
                 .for_each(|(did, expiry)| dids.push((did, expiry)));
             dids
-        }
+        }        
 
         pub fn get_dids_by_issuer(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();
             <DidsByIssuer<T>>::iter_prefix(account)
                 .for_each(|(did, expiry)| dids.push((did, expiry)));
             dids
-        }
+        }     
 
         pub fn get_outstanding_claims(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();

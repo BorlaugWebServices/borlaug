@@ -1602,6 +1602,8 @@ pub mod pallet {
             proposal_id: T::ProposalId,
         ) -> Option<(
             T::ProposalId,
+            T::GroupId,
+            Vec<(T::AccountId, T::MemberCount)>,
             Option<(T::Hash, u32)>,
             Votes<T::AccountId, T::MemberCount>,
         )> {
@@ -1617,6 +1619,8 @@ pub mod pallet {
             group_id: T::GroupId,
         ) -> Vec<(
             T::ProposalId,
+            T::GroupId,
+            Vec<(T::AccountId, T::MemberCount)>,
             Option<(T::Hash, u32)>,
             Votes<T::AccountId, T::MemberCount>,
         )> {
@@ -1633,6 +1637,8 @@ pub mod pallet {
             T::GroupId,
             Vec<(
                 T::ProposalId,
+                T::GroupId,
+                Vec<(T::AccountId, T::MemberCount)>,
                 Option<(T::Hash, u32)>,
                 Votes<T::AccountId, T::MemberCount>,
             )>,
@@ -1747,6 +1753,8 @@ pub mod pallet {
         voting: Votes<T::AccountId, T::MemberCount>,
     ) -> (
         T::ProposalId,
+        T::GroupId,
+        Vec<(T::AccountId, T::MemberCount)>,
         Option<(T::Hash, u32)>,
         Votes<T::AccountId, T::MemberCount>,
     )
@@ -1755,6 +1763,10 @@ pub mod pallet {
     {
         (
             proposal_id,
+            group_id,
+            <GroupMembers<T>>::iter_prefix(group_id)
+                .map(|(account, weight)| (account, weight))
+                .collect(),
             <Proposals<T>>::get(group_id, proposal_id).map(|proposal| {
                 (
                     T::Hashing::hash_of(&proposal),

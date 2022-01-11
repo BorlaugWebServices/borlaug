@@ -19,7 +19,8 @@
     "description": "Vec<u8>",
     "statements": "Vec<Statement>",
     "created_by": "Did",
-    "attestation": "Option<Attestation>"
+    "attestation": "Option<Attestation>",
+    "threshold": "MemberCount"
   },
   "Statement": {
     "name": "Vec<u8>",
@@ -47,6 +48,7 @@
   },
   "Attestation": {
     "attested_by": "Did",
+    "issued": "Timestamp",
     "valid_until": "Timestamp"
   },
   "Asset": {
