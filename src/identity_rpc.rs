@@ -114,7 +114,9 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         &self,
         consumer: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuthorizedDidWithClaimsResponse<ClaimId, AccountId, MemberCount, Moment>>>;
+    ) -> Result<
+        Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
+    >;
 
     #[rpc(name = "get_dids_by_issuer")]
     fn get_dids_by_issuer(
@@ -127,7 +129,9 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         &self,
         issuer: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuthorizedDidWithClaimsResponse<ClaimId, AccountId, MemberCount, Moment>>>;
+    ) -> Result<
+        Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
+    >;
 
     #[rpc(name = "get_outstanding_claims")]
     fn get_outstanding_claims(
@@ -517,15 +521,17 @@ impl<Moment> From<(pallet_primitives::Did, Moment)> for AuthorizedDidResponse<Mo
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AuthorizedDidWithClaimsResponse<ClaimId, AccountId, MemberCount, Moment> {
+pub struct AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment> {
     pub did: String,
+    pub catalogs: Vec<CatalogId>,
     pub valid_until: Moment,
     pub claims: Vec<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>,
 }
 
-impl<ClaimId, AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact>
+impl<ClaimId, CatalogId, AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact>
     From<(
         pallet_primitives::Did,
+        Vec<CatalogId>,
         Moment,
         Vec<(
             ClaimId,
@@ -537,14 +543,15 @@ impl<ClaimId, AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFa
                 BoundedStringFact,
             >,
         )>,
-    )> for AuthorizedDidWithClaimsResponse<ClaimId, AccountId, MemberCount, Moment>
+    )> for AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>
 where
     BoundedStringName: Into<Vec<u8>>,
     BoundedStringFact: Into<Vec<u8>>,
 {
     fn from(
-        (did, expiry, claims): (
+        (did, catalogs, expiry, claims): (
             pallet_primitives::Did,
+            Vec<CatalogId>,
             Moment,
             Vec<(
                 ClaimId,
@@ -561,6 +568,7 @@ where
         let did: Did = did.into();
         AuthorizedDidWithClaimsResponse {
             did: did.to_string(),
+            catalogs,
             valid_until: expiry,
             claims: claims
                 .into_iter()
@@ -880,7 +888,9 @@ where
         &self,
         consumer: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuthorizedDidWithClaimsResponse<ClaimId, AccountId, MemberCount, Moment>>> {
+    ) -> Result<
+        Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -890,8 +900,11 @@ where
 
         dids.into_iter()
             .map(|(did, expiry)| {
+                let catalogs = api
+                    .get_catalogs_by_did(&at, did)
+                    .map_err(convert_error!())?;
                 let claims = api.get_claims(&at, did).map_err(convert_error!())?;
-                Ok((did, expiry, claims).into())
+                Ok((did, catalogs, expiry, claims).into())
             })
             .collect::<Result<Vec<_>>>()
     }
@@ -917,7 +930,9 @@ where
         &self,
         issuer: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuthorizedDidWithClaimsResponse<ClaimId, AccountId, MemberCount, Moment>>> {
+    ) -> Result<
+        Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -926,8 +941,11 @@ where
             .map_err(convert_error!())?;
         dids.into_iter()
             .map(|(did, expiry)| {
+                let catalogs = api
+                    .get_catalogs_by_did(&at, did)
+                    .map_err(convert_error!())?;
                 let claims = api.get_claims(&at, did).map_err(convert_error!())?;
-                Ok((did, expiry, claims).into())
+                Ok((did, catalogs, expiry, claims).into())
             })
             .collect::<Result<Vec<_>>>()
     }

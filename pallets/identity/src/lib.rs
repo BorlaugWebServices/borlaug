@@ -109,9 +109,9 @@ pub mod pallet {
     pub enum Releases {
         V1,
         V2,
-        V3
+        V3,
     }
-    
+
     #[pallet::config]
     pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -179,10 +179,10 @@ pub mod pallet {
         BulkRegistered(T::AccountId, T::AccountId, u32),
         /// Did properties added
         /// (caller, controller, did)
-        DidPropertiesAdded(T::AccountId, T::AccountId, Did),       
+        DidPropertiesAdded(T::AccountId, T::AccountId, Did),
         /// Did properties removed
         /// (caller, controller, did)
-        DidPropertiesRemoved(T::AccountId, T::AccountId, Did),       
+        DidPropertiesRemoved(T::AccountId, T::AccountId, Did),
         /// DID Controller updated
         /// (caller, controller, target_did, added_controllers, removed_controllers)
         DidControllerUpdated(
@@ -288,11 +288,11 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {    
-            let mut weight: Weight = 0;       
-            weight += super::migration::migrate_to_v2::<T>() ;
-            weight += super::migration::migrate_to_v3::<T>()   ;       
-            weight  
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            let mut weight: Weight = 0;
+            weight += super::migration::migrate_to_v2::<T>();
+            weight += super::migration::migrate_to_v3::<T>();
+            weight
         }
     }
 
@@ -483,13 +483,12 @@ pub mod pallet {
     #[pallet::getter(fn dids_by_catalog)]
     pub type DidsByCatalog<T: Config> =
         StorageDoubleMap<_, Blake2_128Concat, T::CatalogId, Blake2_128Concat, Did, (), OptionQuery>;
-        
 
     /// For each did we keep a record or which catalogs they are in
     #[pallet::storage]
     #[pallet::getter(fn did_catalogs)]
     pub type DidCatalogs<T: Config> =
-        StorageDoubleMap<_,Blake2_128Concat, Did, Blake2_128Concat, T::CatalogId,  (), OptionQuery>;
+        StorageDoubleMap<_, Blake2_128Concat, Did, Blake2_128Concat, T::CatalogId, (), OptionQuery>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -625,11 +624,11 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `did` DID to which properties are to be added
-        /// - `properties` DID properties to be added       
+        /// - `properties` DID properties to be added
         #[pallet::weight(<T as Config>::WeightInfo::add_did_properties(
             get_max_property_name_len(properties),
             get_max_property_fact_len(properties),
-            properties.len() as u32,           
+            properties.len() as u32,
         ))]
         pub fn add_did_properties(
             origin: OriginFor<T>,
@@ -663,9 +662,9 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `did` DID to which properties are to be added
-        /// - `keys` Keys of DID properties to be removed     
+        /// - `keys` Keys of DID properties to be removed
         #[pallet::weight(<T as Config>::WeightInfo::remove_did_properties(
-          
+
             get_max_key_len(keys),
             keys.len() as u32,
         ))]
@@ -1078,7 +1077,7 @@ pub mod pallet {
                         .collect::<Vec<_>>();
 
                     claim.statements.retain(|s| !names.contains(&s.name));
-                    claim.statements.append(&mut stmts);                 
+                    claim.statements.append(&mut stmts);
                     claim.attestation = Some(Attestation {
                         attested_by: account_id.clone(),
                         issued: <timestamp::Module<T>>::get(),
@@ -1203,12 +1202,10 @@ pub mod pallet {
             //TODO: fix this for weights
             let mut did_count = 0;
             <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
-                <DidCatalogs<T>>::remove(&did,catalog_id);                
-                <DidsByCatalog<T>>::remove(catalog_id,&did);
-                did_count+=1;
+                <DidCatalogs<T>>::remove(&did, catalog_id);
+                <DidsByCatalog<T>>::remove(catalog_id, &did);
+                did_count += 1;
             });
-
-            
 
             Self::deposit_event(Event::CatalogRemoved(account_id, group_account, catalog_id));
             //TODO: refund weight
@@ -1241,6 +1238,8 @@ pub mod pallet {
             );
 
             for did in dids.into_iter() {
+                ensure!(<DidDocuments<T>>::contains_key(&did), Error::<T>::NotFound);
+
                 <DidsByCatalog<T>>::insert(catalog_id, &did, ());
                 <DidCatalogs<T>>::insert(&did, catalog_id, ());
             }
@@ -1293,10 +1292,10 @@ pub mod pallet {
     }
 
     impl<T: Config> Module<T> {
-        // -- rpc api functions --        
+        // -- rpc api functions --
 
-        pub fn is_catalog_owner(account_id: T::AccountId,catalog_id: T::CatalogId) -> bool {            
-            <Catalogs<T>>::contains_key(account_id,catalog_id)               
+        pub fn is_catalog_owner(account_id: T::AccountId, catalog_id: T::CatalogId) -> bool {
+            <Catalogs<T>>::contains_key(account_id, catalog_id)
         }
 
         pub fn get_catalogs(account_id: T::AccountId) -> Vec<T::CatalogId> {
@@ -1314,7 +1313,8 @@ pub mod pallet {
 
         pub fn get_catalogs_by_did(did: Did) -> Vec<T::CatalogId> {
             let mut catalogs = Vec::new();
-            <DidCatalogs<T>>::iter_prefix(did).for_each(|(catalog_id, _)| catalogs.push(catalog_id));
+            <DidCatalogs<T>>::iter_prefix(did)
+                .for_each(|(catalog_id, _)| catalogs.push(catalog_id));
             catalogs
         }
 
@@ -1347,8 +1347,8 @@ pub mod pallet {
                 .flatten()
         }
 
-        pub fn is_controller(account_id:T::AccountId, did: Did) -> bool{
-            <DidControllers<T>>::contains_key(&did,&account_id)
+        pub fn is_controller(account_id: T::AccountId, did: Did) -> bool {
+            <DidControllers<T>>::contains_key(&did, &account_id)
         }
 
         pub fn get_did(
@@ -1439,14 +1439,14 @@ pub mod pallet {
             <DidsByConsumer<T>>::iter_prefix(account)
                 .for_each(|(did, expiry)| dids.push((did, expiry)));
             dids
-        }        
+        }
 
         pub fn get_dids_by_issuer(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();
             <DidsByIssuer<T>>::iter_prefix(account)
                 .for_each(|(did, expiry)| dids.push((did, expiry)));
             dids
-        }     
+        }
 
         pub fn get_outstanding_claims(account: T::AccountId) -> Vec<(Did, T::Moment)> {
             let mut dids = Vec::new();
@@ -1543,23 +1543,23 @@ pub mod pallet {
             ));
         }
     }
-    // -- for use in weights --    
+    // -- for use in weights --
 
     macro_rules! max_fact_len {
         ($fact:expr,$max_fact_len:ident) => {{
             let fact_len = match &$fact {
-                Fact::Bool(..)=> 1u32,
+                Fact::Bool(..) => 1u32,
                 Fact::Text(string) => string.len() as u32,
-                Fact::Attachment(_hash,filename) => 32u32+(filename.len() as u32),
+                Fact::Attachment(_hash, filename) => 32u32 + (filename.len() as u32),
                 Fact::Location(..) => 2u32,
                 Fact::Did(..) => 32u32,
                 Fact::Float(..) => 8u32,
                 Fact::U8(..) => 1u32,
                 Fact::U16(..) => 2u32,
-                Fact::U32(..)=> 4u32,               
+                Fact::U32(..) => 4u32,
                 Fact::U128(..) => 16u32,
                 Fact::Date(..) => 4u32,
-                Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?                
+                Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
             };
             if fact_len > $max_fact_len {
                 $max_fact_len = fact_len;
