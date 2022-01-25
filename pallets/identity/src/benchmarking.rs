@@ -74,14 +74,14 @@ fn create_accounts<T: Config>(n: u32, seed: u32) -> Vec<T::AccountId> {
 
 benchmarks! {
     register_did {
-        let b in 5 .. (<T as Config>::NameLimit::get()-1);//property name length
-        let c in 1 .. (<T as Config>::FactStringLimit::get()-1);//property fact length
-        let d in 1 .. (<T as Config>::PropertyLimit::get()-1);//property count
+        let a in 5 .. <T as Config>::NameLimit::get();//property name length
+        let b in 1 .. <T as Config>::FactStringLimit::get();//property fact length
+        let c in 1 .. <T as Config>::PropertyLimit::get();//property count
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let properties=create_properties(d,b,c,1);
+        let properties=create_properties(c,a,b,1);
 
     }: _(SystemOrigin::Signed(caller.clone()), Some(properties))
 
@@ -96,19 +96,20 @@ benchmarks! {
             dids_by_subject.push(did);
         });
         assert_eq!(dids_by_subject.len(), 1);
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&dids_by_subject[0]).count(), c as usize);
     }
 
     register_did_for {
-        let b in 5 .. (<T as Config>::NameLimit::get()-1);//property name length
-        let c in 1 .. (<T as Config>::FactStringLimit::get()-1);//property fact length
-        let d in 1 .. (<T as Config>::PropertyLimit::get()-1);//property count
+        let a in 5 .. <T as Config>::NameLimit::get();//property name length
+        let b in 1 .. <T as Config>::FactStringLimit::get();//property fact length
+        let c in 1 .. <T as Config>::PropertyLimit::get();//property count
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let subject:<T as frame_system::Config>::AccountId = whitelisted_caller();
 
-        let properties=create_properties(d,b,c,1);
+        let properties=create_properties(c,a,b,1);
 
     }: _(SystemOrigin::Signed(caller.clone()),subject.clone(), Some(properties))
 
@@ -123,63 +124,47 @@ benchmarks! {
             dids_by_subject.push(did);
         });
         assert_eq!(dids_by_subject.len(), 1);
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&dids_by_subject[0]).count(), c as usize);
     }
 
+    add_did_properties {
+        let a in 5 .. <T as Config>::NameLimit::get();
+        let b in 1 .. <T as Config>::FactStringLimit::get();
+        let c in 1 .. <T as Config>::PropertyLimit::get();
 
-    // register_did_for_bulk {
-    //     //use lower numbers than the real limits because real limits can exceed chain limits.
-    //     //TODO: check whether or not this is an issue in other instances.
-    //     let a in 1 .. 200;//(<T as Config>::NameLimit::get() -1);//short_name length
-    //     let b in 5 .. 200;//(<T as Config>::NameLimit::get()-1);//property name length
-    //     let c in 1 .. 200;//(<T as Config>::FactStringLimit::get()-1);//property fact length
-    //     let d in 1 .. 200;//(<T as Config>::PropertyLimit::get()-1);//property count
-    //     let e in 1 .. 200;//(<T as Config>::BulkDidLimit::get()-1);//bulk did count
+        let caller = whitelisted_caller();
+        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-    //     let caller = whitelisted_caller();
-    //     T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        IdentityPallet::<T>::register_did(origin,None)?;
 
-    //     let subject:<T as frame_system::Config>::AccountId = whitelisted_caller();
+        let mut dids_by_controller=Vec::new();
+        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did=dids_by_controller[0];
 
-    //     let mut dids=vec![];
-    //     for i in 0..e {
-    //         let name = vec![42u8; a as usize];
-    //         let properties=create_properties(d,b,c,1);
-    //         dids.push((subject.clone(),Some(name),Some(properties)));
-    //     }
+        let properties=create_properties(c,a,b,2);
+        assert_eq!(properties.len(), c as usize);
 
-    // }: _(SystemOrigin::Signed(caller.clone()),dids)
+    }: _(SystemOrigin::Signed(caller.clone()),did, properties.clone())
 
-    // verify {
-    //     let mut dids_by_controller=Vec::new();
-    //     <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
-    //         assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&did).count(), d as usize);
-    //         dids_by_controller.push(did);
-    //     });
-    //     assert_eq!(dids_by_controller.len(), e as usize);
+    verify {
+        assert!(<DidDocuments<T>>::contains_key(&did));
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&did).count(), c as usize);
+    }
 
-    //     let mut dids_by_subject=Vec::new();
-    //     <DidByController<T>>::iter_prefix(&subject).for_each(|(did, _)| {
-    //         dids_by_subject.push(did);
-    //     });
-    //     assert_eq!(dids_by_subject.len(), e as usize);
-    // }
-
-
-    //TODO: should we worry about None? Current weight may charge an extra read + write max.
-    update_did {
-        let b in 5 .. (<T as Config>::NameLimit::get()-1); //add property name length
-        let c in 1 .. (<T as Config>::FactStringLimit::get()-1); //add property fact length
-        let d in 1 .. (<T as Config>::PropertyLimit::get()-1); //add property count
-        let e in 5 .. (<T as Config>::NameLimit::get()-1); //remove_keys key length
-        let f in 1 .. (<T as Config>::PropertyLimit::get()-1); //remove_keys count
-
+    remove_did_properties {
+        let a in 5 .. <T as Config>::NameLimit::get();
+        let b in 1 .. <T as Config>::PropertyLimit::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         //these will be removed
-        let origional_properties=create_properties(f,e,<T as Config>::FactStringLimit::get()-1,1);
-        assert_eq!(origional_properties.len(),f as usize);
+        let origional_properties=create_properties(b,a,<T as Config>::FactStringLimit::get()-1,1);
+        assert_eq!(origional_properties.len(),b as usize);
 
         let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin,Some(origional_properties.clone()))?;
@@ -191,68 +176,20 @@ benchmarks! {
         assert_eq!(dids_by_controller.len(), 1);
         let did=dids_by_controller[0];
 
-        let mut stored_properties=Vec::new();
-        <DidDocumentProperties<T>>::iter_prefix(&did).for_each(|(_, property)| {
-            stored_properties.push(property);
-        });
-        assert_eq!(stored_properties.len(), f as usize);
-
-        let add_properties=create_properties(d,b,c,2);
-        assert_eq!(add_properties.len(), d as usize);
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&did).count(), b as usize);
 
         let remove_keys=origional_properties.into_iter().map(|property|property.name).collect();
 
-    }: _(SystemOrigin::Signed(caller.clone()),did, Some(add_properties.clone()),Some(remove_keys))
+    }: _(SystemOrigin::Signed(caller.clone()),did, remove_keys)
 
     verify {
         assert!(<DidDocuments<T>>::contains_key(&did));
-
-        let mut stored_properties=Vec::new();
-        <DidDocumentProperties<T>>::iter_prefix(&did).for_each(|(_, property)| {
-            stored_properties.push(property);
-        });
-        assert_eq!(stored_properties.len(), add_properties.len());
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&did).count(),0);
     }
-
-    replace_did {
-        let a in 5 .. (<T as Config>::NameLimit::get()-1); //replace property name length
-        let b in 1 .. (<T as Config>::FactStringLimit::get()-1); //replace property fact length
-        let c in 1 .. (<T as Config>::PropertyLimit::get()-1); //replace property count
-        let d in 1 .. (<T as Config>::PropertyLimit::get()-1); //origional_properties count
-
-        let caller = whitelisted_caller();
-        T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-
-        //these will be removed. Name length and fact length have no effect
-        let origional_properties=create_properties(d,<T as Config>::NameLimit::get()-1,<T as Config>::FactStringLimit::get()-1,1);
-
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin, Some(origional_properties.clone()))?;
-
-        let mut dids_by_controller=Vec::new();
-        <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
-            dids_by_controller.push(did);
-        });
-        assert_eq!(dids_by_controller.len(), 1);
-        let did=dids_by_controller[0];
-
-        let replace_properties=create_properties(c,a,b,2);
-
-    }: _(SystemOrigin::Signed(caller.clone()),did,  replace_properties.clone())
-
-    verify {
-
-        let mut stored_properties=Vec::new();
-        <DidDocumentProperties<T>>::iter_prefix(&did).for_each(|(_, property)| {
-            stored_properties.push(property);
-        });
-        assert_eq!(stored_properties.len(), replace_properties.len());
-    }
-
 
     manage_controllers {
-        let a in 1 .. (<T as Config>::ControllerLimit::get()-1); //origional controller count (will be removed)
-        let b in 1 .. (<T as Config>::ControllerLimit::get()-1); //add controller count
+        let a in 1 .. <T as Config>::ControllerLimit::get(); //origional controller count (will be removed)
+        let b in 1 .. <T as Config>::ControllerLimit::get(); //add controller count
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -285,7 +222,7 @@ benchmarks! {
     }
 
     authorize_claim_consumers {
-        let a in 1 .. (<T as Config>::ClaimConsumerLimit::get()-1);
+        let a in 1 .. <T as Config>::ClaimConsumerLimit::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -316,7 +253,7 @@ benchmarks! {
     }
 
     revoke_claim_consumers {
-        let a in 1 .. (<T as Config>::ClaimConsumerLimit::get()-1);
+        let a in 1 .. <T as Config>::ClaimConsumerLimit::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -349,7 +286,7 @@ benchmarks! {
     }
 
     authorize_claim_issuers {
-        let a in 1 .. (<T as Config>::ClaimIssuerLimit::get()-1);
+        let a in 1 .. <T as Config>::ClaimIssuerLimit::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -380,7 +317,7 @@ benchmarks! {
     }
 
     revoke_claim_issuers {
-        let a in 1 .. (<T as Config>::ClaimIssuerLimit::get()-1);
+        let a in 1 .. <T as Config>::ClaimIssuerLimit::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -413,10 +350,10 @@ benchmarks! {
     }
 
     make_claim {
-        let a in 1 .. (<T as Config>::NameLimit::get()-1);
-        let b in 1 .. (<T as Config>::StatementLimit::get()-1);
-        let c in 5 .. (<T as Config>::NameLimit::get()-1);
-        let d in 1 .. (<T as Config>::FactStringLimit::get()-1);
+        let a in 1 .. <T as Config>::NameLimit::get();
+        let b in 1 .. <T as Config>::StatementLimit::get();
+        let c in 5 .. <T as Config>::NameLimit::get();
+        let d in 1 .. <T as Config>::FactStringLimit::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -463,10 +400,10 @@ benchmarks! {
 
 
     attest_claim {
-        let a in 1 .. (<T as Config>::StatementLimit::get()-1);   //existing statement
-        let b in 1 .. (<T as Config>::StatementLimit::get()-1);   //additional statements
-        let c in 5 .. (<T as Config>::NameLimit::get()-1);
-        let d in 1 .. (<T as Config>::FactStringLimit::get()-1);
+        let a in 1 .. <T as Config>::StatementLimit::get();   //existing statement
+        let b in 1 .. <T as Config>::StatementLimit::get();   //additional statements
+        let c in 5 .. <T as Config>::NameLimit::get();
+        let d in 1 .. <T as Config>::FactStringLimit::get();
 
         //TODO:test with group attestation as that has an extra db read
 
@@ -525,9 +462,9 @@ benchmarks! {
     }
 
     revoke_attestation {
-        let a in 1 .. (<T as Config>::StatementLimit::get()-1);   //existing statement
-        let b in 5 .. (<T as Config>::NameLimit::get()-1);
-        let c in 1 .. (<T as Config>::FactStringLimit::get()-1);
+        let a in 1 .. <T as Config>::StatementLimit::get();   //existing statement
+        let b in 5 .. <T as Config>::NameLimit::get();
+        let c in 1 .. <T as Config>::FactStringLimit::get();
 
         //TODO:test with group attestation as that has an extra db read
 
@@ -623,7 +560,7 @@ benchmarks! {
 
     add_dids_to_catalog {
 
-        let a in 1 .. (<T as Config>::CatalogDidLimit::get()-1);
+        let a in 1 .. <T as Config>::CatalogDidLimit::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
@@ -654,7 +591,7 @@ benchmarks! {
 
     remove_dids_from_catalog {
 
-        let a in 1 .. (<T as Config>::CatalogDidLimit::get()-1);
+        let a in 1 .. <T as Config>::CatalogDidLimit::get();
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());

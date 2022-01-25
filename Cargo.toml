@@ -23,7 +23,7 @@ jsonrpc-core-client = "15.1.0"
 jsonrpc-derive = "15.1.0"
 log = "0.4.11"
 parking_lot = "0.10.0"
-serde = {version = "1.0.126", features = ["derive"]}
+serde = {version = "1.0.130", features = ["derive"]}
 
 # primitives
 sp-authority-discovery = "3.0.0"

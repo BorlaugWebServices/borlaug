@@ -1,6 +1,6 @@
 {
-  "Address": "MultiAddress",
-  "LookupSource": "MultiAddress",
+  "Address": "AccountId",
+  "LookupSource": "AccountId",
   "Balance": "u128",
   "Timestamp": "u64",
   "Moment": "u64",
@@ -8,9 +8,9 @@
   "RegistryId": "u32",
   "AssetId": "u32",
   "LeaseId": "u32",
-  "DefinitionId": "u32",
-  "DefinitionStepIndex": "u32",
-  "ProcessId": "u32",
+  "TemplateId": "u32",
+  "TemplateStepIndex": "u8",
+  "SequenceId": "u32",
   "Did": {
     "id": "[u8; 32]"
   },
@@ -19,8 +19,7 @@
     "description": "Vec<u8>",
     "statements": "Vec<Statement>",
     "created_by": "Did",
-    "attestation": "Option<Attestation>",
-    "threshold": "MemberCount"
+    "attestation": "Option<Attestation>"
   },
   "Statement": {
     "name": "Vec<u8>",
@@ -48,7 +47,6 @@
   },
   "Attestation": {
     "attested_by": "Did",
-    "issued": "Timestamp",
     "valid_until": "Timestamp"
   },
   "Asset": {
@@ -106,17 +104,18 @@
       "Completed"
     ]
   },
+  "AuditCreatorId": "AccountId",
   "AuditorId": "AccountId",
   "Audit": {
     "status": "AuditStatus",
-    "audit_creator": "AccountId",
+    "audit_creator": "AuditCreatorId",
     "auditor": "AuditorId"
   },
   "ControlPointId": "u32",
   "ObservationId": "u32",
   "Observation": {
     "compliance": "Option<Compliance>",
-    "procedural_note_hash": "Option<[u8; 32]>"
+    "procedural_note": "Option<[u8; 32]>"
   },
   "Compliance": {
     "_enum": [
@@ -132,50 +131,32 @@
     "url": "Option<Vec<u8>>",
     "hash": "Vec<u8>"
   },
-  "Process": {
-    "name": "Vec<u8>",
-    "status": "ProcessStatus"
-  },
-  "Definition": {
-    "name": "Vec<u8>"
-  },
-  "DefinitionStep": {
-    "name": "Vec<u8>"
-  },
-  "ProcessStatus": {
-    "_enum": [
-      "InProgress",
-      "Completed"
-    ]
-  },
-  "ProcessStep": {
-    "attested_by": "Account",
-    "attributes": "Vec<Attribute>"
+  "Attestor": {
+    "short_name": "Vec<u8>",
+    "did": "Did"
   },
   "Attribute": {
     "name": "Vec<u8>",
     "fact": "Fact"
   },
-  "GroupId": "u32",
-  "ProposalId": "u32",
-  "MemberCount": "u32",
-  "Group": {
+  "Sequence": {
     "name": "Vec<u8>",
-    "total_vote_weight": "MemberCount",
-    "threshold": "MemberCount",
-    "anonymous_account": "AccountId",
-    "parent": "Option<GroupId>"
+    "status": "SequenceStatus"
   },
-  "Votes": {
-    "threshold": "MemberCount",
-    "total_vote_weight": "MemberCount",
-    "ayes": "Vec<(AccountId, MemberCount)>",
-    "nays": "Vec<(AccountId, MemberCount)>",
-    "veto": "Option<bool>"
+  "SequenceStatus": {
+    "_enum": [
+      "InProgress",
+      "Completed"
+    ]
   },
-  "Registry": {
+  "SequenceStep": {
+    "attested_by": "Did",
+    "attributes": "Vec<Attribute>"
+  },
+  "Template": {
     "name": "Vec<u8>"
   },
-  "ModuleIndex": "u8",
-  "ExtrinsicIndex": "u8"
+  "TemplateStep": {
+    "name": "Vec<u8>"
+  }
 }

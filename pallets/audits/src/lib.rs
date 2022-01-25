@@ -53,8 +53,12 @@ mod mock;
 mod tests;
 
 pub mod weights;
+
+pub mod migration;
+
 #[frame_support::pallet]
 pub mod pallet {
+
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
@@ -71,6 +75,12 @@ pub mod pallet {
         Audit = 51,
         Observation = 52,
         Evidence = 53,
+    }
+
+    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    pub enum Releases {
+        V1,
+        V2,
     }
 
     #[pallet::config]
@@ -109,6 +119,8 @@ pub mod pallet {
         type WeightInfo: WeightInfo;
         /// The maximum length of a name or symbol stored on-chain.
         type NameLimit: Get<u32>;
+        /// The maximum length of a url (evidence).
+        type UrlLimit: Get<u32>;
         /// The maximum number of evidence_links that can be removed in one attempt when deleting evidence.
         type MaxLinkRemove: Get<u32>;
     }
@@ -168,7 +180,7 @@ pub mod pallet {
             T::EvidenceId,
             T::ObservationId,
         ),
-        /// Evidence Deleted from Audit (auditors, proposal_id, audit_id, evidence_id)       
+        /// Evidence Deleted from Audit (auditors, proposal_id, audit_id, evidence_id)      
         EvidenceDeleted(T::AccountId, T::ProposalId, T::AuditId, T::EvidenceId),
         /// Evidence could not be deleted due to too many observation links. Call delete_evidence again. (auditors, proposal_id, audit_id, evidence_id)
         EvidenceDeleteFailed(T::AccountId, T::ProposalId, T::AuditId, T::EvidenceId),
@@ -202,6 +214,8 @@ pub mod pallet {
         EvidenceNotFound,
         /// The max Evidence link limit was exceeded
         RemoveLinkLimitExceeded,
+        /// The maximum allowed url length was exceeded
+        UrLLimitExceeded,
     }
 
     #[pallet::type_value]
@@ -223,11 +237,43 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            //forgot to update version number so removed
+            // super::migration::migrate_to_v2::<T>()
+            0
+        }
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        phantom: PhantomData<T>,
+    }
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig {
+                phantom: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <StorageVersion<T>>::put(Releases::V2);
+        }
+    }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    /// Storage version of the pallet.
+    ///
+    /// V2 - added proposal_id to observation struct
+    pub type StorageVersion<T> = StorageValue<_, Releases, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn nonce)]
@@ -340,7 +386,7 @@ pub mod pallet {
         (T::AuditId, T::ControlPointId),
         Blake2_128Concat,
         T::ObservationId,
-        Observation,
+        Observation<T::ProposalId>,
         OptionQuery,
     >;
 
@@ -353,7 +399,11 @@ pub mod pallet {
         T::AuditId,
         Blake2_128Concat,
         T::EvidenceId,
-        Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+        Evidence<
+            T::ProposalId,
+            BoundedVec<u8, <T as Config>::NameLimit>,
+            BoundedVec<u8, <T as Config>::UrlLimit>,
+        >,
         OptionQuery,
     >;
 
@@ -394,10 +444,12 @@ pub mod pallet {
         ///
         /// Arguments:
         /// `auditing_org` : account_id of the auditing_org (can be an individual account or a group)
+        /// `unique_ref` : a reference to ensure that proposals remain unique.
         #[pallet::weight(<T as Config>::WeightInfo::create_audit())]
         pub fn create_audit(
             origin: OriginFor<T>,
             auditing_org: T::AccountId,
+            _unique_ref: u32,
         ) -> DispatchResultWithPostInfo {
             let (_, proposal_id, _, _, group_account) =
                 <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
@@ -695,7 +747,8 @@ pub mod pallet {
             origin: OriginFor<T>,
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
-            observation: Observation,
+            compliance: Option<Compliance>,
+            procedural_note_hash: Option<[u8; 32]>,
         ) -> DispatchResultWithPostInfo {
             let (_, proposal_id, _, _, group_account) =
                 <T as groups::Config>::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
@@ -732,6 +785,12 @@ pub mod pallet {
 
             let observation_id = next_id!(NextObservationId<T>, T);
 
+            let observation = Observation {
+                proposal_id,
+                compliance,
+                procedural_note_hash,
+            };
+
             <Observations<T>>::insert((&audit_id, &control_point_id), &observation_id, observation);
             <ObservationByProposal<T>>::insert(
                 &proposal_id,
@@ -766,6 +825,7 @@ pub mod pallet {
             name: Vec<u8>,
             content_type: Vec<u8>,
             url: Option<Vec<u8>>,
+            //TODO: use [u8; 32]
             hash: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let (_, proposal_id, _, _, group_account) =
@@ -787,7 +847,7 @@ pub mod pallet {
             let bounded_content_type = enforce_limit!(content_type);
             let bounded_hash = enforce_limit!(hash);
             let bounded_name = enforce_limit!(name);
-            let bounded_url = enforce_limit_option!(url);
+            let bounded_url = enforce_url_limit_option!(url);
 
             T::GetExtrinsicExtraSource::charge_extrinsic_extra(
                 &MODULE_INDEX,
@@ -1049,19 +1109,61 @@ pub mod pallet {
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
             observation_id: T::ObservationId,
-        ) -> Option<Observation> {
-            <Observations<T>>::get((audit_id, control_point_id), observation_id)
+        ) -> Option<(
+            Observation<T::ProposalId>,
+            Vec<(
+                T::EvidenceId,
+                Evidence<
+                    T::ProposalId,
+                    BoundedVec<u8, <T as Config>::NameLimit>,
+                    BoundedVec<u8, <T as Config>::UrlLimit>,
+                >,
+            )>,
+        )> {
+            <Observations<T>>::get((audit_id, control_point_id), observation_id).map(
+                |observation| {
+                    let mut evidences = Vec::new();
+                    <EvidenceLinksByObservation<T>>::iter_prefix(observation_id).for_each(
+                        |(evidence_id, _)| {
+                            if let Some(evidence) = <Evidences<T>>::get(audit_id, evidence_id) {
+                                evidences.push((evidence_id, evidence));
+                            }
+                        },
+                    );
+                    (observation, evidences)
+                },
+            )
         }
 
         pub fn get_observation_by_proposal(
             proposal_id: T::ProposalId,
-        ) -> Option<(T::ObservationId, Observation)> {
+        ) -> Option<(
+            T::ObservationId,
+            Observation<T::ProposalId>,
+            Vec<(
+                T::EvidenceId,
+                Evidence<
+                    T::ProposalId,
+                    BoundedVec<u8, <T as Config>::NameLimit>,
+                    BoundedVec<u8, <T as Config>::UrlLimit>,
+                >,
+            )>,
+        )> {
             <ObservationByProposal<T>>::get(proposal_id).map(
                 |(audit_id, control_point_id, observation_id)| {
+                    let mut evidences = Vec::new();
+                    <EvidenceLinksByObservation<T>>::iter_prefix(observation_id).for_each(
+                        |(evidence_id, _)| {
+                            if let Some(evidence) = <Evidences<T>>::get(audit_id, evidence_id) {
+                                evidences.push((evidence_id, evidence));
+                            }
+                        },
+                    );
                     (
                         observation_id,
                         <Observations<T>>::get((audit_id, control_point_id), observation_id)
                             .unwrap(),
+                        evidences,
                     )
                 },
             )
@@ -1070,10 +1172,31 @@ pub mod pallet {
         pub fn get_observation_by_control_point(
             audit_id: T::AuditId,
             control_point_id: T::ControlPointId,
-        ) -> Vec<(T::ObservationId, Observation)> {
+        ) -> Vec<(
+            T::ObservationId,
+            Observation<T::ProposalId>,
+            Vec<(
+                T::EvidenceId,
+                Evidence<
+                    T::ProposalId,
+                    BoundedVec<u8, <T as Config>::NameLimit>,
+                    BoundedVec<u8, <T as Config>::UrlLimit>,
+                >,
+            )>,
+        )> {
             let mut observations = Vec::new();
             <Observations<T>>::iter_prefix((audit_id, control_point_id)).for_each(
-                |(observation_id, observation)| observations.push((observation_id, observation)),
+                |(observation_id, observation)| {
+                    let mut evidences = Vec::new();
+                    <EvidenceLinksByObservation<T>>::iter_prefix(observation_id).for_each(
+                        |(evidence_id, _)| {
+                            if let Some(evidence) = <Evidences<T>>::get(audit_id, evidence_id) {
+                                evidences.push((evidence_id, evidence));
+                            }
+                        },
+                    );
+                    observations.push((observation_id, observation, evidences))
+                },
             );
             observations
         }
@@ -1081,7 +1204,13 @@ pub mod pallet {
         pub fn get_evidence(
             audit_id: T::AuditId,
             evidence_id: T::EvidenceId,
-        ) -> Option<Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>> {
+        ) -> Option<
+            Evidence<
+                T::ProposalId,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::UrlLimit>,
+            >,
+        > {
             <Evidences<T>>::get(audit_id, evidence_id)
         }
 
@@ -1089,7 +1218,11 @@ pub mod pallet {
             audit_id: T::AuditId,
         ) -> Vec<(
             T::EvidenceId,
-            Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            Evidence<
+                T::ProposalId,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::UrlLimit>,
+            >,
         )> {
             let mut evidences = Vec::new();
             <Evidences<T>>::iter_prefix(audit_id)
@@ -1101,7 +1234,11 @@ pub mod pallet {
             proposal_id: T::ProposalId,
         ) -> Option<(
             T::EvidenceId,
-            Evidence<T::ProposalId, BoundedVec<u8, <T as Config>::NameLimit>>,
+            Evidence<
+                T::ProposalId,
+                BoundedVec<u8, <T as Config>::NameLimit>,
+                BoundedVec<u8, <T as Config>::UrlLimit>,
+            >,
         )> {
             <EvidenceByProposal<T>>::get(proposal_id).map(|(audit_id, evidence_id)| {
                 (

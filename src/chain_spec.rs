@@ -56,15 +56,18 @@ where
 
 fn get_endowed_accounts() -> Vec<AccountId> {
     vec![
-        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(ORG_ADMIN).unwrap())
-            .into_account(),
-        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(ATTESTER_1).unwrap())
-            .into_account(),
-        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(ATTESTER_2).unwrap())
-            .into_account(),
-        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(COUNCIL).unwrap())
-            .into_account(),
+        ORG_ADMIN,
+        ATTESTER_1,
+        ATTESTER_2,
+        COUNCIL,
+        &get_account_id_from_seed::<sr25519::Public>("Alice").to_ss58check(),
     ]
+    .into_iter()
+    .map(|public_key| {
+        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(public_key).unwrap())
+            .into_account()
+    })
+    .collect()
 }
 
 fn get_initial_council() -> Vec<AccountId> {
@@ -75,7 +78,7 @@ fn get_initial_council() -> Vec<AccountId> {
 }
 
 fn create_genesis(root_key: AccountId, endowed_accounts: Vec<AccountId>) -> GenesisConfig {
-    const ENDOWMENT: Balance = 10_000_000 * GRAM;
+    const ENDOWMENT: Balance = 10_000_000_000_000 * GRAM;
     GenesisConfig {
         frame_system: Some(SystemConfig {
             code: wasm_binary_unwrap().to_vec(),
@@ -123,7 +126,7 @@ pub fn development_config() -> ChainSpec {
         Some("borlaug"),
         Some(
             json!({
-                "tokenDecimals": 9,
+                "tokenDecimals": 6,
                 "tokenSymbol": "GRAM"
             })
             .as_object()

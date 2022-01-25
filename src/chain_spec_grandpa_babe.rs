@@ -132,6 +132,7 @@ fn get_endowed_accounts() -> Vec<AccountId> {
         GAMA_STAKE,
         GAMA_STASH,
         GAMA,
+        SUDO,
     ]
     .into_iter()
     .map(|public_key| {
@@ -169,7 +170,7 @@ fn create_genesis(
         }
     });
 
-    const ENDOWMENT: Balance = 10_000_000 * GRAM;
+    const ENDOWMENT: Balance = 10_000_000_000_000 * GRAM;
     const STASH: Balance = ENDOWMENT / 1000;
     GenesisConfig {
         frame_system: Some(SystemConfig {
@@ -256,7 +257,7 @@ pub fn development_config() -> ChainSpec {
         Some("borlaug"),
         Some(
             json!({
-                "tokenDecimals": 9,
+                "tokenDecimals": 6,
                 "tokenSymbol": "GRAM"
             })
             .as_object()
@@ -325,7 +326,7 @@ pub fn aztec_config() -> ChainSpec {
         Some("borlaug"),
         Some(
             json!({
-                "tokenDecimals": 9,
+                "tokenDecimals": 6,
                 "tokenSymbol": "GRAM"
             })
             .as_object()

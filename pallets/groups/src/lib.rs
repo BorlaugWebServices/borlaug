@@ -38,6 +38,8 @@
 //! ### RPC Methods
 //!
 //! * `member_of` - Get the collection of **Groups** that an account is a member of.
+//! * `get_group_by_account` - Get a **Group** by the groups account
+//! * `get_group_account` - Get the group's account
 //! * `get_group` - Get a **Group**
 //! * `get_sub_groups` - Get the collection of **Sub-groups** of a **Group**
 //! * `get_proposal` - Get a **Proposal**
@@ -56,6 +58,8 @@ mod tests;
 
 pub mod weights;
 
+pub mod migration;
+
 #[frame_support::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
@@ -71,12 +75,15 @@ pub mod pallet {
     };
     use frame_system::{self as system, pallet_prelude::*};
     use group_info::GroupInfo;
-    use primitives::{*, Votes, bounded_vec::BoundedVec};
+    use primitives::{bounded_vec::BoundedVec, Votes, *};
     use sp_io::hashing::blake2_256;
-    use sp_runtime::{ Either, traits::{
+    use sp_runtime::{
+        traits::{
             AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Hash, One, Saturating,
             UniqueSaturatedInto, Zero,
-        }};
+        },
+        Either,
+    };
     use sp_std::{iter::Sum, prelude::*, vec};
 
     const MODULE_INDEX: u8 = 1;
@@ -86,6 +93,12 @@ pub mod pallet {
         Group = 1,
         SubGroup = 2,
         Proposal = 3,
+    }
+
+    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    pub enum Releases {
+        V1,
+        V2,
     }
 
     #[pallet::config]
@@ -188,12 +201,12 @@ pub mod pallet {
             + GetDispatchInfo
             + From<frame_system::Call<Self>>;
 
-        /// Maximum number of proposals allowed to be active in parallel.        
+        /// Maximum number of proposals allowed to be active in parallel.
         type MaxProposals: Get<u32>;
-        /// Maximum length of proposal        
+        /// Maximum length of proposal
         type MaxProposalLength: Get<u32>;
 
-        /// The maximum number of members supported by the pallet. Used for weight estimation.      
+        /// The maximum number of members supported by the pallet. Used for weight estimation.
         type MaxMembers: Get<Self::MemberCount>;
 
         /// Weight information for extrinsics in this pallet.
@@ -246,7 +259,7 @@ pub mod pallet {
         T::Currency = "Currency",
 
         <T::Currency as Currency<T::AccountId>>::Balance = "Balance",
-        DispatchError = "DispatchError"  
+        DispatchError = "DispatchError"
 
     )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -254,7 +267,6 @@ pub mod pallet {
         /// A new Group was created
 
         /// (creator,group_id,anonymous_account,initial_balance)
-
         GroupCreated(
             T::AccountId,
             T::GroupId,
@@ -281,7 +293,7 @@ pub mod pallet {
         /// A Group was removed
         /// (parent_group_id,sub_group_id)
         SubGroupRemoved(T::GroupId, T::GroupId),
-/// Total vote weight must not exceed group member limit
+        /// Total vote weight must not exceed group member limit
         GroupMembersExceeded(T::GroupId),
         /// A motion was executed by a member of the group;
         /// (group_id,proposal_hash,member,success,error)
@@ -292,15 +304,15 @@ pub mod pallet {
             bool,
             Option<DispatchError>,
         ),
-        /// A new SubGroup was created 
+        /// A new SubGroup was created
         /// (proposer,group_id,proposal_id,threshold)
         Proposed(T::AccountId, T::GroupId, T::ProposalId, T::MemberCount),
-        /// A proposal was voted on 
+        /// A proposal was voted on
         /// (voter,group_id,proposal_id,approved)
         Voted(T::AccountId, T::GroupId, T::ProposalId, bool),
-          /// A motion was approved by the required threshold and executed 
-          /// (group_id,proposal_id,yes_votes,no_votes,success,error)
-          Approved(
+        /// A motion was approved by the required threshold and executed
+        /// (group_id,proposal_id,yes_votes,no_votes,success,error)
+        Approved(
             T::GroupId,
             T::ProposalId,
             T::MemberCount,
@@ -308,10 +320,10 @@ pub mod pallet {
             bool,
             Option<DispatchError>,
         ),
-        /// A motion was disapproved by the required threshold 
+        /// A motion was disapproved by the required threshold
         /// (group_id,proposal_id,yes_votes,no_votes)
         Disapproved(T::GroupId, T::ProposalId, T::MemberCount, T::MemberCount),
-        /// A proposal was approved by veto 
+        /// A proposal was approved by veto
         /// (vetoer,group_id,proposal_id,success,success)
         ApprovedByVeto(
             T::AccountId,
@@ -320,11 +332,11 @@ pub mod pallet {
             bool,
             Option<DispatchError>,
         ),
-        /// A proposal was disapproved by veto 
+        /// A proposal was disapproved by veto
         /// (vetoer,group_id,proposal_id)
         DisapprovedByVeto(T::AccountId, T::GroupId, T::ProposalId),
-      
-        /// funds were withdrawn from a group account 
+
+        /// funds were withdrawn from a group account
         /// (group_id,target_account,amount,success)
         GroupFundsWithdrawn(
             T::GroupId,
@@ -332,7 +344,7 @@ pub mod pallet {
             <T::Currency as Currency<T::AccountId>>::Balance,
             bool,
         ),
-        /// funds were withdrawn from a sub_group account 
+        /// funds were withdrawn from a sub_group account
         /// (group_id,sub_group_id,amount,success)
         SubGroupFundsWithdrawn(
             T::GroupId,
@@ -341,16 +353,14 @@ pub mod pallet {
             bool,
         ),
 
-        /// funds were deposited from a group to a sub_group account 
+        /// funds were deposited from a group to a sub_group account
         /// (group_id,sub_group_id,amount,success)
         SubGroupFundsDeposited(
-
             T::GroupId,
             T::GroupId,
             <T::Currency as Currency<T::AccountId>>::Balance,
             bool,
         ),
-
     }
 
     #[pallet::error]
@@ -398,10 +408,8 @@ pub mod pallet {
 
         /// User is not the group account (was not correctly called via proposal)
         NotGroupAccount,
-/// A chain generated Id has exceeded its capacity
+        /// A chain generated Id has exceeded its capacity
         NoIdAvailable,
-
-
     }
 
     #[pallet::type_value]
@@ -415,11 +423,53 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        // Initialize GroupByAccount storage
+        // #[allow(clippy::unnecessary_cast)]
+        // fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        //     let mut weight: Weight = 0;
+        //     <Groups<T>>::iter().for_each(|(group_id, group)| {
+        //         weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
+        //         <GroupByAccount<T>>::insert(group.anonymous_account, group_id);
+        //     });
+        //     weight
+        // }
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            let mut weight: Weight = 0;
+            weight += super::migration::migrate_to_v2::<T>();
+            weight
+        }
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        phantom: PhantomData<T>,
+    }
+    #[cfg(feature = "std")]
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig {
+                phantom: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            <StorageVersion<T>>::put(Releases::V2);
+        }
+    }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    /// Storage version of the pallet.
+    ///
+    /// V2 - added proposal_id to observation struct
+    pub type StorageVersion<T> = StorageValue<_, Releases, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn next_group_id)]
@@ -445,6 +495,13 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    /// Helper to find a group by its account
+    /// AccountId => GroupId
+    #[pallet::storage]
+    #[pallet::getter(fn group_by_account)]
+    pub(super) type GroupByAccount<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, T::GroupId, OptionQuery>;
+
     /// Groups have members which are weighted.
     /// GroupId,AccountId => MemberCount
     #[pallet::storage]
@@ -456,6 +513,20 @@ pub mod pallet {
         Blake2_128Concat,
         T::AccountId,
         T::MemberCount,
+        OptionQuery,
+    >;
+
+    /// Store which groups an account is a member of
+    /// AccountId => GroupId
+    #[pallet::storage]
+    #[pallet::getter(fn member_of_groups)]
+    pub(super) type MemberOf<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        Blake2_128Concat,
+        T::GroupId,
+        (),
         OptionQuery,
     >;
 
@@ -515,6 +586,13 @@ pub mod pallet {
         OptionQuery,
     >;
 
+    /// Get group_id of a proposal
+    /// ProposalId => GroupId
+    #[pallet::storage]
+    #[pallet::getter(fn group_by_proposal)]
+    pub(super) type GroupByProposal<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::ProposalId, T::GroupId, OptionQuery>;
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Create a new Group
@@ -571,7 +649,12 @@ pub mod pallet {
 
             Self::add_members(&mut group, group_id, members);
 
+            if group.threshold > group.total_vote_weight {
+                group.threshold = group.total_vote_weight;
+            }
+
             <Groups<T>>::insert(group_id, group);
+            <GroupByAccount<T>>::insert(&anonymous_account, group_id);
 
             Self::deposit_event(Event::GroupCreated(
                 sender,
@@ -579,7 +662,6 @@ pub mod pallet {
                 anonymous_account,
                 initial_balance,
             ));
-
 
             Ok(().into())
         }
@@ -597,7 +679,7 @@ pub mod pallet {
             remove_members.as_ref().map_or(0,|a|a.len()) as u32,
         ))]
         pub fn update_group(
-            origin: OriginFor<T>,          
+            origin: OriginFor<T>,
             name: Option<Vec<u8>>,
             add_members: Option<Vec<(T::AccountId, T::MemberCount)>>,
             remove_members: Option<Vec<T::AccountId>>,
@@ -606,21 +688,21 @@ pub mod pallet {
             let (caller_group_id, _proposal_id, _yes_votes, _no_votes, _caller_group_account) =
                 T::GroupsOriginByGroupThreshold::ensure_origin(origin)?;
 
-            let bounded_name = enforce_limit_option!(name);           
+            let bounded_name = enforce_limit_option!(name);
 
             ensure!(
                 <Groups<T>>::contains_key(caller_group_id),
                 Error::<T>::GroupMissing
             );
 
-            <Groups<T>>::mutate(caller_group_id, |group_option| {
-                if let Some(group) = group_option {
+            <Groups<T>>::mutate(caller_group_id, |group_maybe| {
+                if let Some(group) = group_maybe {
                     if let Some(remove_members) = remove_members {
                         Self::remove_members(group, caller_group_id, remove_members);
                     }
                     if let Some(add_members) = add_members {
                         Self::add_members(group, caller_group_id, add_members);
-                    }                  
+                    }
                     if let Some(bounded_name) = bounded_name {
                         group.name = bounded_name;
                     }
@@ -629,11 +711,13 @@ pub mod pallet {
                             group.threshold = threshold;
                         }
                     }
+                    if group.threshold > group.total_vote_weight {
+                        group.threshold = group.total_vote_weight;
+                    }
                 }
             });
 
             Self::deposit_event(Event::GroupUpdated(caller_group_id));
-
 
             Ok(().into())
         }
@@ -643,7 +727,7 @@ pub mod pallet {
         /// - `name`: The name of the group
         /// - `members`: The members of the group. Sender is automatically added to members if not already included.
         /// - `threshold`: The threshold number of votes required to make modifications to the group.
-        /// - `initial_balance`: The initial GRAMs to transfer from the sender to the group account to be used for calling extrinsics by the group.       
+        /// - `initial_balance`: The initial GRAMs to transfer from the sender to the group account to be used for calling extrinsics by the group.
 
         #[pallet::weight(T::WeightInfo::create_sub_group(
             name.len() as u32,
@@ -692,7 +776,12 @@ pub mod pallet {
 
             Self::add_members(&mut sub_group, sub_group_id, members);
 
+            if sub_group.threshold > sub_group.total_vote_weight {
+                sub_group.threshold = sub_group.total_vote_weight;
+            }
+
             <Groups<T>>::insert(sub_group_id, sub_group);
+            <GroupByAccount<T>>::insert(&anonymous_account, sub_group_id);
             <GroupChildren<T>>::insert(caller_group_id, sub_group_id, ());
 
             Self::deposit_event(Event::SubGroupCreated(
@@ -711,14 +800,13 @@ pub mod pallet {
         /// - `name`: New group name
         /// - `members`: New set of members. Old set will be overwritten, so sender should ensure they are included if desired.
 
-        /// - `threshold`: New threshold       
+        /// - `threshold`: New threshold
         #[pallet::weight(T::WeightInfo::update_sub_group(
             name.as_ref().map_or(0,|a|a.len()) as u32,
             add_members.as_ref().map_or(0,|a|a.len()) as u32,
             remove_members.as_ref().map_or(0,|a|a.len()) as u32,
         ))]
         pub fn update_sub_group(
-
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,
             name: Option<Vec<u8>>,
@@ -745,7 +833,7 @@ pub mod pallet {
                     }
                     if let Some(add_members) = add_members {
                         Self::add_members(sub_group, sub_group_id, add_members);
-                    }                   
+                    }
                     if let Some(bounded_name) = bounded_name {
                         sub_group.name = bounded_name;
                     }
@@ -753,6 +841,9 @@ pub mod pallet {
                         if threshold > Zero::zero() {
                             sub_group.threshold = threshold;
                         }
+                    }
+                    if sub_group.threshold > sub_group.total_vote_weight {
+                        sub_group.threshold = sub_group.total_vote_weight;
                     }
                 }
             });
@@ -766,7 +857,7 @@ pub mod pallet {
         ///
         /// - `group_id`: Group to be updated
         /// - `return_funds_too`: account to transfer remaining group funds to
-        
+
         #[pallet::weight(T::WeightInfo::remove_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
         pub fn remove_group(
             origin: OriginFor<T>,
@@ -784,7 +875,7 @@ pub mod pallet {
                 Error::<T>::NotMember
             );
             ensure!(
-                <GroupChildren<T>>::iter_prefix(&group_id).next().is_none(),
+                <GroupChildren<T>>::iter_prefix(group_id).next().is_none(),
                 Error::<T>::GroupHasChildren
             );
 
@@ -795,23 +886,30 @@ pub mod pallet {
                 AllowDeath,
             )?;
 
-            <Groups<T>>::remove(&group_id);
-            <GroupMembers<T>>::remove_prefix(&group_id);
-            <Proposals<T>>::remove_prefix(&group_id);
-            <ProposalHashes<T>>::remove_prefix(&group_id);
+            <Groups<T>>::remove(group_id);
+            <GroupByAccount<T>>::remove(&group.anonymous_account);
+            let mut member_count = 0;
+            <GroupMembers<T>>::iter_prefix(group_id).for_each(|(account_id, _)| {
+                <MemberOf<T>>::remove(&account_id, group_id);
+                member_count += 1;
+            });
+            let mut proposal_count = 0;
+            <Proposals<T>>::iter_prefix(group_id).for_each(|(proposal_id, _)| {
+                <Proposals<T>>::remove(group_id, proposal_id);
+                proposal_count += 1;
+            });
+            <ProposalHashes<T>>::remove_prefix(group_id);
 
             Self::deposit_event(Event::GroupRemoved(group_id, return_funds_too));
 
-            //TODO: count members/proposals and refund weight
-
-            Ok(().into())
+            Ok(Some(T::WeightInfo::remove_group(member_count, proposal_count)).into())
         }
 
         /// Remove a Sub-group. Remove all child groups first. Can only be called via a proposal from any group in the parent chain. Funds returned to immediate parent.
         ///
-        /// - `sub_group_id`: Group to be updated   
-        
-        #[pallet::weight(T::WeightInfo::remove_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
+        /// - `sub_group_id`: Group to be updated
+
+        #[pallet::weight(T::WeightInfo::remove_sub_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
         pub fn remove_sub_group(
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,
@@ -827,7 +925,7 @@ pub mod pallet {
             );
 
             ensure!(
-                <GroupChildren<T>>::iter_prefix(&sub_group_id)
+                <GroupChildren<T>>::iter_prefix(sub_group_id)
                     .next()
                     .is_none(),
                 Error::<T>::GroupHasChildren
@@ -842,16 +940,27 @@ pub mod pallet {
             )?;
 
             <Groups<T>>::remove(&sub_group_id);
-            <GroupChildren<T>>::remove(&caller_group_id, &sub_group_id);
-            <GroupMembers<T>>::remove_prefix(&sub_group_id);
-            <Proposals<T>>::remove_prefix(&sub_group_id);
-            <ProposalHashes<T>>::remove_prefix(&sub_group_id);
+            <GroupByAccount<T>>::remove(&sub_group.anonymous_account);
+            <GroupChildren<T>>::remove(caller_group_id, sub_group_id);
+            let mut member_count = 0;
+            <GroupMembers<T>>::iter_prefix(sub_group_id).for_each(|(account_id, _)| {
+                <MemberOf<T>>::remove(&account_id, sub_group_id);
+                member_count += 1;
+            });
+            let mut proposal_count = 0;
+            <Proposals<T>>::iter_prefix(sub_group_id).for_each(|(proposal_id, _)| {
+                <Proposals<T>>::remove(sub_group_id, proposal_id);
+                proposal_count += 1;
+            });
+            <ProposalHashes<T>>::remove_prefix(sub_group_id);
 
             Self::deposit_event(Event::SubGroupRemoved(caller_group_id, sub_group_id));
 
-            //TODO: count members/proposals and refund weight
-
-            Ok(().into())
+            Ok(Some(T::WeightInfo::remove_sub_group(
+                member_count,
+                proposal_count,
+            ))
+            .into())
         }
 
         /// Execute a proposal. Use for extrinsics that don't require voting.
@@ -860,7 +969,7 @@ pub mod pallet {
         ///
         /// - `group_id`: Group executing the extrinsic
         /// - `proposal`: Proposal to be executed
-        /// - `length_bound`: The length of the Proposal for weight estimation       
+        /// - `length_bound`: The length of the Proposal for weight estimation
         #[pallet::weight(T::WeightInfo::execute(
             *length_bound as u32
         ).saturating_add(proposal.get_dispatch_info().weight))]
@@ -885,12 +994,8 @@ pub mod pallet {
             let proposal_hash = T::Hashing::hash_of(&proposal);
 
             let result = proposal.dispatch(
-                RawOrigin::ProposalExecuted(
-                    group_id,
-                    sender.clone(),
-                    group.anonymous_account,
-                )
-                .into(),
+                RawOrigin::ProposalExecuted(group_id, sender.clone(), group.anonymous_account)
+                    .into(),
             );
 
             Self::deposit_event(Event::Executed(
@@ -913,16 +1018,16 @@ pub mod pallet {
         /// - `group_id`: Group executing the extrinsic
         /// - `proposal`: Proposal to be executed
         /// - `threshold`: Declaration of the threshold required - will be checked by the extrinsic after approval.
-        /// - `length_bound`: The length of the Proposal for weight estimation        
+        /// - `length_bound`: The length of the Proposal for weight estimation
 
         #[pallet::weight(
             if *threshold == 1u32.into() {
                 T::WeightInfo::propose_execute(
-                    *length_bound,                   
+                    *length_bound,
                 ).saturating_add(proposal.get_dispatch_info().weight)
             } else {
                 T::WeightInfo::propose_proposed(
-                    *length_bound,                   
+                    *length_bound,
                 )
             }
         )]
@@ -955,11 +1060,20 @@ pub mod pallet {
                 &(ExtrinsicIndex::Proposal as u8),
                 &sender,
             );
-            
+
             let proposal_id = next_id!(NextProposalId<T>, T);
 
+            let votes = Votes {
+                threshold,
+                total_vote_weight: group.total_vote_weight,
+                ayes: vec![(sender.clone(), weight)],
+                nays: vec![],
+                veto: None,
+            };
+            <Voting<T>>::insert(group_id, proposal_id, votes);
+            <GroupByProposal<T>>::insert(proposal_id, group_id);
+
             if threshold == weight {
-                //TODO: should we create votes here?
                 let result = proposal.dispatch(
                     RawOrigin::ProposalApproved(
                         group_id,
@@ -981,25 +1095,11 @@ pub mod pallet {
                 ));
 
                 Ok(Self::get_result_weight(result)
-                    .map(|w| {
-                        T::WeightInfo::propose_execute(
-                            proposal_len as u32,                            
-                        )
-                        .saturating_add(w)
-                    })
+                    .map(|w| T::WeightInfo::propose_execute(proposal_len as u32).saturating_add(w))
                     .into())
             } else {
                 <ProposalHashes<T>>::insert(group_id, proposal_hash, ());
                 <Proposals<T>>::insert(group_id, proposal_id, proposal);
-
-                let votes = Votes {
-                    threshold,
-                    total_vote_weight: group.total_vote_weight,
-                    ayes: vec![(sender.clone(), weight)],
-                    nays: vec![],
-                    veto: None,
-                };
-                <Voting<T>>::insert(group_id, proposal_id, votes);
 
                 Self::deposit_event(Event::Proposed(sender, group_id, proposal_id, threshold));
 
@@ -1045,7 +1145,7 @@ pub mod pallet {
                     voting.ayes.push((sender.clone(), weight));
                 } else {
                     #[allow(clippy::try_err)]
-                     Err(Error::<T>::DuplicateVote)?;
+                    Err(Error::<T>::DuplicateVote)?;
                 }
                 if let Some(pos) = position_no {
                     voting.nays.swap_remove(pos);
@@ -1055,7 +1155,7 @@ pub mod pallet {
                     voting.nays.push((sender.clone(), weight));
                 } else {
                     #[allow(clippy::try_err)]
-                     Err(Error::<T>::DuplicateVote)?;
+                    Err(Error::<T>::DuplicateVote)?;
                 }
                 if let Some(pos) = position_yes {
                     voting.ayes.swap_remove(pos);
@@ -1085,7 +1185,7 @@ pub mod pallet {
             }
         }
 
-        /// Close a Proposal. Caller of vote should check if the vote will be approved/disaproved and call close if it will. 
+        /// Close a Proposal. Caller of vote should check if the vote will be approved/disaproved and call close if it will.
         /// Anyone can trigger a close, they don't have to be a member. It could for example be triggered by a service that watches voting.
         /// TODO: payments?
         ///
@@ -1097,7 +1197,7 @@ pub mod pallet {
         #[pallet::weight(	{
             let a = *length_bound;
             let m = T::MaxMembers::get().into();
-            let p1 = *proposal_weight_bound;            
+            let p1 = *proposal_weight_bound;
                 T::WeightInfo::close_approved(a, m)
                 .max(T::WeightInfo::close_disapproved(m))
                 .saturating_add(p1)
@@ -1110,12 +1210,12 @@ pub mod pallet {
             length_bound: u32,
         ) -> DispatchResultWithPostInfo {
             let _sender = ensure_signed(origin)?;
-            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;            
+            let group = Self::groups(group_id).ok_or(Error::<T>::GroupMissing)?;
 
             let voting = Self::voting(group_id, proposal_id).ok_or(Error::<T>::VoteMissing)?;
 
             let yes_votes = voting.ayes.into_iter().map(|(_, w)| w).sum();
-            let no_votes = voting.nays.into_iter().map(|(_, w)| w).sum();            
+            let no_votes = voting.nays.into_iter().map(|(_, w)| w).sum();
 
             let approved = yes_votes >= voting.threshold;
             let disapproved = voting.total_vote_weight.saturating_sub(no_votes) < voting.threshold;
@@ -1168,7 +1268,6 @@ pub mod pallet {
                         T::WeightInfo::close_approved(
                             proposal_len as u32,
                             T::MaxMembers::get().into(),
-                            
                         )
                         .saturating_add(proposal_weight),
                     ),
@@ -1184,10 +1283,10 @@ pub mod pallet {
                 ));
 
                 <Proposals<T>>::remove(group_id, proposal_id);
-                <ProposalHashes<T>>::remove(group_id, proposal_hash);                
+                <ProposalHashes<T>>::remove(group_id, proposal_hash);
                 return Ok((
                     Some(T::WeightInfo::close_disapproved(
-                        T::MaxMembers::get().into()
+                        T::MaxMembers::get().into(),
                     )),
                     Pays::Yes,
                 )
@@ -1209,12 +1308,12 @@ pub mod pallet {
         /// - `length_bound`: length of the proposal.
         #[allow(clippy::needless_return)]
         #[pallet::weight(	{
-            let a = *length_bound;            
-            let p = *proposal_weight_bound;          
+            let a = *length_bound;
+            let p = *proposal_weight_bound;
                 T::WeightInfo::veto_approved(a,  )
                 .max(T::WeightInfo::veto_disapproved())
                 .saturating_add(p)
-        })]        
+        })]
         pub fn veto(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -1275,13 +1374,11 @@ pub mod pallet {
                 <ProposalHashes<T>>::remove(group_id, proposal_hash);
 
                 let proposal_weight = Self::get_result_weight(result).unwrap_or(dispatch_weight);
-                
+
                 return Ok((
                     Some(
-                        T::WeightInfo::veto_approved(
-                            proposal_len as u32                          
-                        )
-                        .saturating_add(proposal_weight),
+                        T::WeightInfo::veto_approved(proposal_len as u32)
+                            .saturating_add(proposal_weight),
                     ),
                     Pays::Yes,
                 )
@@ -1289,12 +1386,8 @@ pub mod pallet {
             } else {
                 Self::deposit_event(Event::DisapprovedByVeto(sender, group_id, proposal_id));
                 <Proposals<T>>::remove(group_id, proposal_id);
-                <ProposalHashes<T>>::remove(group_id, proposal_hash);                
-                return Ok((
-                    Some(T::WeightInfo::veto_disapproved()),
-                    Pays::Yes,
-                )
-                    .into());
+                <ProposalHashes<T>>::remove(group_id, proposal_hash);
+                return Ok((Some(T::WeightInfo::veto_disapproved()), Pays::Yes).into());
             };
         }
 
@@ -1335,8 +1428,8 @@ pub mod pallet {
         /// Withdraw funds from a subgroup account to the group account
         ///
 
-        /// - `sub_group_id`: Subgroup to withdraw funds from        
-        /// - `amount`: amount to withdraw     
+        /// - `sub_group_id`: Subgroup to withdraw funds from
+        /// - `amount`: amount to withdraw
         #[pallet::weight(T::WeightInfo::withdraw_funds_sub_group())]
 
         pub fn withdraw_funds_sub_group(
@@ -1415,26 +1508,57 @@ pub mod pallet {
 
     impl<T: Config> Module<T> {
         // -- rpc api functions --
-        pub fn member_of(account_id: T::AccountId) -> Vec<(T::GroupId, Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,Vec<(T::AccountId, T::MemberCount)>)> {
-            //TODO: add member_of storage
-           <Groups<T>>::iter()
-                .filter_map(|(group_id, group)|                     
-                    <GroupMembers<T>>::contains_key(group_id, &account_id).then(|| {
+
+        pub fn member_of(
+            account_id: T::AccountId,
+        ) -> Vec<(
+            T::GroupId,
+            Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
+            Vec<(T::AccountId, T::MemberCount)>,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+        )> {
+            <MemberOf<T>>::iter_prefix(&account_id)
+                .filter_map(|(group_id, ())| {
+                    <Groups<T>>::get(group_id).map(|group| {
+                        let balance =
+                            <T as Config>::Currency::free_balance(&group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(group_id)
-                        .map(|(account_id, weight)| (account_id, weight))
-                        .collect();
-                        (group_id,group, members)
+                            .map(|(account_id, weight)| (account_id, weight))
+                            .collect();
+                        (group_id, group, members, balance)
                     })
-                )
+                })
                 .collect()
         }
 
-        pub fn is_member(group_id:T::GroupId,account: &T::AccountId) -> bool{            
-                    <GroupMembers<T>>::contains_key(group_id, account)
+        pub fn is_member(group_id: T::GroupId, account_id: &T::AccountId) -> bool {
+            <GroupMembers<T>>::contains_key(group_id, account_id)
         }
 
-        pub fn get_group_account(group_id: T::GroupId)-> Option<T::AccountId>{
-            <Groups<T>>::get(group_id).map(|group|group.anonymous_account)
+        pub fn get_group_by_account(
+            account_id: T::AccountId,
+        ) -> Option<(
+            T::GroupId,
+            Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
+            Vec<(T::AccountId, T::MemberCount)>,
+            <T::Currency as Currency<T::AccountId>>::Balance,
+        )> {
+            <GroupByAccount<T>>::get(account_id)
+                .map(|group_id| {
+                    <Groups<T>>::get(group_id).map(|group| {
+                        let balance =
+                            <T as Config>::Currency::free_balance(&group.anonymous_account);
+                        let members = <GroupMembers<T>>::iter_prefix(group_id)
+                            .map(|(account, weight)| (account, weight))
+                            .collect();
+                        (group_id, group, members, balance)
+                    })
+                })
+                .flatten()
+        }
+
+        pub fn get_group_account(group_id: T::GroupId) -> Option<T::AccountId> {
+            <Groups<T>>::get(group_id).map(|group| group.anonymous_account)
         }
 
         pub fn get_group(
@@ -1442,12 +1566,14 @@ pub mod pallet {
         ) -> Option<(
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
             Vec<(T::AccountId, T::MemberCount)>,
+            <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <Groups<T>>::get(group_id).map(|group| {
+                let balance = <T as Config>::Currency::free_balance(&group.anonymous_account);
                 let members = <GroupMembers<T>>::iter_prefix(group_id)
                     .map(|(account, weight)| (account, weight))
                     .collect();
-                (group, members)
+                (group, members, balance)
             })
         }
         pub fn get_sub_groups(
@@ -1456,55 +1582,80 @@ pub mod pallet {
             T::GroupId,
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
             Vec<(T::AccountId, T::MemberCount)>,
+            <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <GroupChildren<T>>::iter_prefix(group_id)
                 .filter_map(|(child_group_id, _)| {
-                    <Groups<T>>::get(group_id).map(|group| {
+                    <Groups<T>>::get(child_group_id).map(|child_group| {
+                        let balance =
+                            <T as Config>::Currency::free_balance(&child_group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(child_group_id)
                             .map(|(account, weight)| (account, weight))
                             .collect();
-                        (child_group_id, group, members)
+                        (child_group_id, child_group, members, balance)
                     })
                 })
                 .collect()
         }
 
-        pub fn get_proposal( 
-            group_id: T::GroupId,
+        pub fn get_proposal(
             proposal_id: T::ProposalId,
-        ) -> Option<(T::ProposalId, Option<(T::Hash,u32)>,Votes<T::AccountId, T::MemberCount>)> {
-            <Voting<T>>::get(group_id, proposal_id).map (|voting|{               
-               proposal_with_votes::<T>(group_id,proposal_id,voting)
-        })
-        }
-
-        pub fn get_proposals_by_group(group_id: T::GroupId) -> Vec<(T::ProposalId, Option<(T::Hash,u32)>,Votes<T::AccountId, T::MemberCount>)> {
-            <Voting<T>>::iter_prefix(group_id)
-                .map(
-                    |(proposal_id,voting)|{
-                       proposal_with_votes::<T>(group_id,proposal_id,voting)
-                }).collect()                
-        }
-
-        pub fn get_proposals_by_account(account_id: T::AccountId) ->Vec<(T::GroupId, Vec<(T::ProposalId, Option<(T::Hash,u32)>,Votes<T::AccountId, T::MemberCount>)>)> {
-//TODO: add member_of storage
-            <Groups<T>>::iter()
-                .filter_map(|(group_id, _group)| {                    
-                    <GroupMembers<T>>::contains_key(group_id, &account_id).then(|| {
-                        (
-                            group_id,
-                            <Voting<T>>::iter_prefix(group_id)
-                                .map(
-                                    |(proposal_id,voting)|{
-                                        proposal_with_votes::<T>(group_id,proposal_id,voting)
-                                }).collect()                        
-                        )                  
-                    })
+        ) -> Option<(
+            T::ProposalId,
+            T::GroupId,
+            Vec<(T::AccountId, T::MemberCount)>,
+            Option<(T::Hash, u32)>,
+            Votes<T::AccountId, T::MemberCount>,
+        )> {
+            <GroupByProposal<T>>::get(proposal_id)
+                .map(|group_id| {
+                    <Voting<T>>::get(group_id, proposal_id)
+                        .map(|voting| proposal_with_votes::<T>(group_id, proposal_id, voting))
                 })
-                .collect()           
+                .flatten()
         }
 
-      
+        pub fn get_proposals_by_group(
+            group_id: T::GroupId,
+        ) -> Vec<(
+            T::ProposalId,
+            T::GroupId,
+            Vec<(T::AccountId, T::MemberCount)>,
+            Option<(T::Hash, u32)>,
+            Votes<T::AccountId, T::MemberCount>,
+        )> {
+            <Voting<T>>::iter_prefix(group_id)
+                .map(|(proposal_id, voting)| {
+                    proposal_with_votes::<T>(group_id, proposal_id, voting)
+                })
+                .collect()
+        }
+
+        pub fn get_proposals_by_account(
+            account_id: T::AccountId,
+        ) -> Vec<(
+            T::GroupId,
+            Vec<(
+                T::ProposalId,
+                T::GroupId,
+                Vec<(T::AccountId, T::MemberCount)>,
+                Option<(T::Hash, u32)>,
+                Votes<T::AccountId, T::MemberCount>,
+            )>,
+        )> {
+            <MemberOf<T>>::iter_prefix(&account_id)
+                .map(|(group_id, ())| {
+                    (
+                        group_id,
+                        <Voting<T>>::iter_prefix(group_id)
+                            .map(|(proposal_id, voting)| {
+                                proposal_with_votes::<T>(group_id, proposal_id, voting)
+                            })
+                            .collect(),
+                    )
+                })
+                .collect()
+        }
 
         // -- private functions --
 
@@ -1517,26 +1668,26 @@ pub mod pallet {
             >,
             group_id: T::GroupId,
             members: Vec<(T::AccountId, T::MemberCount)>,
-        )  {
-            for (account, mut weight) in members {                
+        ) {
+            for (account, mut weight) in members {
                 if weight == Zero::zero() {
                     weight = 1u32.into();
                 }
-                let mut total_vote_weight=group.total_vote_weight;
+                let mut total_vote_weight = group.total_vote_weight;
                 let old_member_maybe = <GroupMembers<T>>::get(group_id, &account);
                 if let Some(old_weight) = old_member_maybe {
                     total_vote_weight -= old_weight;
                 }
                 total_vote_weight += weight;
-                if total_vote_weight<=T::MaxMembers::get() {
-
-                group.total_vote_weight=total_vote_weight;
-                <GroupMembers<T>>::insert(group_id, &account, weight);
-                }else{
+                if total_vote_weight <= T::MaxMembers::get() {
+                    group.total_vote_weight = total_vote_weight;
+                    <GroupMembers<T>>::insert(group_id, &account, weight);
+                    <MemberOf<T>>::insert(&account, group_id, ());
+                } else {
                     //Use event not error here because we have already mutated data in the db so we want to complete.
                     Self::deposit_event(Event::GroupMembersExceeded(group_id));
                 }
-            };            
+            }
         }
 
         fn remove_members(
@@ -1554,9 +1705,10 @@ pub mod pallet {
                 if let Some(old_weight) = old_member_maybe {
                     group.total_vote_weight -= old_weight;
                 }
-                <GroupMembers<T>>::remove(group_id, account);
+                <GroupMembers<T>>::remove(group_id, &account);
+                <MemberOf<T>>::remove(&account, group_id);
             });
-        }        
+        }
 
         fn is_group_account(group_id: T::GroupId, account_id: &T::AccountId) -> bool {
             let group = <Groups<T>>::get(group_id);
@@ -1595,21 +1747,33 @@ pub mod pallet {
     }
 
     //helper fn
-    fn proposal_with_votes<T>( 
+    fn proposal_with_votes<T>(
         group_id: T::GroupId,
         proposal_id: T::ProposalId,
-        voting:Votes<T::AccountId, T::MemberCount>
-    )-> (T::ProposalId, Option<(T::Hash,u32)>,Votes<T::AccountId, T::MemberCount>)
-    where T:Config{
+        voting: Votes<T::AccountId, T::MemberCount>,
+    ) -> (
+        T::ProposalId,
+        T::GroupId,
+        Vec<(T::AccountId, T::MemberCount)>,
+        Option<(T::Hash, u32)>,
+        Votes<T::AccountId, T::MemberCount>,
+    )
+    where
+        T: Config,
+    {
         (
             proposal_id,
+            group_id,
+            <GroupMembers<T>>::iter_prefix(group_id)
+                .map(|(account, weight)| (account, weight))
+                .collect(),
             <Proposals<T>>::get(group_id, proposal_id).map(|proposal| {
                 (
                     T::Hashing::hash_of(&proposal),
                     proposal.encoded_size() as u32,
                 )
             }),
-            voting
+            voting,
         )
     }
 

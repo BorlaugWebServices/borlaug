@@ -41,6 +41,7 @@ use runtime::primitives::{
     ExtrinsicIndex, GroupId, Hash, Index, LeaseId, MemberCount, ModuleIndex, Moment, ObservationId,
     ProcessId, ProposalId, RegistryId,
 };
+use runtime::BoundedStringUrl;
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
@@ -137,6 +138,7 @@ where
         ProposalId,
         Hash,
         BoundedStringName,
+        Balance,
     >,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,
@@ -144,6 +146,7 @@ where
         RegistryId,
         DefinitionId,
         ProcessId,
+        ProposalId,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,
@@ -168,6 +171,7 @@ where
         EvidenceId,
         ObservationId,
         BoundedStringName,
+        BoundedStringUrl,
     >,
     C::Api: asset_registry_runtime_api::AssetRegistryApi<
         Block,

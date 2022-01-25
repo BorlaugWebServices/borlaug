@@ -9,6 +9,7 @@ use runtime::primitives::{
     GroupId, Hash, Index, LeaseId, MemberCount, ModuleIndex, Moment, ObservationId, ProcessId,
     ProposalId, RegistryId,
 };
+use runtime::BoundedStringUrl;
 use sc_consensus_manual_seal::{
     rpc::{ManualSeal, ManualSealApi},
     EngineCommand,
@@ -48,6 +49,7 @@ where
         ProposalId,
         Hash,
         BoundedStringName,
+        Balance,
     >,
     C::Api: provenance_runtime_api::ProvenanceApi<
         Block,
@@ -55,6 +57,7 @@ where
         RegistryId,
         DefinitionId,
         ProcessId,
+        ProposalId,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,
@@ -79,13 +82,12 @@ where
         EvidenceId,
         ObservationId,
         BoundedStringName,
+        BoundedStringUrl,
     >,
     C::Api: asset_registry_runtime_api::AssetRegistryApi<
         Block,
         AccountId,
-
         ProposalId,
-
         RegistryId,
         AssetId,
         LeaseId,
@@ -126,7 +128,7 @@ where
     ));
     // Add the settings api
     io.extend_with(crate::settings_rpc::SettingsApi::to_delegate(
-        crate::settings_rpc::Settings::new(client.clone()),
+        crate::settings_rpc::Settings::new(client),
     ));
 
     // The final RPC extension receives commands for the manual seal consensus engine.

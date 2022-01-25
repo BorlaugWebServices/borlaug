@@ -49,7 +49,7 @@ pub mod pallet {
     use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use primitives::{bounded_vec::BoundedVec, *};
+    use primitives::{bounded_vec::BoundedVec, AssetAllocation, *};
     use sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
         Either,
@@ -154,7 +154,7 @@ pub mod pallet {
         NotDidSubject,
         /// A non-registry owner account attempted to  modify a registry or asset in the registry
         NotRegistryOwner,
-        /// Delete all assets in registry before deleting registry     
+        /// Delete all assets in registry before deleting registry    
         RegistryNotEmpty,
         /// Id out of bounds
         NoIdAvailable,
@@ -436,7 +436,9 @@ pub mod pallet {
 
             let asset_id = next_id!(NextAssetId<T>, T);
 
-            <Assets<T>>::insert(&registry_id, &asset_id, asset);
+            <Assets<T>>::insert(registry_id, asset_id, asset);
+            let allocations: Vec<(T::LeaseId, u64, T::Moment)> = vec![];
+            <LeaseAllocations<T>>::insert(registry_id, asset_id, allocations);
             Self::deposit_event(Event::AssetCreated(registry_id, asset_id));
 
             Ok(().into())
@@ -577,7 +579,7 @@ pub mod pallet {
         /// Void a lease agreement. Allocations are un-reserved.
         ///
         /// Arguments:
-        /// - `lessor` DID of caller        
+        /// - `lessor` DID of caller       
         /// - `lease_id` Lease to be deleted
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn void_lease(
@@ -768,8 +770,18 @@ pub mod pallet {
     macro_rules! max_fact_len {
         ($fact:expr,$max_fact_len:ident) => {{
             let fact_len = match &$fact {
+                Fact::Bool(..) => 1u32,
                 Fact::Text(string) => string.len() as u32,
-                _ => 10, //give minimum of 10 and don't bother checking for anything other than Text
+                Fact::Attachment(_hash, filename) => 32u32 + (filename.len() as u32),
+                Fact::Location(..) => 2u32,
+                Fact::Did(..) => 32u32,
+                Fact::Float(..) => 8u32,
+                Fact::U8(..) => 1u32,
+                Fact::U16(..) => 2u32,
+                Fact::U32(..) => 4u32,
+                Fact::U128(..) => 16u32,
+                Fact::Date(..) => 4u32,
+                Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
             };
             if fact_len > $max_fact_len {
                 $max_fact_len = fact_len;

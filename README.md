@@ -38,5 +38,5 @@ cargo test --all
 ## License
 Borlaug is [GPL 3.0 licensed](LICENSE).
 
- 
+
 #

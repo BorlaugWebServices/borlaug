@@ -44,6 +44,7 @@ use pallet_grandpa::{
 };
 #[cfg(feature = "grandpa_babe")]
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_primitives::bounded_vec::BoundedVec;
 use pallet_primitives::*;
 #[cfg(feature = "grandpa_babe")]
 use pallet_session::historical as pallet_session_historical;
@@ -155,7 +156,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 4,
+    spec_version: 15,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -435,10 +436,8 @@ impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
     type TransactionByteFee = settings::TransactionByteFeeGet<Runtime>;
     type WeightToFee = settings::CustomizableFee<Runtime>;
-    type FeeMultiplierUpdate = ();
-    //TODO: put this back. Removed temporarily to make fee analysis easier
-    // type FeeMultiplierUpdate =
-    //     TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+    type FeeMultiplierUpdate =
+        TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -820,6 +819,7 @@ parameter_types! {
     pub const ClaimIssuerLimit: u32 = 50;
     pub const CatalogDidLimit: u32 = 1_000;
     pub const BulkDidLimit: u32 = 15;
+    pub const BulkDidPropertyLimit: u32 = 50;
 }
 impl identity::Config for Runtime {
     type CatalogId = CatalogId;
@@ -835,6 +835,7 @@ impl identity::Config for Runtime {
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
     type BulkDidLimit = BulkDidLimit;
+    type BulkDidPropertyLimit = BulkDidPropertyLimit;
 }
 parameter_types! {
     pub const AssetPropertyLimit: u32 = 500;
@@ -855,7 +856,9 @@ impl asset_registry::Config for Runtime {
 
 parameter_types! {
     pub const MaxLinkRemove: u32 = 50;
+    pub const UrlLimit: u32 = 500;
 }
+pub type BoundedStringUrl = BoundedVec<u8, UrlLimit>;
 impl audits::Config for Runtime {
     type AuditId = AuditId;
     type ControlPointId = ControlPointId;
@@ -864,6 +867,7 @@ impl audits::Config for Runtime {
     type Event = Event;
     type WeightInfo = audits::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
+    type UrlLimit = UrlLimit;
     type MaxLinkRemove = MaxLinkRemove;
 }
 parameter_types! {
@@ -941,8 +945,6 @@ construct_runtime!(
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-
-
 
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
@@ -1197,66 +1199,61 @@ impl_runtime_apis! {
 // }
 
 
-    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName> for Runtime {
-        fn member_of(account_id:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedStringName>,Vec<(AccountId, MemberCount)>)>  {
+    impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName,Balance> for Runtime {
+        fn member_of(account_id:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>  {
             Groups::member_of(account_id)
         }
         fn is_member(group_id:GroupId,account_id:AccountId) -> bool  {
             Groups::is_member(group_id,&account_id)
         }
+        fn get_group_by_account(account_id:AccountId) -> Option<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
+            Groups::get_group_by_account(account_id)
+        }
         fn get_group_account(group_id:GroupId) -> Option<AccountId>  {
             Groups::get_group_account(group_id)
         }
-        fn get_group(group_id:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+        fn get_group(group_id:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
             Groups::get_group(group_id)
         }
-        fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>)>{
+        fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
             Groups::get_sub_groups(group_id)
         }
-        fn get_proposal(group_id:GroupId,proposal_id:ProposalId) ->Option<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
-            Groups::get_proposal(group_id,proposal_id)
+        fn get_proposal(proposal_id:ProposalId) ->Option<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
+            Groups::get_proposal(proposal_id)
         }
-        fn get_proposals_by_group(group_id:GroupId) -> Vec<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
+        fn get_proposals_by_group(group_id:GroupId) -> Vec<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>,Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
             Groups::get_proposals_by_group(group_id)
         }
-        fn get_proposals_by_account(account_id: AccountId) -> Vec<(GroupId, Vec<(ProposalId, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>)>{
+        fn get_proposals_by_account(account_id: AccountId) -> Vec<(GroupId, Vec<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>,Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>)>{
             Groups::get_proposals_by_account(account_id)
         }
-
     }
 
     impl asset_registry_runtime_api::AssetRegistryApi<Block,AccountId,ProposalId,RegistryId,AssetId,LeaseId,Moment,Balance,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_registries(did: Did) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
             AssetRegistry::get_registries(did)
         }
-
         fn get_registry(did: Did,registry_id:RegistryId) -> Option<Registry<BoundedStringName>>{
             AssetRegistry::get_registry(did,registry_id)
         }
-
         fn get_assets(registry_id:RegistryId) -> Vec<(AssetId,Asset<Moment,Balance,BoundedStringName,BoundedStringFact>)>{
             AssetRegistry::get_assets(registry_id)
         }
-
         fn get_asset(registry_id:RegistryId, asset_id:AssetId) -> Option<Asset<Moment,Balance,BoundedStringName,BoundedStringFact>>{
             AssetRegistry::get_asset(registry_id,asset_id)
         }
-
         fn get_leases(lessor: Did) -> Vec<(LeaseId,LeaseAgreement<ProposalId,RegistryId,AssetId,Moment,BoundedStringName>)>{
             AssetRegistry::get_leases(lessor)
         }
-
         fn get_lease(lessor: Did, lease_id:LeaseId) -> Option<LeaseAgreement<ProposalId,RegistryId,AssetId,Moment,BoundedStringName>>{
             AssetRegistry::get_lease(lessor,lease_id)
         }
-
         fn get_lease_allocations(registry_id:RegistryId, asset_id:AssetId) -> Option<Vec<(LeaseId, u64, Moment)>>{
             AssetRegistry::get_lease_allocations(registry_id,asset_id)
         }
-
     }
 
-    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId, MemberCount,DefinitionStepIndex,BoundedStringName,BoundedStringFact> for Runtime {
+    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId, ProposalId,MemberCount,DefinitionStepIndex,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_registries(account_id: AccountId) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
             Provenance::get_registries(account_id)
         }
@@ -1290,10 +1287,10 @@ impl_runtime_apis! {
         fn get_processes_for_attestor_pending(account_id: AccountId) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>  {
             Provenance::get_processes_for_attestor_pending(account_id)
         }
-        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<BoundedStringName,BoundedStringFact>>  {
+        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<ProposalId,BoundedStringName,BoundedStringFact>>  {
             Provenance::get_process_steps(registry_id,definition_id,process_id)
         }
-        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<BoundedStringName,BoundedStringFact>>  {
+        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<ProposalId,BoundedStringName,BoundedStringFact>>  {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
         fn can_view_definition(account_id: AccountId,registry_id:RegistryId,definition_id:DefinitionId) -> bool  {
@@ -1304,14 +1301,23 @@ impl_runtime_apis! {
         }
     }
     impl identity_runtime_api::IdentityApi<Block,AccountId,CatalogId,ClaimId,MemberCount,Moment,BoundedStringName,BoundedStringFact> for Runtime {
-        fn get_catalogs(account_id:AccountId) -> Vec<CatalogId> {
+        fn is_catalog_owner(account_id: AccountId, catalog_id: CatalogId) -> bool {
+            Identity::is_catalog_owner(account_id,catalog_id)
+        }
+        fn get_catalogs(account_id: AccountId) -> Vec<CatalogId> {
             Identity::get_catalogs(account_id)
         }
-        fn get_dids_in_catalog(catalog_id:CatalogId) -> Vec<Did>  {
+        fn get_dids_in_catalog(catalog_id: CatalogId) -> Vec<Did>  {
             Identity::get_dids_in_catalog(catalog_id)
         }
-        fn get_did_in_catalog(catalog_id:CatalogId,did:Did) -> Option<( DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
-            Identity::get_did_in_catalog(catalog_id,did)
+        fn get_catalogs_by_did(did:Did) -> Vec<CatalogId>  {
+            Identity::get_catalogs_by_did(did)
+        }
+        fn get_did_in_catalog(catalog_id: CatalogId, did: Did) ->  Option<( DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)> {
+            Identity::get_did_in_catalog(catalog_id, did)
+        }
+        fn is_controller(account_id: AccountId,did:Did) -> bool  {
+            Identity::is_controller(account_id, did)
         }
         fn get_did(did:Did) -> Option<(DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
             Identity::get_did(did)
@@ -1336,7 +1342,7 @@ impl_runtime_apis! {
         fn get_outstanding_attestations(issuer:AccountId) -> Vec<(Did,Moment)>{Identity::get_outstanding_attestations(issuer)}
     }
 
-    impl audits_runtime_api::AuditsApi<Block,AccountId,ProposalId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName> for Runtime {
+    impl audits_runtime_api::AuditsApi<Block,AccountId,ProposalId,AuditId,ControlPointId,EvidenceId,ObservationId,BoundedStringName,BoundedStringUrl> for Runtime {
         fn get_audits_by_creator(account_id: AccountId) -> Vec<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audits_by_creator(account_id)
         }
@@ -1355,25 +1361,23 @@ impl_runtime_apis! {
         fn get_audit_by_proposal(proposal_id:ProposalId) -> Option<(AuditId,Audit<AccountId,ProposalId>)>{
             Audits::get_audit_by_proposal(proposal_id)
         }
-        fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<Observation>{
+        fn get_observation(audit_id:AuditId,control_point_id:ControlPointId,observation_id:ObservationId)->Option<(Observation<ProposalId>,Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName,BoundedStringUrl>)>)>{
             Audits::get_observation(audit_id,control_point_id,observation_id)
         }
-        fn get_observation_by_proposal(proposal_id: ProposalId)->Option<(ObservationId,Observation)>{
+        fn get_observation_by_proposal(proposal_id: ProposalId)->Option<(ObservationId,Observation<ProposalId>,Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName,BoundedStringUrl>)>)>{
             Audits::get_observation_by_proposal(proposal_id)
         }
-        fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation)>{
+        fn get_observation_by_control_point(audit_id:AuditId,control_point_id:ControlPointId)->Vec<(ObservationId,Observation<ProposalId>,Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName,BoundedStringUrl>)>)>{
             Audits::get_observation_by_control_point(audit_id,control_point_id)
         }
-        fn get_evidence(audit_id:AuditId,evidence_id:EvidenceId)->Option<Evidence<ProposalId,BoundedStringName>>{
+        fn get_evidence(audit_id:AuditId,evidence_id:EvidenceId)->Option<Evidence<ProposalId,BoundedStringName,BoundedStringUrl>>{
             Audits::get_evidence(audit_id,evidence_id)
         }
-        fn get_evidence_by_audit(audit_id:AuditId)->Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
+        fn get_evidence_by_audit(audit_id:AuditId)->Vec<(EvidenceId,Evidence<ProposalId,BoundedStringName,BoundedStringUrl>)>{
             Audits::get_evidence_by_audit(audit_id)
         }
-
-        fn get_evidence_by_proposal(proposal_id:ProposalId)->Option<(EvidenceId,Evidence<ProposalId,BoundedStringName>)>{
+        fn get_evidence_by_proposal(proposal_id:ProposalId)->Option<(EvidenceId,Evidence<ProposalId,BoundedStringName,BoundedStringUrl>)>{
             Audits::get_evidence_by_proposal(proposal_id)
-
         }
         fn get_evidence_links_by_evidence(evidence_id:EvidenceId)->Vec<ObservationId>{
             Audits::get_evidence_links_by_evidence(evidence_id)
@@ -1387,11 +1391,9 @@ impl_runtime_apis! {
         fn get_weight_to_fee_coefficients() -> Vec<(u64, Perbill, bool, u8)>{
             Settings::get_weight_to_fee_coefficients()
         }
-
         fn get_transaction_byte_fee() -> Balance{
             Settings::get_transaction_byte_fee()
         }
-
         fn get_fee_split_ratio() -> u32 {
             Settings::get_fee_split_ratio()
         }

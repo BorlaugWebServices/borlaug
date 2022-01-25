@@ -4,6 +4,7 @@ use frame_support::dispatch::Vec;
 use sp_runtime::RuntimeDebug;
 
 #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
-pub struct ProcessStep<BoundedStringName, BoundedStringFact> {
+pub struct ProcessStep<ProposalId, BoundedStringName, BoundedStringFact> {
+    pub proposal_id: Option<ProposalId>,
     pub attributes: Vec<Attribute<BoundedStringName, BoundedStringFact>>,
 }

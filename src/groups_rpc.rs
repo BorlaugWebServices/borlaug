@@ -6,7 +6,10 @@ use pallet_primitives::{Group, Votes};
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::{
+    generic::BlockId,
+    traits::{AtLeast32BitUnsigned, Block as BlockT},
+};
 use std::sync::Arc;
 
 #[rpc]
@@ -25,6 +28,13 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
         account_id: AccountId,
         at: Option<BlockHash>,
     ) -> Result<bool>;
+
+    #[rpc(name = "get_group_by_account")]
+    fn get_group_by_account(
+        &self,
+        account_id: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>>;
 
     #[rpc(name = "get_group_account")]
     fn get_group_account(&self, group_id: GroupId, at: Option<BlockHash>) -> Result<AccountId>;
@@ -46,17 +56,16 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     #[rpc(name = "get_proposal")]
     fn get_proposal(
         &self,
-        group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
-    ) -> Result<ProposalResponse<ProposalId, AccountId, MemberCount>>;
+    ) -> Result<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>;
 
     #[rpc(name = "get_proposals_by_group")]
     fn get_proposals_by_group(
         &self,
         group_id: GroupId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>>;
+    ) -> Result<Vec<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>>;
 
     #[rpc(name = "get_proposals_by_account")]
     fn get_proposals_by_account(
@@ -66,7 +75,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     ) -> Result<
         Vec<(
             GroupId,
-            Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>,
+            Vec<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>,
         )>,
     >;
 }
@@ -79,61 +88,75 @@ pub struct GroupResponse<GroupId, AccountId, MemberCount> {
     pub members: Vec<(AccountId, MemberCount)>,
     pub threshold: MemberCount,
     pub anonymous_account: AccountId,
+    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
+    pub balance: u64,
     pub parent: Option<GroupId>,
 }
-impl<GroupId, AccountId, MemberCount, BoundedString>
+impl<GroupId, AccountId, MemberCount, BoundedString, Balance>
     From<(
         GroupId,
         Group<GroupId, AccountId, MemberCount, BoundedString>,
         Vec<(AccountId, MemberCount)>,
+        Balance,
     )> for GroupResponse<GroupId, AccountId, MemberCount>
 where
     BoundedString: Into<Vec<u8>>,
+    Balance: AtLeast32BitUnsigned,
 {
     fn from(
-        (group_id, group, members): (
+        (group_id, group, members, balance): (
             GroupId,
             Group<GroupId, AccountId, MemberCount, BoundedString>,
             Vec<(AccountId, MemberCount)>,
+            Balance,
         ),
     ) -> Self {
         GroupResponse {
             group_id,
             name: String::from_utf8_lossy(&group.name.into()).to_string(),
             total_vote_weight: group.total_vote_weight,
-            members: members,
+            members,
             threshold: group.threshold,
             anonymous_account: group.anonymous_account,
+            balance: balance.unique_saturated_into(),
             parent: group.parent,
         }
     }
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ProposalResponse<ProposalId, AccountId, MemberCount> {
+pub struct ProposalResponse<ProposalId, GroupId, AccountId, MemberCount> {
     pub proposal_id: ProposalId,
+    pub group_id: GroupId,
+    pub members: Vec<(AccountId, MemberCount)>,
     pub hash: Option<String>,
     pub proposal_len: Option<u32>,
     pub votes: VotesResponse<AccountId, MemberCount>,
 }
-impl<ProposalId, Hash, AccountId, MemberCount>
+impl<ProposalId, GroupId, Hash, AccountId, MemberCount>
     From<(
         ProposalId,
+        GroupId,
+        Vec<(AccountId, MemberCount)>,
         Option<(Hash, u32)>,
         Votes<AccountId, MemberCount>,
-    )> for ProposalResponse<ProposalId, AccountId, MemberCount>
+    )> for ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>
 where
     Hash: AsRef<[u8]>,
 {
     fn from(
-        (proposal_id, proposal, votes): (
+        (proposal_id, group_id, members, proposal, votes): (
             ProposalId,
+            GroupId,
+            Vec<(AccountId, MemberCount)>,
             Option<(Hash, u32)>,
             Votes<AccountId, MemberCount>,
         ),
     ) -> Self {
         ProposalResponse {
             proposal_id,
+            group_id,
+            members,
             hash: proposal
                 .as_ref()
                 .map(|(hash, _len)| String::from_utf8_lossy(hash.as_ref()).to_string()),
@@ -197,7 +220,7 @@ macro_rules! not_found_error {
     }};
 }
 
-impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString>
+impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString, Balance>
     GroupsApi<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId, Hash>
     for Groups<
         C,
@@ -209,6 +232,7 @@ impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString>
             ProposalId,
             Hash,
             BoundedString,
+            Balance,
         ),
     >
 where
@@ -216,14 +240,23 @@ where
     C: Send + Sync + 'static,
     C: ProvideRuntimeApi<Block>,
     C: HeaderBackend<Block>,
-    C::Api:
-        GroupsRuntimeApi<Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString>,
+    C::Api: GroupsRuntimeApi<
+        Block,
+        AccountId,
+        GroupId,
+        MemberCount,
+        ProposalId,
+        Hash,
+        BoundedString,
+        Balance,
+    >,
     GroupId: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     AccountId: Codec + Send + Sync + 'static,
     ProposalId: Codec + Copy + Send + Sync + 'static,
     Hash: Codec + Clone + Send + Sync + 'static + AsRef<[u8]>,
     BoundedString: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+    Balance: Codec + Copy + Send + Sync + AtLeast32BitUnsigned + 'static,
 {
     fn member_of(
         &self,
@@ -252,6 +285,21 @@ where
         Ok(is_member)
     }
 
+    fn get_group_by_account(
+        &self,
+        account_id: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<GroupResponse<GroupId, AccountId, MemberCount>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let (group_id, group, members, balance) = api
+            .get_group_by_account(&at, account_id)
+            .map_err(convert_error!())?
+            .ok_or(not_found_error!())?;
+        Ok((group_id, group, members, balance).into())
+    }
+
     fn get_group_account(
         &self,
         group_id: GroupId,
@@ -275,11 +323,11 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (group, members) = api
+        let (group, members, balance) = api
             .get_group(&at, group_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
-        Ok((group_id, group, members).into())
+        Ok((group_id, group, members, balance).into())
     }
 
     fn get_sub_groups(
@@ -296,32 +344,33 @@ where
 
         Ok(groups
             .into_iter()
-            .map(|(sub_group_id, group, members)| (sub_group_id, group, members).into())
+            .map(|(sub_group_id, group, members, balance)| {
+                (sub_group_id, group, members, balance).into()
+            })
             .collect())
     }
 
     fn get_proposal(
         &self,
-        group_id: GroupId,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ProposalResponse<ProposalId, AccountId, MemberCount>> {
+    ) -> Result<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (proposal_id, proposal, votes) = api
-            .get_proposal(&at, group_id, proposal_id)
+        let (proposal_id, group_id, members, proposal, votes) = api
+            .get_proposal(&at, proposal_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
 
-        Ok((proposal_id, proposal, votes).into())
+        Ok((proposal_id, group_id, members, proposal, votes).into())
     }
 
     fn get_proposals_by_group(
         &self,
         group_id: GroupId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>> {
+    ) -> Result<Vec<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -331,7 +380,9 @@ where
 
         Ok(proposals
             .into_iter()
-            .map(|(proposal_id, proposal, votes)| (proposal_id, proposal, votes).into())
+            .map(|(proposal_id, group_id, members, proposal, votes)| {
+                (proposal_id, group_id, members, proposal, votes).into()
+            })
             .collect())
     }
 
@@ -342,7 +393,7 @@ where
     ) -> Result<
         Vec<(
             GroupId,
-            Vec<ProposalResponse<ProposalId, AccountId, MemberCount>>,
+            Vec<ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>>,
         )>,
     > {
         let api = self.client.runtime_api();
@@ -359,7 +410,9 @@ where
                     group_id,
                     proposals
                         .into_iter()
-                        .map(|(proposal_id, proposal, votes)| (proposal_id, proposal, votes).into())
+                        .map(|(proposal_id, group_id, members, proposal, votes)| {
+                            (proposal_id, group_id, members, proposal, votes).into()
+                        })
                         .collect(),
                 )
             })

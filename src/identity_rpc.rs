@@ -20,6 +20,14 @@ use std::sync::Arc;
 
 #[rpc]
 pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Moment> {
+    #[rpc(name = "is_catalog_owner")]
+    fn is_catalog_owner(
+        &self,
+        account_id: AccountId,
+        catalog_id: CatalogId,
+        at: Option<BlockHash>,
+    ) -> Result<bool>;
+
     #[rpc(name = "get_catalogs")]
     fn get_catalogs(
         &self,
@@ -34,6 +42,9 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         at: Option<BlockHash>,
     ) -> Result<Vec<DidDocumentBasicResponse>>;
 
+    #[rpc(name = "get_catalogs_by_did")]
+    fn get_catalogs_by_did(&self, did: Did, at: Option<BlockHash>) -> Result<Vec<CatalogId>>;
+
     #[rpc(name = "get_did_in_catalog")]
     fn get_did_in_catalog(
         &self,
@@ -41,6 +52,10 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         did: Did,
         at: Option<BlockHash>,
     ) -> Result<DidDocumentResponse<AccountId>>;
+
+    #[rpc(name = "is_controller")]
+    fn is_controller(&self, account_id: AccountId, did: Did, at: Option<BlockHash>)
+        -> Result<bool>;
 
     #[rpc(name = "get_did")]
     fn get_did(&self, did: Did, at: Option<BlockHash>) -> Result<DidDocumentResponse<AccountId>>;
@@ -94,6 +109,14 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         consumer: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
+    #[rpc(name = "get_dids_by_consumer_with_claims")]
+    fn get_dids_by_consumer_with_claims(
+        &self,
+        consumer: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<
+        Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
+    >;
 
     #[rpc(name = "get_dids_by_issuer")]
     fn get_dids_by_issuer(
@@ -101,6 +124,14 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         issuer: AccountId,
         at: Option<BlockHash>,
     ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
+    #[rpc(name = "get_dids_by_issuer_with_claims")]
+    fn get_dids_by_issuer_with_claims(
+        &self,
+        issuer: AccountId,
+        at: Option<BlockHash>,
+    ) -> Result<
+        Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
+    >;
 
     #[rpc(name = "get_outstanding_claims")]
     fn get_outstanding_claims(
@@ -335,6 +366,7 @@ impl<AccountId, Moment> From<Attestation<AccountId, Moment>>
     fn from(attestation: Attestation<AccountId, Moment>) -> Self {
         AttestationResponse {
             attested_by: attestation.attested_by,
+            issued: attestation.issued,
             valid_until: attestation.valid_until,
         }
     }
@@ -375,6 +407,33 @@ where
             Fact::Text(value) => FactResponse {
                 data_type: String::from("Text"),
                 value: String::from_utf8_lossy(&value.into()).to_string(),
+            },
+            Fact::Attachment(hash, filename) => FactResponse {
+                data_type: String::from("Attachment"),
+                value: format!(
+                    "0x{};{}",
+                    hex::encode(hash),
+                    String::from_utf8_lossy(&filename.into())
+                ),
+            },
+            Fact::Location(lat, lng) => {
+                let lat = (lat as f64) / 1_000_000f64;
+                let lng = (lng as f64) / 1_000_000f64;
+                FactResponse {
+                    data_type: String::from("Location"),
+                    value: format!("{},{}", lat, lng),
+                }
+            }
+            Fact::Did(did) => {
+                let did: Did = did.into();
+                FactResponse {
+                    data_type: String::from("Did"),
+                    value: did.to_string(),
+                }
+            }
+            Fact::Float(value) => FactResponse {
+                data_type: String::from("Float"),
+                value: f64::from_le_bytes(value).to_string(),
             },
             Fact::U8(value) => FactResponse {
                 data_type: String::from("U8"),
@@ -425,6 +484,7 @@ pub struct StatementResponse {
 #[derive(Serialize, Deserialize)]
 pub struct AttestationResponse<AccountId, Moment> {
     pub attested_by: AccountId,
+    pub issued: Moment,
     pub valid_until: Moment,
 }
 
@@ -456,6 +516,64 @@ impl<Moment> From<(pallet_primitives::Did, Moment)> for AuthorizedDidResponse<Mo
         AuthorizedDidResponse {
             did: did.to_string(),
             valid_until: expiry,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment> {
+    pub did: String,
+    pub catalogs: Vec<CatalogId>,
+    pub valid_until: Moment,
+    pub claims: Vec<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>,
+}
+
+impl<ClaimId, CatalogId, AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact>
+    From<(
+        pallet_primitives::Did,
+        Vec<CatalogId>,
+        Moment,
+        Vec<(
+            ClaimId,
+            pallet_primitives::Claim<
+                AccountId,
+                MemberCount,
+                Moment,
+                BoundedStringName,
+                BoundedStringFact,
+            >,
+        )>,
+    )> for AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>
+where
+    BoundedStringName: Into<Vec<u8>>,
+    BoundedStringFact: Into<Vec<u8>>,
+{
+    fn from(
+        (did, catalogs, expiry, claims): (
+            pallet_primitives::Did,
+            Vec<CatalogId>,
+            Moment,
+            Vec<(
+                ClaimId,
+                pallet_primitives::Claim<
+                    AccountId,
+                    MemberCount,
+                    Moment,
+                    BoundedStringName,
+                    BoundedStringFact,
+                >,
+            )>,
+        ),
+    ) -> Self {
+        let did: Did = did.into();
+        AuthorizedDidWithClaimsResponse {
+            did: did.to_string(),
+            catalogs,
+            valid_until: expiry,
+            claims: claims
+                .into_iter()
+                .map(|(claim_id, claim)| (claim_id, claim).into())
+                .collect(),
         }
     }
 }
@@ -540,6 +658,21 @@ where
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
     BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
+    fn is_catalog_owner(
+        &self,
+        account_id: AccountId,
+        catalog_id: CatalogId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<bool> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let is_owner = api
+            .is_catalog_owner(&at, account_id, catalog_id)
+            .map_err(convert_error!())?;
+        Ok(is_owner)
+    }
+
     fn get_catalogs(
         &self,
         account_id: AccountId,
@@ -571,6 +704,20 @@ where
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }
 
+    fn get_catalogs_by_did(
+        &self,
+        did: Did,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<CatalogId>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let catalogs = api
+            .get_catalogs_by_did(&at, did.into())
+            .map_err(convert_error!())?;
+        Ok(catalogs)
+    }
+
     fn get_did_in_catalog(
         &self,
         catalog_id: CatalogId,
@@ -581,10 +728,25 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let (did_document, properties, controllers) = api
-            .get_did_in_catalog(&at, catalog_id, did.clone().into())
+            .get_did_in_catalog(&at, catalog_id, did.into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((did_document, properties, controllers).into())
+    }
+
+    fn is_controller(
+        &self,
+        account_id: AccountId,
+        did: Did,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<bool> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let is_controller = api
+            .is_controller(&at, account_id, did.into())
+            .map_err(convert_error!())?;
+        Ok(is_controller)
     }
 
     fn get_did(
@@ -596,7 +758,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let (did_document, properties, controllers) = api
-            .get_did(&at, did.clone().into())
+            .get_did(&at, did.into())
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((did_document, properties, controllers).into())
@@ -638,9 +800,7 @@ where
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let claims = api
-            .get_claims(&at, did.clone().into())
-            .map_err(convert_error!())?;
+        let claims = api.get_claims(&at, did.into()).map_err(convert_error!())?;
         Ok(claims
             .into_iter()
             .map(|(claim_id, claim)| (claim_id, claim).into())
@@ -657,7 +817,7 @@ where
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let claim = api
-            .get_claim(&at, did.into(), claim_id.into())
+            .get_claim(&at, did.into(), claim_id)
             .map_err(convert_error!())?
             .ok_or(not_found_error!())?;
         Ok((claim_id, claim).into())
@@ -724,6 +884,31 @@ where
             .collect())
     }
 
+    fn get_dids_by_consumer_with_claims(
+        &self,
+        consumer: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<
+        Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
+    > {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .get_dids_by_consumer(&at, consumer)
+            .map_err(convert_error!())?;
+
+        dids.into_iter()
+            .map(|(did, expiry)| {
+                let catalogs = api
+                    .get_catalogs_by_did(&at, did)
+                    .map_err(convert_error!())?;
+                let claims = api.get_claims(&at, did).map_err(convert_error!())?;
+                Ok((did, catalogs, expiry, claims).into())
+            })
+            .collect::<Result<Vec<_>>>()
+    }
+
     fn get_dids_by_issuer(
         &self,
         issuer: AccountId,
@@ -739,6 +924,30 @@ where
             .into_iter()
             .map(|(did, expiry)| (did, expiry).into())
             .collect())
+    }
+
+    fn get_dids_by_issuer_with_claims(
+        &self,
+        issuer: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<
+        Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
+    > {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .get_dids_by_issuer(&at, issuer)
+            .map_err(convert_error!())?;
+        dids.into_iter()
+            .map(|(did, expiry)| {
+                let catalogs = api
+                    .get_catalogs_by_did(&at, did)
+                    .map_err(convert_error!())?;
+                let claims = api.get_claims(&at, did).map_err(convert_error!())?;
+                Ok((did, catalogs, expiry, claims).into())
+            })
+            .collect::<Result<Vec<_>>>()
     }
 
     fn get_outstanding_claims(

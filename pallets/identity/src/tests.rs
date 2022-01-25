@@ -91,7 +91,7 @@ fn register_did_for_should_work() {
 }
 
 #[test]
-fn update_did_should_work() {
+fn add_did_properties_should_work() {
     new_test_ext().execute_with(|| {
         //required for randomness_collective_flip module
         System::set_block_number(1);
@@ -104,17 +104,13 @@ fn update_did_should_work() {
         });
         assert_eq!(dids_by_controller.len(), 1);
         let did = dids_by_controller[0];
-
-        //check changing name
-        assert_ok!(Identity::update_did(Origin::signed(1), did, None, None));
-
         assert!(DidDocuments::<Test>::contains_key(&did));
 
         //check adding properties
-        assert_ok!(Identity::update_did(
+        assert_ok!(Identity::add_did_properties(
             Origin::signed(1),
             did,
-            Some(vec![
+            vec![
                 DidProperty {
                     name: b"name".to_vec(),
                     fact: Fact::Text(b"John Doe".to_vec())
@@ -123,8 +119,60 @@ fn update_did_should_work() {
                     name: b"age".to_vec(),
                     fact: Fact::U8(255)
                 }
-            ]),
-            None
+            ]
+        ));
+
+        let mut stored_properties = Vec::new();
+        DidDocumentProperties::<Test>::iter_prefix(&did).for_each(|(_, property)| {
+            stored_properties.push(property);
+        });
+        assert_eq!(stored_properties.len(), 2);
+        assert_eq!(
+            stored_properties,
+            vec![
+                DidProperty {
+                    name: b"name".to_vec().try_into().unwrap(),
+                    fact: Fact::Text(b"John Doe".to_vec().try_into().unwrap())
+                },
+                DidProperty {
+                    name: b"age".to_vec().try_into().unwrap(),
+                    fact: Fact::U8(255)
+                }
+            ]
+        );
+    });
+}
+
+#[test]
+fn remove_did_properties_should_work() {
+    new_test_ext().execute_with(|| {
+        //required for randomness_collective_flip module
+        System::set_block_number(1);
+
+        assert_ok!(Identity::register_did(Origin::signed(1), None));
+
+        let mut dids_by_controller = Vec::new();
+        DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
+            dids_by_controller.push(did);
+        });
+        assert_eq!(dids_by_controller.len(), 1);
+        let did = dids_by_controller[0];
+        assert!(DidDocuments::<Test>::contains_key(&did));
+
+        //add properties
+        assert_ok!(Identity::add_did_properties(
+            Origin::signed(1),
+            did,
+            vec![
+                DidProperty {
+                    name: b"name".to_vec(),
+                    fact: Fact::Text(b"John Doe".to_vec())
+                },
+                DidProperty {
+                    name: b"age".to_vec(),
+                    fact: Fact::U8(255)
+                }
+            ]
         ));
 
         let mut stored_properties = Vec::new();
@@ -148,11 +196,10 @@ fn update_did_should_work() {
 
         //check removing properties
 
-        assert_ok!(Identity::update_did(
+        assert_ok!(Identity::remove_did_properties(
             Origin::signed(1),
             did,
-            None,
-            Some(vec![b"name".to_vec()]),
+            vec![b"name".to_vec()],
         ));
 
         let mut stored_properties = Vec::new();
@@ -166,75 +213,6 @@ fn update_did_should_work() {
                 name: b"age".to_vec().try_into().unwrap(),
                 fact: Fact::U8(255)
             }]
-        );
-    });
-}
-
-#[test]
-fn replace_did_should_work() {
-    new_test_ext().execute_with(|| {
-        //required for randomness_collective_flip module
-        System::set_block_number(1);
-
-        assert_ok!(Identity::register_did(
-            Origin::signed(1),
-            Some(vec![DidProperty {
-                name: b"name".to_vec(),
-                fact: Fact::Text(b"John Doe".to_vec())
-            }])
-        ));
-
-        let mut dids_by_controller = Vec::new();
-        DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
-            dids_by_controller.push(did);
-        });
-        assert_eq!(dids_by_controller.len(), 1);
-        let did = dids_by_controller[0];
-        let mut stored_properties = Vec::new();
-        DidDocumentProperties::<Test>::iter_prefix(&did).for_each(|(_, property)| {
-            stored_properties.push(property);
-        });
-        assert_eq!(stored_properties.len(), 1);
-        assert_eq!(
-            stored_properties,
-            vec![DidProperty {
-                name: b"name".to_vec().try_into().unwrap(),
-                fact: Fact::Text(b"John Doe".to_vec().try_into().unwrap())
-            }]
-        );
-
-        assert_ok!(Identity::replace_did(
-            Origin::signed(1),
-            did,
-            vec![
-                DidProperty {
-                    name: b"name".to_vec(),
-                    fact: Fact::Text(b"James Doe".to_vec())
-                },
-                DidProperty {
-                    name: b"age".to_vec(),
-                    fact: Fact::U8(255)
-                }
-            ],
-        ));
-
-        let mut stored_properties = Vec::new();
-        DidDocumentProperties::<Test>::iter_prefix(&did).for_each(|(_, property)| {
-            stored_properties.push(property);
-        });
-        assert_eq!(stored_properties.len(), 2);
-        assert_eq!(
-            stored_properties,
-            vec![
-                DidProperty {
-                    name: b"name".to_vec().try_into().unwrap(),
-                    fact: Fact::Text(b"James Doe".to_vec().try_into().unwrap())
-                },
-                DidProperty {
-                    name: b"age".to_vec().try_into().unwrap(),
-                    fact: Fact::U8(255)
-                }
-            ]
         );
     });
 }
@@ -600,22 +578,18 @@ fn weights_should_not_be_excessive() {
         let weight = <Test as Config>::WeightInfo::register_did_for(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
-            <Test as Config>::PropertyLimit::get() / 10,
+            <Test as Config>::BulkDidPropertyLimit::get(),
         )
         .saturating_mul(<Test as Config>::BulkDidLimit::get().into());
         assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
-        let weight = <Test as Config>::WeightInfo::update_did(
+        let weight = <Test as Config>::WeightInfo::add_did_properties(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
-            <Test as Config>::PropertyLimit::get(),
-            <Test as Config>::NameLimit::get(),
             <Test as Config>::PropertyLimit::get(),
         );
         assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
-        let weight = <Test as Config>::WeightInfo::replace_did(
+        let weight = <Test as Config>::WeightInfo::remove_did_properties(
             <Test as Config>::NameLimit::get(),
-            <Test as Config>::FactStringLimit::get(),
-            <Test as Config>::PropertyLimit::get(),
             <Test as Config>::PropertyLimit::get(),
         );
         assert!(weight < MAXIMUM_ALLOWED_WEIGHT);

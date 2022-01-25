@@ -19,8 +19,7 @@ fn create_did() -> Did {
 fn create_registry(did: Did) -> u32 {
     let name = b"name".to_vec();
     assert_ok!(AssetRegistry::create_registry(Origin::signed(1), did, name));
-    let registry_id = 1u32;
-    registry_id
+    1u32 //registry_id
 }
 
 fn create_asset(did: Did, registry_id: u32) {
@@ -169,7 +168,7 @@ fn creating_asset_should_work() {
         }];
 
         let asset = Asset {
-            properties: properties,
+            properties,
             name: b"Cat".to_vec(),
             asset_number: Some(b"CAR_001".to_vec()),
             status: AssetStatus::Active,
@@ -183,7 +182,7 @@ fn creating_asset_should_work() {
             Origin::signed(1),
             did_1,
             registry_id,
-            asset.clone()
+            asset
         ));
 
         let asset_id = 1u32;
@@ -225,7 +224,7 @@ fn updating_asset_should_work() {
             did_1,
             registry_id,
             asset_id,
-            new_asset.clone()
+            new_asset
         ));
 
         assert!(Assets::<Test>::contains_key(registry_id, asset_id));
@@ -285,7 +284,7 @@ fn creating_lease_should_work() {
         let lease = LeaseAgreement {
             proposal_id: None,
             contract_number: b"001".to_vec(),
-            lessor: did_lessor.clone(),
+            lessor: did_lessor,
             lessee: did_lessee,
             allocations: vec![AssetAllocation {
                 registry_id,

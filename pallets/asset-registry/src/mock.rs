@@ -3,8 +3,12 @@
 use crate as pallet_asset_registry;
 use frame_support::parameter_types;
 use frame_system::{self as system, EnsureOneOf, EnsureSigned};
-use runtime::primitives::{FactStringLimit, NameLimit};
-use runtime::{AssetPropertyLimit, LeaseAssetLimit};
+use runtime::{
+    primitives::{FactStringLimit, NameLimit},
+    AssetPropertyLimit, BulkDidLimit, BulkDidPropertyLimit, CatalogDidLimit, ClaimConsumerLimit,
+    ClaimIssuerLimit, ControllerLimit, GroupChainLimit, GroupMaxMembers, GroupMaxProposalLength,
+    GroupMaxProposals, LeaseAssetLimit, PropertyLimit, StatementLimit,
+};
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -101,13 +105,6 @@ impl settings::Config for Test {
     type WeightInfo = ();
 }
 
-parameter_types! {
-    pub const GroupMaxProposals: u32 = 100;
-    pub const GroupMaxProposalLength: u32 = 1000;
-    pub const GroupMaxMembers: u32 = 100;
-    pub const GroupChainLimit: u32 = 100;
-}
-
 impl groups::Config for Test {
     type Origin = Origin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Test>;
@@ -133,15 +130,7 @@ impl groups::Config for Test {
     type NameLimit = NameLimit;
     type GroupChainLimit = GroupChainLimit;
 }
-parameter_types! {
-    pub const PropertyLimit: u32 = 100;
-    pub const StatementLimit: u32 = 100;
-    pub const ControllerLimit: u32 = 100;
-    pub const ClaimConsumerLimit: u32 = 100;
-    pub const ClaimIssuerLimit: u32 = 100;
-    pub const CatalogDidLimit: u32 = 100;
-    pub const BulkDidLimit: u32 = 100;
-}
+
 impl identity::Config for Test {
     type CatalogId = u32;
     type ClaimId = u32;
@@ -156,6 +145,7 @@ impl identity::Config for Test {
     type ClaimIssuerLimit = ClaimIssuerLimit;
     type CatalogDidLimit = CatalogDidLimit;
     type BulkDidLimit = BulkDidLimit;
+    type BulkDidPropertyLimit = BulkDidPropertyLimit;
 }
 
 impl pallet_asset_registry::Config for Test {

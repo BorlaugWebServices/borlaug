@@ -1,5 +1,6 @@
 use audits_runtime_api::AuditsApi as AuditsRuntimeApi;
 use codec::Codec;
+use frame_support::dispatch::fmt::Display;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
 use pallet_primitives::{Audit, AuditStatus, Compliance, Evidence, Observation};
@@ -18,7 +19,6 @@ pub trait AuditsApi<
     ControlPointId,
     EvidenceId,
     ObservationId,
-    BoundedStringName,
 >
 {
     #[rpc(name = "get_audits_by_creator")]
@@ -70,14 +70,14 @@ pub trait AuditsApi<
         control_point_id: ControlPointId,
         observation_id: ObservationId,
         at: Option<BlockHash>,
-    ) -> Result<ObservationResponse<ObservationId>>;
+    ) -> Result<ObservationResponse<ObservationId, EvidenceId, ProposalId>>;
 
     #[rpc(name = "get_observation_by_proposal")]
     fn get_observation_by_proposal(
         &self,
         proposal_id: ProposalId,
         at: Option<BlockHash>,
-    ) -> Result<ObservationResponse<ObservationId>>;
+    ) -> Result<ObservationResponse<ObservationId, EvidenceId, ProposalId>>;
 
     #[rpc(name = "get_observation_by_control_point")]
     fn get_observation_by_control_point(
@@ -85,7 +85,7 @@ pub trait AuditsApi<
         audit_id: AuditId,
         control_point_id: ControlPointId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ObservationResponse<ObservationId>>>;
+    ) -> Result<Vec<ObservationResponse<ObservationId, EvidenceId, ProposalId>>>;
 
     #[rpc(name = "get_evidence")]
     fn get_evidence(
@@ -116,6 +116,7 @@ pub trait AuditsApi<
         at: Option<BlockHash>,
     ) -> Result<Vec<ObservationId>>;
 
+    //TODO: this is no-longer needed
     #[rpc(name = "get_evidence_links_by_observation")]
     fn get_evidence_links_by_observation(
         &self,
@@ -154,22 +155,50 @@ impl<AccountId, ProposalId, AuditId> From<(AuditId, Audit<AccountId, ProposalId>
     }
 }
 #[derive(Serialize, Deserialize)]
-pub struct ObservationResponse<ObservationId> {
+pub struct ObservationResponse<ObservationId, EvidenceId, ProposalId> {
     pub observation_id: ObservationId,
+    pub proposal_id: ProposalId,
     pub compliance: Option<String>,
     pub procedural_note_hash: Option<[u8; 32]>,
+    pub evidences: Vec<EvidenceResponse<EvidenceId, ProposalId>>,
 }
 //TODO: send enums as enums not as strings
-impl<ObservationId> From<(ObservationId, Observation)> for ObservationResponse<ObservationId> {
-    fn from((observation_id, observation): (ObservationId, Observation)) -> Self {
+impl<ObservationId, EvidenceId, ProposalId, BoundedString, BoundedStringUrl>
+    From<(
+        ObservationId,
+        Observation<ProposalId>,
+        Vec<(
+            EvidenceId,
+            Evidence<ProposalId, BoundedString, BoundedStringUrl>,
+        )>,
+    )> for ObservationResponse<ObservationId, EvidenceId, ProposalId>
+where
+    BoundedString: Into<Vec<u8>>,
+    BoundedStringUrl: Into<Vec<u8>>,
+{
+    fn from(
+        (observation_id, observation, evidences): (
+            ObservationId,
+            Observation<ProposalId>,
+            Vec<(
+                EvidenceId,
+                Evidence<ProposalId, BoundedString, BoundedStringUrl>,
+            )>,
+        ),
+    ) -> Self {
         ObservationResponse {
             observation_id,
+            proposal_id: observation.proposal_id,
             compliance: observation.compliance.map(|compliance| match compliance {
                 Compliance::Compliant => "Compliant".to_string(),
                 Compliance::NonCompliant => "NonCompliant".to_string(),
                 Compliance::NotApplicable => "NotApplicable".to_string(),
             }),
             procedural_note_hash: observation.procedural_note_hash,
+            evidences: evidences
+                .into_iter()
+                .map(|(evidence_id, evidence)| (evidence_id, evidence).into())
+                .collect(),
         }
     }
 }
@@ -184,12 +213,21 @@ pub struct EvidenceResponse<EvidenceId, ProposalId> {
     pub hash: String,
 }
 
-impl<EvidenceId, ProposalId, BoundedString> From<(EvidenceId, Evidence<ProposalId, BoundedString>)>
-    for EvidenceResponse<EvidenceId, ProposalId>
+impl<EvidenceId, ProposalId, BoundedString, BoundedStringUrl>
+    From<(
+        EvidenceId,
+        Evidence<ProposalId, BoundedString, BoundedStringUrl>,
+    )> for EvidenceResponse<EvidenceId, ProposalId>
 where
     BoundedString: Into<Vec<u8>>,
+    BoundedStringUrl: Into<Vec<u8>>,
 {
-    fn from((evidence_id, evidence): (EvidenceId, Evidence<ProposalId, BoundedString>)) -> Self {
+    fn from(
+        (evidence_id, evidence): (
+            EvidenceId,
+            Evidence<ProposalId, BoundedString, BoundedStringUrl>,
+        ),
+    ) -> Self {
         EvidenceResponse {
             evidence_id,
             proposal_id: evidence.proposal_id,
@@ -227,11 +265,11 @@ macro_rules! convert_error {
 }
 
 macro_rules! not_found_error {
-    () => {{
+    ($id:expr) => {{
         RpcError {
             code: ErrorCode::ServerError(404),
             message: "Entity not found".into(),
-            data: Some("Entity not found".into()),
+            data: Some(format!("{}", $id).into()),
         }
     }};
 }
@@ -246,6 +284,7 @@ impl<
         EvidenceId,
         ObservationId,
         BoundedStringName,
+        BoundedStringUrl,
     >
     AuditsApi<
         <Block as BlockT>::Hash,
@@ -255,7 +294,6 @@ impl<
         ControlPointId,
         EvidenceId,
         ObservationId,
-        BoundedStringName,
     >
     for Audits<
         C,
@@ -268,6 +306,7 @@ impl<
             EvidenceId,
             ObservationId,
             BoundedStringName,
+            BoundedStringUrl,
         ),
     >
 where
@@ -284,14 +323,16 @@ where
         EvidenceId,
         ObservationId,
         BoundedStringName,
+        BoundedStringUrl,
     >,
     AccountId: Codec + Send + Sync + 'static,
-    ProposalId: Codec + Send + Sync + 'static,
-    AuditId: Codec + Copy + Send + Sync + 'static,
+    ProposalId: Codec + Copy + Send + Display + Sync + 'static,
+    AuditId: Codec + Copy + Send + Display + Sync + 'static,
     ControlPointId: Codec + Copy + Send + Sync + 'static,
-    EvidenceId: Codec + Copy + Send + Sync + 'static,
-    ObservationId: Codec + Copy + Send + Sync + 'static,
+    EvidenceId: Codec + Copy + Send + Display + Sync + 'static,
+    ObservationId: Codec + Copy + Send + Display + Sync + 'static,
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
+    BoundedStringUrl: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
     fn get_audits_by_creator(
         &self,
@@ -372,7 +413,7 @@ where
         let audit = api
             .get_audit(&at, audit_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(audit_id))?;
         Ok((audit_id, audit).into())
     }
 
@@ -387,7 +428,7 @@ where
         let (audit_id, audit) = api
             .get_audit_by_proposal(&at, proposal_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(proposal_id))?;
         Ok((audit_id, audit).into())
     }
 
@@ -397,30 +438,30 @@ where
         control_point_id: ControlPointId,
         observation_id: ObservationId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ObservationResponse<ObservationId>> {
+    ) -> Result<ObservationResponse<ObservationId, EvidenceId, ProposalId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let observation = api
+        let (observation, evidences) = api
             .get_observation(&at, audit_id, control_point_id, observation_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
-        Ok((observation_id, observation).into())
+            .ok_or(not_found_error!(observation_id))?;
+        Ok((observation_id, observation, evidences).into())
     }
 
     fn get_observation_by_proposal(
         &self,
         proposal_id: ProposalId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ObservationResponse<ObservationId>> {
+    ) -> Result<ObservationResponse<ObservationId, EvidenceId, ProposalId>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let (observation_id, observation) = api
+        let (observation_id, observation, evidences) = api
             .get_observation_by_proposal(&at, proposal_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
-        Ok((observation_id, observation).into())
+            .ok_or(not_found_error!(proposal_id))?;
+        Ok((observation_id, observation, evidences).into())
     }
 
     fn get_observation_by_control_point(
@@ -428,7 +469,7 @@ where
         audit_id: AuditId,
         control_point_id: ControlPointId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ObservationResponse<ObservationId>>> {
+    ) -> Result<Vec<ObservationResponse<ObservationId, EvidenceId, ProposalId>>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -437,7 +478,9 @@ where
             .map_err(convert_error!())?;
         Ok(observations
             .into_iter()
-            .map(|(observation_id, observation)| (observation_id, observation).into())
+            .map(|(observation_id, observation, evidences)| {
+                (observation_id, observation, evidences).into()
+            })
             .collect())
     }
 
@@ -453,7 +496,7 @@ where
         let evidence = api
             .get_evidence(&at, audit_id, evidence_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(evidence_id))?;
         Ok((evidence_id, evidence).into())
     }
 
@@ -485,7 +528,7 @@ where
         let (evidence_id, evidence) = api
             .get_evidence_by_proposal(&at, proposal_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(proposal_id))?;
         Ok((evidence_id, evidence).into())
     }
 

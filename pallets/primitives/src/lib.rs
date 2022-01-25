@@ -38,11 +38,21 @@ macro_rules! enforce_limit_fact {
                     .map_err(|_| Error::<T>::StringLengthLimitExceeded)?;
                 Fact::Text(bounded_string)
             }
+            Fact::Attachment(hash, filename) => {
+                let bounded_filename: BoundedVec<u8, <T as Config>::FactStringLimit> = filename
+                    .try_into()
+                    .map_err(|_| Error::<T>::StringLengthLimitExceeded)?;
+                Fact::Attachment(hash, bounded_filename)
+            }
+            Fact::Location(lat, lng) => Fact::Location(lat, lng),
+            Fact::Did(v) => Fact::Did(v),
+            Fact::Float(v) => Fact::Float(v),
             Fact::U8(v) => Fact::U8(v),
             Fact::U16(v) => Fact::U16(v),
             Fact::U32(v) => Fact::U32(v),
             Fact::U128(v) => Fact::U128(v),
             Fact::Date(a, b, c) => Fact::Date(a, b, c),
+            //TODO: make sure timezone cannot exceed 10 chars
             Fact::Iso8601(a, b, c, d, e, f, g) => Fact::Iso8601(a, b, c, d, e, f, g),
         };
         fact
@@ -77,6 +87,21 @@ macro_rules! enforce_limit_option {
                 let bounded_string: BoundedVec<u8, <T as Config>::NameLimit> = id
                     .try_into()
                     .map_err(|_| Error::<T>::StringLengthLimitExceeded)?;
+                Some(bounded_string)
+            }
+            None => None,
+        };
+        bounded_string
+    }};
+}
+
+#[macro_export]
+macro_rules! enforce_url_limit_option {
+    ($id:expr) => {{
+        let bounded_string = match $id {
+            Some(id) => {
+                let bounded_string: BoundedVec<u8, <T as Config>::UrlLimit> =
+                    id.try_into().map_err(|_| Error::<T>::UrLLimitExceeded)?;
                 Some(bounded_string)
             }
             None => None,
