@@ -31,6 +31,10 @@
     "_enum": {
       "Bool": "bool",
       "Text": "Vec<u8>",
+      "Attachment": "(H256, Vec<u8>)",
+      "Location": "(u32, u32)",
+      "Did": "(Did)",
+      "Float": "([u8; 8])",
       "U8": "u8",
       "U16": "u16",
       "U32": "u32",
@@ -40,7 +44,7 @@
     }
   },
   "DidDocument": {
-    "properties": "Vec<DidProperty>"
+    "subject": "AccountId"
   },
   "DidProperty": {
     "name": "Vec<u8>",
@@ -67,6 +71,7 @@
     "fact": "Fact"
   },
   "LeaseAgreement": {
+    "proposal_id": "Option<ProposalId>",
     "contract_number": "Vec<u8>",
     "lessor": "Did",
     "lessee": "Did",
@@ -87,11 +92,11 @@
     ]
   },
   "ClaimConsumer": {
-    "consumer": "Did",
+    "consumer": "AccountId",
     "expiration": "Moment"
   },
   "ClaimIssuer": {
-    "issuer": "Did",
+    "issuer": "AccountId",
     "expiration": "Moment"
   },
   "DidPropertyName": "Vec<u8>",
@@ -108,13 +113,16 @@
   },
   "AuditorId": "AccountId",
   "Audit": {
+    "proposal_id": "ProposalId",
     "status": "AuditStatus",
     "audit_creator": "AccountId",
-    "auditor": "AuditorId"
+    "auditing_org": "AccountId",
+    "auditors": "Option<AccountId>"
   },
   "ControlPointId": "u32",
   "ObservationId": "u32",
   "Observation": {
+    "proposal_id": "ProposalId",
     "compliance": "Option<Compliance>",
     "procedural_note_hash": "Option<[u8; 32]>"
   },
@@ -127,6 +135,7 @@
   },
   "EvidenceId": "u32",
   "Evidence": {
+    "proposal_id": "ProposalId",
     "name": "Vec<u8>",
     "content_type": "Vec<u8>",
     "url": "Option<Vec<u8>>",
@@ -137,10 +146,19 @@
     "status": "ProcessStatus"
   },
   "Definition": {
-    "name": "Vec<u8>"
+    "name": "Vec<u8>",
+    "status": "DefinitionStatus"
+  },
+  "DefinitionStatus": {
+    "_enum": [
+      "Active",
+      "Inactive"
+    ]
   },
   "DefinitionStep": {
-    "name": "Vec<u8>"
+    "name": "Vec<u8>",
+    "attestor": "AccountId",
+    "threshold": "MemberCount"
   },
   "ProcessStatus": {
     "_enum": [
@@ -149,7 +167,7 @@
     ]
   },
   "ProcessStep": {
-    "attested_by": "Account",
+    "proposal_id": "Option<ProposalId>",
     "attributes": "Vec<Attribute>"
   },
   "Attribute": {

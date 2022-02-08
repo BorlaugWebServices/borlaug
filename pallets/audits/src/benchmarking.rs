@@ -44,7 +44,7 @@ fn create_group<T: Config>() -> Result<T::AccountId, &'static str> {
 fn audit_create<T: Config>() -> Result<T::AccountId, &'static str> {
     let group_account = create_group::<T>()?;
     let origin = T::GroupsOriginByGroupThreshold::successful_origin();
-    let call = Call::<T>::create_audit(group_account.clone());
+    let call = Call::<T>::create_audit(group_account.clone(), 1u32);
     call.dispatch_bypass_filter(origin)?;
     let audit_id = T::AuditId::unique_saturated_from(1u32);
     assert!(<Audits<T>>::contains_key(audit_id));
@@ -74,7 +74,7 @@ benchmarks! {
         let audit_creator= create_group::<T>()?;
         let auditing_org:T::AccountId=account("auditing_org", 1, 1);
         let origin=T::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::create_audit(auditing_org.clone());
+        let call = Call::<T>::create_audit(auditing_org.clone(),1u32);
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -112,7 +112,7 @@ benchmarks! {
 
     link_audit {
         let (auditors,parent_audit_id,origin) = audit_create_and_assign::<T>()?;
-        let call = Call::<T>::create_audit(auditors.clone());
+        let call = Call::<T>::create_audit(auditors.clone(),1u32);
         call.dispatch_bypass_filter(origin.clone())?;
         let child_audit_id = T::AuditId::unique_saturated_from(2u32);
         assert!(<Audits<T>>::contains_key(child_audit_id));
@@ -129,7 +129,7 @@ benchmarks! {
 
     unlink_audit {
         let (auditors,parent_audit_id,origin) = audit_create_and_assign::<T>()?;
-        let call = Call::<T>::create_audit(auditors.clone());
+        let call = Call::<T>::create_audit(auditors.clone(),1u32);
         call.dispatch_bypass_filter(origin.clone())?;
         let child_audit_id = T::AuditId::unique_saturated_from(2u32);
         assert!(<Audits<T>>::contains_key(child_audit_id));

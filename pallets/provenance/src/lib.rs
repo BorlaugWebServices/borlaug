@@ -252,11 +252,11 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            let mut weight: Weight = 0;
-            weight += super::migration::migrate_to_v2::<T>();
-            weight
-        }
+        // fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        //     let mut weight: Weight = 0;
+        //     // weight += super::migration::migrate_to_v2::<T>();
+        //     weight
+        // }
     }
 
     #[pallet::genesis_config]

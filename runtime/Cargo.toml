@@ -17,7 +17,7 @@ sp-api = {version = "3.0.0", default-features = false}
 sp-application-crypto = {version = "3.0.0", default-features = false}
 sp-authority-discovery = {version = "3.0.0", default-features = false}
 sp-block-builder = {version = "3.0.0", default-features = false}
-sp-consensus-babe = {version = "0.9.0", default-features = false}
+
 sp-core = {version = "3.0.0", default-features = false}
 sp-inherents = {version = "3.0.0", default-features = false}
 sp-offchain = {version = "3.0.0", default-features = false}
@@ -43,10 +43,9 @@ pallet-timestamp = {version = "3.0.0", default-features = false}
 
 pallet-treasury = {version = "3.0.0", default-features = false}
 
-# grandpa/babe dependencies
+# grandpa/babe/aura dependencies
 
-sp-staking = {version = "3.0.0", default-features = false, optional = true}
-
+pallet-aura = {version = "3.0.0", default-features = false, optional = true}
 pallet-authority-discovery = {version = "3.0.0", default-features = false, optional = true}
 pallet-babe = {version = "3.0.0", default-features = false, optional = true}
 pallet-grandpa = {version = "3.0.0", default-features = false, optional = true}
@@ -55,6 +54,9 @@ pallet-offences = {version = "3.0.0", default-features = false, optional = true}
 pallet-session = {version = "3.0.0", default-features = false, optional = true}
 pallet-staking = {version = "3.0.0", default-features = false, optional = true}
 pallet-staking-reward-curve = {version = "3.0.0", default-features = false, optional = true}
+sp-consensus-aura = {version = "0.9.0", default-features = false, optional = true}
+sp-consensus-babe = {version = "0.9.0", default-features = false, optional = true}
+sp-staking = {version = "3.0.0", default-features = false, optional = true}
 
 # Used for runtime benchmarking
 frame-benchmarking = {version = "3.1.0", default-features = false, optional = true}
@@ -135,10 +137,16 @@ std = [
   "settings-runtime-api/std",
   "provenance/std",
   "pallet-babe/std",
+  "pallet-aura/std",
   "pallet-grandpa/std",
   "pallet-proxy/std",
 ]
 
+grandpa_aura = [
+  "pallet-aura",
+  "pallet-grandpa",
+  "sp-consensus-aura",
+]
 grandpa_babe = [
   "pallet-babe",
   "pallet-grandpa",
@@ -149,6 +157,7 @@ grandpa_babe = [
   "pallet-staking-reward-curve",
   "pallet-im-online",
   "pallet-authority-discovery",
+  "sp-consensus-babe",
 ]
 instant_seal = []
 
