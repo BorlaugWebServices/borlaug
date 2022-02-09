@@ -20,6 +20,7 @@ pub trait ProvenanceApi<
     DefinitionId,
     ProcessId,
     ProposalId,
+    Moment,
     MemberCount,
     DefinitionStepIndex,
 >
@@ -98,7 +99,18 @@ pub trait ProvenanceApi<
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>>>;
+    ) -> Result<
+        Vec<
+            ProcessResponse<
+                RegistryId,
+                DefinitionId,
+                ProcessId,
+                ProposalId,
+                DefinitionStepIndex,
+                Moment,
+            >,
+        >,
+    >;
 
     #[rpc(name = "get_process")]
     fn get_process(
@@ -107,7 +119,16 @@ pub trait ProvenanceApi<
         definition_id: DefinitionId,
         process_id: ProcessId,
         at: Option<BlockHash>,
-    ) -> Result<ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>>;
+    ) -> Result<
+        ProcessResponse<
+            RegistryId,
+            DefinitionId,
+            ProcessId,
+            ProposalId,
+            DefinitionStepIndex,
+            Moment,
+        >,
+    >;
 
     #[rpc(name = "get_processes_for_attestor_by_status")]
     fn get_processes_for_attestor_by_status(
@@ -115,14 +136,36 @@ pub trait ProvenanceApi<
         account_id: AccountId,
         status: String,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>>>;
+    ) -> Result<
+        Vec<
+            ProcessResponse<
+                RegistryId,
+                DefinitionId,
+                ProcessId,
+                ProposalId,
+                DefinitionStepIndex,
+                Moment,
+            >,
+        >,
+    >;
 
     #[rpc(name = "get_processes_for_attestor_pending")]
     fn get_processes_for_attestor_pending(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>>>;
+    ) -> Result<
+        Vec<
+            ProcessResponse<
+                RegistryId,
+                DefinitionId,
+                ProcessId,
+                ProposalId,
+                DefinitionStepIndex,
+                Moment,
+            >,
+        >,
+    >;
 
     #[rpc(name = "get_process_step")]
     fn get_process_step(
@@ -132,7 +175,7 @@ pub trait ProvenanceApi<
         process_id: ProcessId,
         definition_step_index: DefinitionStepIndex,
         at: Option<BlockHash>,
-    ) -> Result<ProcessStepResponse<ProposalId>>;
+    ) -> Result<ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>>;
 
     #[rpc(name = "can_view_definition")]
     fn can_view_definition(
@@ -264,21 +307,44 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId> {
+pub struct ProcessResponse<
+    RegistryId,
+    DefinitionId,
+    ProcessId,
+    ProposalId,
+    DefinitionStepIndex,
+    Moment,
+> {
     pub registry_id: RegistryId,
     pub definition_id: DefinitionId,
     pub process_id: ProcessId,
     pub name: String,
-    pub process_steps: Option<Vec<ProcessStepResponse<ProposalId>>>,
+    pub process_steps: Option<Vec<ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>>>,
     pub status: String,
 }
-impl<RegistryId, DefinitionId, ProcessId, ProposalId, BoundedStringName>
+impl<
+        RegistryId,
+        DefinitionId,
+        ProcessId,
+        ProposalId,
+        DefinitionStepIndex,
+        Moment,
+        BoundedStringName,
+    >
     From<(
         RegistryId,
         DefinitionId,
         ProcessId,
         Process<BoundedStringName>,
-    )> for ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>
+    )>
+    for ProcessResponse<
+        RegistryId,
+        DefinitionId,
+        ProcessId,
+        ProposalId,
+        DefinitionStepIndex,
+        Moment,
+    >
 where
     BoundedStringName: Into<Vec<u8>>,
 {
@@ -303,14 +369,34 @@ where
         }
     }
 }
-impl<RegistryId, DefinitionId, ProcessId, ProposalId, BoundedStringName, BoundedStringFact>
+impl<
+        RegistryId,
+        DefinitionId,
+        ProcessId,
+        ProposalId,
+        DefinitionStepIndex,
+        Moment,
+        BoundedStringName,
+        BoundedStringFact,
+    >
     From<(
         RegistryId,
         DefinitionId,
         ProcessId,
         Process<BoundedStringName>,
-        Vec<ProcessStep<ProposalId, BoundedStringName, BoundedStringFact>>,
-    )> for ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>
+        Vec<(
+            DefinitionStepIndex,
+            ProcessStep<ProposalId, Moment, BoundedStringName, BoundedStringFact>,
+        )>,
+    )>
+    for ProcessResponse<
+        RegistryId,
+        DefinitionId,
+        ProcessId,
+        ProposalId,
+        DefinitionStepIndex,
+        Moment,
+    >
 where
     BoundedStringName: Into<Vec<u8>>,
     BoundedStringFact: Into<Vec<u8>>,
@@ -321,7 +407,10 @@ where
             DefinitionId,
             ProcessId,
             Process<BoundedStringName>,
-            Vec<ProcessStep<ProposalId, BoundedStringName, BoundedStringFact>>,
+            Vec<(
+                DefinitionStepIndex,
+                ProcessStep<ProposalId, Moment, BoundedStringName, BoundedStringFact>,
+            )>,
         ),
     ) -> Self {
         ProcessResponse {
@@ -343,21 +432,32 @@ where
     }
 }
 #[derive(Serialize, Deserialize)]
-pub struct ProcessStepResponse<ProposalId> {
+pub struct ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment> {
     pub proposal_id: Option<ProposalId>,
+    pub definition_step_index: DefinitionStepIndex,
+    pub attested: Moment,
     pub attributes: Vec<AttributeResponse>,
 }
 
-impl<ProposalId, BoundedStringName, BoundedStringFact>
-    From<ProcessStep<ProposalId, BoundedStringName, BoundedStringFact>>
-    for ProcessStepResponse<ProposalId>
+impl<ProposalId, DefinitionStepIndex, Moment, BoundedStringName, BoundedStringFact>
+    From<(
+        DefinitionStepIndex,
+        ProcessStep<ProposalId, Moment, BoundedStringName, BoundedStringFact>,
+    )> for ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>
 where
     BoundedStringName: Into<Vec<u8>>,
     BoundedStringFact: Into<Vec<u8>>,
 {
-    fn from(process_step: ProcessStep<ProposalId, BoundedStringName, BoundedStringFact>) -> Self {
+    fn from(
+        (definition_step_index, process_step): (
+            DefinitionStepIndex,
+            ProcessStep<ProposalId, Moment, BoundedStringName, BoundedStringFact>,
+        ),
+    ) -> Self {
         ProcessStepResponse {
             proposal_id: process_step.proposal_id,
+            definition_step_index: definition_step_index,
+            attested: process_step.attested,
             attributes: process_step
                 .attributes
                 .into_iter()
@@ -418,6 +518,7 @@ impl<
         DefinitionId,
         ProcessId,
         ProposalId,
+        Moment,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,
@@ -430,6 +531,7 @@ impl<
         DefinitionId,
         ProcessId,
         ProposalId,
+        Moment,
         MemberCount,
         DefinitionStepIndex,
     >
@@ -442,6 +544,7 @@ impl<
             DefinitionId,
             ProcessId,
             ProposalId,
+            Moment,
             MemberCount,
             DefinitionStepIndex,
             BoundedStringName,
@@ -460,6 +563,7 @@ where
         DefinitionId,
         ProcessId,
         ProposalId,
+        Moment,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,
@@ -470,6 +574,7 @@ where
     DefinitionId: Codec + Copy + Send + Sync + 'static,
     ProcessId: Codec + Copy + Send + Sync + 'static,
     ProposalId: Codec + Copy + Send + Sync + 'static,
+    Moment: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
     DefinitionStepIndex: Codec + Copy + Send + Sync + 'static,
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
@@ -623,7 +728,18 @@ where
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>>> {
+    ) -> Result<
+        Vec<
+            ProcessResponse<
+                RegistryId,
+                DefinitionId,
+                ProcessId,
+                ProposalId,
+                DefinitionStepIndex,
+                Moment,
+            >,
+        >,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -643,7 +759,16 @@ where
         definition_id: DefinitionId,
         process_id: ProcessId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>> {
+    ) -> Result<
+        ProcessResponse<
+            RegistryId,
+            DefinitionId,
+            ProcessId,
+            ProposalId,
+            DefinitionStepIndex,
+            Moment,
+        >,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -671,7 +796,18 @@ where
         account_id: AccountId,
         status: String,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>>> {
+    ) -> Result<
+        Vec<
+            ProcessResponse<
+                RegistryId,
+                DefinitionId,
+                ProcessId,
+                ProposalId,
+                DefinitionStepIndex,
+                Moment,
+            >,
+        >,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -702,7 +838,18 @@ where
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ProcessResponse<RegistryId, DefinitionId, ProcessId, ProposalId>>> {
+    ) -> Result<
+        Vec<
+            ProcessResponse<
+                RegistryId,
+                DefinitionId,
+                ProcessId,
+                ProposalId,
+                DefinitionStepIndex,
+                Moment,
+            >,
+        >,
+    > {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -725,7 +872,7 @@ where
         process_id: ProcessId,
         definition_step_index: DefinitionStepIndex,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ProcessStepResponse<ProposalId>> {
+    ) -> Result<ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 

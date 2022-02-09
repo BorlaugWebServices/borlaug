@@ -12,6 +12,7 @@ frame-system = {version = "3.0.0", default-features = false}
 serde = "1.0"
 sp-runtime = {version = "3.0.0", default-features = false}
 sp-std = {package = "sp-std", version = "3.0.0", default-features = false}
+timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
 
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
 groups = {package = "pallet-groups", path = "../groups", default-features = false}
@@ -36,6 +37,7 @@ std = [
   "sp-std/std",
   "frame-support/std",
   "frame-system/std",
+  "timestamp/std",
   "primitives/std",
   "groups/std",
   "extrinsic-extra/std",

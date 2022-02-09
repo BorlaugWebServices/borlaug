@@ -84,10 +84,11 @@ pub mod pallet {
     pub enum Releases {
         V1,
         V2,
+        V3,
     }
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + groups::Config {
+    pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -121,6 +122,7 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::metadata(
         T::AccountId = "AccountId",
+        T::Moment = "Moment",
         T::RegistryId = "RegistryId",
         T::DefinitionId = "DefinitionId",
         T::ProcessId = "ProcessId",
@@ -216,8 +218,8 @@ pub mod pallet {
         StringLengthLimitExceeded,
         /// Incorrect Status
         IncorrectStatus,
-        /// User tried to attest a step that is not the current step of a Process
-        ProcessStepNotCurrent,
+        /// User tried to attest a step that is already attested
+        ProcessStepAlreadyAttested,
         /// No id was found (either user is not owner, or entity does not exist)
         NotFound,
         /// Cannot delete non-empty registry
@@ -252,11 +254,11 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        // fn on_runtime_upgrade() -> frame_support::weights::Weight {
-        //     let mut weight: Weight = 0;
-        //     // weight += super::migration::migrate_to_v2::<T>();
-        //     weight
-        // }
+        fn on_runtime_upgrade() -> frame_support::weights::Weight {
+            let mut weight: Weight = 0;
+            weight += super::migration::migrate_to_v3::<T>();
+            weight
+        }
     }
 
     #[pallet::genesis_config]
@@ -371,6 +373,7 @@ pub mod pallet {
         T::DefinitionStepIndex,
         ProcessStep<
             T::ProposalId,
+            T::Moment,
             BoundedVec<u8, <T as Config>::NameLimit>,
             BoundedVec<u8, <T as Config>::FactStringLimit>,
         >,
@@ -956,29 +959,19 @@ pub mod pallet {
                 Error::<T>::IncorrectThreshold
             );
 
-            let one = T::DefinitionStepIndex::unique_saturated_from(1u32);
-
-            ensure!(
-                definition_step_index == T::DefinitionStepIndex::unique_saturated_from(0u32)
-                    || <ProcessSteps<T>>::contains_key(
-                        (registry_id, definition_id, process_id),
-                        definition_step_index.saturating_sub(one)
-                    ),
-                Error::<T>::ProcessStepNotCurrent
-            );
-
             ensure!(
                 !<ProcessSteps<T>>::contains_key(
                     (registry_id, definition_id, process_id),
                     definition_step_index
                 ),
-                Error::<T>::ProcessStepNotCurrent
+                Error::<T>::ProcessStepAlreadyAttested
             );
 
             let attributes = enforce_limit_attributes!(attributes);
 
             let process_step = ProcessStep {
                 proposal_id,
+                attested: <timestamp::Module<T>>::get(),
                 attributes,
             };
 
@@ -988,12 +981,22 @@ pub mod pallet {
                 process_step,
             );
 
-            let one = T::DefinitionStepIndex::unique_saturated_from(1u32);
+            let mut completed = true;
+            let mut index = T::DefinitionStepIndex::unique_saturated_from(0u32);
+            loop {
+                if !<ProcessSteps<T>>::contains_key((registry_id, definition_id, process_id), index)
+                {
+                    completed = false;
+                }
+                index = index.saturating_add(T::DefinitionStepIndex::unique_saturated_from(1u32));
+                if !completed
+                    || !<DefinitionSteps<T>>::contains_key((registry_id, definition_id), index)
+                {
+                    break;
+                }
+            }
 
-            if !<DefinitionSteps<T>>::contains_key(
-                (registry_id, definition_id),
-                definition_step_index.saturating_add(one),
-            ) {
+            if completed {
                 <Processes<T>>::mutate_exists(
                     (registry_id, definition_id),
                     process_id,
@@ -1236,25 +1239,20 @@ pub mod pallet {
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
-        ) -> Vec<
+        ) -> Vec<(
+            T::DefinitionStepIndex,
             ProcessStep<
                 T::ProposalId,
+                T::Moment,
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
             >,
-        > {
+        )> {
             let mut process_steps = Vec::new();
             <ProcessSteps<T>>::iter_prefix((registry_id, definition_id, process_id)).for_each(
                 |(step_index, definition_step)| process_steps.push((step_index, definition_step)),
             );
-            process_steps.sort_by(|(step_index_a, _), (step_index_b, _)| {
-                step_index_a.partial_cmp(step_index_b).unwrap()
-            });
-
             process_steps
-                .into_iter()
-                .map(|(_, process_step)| process_step)
-                .collect()
         }
 
         pub fn get_process_step(
@@ -1262,17 +1260,20 @@ pub mod pallet {
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
             definition_step_index: T::DefinitionStepIndex,
-        ) -> Option<
+        ) -> Option<(
+            T::DefinitionStepIndex,
             ProcessStep<
                 T::ProposalId,
+                T::Moment,
                 BoundedVec<u8, <T as Config>::NameLimit>,
                 BoundedVec<u8, <T as Config>::FactStringLimit>,
             >,
-        > {
+        )> {
             <ProcessSteps<T>>::get(
                 (registry_id, definition_id, process_id),
                 definition_step_index,
             )
+            .map(|process_step| (definition_step_index, process_step))
         }
 
         // Definition creators and attestors can view definitions and processes derived from them.

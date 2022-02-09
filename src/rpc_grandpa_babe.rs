@@ -148,6 +148,7 @@ where
         ProcessId,
         ProposalId,
         MemberCount,
+        Moment,
         DefinitionStepIndex,
         BoundedStringName,
         BoundedStringFact,

@@ -86,6 +86,7 @@ where
         DefinitionId,
         ProcessId,
         ProposalId,
+        Moment,
         MemberCount,
         DefinitionStepIndex,
         BoundedStringName,

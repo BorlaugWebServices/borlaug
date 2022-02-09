@@ -82,10 +82,8 @@ use sp_runtime::{
     curve::PiecewiseLinear, impl_opaque_keys, traits::NumberFor,
     transaction_validity::TransactionPriority,
 };
-#[cfg( feature = "grandpa_aura")]
-use sp_runtime::{
-     impl_opaque_keys, traits::NumberFor
-};
+#[cfg(feature = "grandpa_aura")]
+use sp_runtime::{impl_opaque_keys, traits::NumberFor};
 use sp_std::prelude::*;
 use sp_version::RuntimeVersion;
 
@@ -171,7 +169,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 16,
+    spec_version: 17,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -1339,7 +1337,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId, ProposalId,MemberCount,DefinitionStepIndex,BoundedStringName,BoundedStringFact> for Runtime {
+    impl provenance_runtime_api::ProvenanceApi<Block,AccountId,RegistryId,DefinitionId,ProcessId, ProposalId,Moment,MemberCount,DefinitionStepIndex,BoundedStringName,BoundedStringFact> for Runtime {
         fn get_registries(account_id: AccountId) -> Vec<(RegistryId,Registry<BoundedStringName>)>  {
             Provenance::get_registries(account_id)
         }
@@ -1373,10 +1371,10 @@ impl_runtime_apis! {
         fn get_processes_for_attestor_pending(account_id: AccountId) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>  {
             Provenance::get_processes_for_attestor_pending(account_id)
         }
-        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<ProcessStep<ProposalId,BoundedStringName,BoundedStringFact>>  {
+        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId) -> Vec<(DefinitionStepIndex,ProcessStep<ProposalId,Moment,BoundedStringName,BoundedStringFact>)>  {
             Provenance::get_process_steps(registry_id,definition_id,process_id)
         }
-        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<ProposalId,BoundedStringName,BoundedStringFact>>  {
+        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<(DefinitionStepIndex,ProcessStep<ProposalId,Moment,BoundedStringName,BoundedStringFact>) >  {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
         }
         fn can_view_definition(account_id: AccountId,registry_id:RegistryId,definition_id:DefinitionId) -> bool  {

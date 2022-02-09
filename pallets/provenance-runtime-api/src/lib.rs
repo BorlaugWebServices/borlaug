@@ -9,13 +9,14 @@ use primitives::{Definition, DefinitionStep, Process, ProcessStatus, ProcessStep
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
 sp_api::decl_runtime_apis! {
-    pub trait ProvenanceApi<AccountId,RegistryId,DefinitionId,ProcessId,ProposalId,MemberCount,DefinitionStepIndex,BoundedStringName, BoundedStringFact>
+    pub trait ProvenanceApi<AccountId,RegistryId,DefinitionId,ProcessId,ProposalId,Moment,MemberCount,DefinitionStepIndex,BoundedStringName, BoundedStringFact>
     where
     AccountId: Codec,
     RegistryId: Codec,
     DefinitionId: Codec,
     ProcessId: Codec,
     ProposalId: Codec,
+    Moment: Codec,
     MemberCount: Codec,
     DefinitionStepIndex: Codec,
     BoundedStringName: Codec + Into<Vec<u8>>,
@@ -43,9 +44,9 @@ sp_api::decl_runtime_apis! {
 
         fn get_processes_for_attestor_pending(account_id: AccountId) -> Vec<(RegistryId,DefinitionId,ProcessId,Process<BoundedStringName>)>;
 
-        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Vec<ProcessStep<ProposalId,BoundedStringName, BoundedStringFact>>;
+        fn get_process_steps(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId) -> Vec<(DefinitionStepIndex,ProcessStep<ProposalId,Moment,BoundedStringName, BoundedStringFact>)>;
 
-        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId,definition_step_index:DefinitionStepIndex) -> Option<ProcessStep<ProposalId,BoundedStringName, BoundedStringFact>>;
+        fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id: ProcessId,definition_step_index:DefinitionStepIndex) -> Option<(DefinitionStepIndex,ProcessStep<ProposalId,Moment,BoundedStringName, BoundedStringFact>)>;
 
         fn can_view_definition( account_id: AccountId,registry_id:RegistryId,definition_id:DefinitionId) -> bool;
 
