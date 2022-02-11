@@ -18,7 +18,7 @@
   "Claim": {
     "description": "Vec<u8>",
     "statements": "Vec<Statement>",
-    "created_by": "Did",
+    "created_by": "AccountId",
     "attestation": "Option<Attestation>",
     "threshold": "MemberCount"
   },
@@ -51,20 +51,20 @@
     "fact": "Fact"
   },
   "Attestation": {
-    "attested_by": "Did",
-    "issued": "Timestamp",
-    "valid_until": "Timestamp"
+    "attested_by": "AccountId",
+    "issued": "Moment",
+    "valid_until": "Moment"
   },
   "Asset": {
-    "properties": "Option<Vec<AssetProperty>>",
-    "name": "Option<Vec<u8>>",
+    "properties": "Vec<AssetProperty>",
+    "name": "Vec<u8>",
     "asset_number": "Option<Vec<u8>>",
-    "status": "Option<AssetStatus>",
+    "status": "AssetStatus",
     "serial_number": "Option<Vec<u8>>",
-    "total_shares": "Option<u64>",
+    "total_shares": "u64",
     "residual_value": "Option<Balance>",
     "purchase_value": "Option<Balance>",
-    "acquired_date": "Option<Timestamp>"
+    "acquired_date": "Option<Moment>"
   },
   "AssetProperty": {
     "name": "Vec<u8>",
@@ -75,8 +75,8 @@
     "contract_number": "Vec<u8>",
     "lessor": "Did",
     "lessee": "Did",
-    "effective_ts": "Timestamp",
-    "expiry_ts": "Timestamp",
+    "effective_ts": "Moment",
+    "expiry_ts": "Moment",
     "allocations": "Vec<AssetAllocation>"
   },
   "AssetAllocation": {
