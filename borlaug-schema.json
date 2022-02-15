@@ -8,6 +8,7 @@
   "RegistryId": "u32",
   "AssetId": "u32",
   "LeaseId": "u32",
+  "ClaimId": "u32",
   "DefinitionId": "u32",
   "DefinitionStepIndex": "u32",
   "ProcessId": "u32",
@@ -196,5 +197,8 @@
     "name": "Vec<u8>"
   },
   "ModuleIndex": "u8",
-  "ExtrinsicIndex": "u8"
+  "ExtrinsicIndex": "u8",
+  "AccountIds": "Vec<AccountId>",
+  "ClaimConsumers": "Vec<ClaimConsumer<AccountId, Moment>>",
+  "ClaimIssuers": "Vec<ClaimIssuer<AccountId, Moment>>"
 }
