@@ -38,7 +38,7 @@ use frame_system::{
     EnsureOneOf, EnsureRoot, EnsureSigned,
 };
 pub use pallet_balances::Call as BalancesCall;
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 use pallet_grandpa::{
     fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -59,6 +59,8 @@ use primitives::{
 use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+#[cfg(feature = "grandpa_aura")]
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{
     crypto::KeyTypeId,
     u32_trait::{_1, _2, _3, _4, _5},
@@ -67,6 +69,8 @@ use sp_core::{
 use sp_inherents::{CheckInherentsResult, InherentData};
 #[cfg(feature = "grandpa_babe")]
 use sp_runtime::traits::{self, OpaqueKeys, SaturatedConversion};
+#[cfg(feature = "grandpa_aura")]
+use sp_runtime::traits::{self, SaturatedConversion};
 use sp_runtime::{
     create_runtime_str, generic,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
@@ -77,6 +81,10 @@ use sp_runtime::{
 use sp_runtime::{
     curve::PiecewiseLinear, impl_opaque_keys, traits::NumberFor,
     transaction_validity::TransactionPriority,
+};
+#[cfg( feature = "grandpa_aura")]
+use sp_runtime::{
+     impl_opaque_keys, traits::NumberFor
 };
 use sp_std::prelude::*;
 use sp_version::RuntimeVersion;
@@ -90,7 +98,7 @@ use sp_version::NativeVersion;
 
 /// Constant values used within the runtime.
 use constants::{currency::*, time::*};
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 use sp_runtime::generic::Era;
 
 /// Digest item type.
@@ -117,6 +125,13 @@ pub mod opaque {
             pub grandpa: Grandpa,
             pub im_online: ImOnline,
             pub authority_discovery: AuthorityDiscovery,
+        }
+    }
+    #[cfg(feature = "grandpa_aura")]
+    impl_opaque_keys! {
+        pub struct SessionKeys {
+            pub aura: Aura,
+            pub grandpa: Grandpa,
         }
     }
 }
@@ -156,7 +171,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 15,
+    spec_version: 16,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -284,14 +299,20 @@ impl pallet_babe::Config for Runtime {
 
     type WeightInfo = ();
 }
-#[cfg(feature = "grandpa_babe")]
+
+#[cfg(feature = "grandpa_aura")]
+impl pallet_aura::Config for Runtime {
+    type AuthorityId = AuraId;
+}
+
+#[cfg(any(feature = "grandpa_babe"))]
 parameter_types! {
     pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
     pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
     /// We prioritize im-online heartbeats over election solution submission.
     pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
     Call: From<LocalCall>,
@@ -339,12 +360,12 @@ where
     }
 }
 
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 impl frame_system::offchain::SigningTypes for Runtime {
     type Public = <Signature as traits::Verify>::Signer;
     type Signature = Signature;
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
 where
     Call: From<C>,
@@ -352,12 +373,12 @@ where
     type Extrinsic = UncheckedExtrinsic;
     type OverarchingCall = Call;
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 impl pallet_grandpa::Config for Runtime {
     type Event = Event;
     type Call = Call;
 
-    type KeyOwnerProofSystem = Historical;
+    type KeyOwnerProofSystem = ();
 
     type KeyOwnerProof =
         <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
@@ -367,11 +388,7 @@ impl pallet_grandpa::Config for Runtime {
         GrandpaId,
     )>>::IdentificationTuple;
 
-    type HandleEquivocation = pallet_grandpa::EquivocationHandler<
-        Self::KeyOwnerIdentification,
-        Offences,
-        ReportLongevity,
-    >;
+    type HandleEquivocation = ();
 
     type WeightInfo = ();
 }
@@ -385,6 +402,8 @@ impl pallet_timestamp::Config for Runtime {
     type Moment = Moment;
     #[cfg(feature = "grandpa_babe")]
     type OnTimestampSet = Babe;
+    #[cfg(feature = "grandpa_aura")]
+    type OnTimestampSet = Aura;
     #[cfg(feature = "instant_seal")]
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
@@ -398,13 +417,13 @@ parameter_types! {
 impl pallet_authorship::Config for Runtime {
     #[cfg(feature = "grandpa_babe")]
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
-    #[cfg(feature = "instant_seal")]
+    #[cfg(any(feature = "grandpa_aura", feature = "instant_seal"))]
     type FindAuthor = ();
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
     #[cfg(feature = "grandpa_babe")]
     type EventHandler = (Staking, ImOnline);
-    #[cfg(feature = "instant_seal")]
+    #[cfg(any(feature = "grandpa_aura", feature = "instant_seal"))]
     type EventHandler = ();
 }
 
@@ -484,6 +503,13 @@ impl_opaque_keys! {
         pub babe: Babe,
         pub im_online: ImOnline,
         pub authority_discovery: AuthorityDiscovery,
+    }
+}
+#[cfg(feature = "grandpa_aura")]
+impl_opaque_keys! {
+    pub struct SessionKeys {
+        pub grandpa: Grandpa,
+        pub aura: Aura,
     }
 }
 #[cfg(feature = "grandpa_babe")]
@@ -662,14 +688,11 @@ impl pallet_im_online::Config for Runtime {
     type Event = Event;
     type ValidatorSet = Historical;
     type SessionDuration = SessionDuration;
-    #[cfg(feature = "grandpa_babe")]
     type ReportUnresponsiveness = Offences;
-    #[cfg(feature = "instant_seal")]
-    type ReportUnresponsiveness = ();
     type UnsignedPriority = ImOnlineUnsignedPriority;
     type WeightInfo = pallet_im_online::weights::SubstrateWeight<Runtime>;
 }
-
+#[cfg(feature = "grandpa_babe")]
 parameter_types! {
     pub OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) *
         RuntimeBlockWeights::get().max_block;
@@ -935,6 +958,43 @@ construct_runtime!(
         Provenance: provenance::{Module, Call,Storage, Event<T>},
     }
 );
+#[cfg(feature = "grandpa_aura")]
+construct_runtime!(
+    pub enum Runtime where
+        Block = Block,
+        NodeBlock = primitives::Block,
+        UncheckedExtrinsic = UncheckedExtrinsic
+    {
+        System: frame_system::{Module, Call, Config, Storage, Event<T>} ,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+        Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
+        Aura: pallet_aura::{Module, Config<T>},
+        Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned},
+        TransactionPayment: pallet_transaction_payment::{Module,Call,  Storage},
+        Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+        //BorlaugCommittee
+        Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
+        Proxy: pallet_proxy::{Module, Call, Storage, Event<T>},
+        // Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>},
+
+        // // Governance
+        // GeneralCouncil: collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        // GeneralCouncilMembership: membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>},
+
+        // BWS Modules
+
+        Groups: groups::{Module, Call, Storage, Origin<T>, Event<T>},
+        //Borlaug
+        Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
+        Identity: identity::{Module, Call, Storage, Event<T>},
+        AssetRegistry: asset_registry::{Module, Call, Storage, Event<T>},
+        Audits: audits::{Module, Call, Storage, Event<T>},
+        Provenance: provenance::{Module, Call,Storage, Event<T>},
+    }
+);
 #[cfg(feature = "instant_seal")]
 construct_runtime!(
     pub enum Runtime where
@@ -1069,12 +1129,12 @@ impl_runtime_apis! {
         }
     }
 
-    #[cfg(feature = "grandpa_babe")]
+    #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
     impl fg_primitives::GrandpaApi<Block> for Runtime {
         fn grandpa_authorities() -> GrandpaAuthorityList {
             Grandpa::grandpa_authorities()
         }
-
+        #[allow(unused_variables)]
         fn submit_report_equivocation_unsigned_extrinsic(
             equivocation_proof: fg_primitives::EquivocationProof<
                 <Block as BlockT>::Hash,
@@ -1082,25 +1142,39 @@ impl_runtime_apis! {
             >,
             key_owner_proof: fg_primitives::OpaqueKeyOwnershipProof,
         ) -> Option<()> {
-            let key_owner_proof = key_owner_proof.decode()?;
-
-            Grandpa::submit_unsigned_equivocation_report(
-                equivocation_proof,
-                key_owner_proof,
-            )
+            #[cfg(feature = "grandpa_babe")]
+            {
+                let key_owner_proof = key_owner_proof.decode()?;
+                Grandpa::submit_unsigned_equivocation_report(
+                    equivocation_proof,
+                    key_owner_proof,
+                )
+            }
+            #[cfg(feature = "grandpa_aura")]
+            {
+                None
+            }
         }
-
+        #[allow(unused_variables)]
         fn generate_key_ownership_proof(
             _set_id: fg_primitives::SetId,
             authority_id: GrandpaId,
         ) -> Option<fg_primitives::OpaqueKeyOwnershipProof> {
-            use codec::Encode;
+            #[cfg(feature = "grandpa_babe")]
+            {
+                use codec::Encode;
 
-            Historical::prove((fg_primitives::KEY_TYPE, authority_id))
-                .map(|p| p.encode())
-                .map(fg_primitives::OpaqueKeyOwnershipProof::new)
+                Historical::prove((fg_primitives::KEY_TYPE, authority_id))
+                    .map(|p| p.encode())
+                    .map(fg_primitives::OpaqueKeyOwnershipProof::new)
+            }
+            #[cfg(feature = "grandpa_aura")]
+            {
+                None
+            }
         }
     }
+
     #[cfg(feature = "grandpa_babe")]
     impl sp_consensus_babe::BabeApi<Block> for Runtime {
         fn configuration() -> sp_consensus_babe::BabeGenesisConfiguration {
@@ -1154,7 +1228,19 @@ impl_runtime_apis! {
             )
         }
     }
-    #[cfg(feature = "grandpa_babe")]
+    #[cfg(feature = "grandpa_aura")]
+    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
+        fn slot_duration() -> u64 {
+            Aura::slot_duration()
+        }
+
+        fn authorities() -> Vec<AuraId> {
+            Aura::authorities()
+        }
+    }
+
+
+    #[cfg(any(feature = "grandpa_babe"))]
     impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
         fn authorities() -> Vec<AuthorityDiscoveryId> {
             AuthorityDiscovery::authorities()
@@ -1423,7 +1509,7 @@ impl_runtime_apis! {
     impl sp_session::SessionKeys<Block> for Runtime {
         #[allow(unused_variables)]
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-            #[cfg(feature = "grandpa_babe")]
+            #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
             {
                 opaque::SessionKeys::generate(seed)
             }
@@ -1436,7 +1522,7 @@ impl_runtime_apis! {
         fn decode_session_keys(
             encoded: Vec<u8>,
         ) -> Option<Vec<(Vec<u8>, KeyTypeId)>> {
-            #[cfg(feature = "grandpa_babe")]
+            #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
             {
             opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
             }

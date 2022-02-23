@@ -424,21 +424,11 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        // Initialize GroupByAccount storage
-        // #[allow(clippy::unnecessary_cast)]
         // fn on_runtime_upgrade() -> frame_support::weights::Weight {
         //     let mut weight: Weight = 0;
-        //     <Groups<T>>::iter().for_each(|(group_id, group)| {
-        //         weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
-        //         <GroupByAccount<T>>::insert(group.anonymous_account, group_id);
-        //     });
+        //     // weight += super::migration::migrate_to_v2::<T>();
         //     weight
         // }
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            let mut weight: Weight = 0;
-            weight += super::migration::migrate_to_v2::<T>();
-            weight
-        }
     }
 
     #[pallet::genesis_config]

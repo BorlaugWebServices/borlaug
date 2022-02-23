@@ -97,7 +97,7 @@ pub type BlockId = generic::BlockId<Block>;
 /// App-specific crypto used for reporting equivocation/misbehavior in BABE and
 /// GRANDPA. Any rewards for misbehavior reporting will be paid out to this
 /// account.
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
 pub mod report {
     use super::{Signature, Verify};
     use frame_system::offchain::AppCrypto;

@@ -51,7 +51,7 @@ impl SubstrateCli for Cli {
     // fn executable_name() -> String {
     //     env!("CARGO_PKG_NAME").into()
     // }
-
+    #[cfg(feature = "instant_seal")]
     fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
         let spec = match id {
             "" => {
@@ -61,6 +61,24 @@ impl SubstrateCli for Cli {
                 )
             }
             "dev" => Box::new(chain_spec::development_config()),
+            path => Box::new(chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
+        };
+        Ok(spec)
+    }
+    #[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
+    fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+        let spec = match id {
+            "" => {
+                return Err(
+                    "Please specify which chain you want to run, e.g. --dev or --chain=local"
+                        .into(),
+                )
+            }
+            "dev" => Box::new(chain_spec::development_config()),
+            "borlaug_aztec" => Box::new(chain_spec::aztec_config()),
+            "local" => Box::new(chain_spec::local_config()),
             path => Box::new(chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
