@@ -879,15 +879,11 @@ pub mod pallet {
             <Groups<T>>::remove(group_id);
             <GroupByAccount<T>>::remove(&group.anonymous_account);
             let mut member_count = 0;
-            <GroupMembers<T>>::iter_prefix(group_id).for_each(|(account_id, _)| {
+            <GroupMembers<T>>::drain_prefix(group_id).for_each(|(account_id, _)| {
                 <MemberOf<T>>::remove(&account_id, group_id);
                 member_count += 1;
             });
-            let mut proposal_count = 0;
-            <Proposals<T>>::iter_prefix(group_id).for_each(|(proposal_id, _)| {
-                <Proposals<T>>::remove(group_id, proposal_id);
-                proposal_count += 1;
-            });
+            let proposal_count = <Proposals<T>>::drain_prefix(group_id).count() as u32;
             <ProposalHashes<T>>::remove_prefix(group_id);
 
             Self::deposit_event(Event::GroupRemoved(group_id, return_funds_too));
@@ -933,15 +929,11 @@ pub mod pallet {
             <GroupByAccount<T>>::remove(&sub_group.anonymous_account);
             <GroupChildren<T>>::remove(caller_group_id, sub_group_id);
             let mut member_count = 0;
-            <GroupMembers<T>>::iter_prefix(sub_group_id).for_each(|(account_id, _)| {
+            <GroupMembers<T>>::drain_prefix(sub_group_id).for_each(|(account_id, _)| {
                 <MemberOf<T>>::remove(&account_id, sub_group_id);
                 member_count += 1;
             });
-            let mut proposal_count = 0;
-            <Proposals<T>>::iter_prefix(sub_group_id).for_each(|(proposal_id, _)| {
-                <Proposals<T>>::remove(sub_group_id, proposal_id);
-                proposal_count += 1;
-            });
+            let proposal_count = <Proposals<T>>::drain_prefix(sub_group_id).count() as u32;
             <ProposalHashes<T>>::remove_prefix(sub_group_id);
 
             Self::deposit_event(Event::SubGroupRemoved(caller_group_id, sub_group_id));

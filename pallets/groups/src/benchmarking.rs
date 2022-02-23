@@ -97,7 +97,6 @@ benchmarks! {
         let group=Groups::<T>::get(group_id).unwrap();
         assert_eq!(group.name.len(),a as usize);
         assert_eq!(GroupMembers::<T>::iter_prefix(group_id).count(),n as usize);
-        assert_eq!(group.threshold,2u32.into());
     }
 
     create_sub_group {
@@ -181,7 +180,6 @@ benchmarks! {
         let sub_group=Groups::<T>::get(sub_group_id).unwrap();
         assert_eq!(sub_group.name.len(),a as usize);
         assert_eq!(GroupMembers::<T>::iter_prefix(sub_group_id).count(),n as usize);
-        assert_eq!(sub_group.threshold,2u32.into());
     }
 
     remove_group {

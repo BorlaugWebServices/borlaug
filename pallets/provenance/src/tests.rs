@@ -1,7 +1,6 @@
 //! Tests for the module.
 use super::*;
 use crate::mock::*;
-use chrono::Utc;
 use frame_support::{assert_ok, dispatch::Weight};
 use primitives::*;
 use std::convert::TryInto;
@@ -437,13 +436,11 @@ fn attest_process_step_should_work() {
         )
         .unwrap();
 
-        //TODO: fix
-        let now = Utc::now().timestamp() as u64;
         assert_eq!(
             process_step,
             ProcessStep {
                 proposal_id: None,
-                attested: now + 8640000,
+                attested: 0,
                 attributes: vec![Attribute {
                     name: b"TestAttribute".to_vec().try_into().unwrap(),
                     fact: Fact::Text(b"TestFact".to_vec().try_into().unwrap())
@@ -485,7 +482,7 @@ fn attest_process_step_should_work() {
             process_step,
             ProcessStep {
                 proposal_id: None,
-                attested: now + 8640000,
+                attested: 0,
                 attributes: vec![Attribute {
                     name: b"TestAttribute_2".to_vec().try_into().unwrap(),
                     fact: Fact::Text(b"TestFact_2".to_vec().try_into().unwrap())

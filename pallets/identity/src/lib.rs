@@ -510,7 +510,7 @@ pub mod pallet {
             let property_count = properties.as_ref().map_or(0, |p| p.len());
 
             ensure!(
-                property_count < T::PropertyLimit::get() as usize,
+                property_count <= T::PropertyLimit::get() as usize,
                 Error::<T>::PropertyLimitExceeded
             );
 
@@ -547,7 +547,7 @@ pub mod pallet {
             let property_count = properties.as_ref().map_or(0, |p| p.len());
 
             ensure!(
-                property_count < T::PropertyLimit::get() as usize,
+                property_count <= T::PropertyLimit::get() as usize,
                 Error::<T>::PropertyLimitExceeded
             );
 
@@ -638,7 +638,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                properties.len() < T::PropertyLimit::get() as usize,
+                properties.len() <= T::PropertyLimit::get() as usize,
                 Error::<T>::PropertyLimitExceeded
             );
 
@@ -664,7 +664,6 @@ pub mod pallet {
         /// - `did` DID to which properties are to be added
         /// - `keys` Keys of DID properties to be removed
         #[pallet::weight(<T as Config>::WeightInfo::remove_did_properties(
-
             get_max_key_len(keys),
             keys.len() as u32,
         ))]
@@ -676,7 +675,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                keys.len() < T::PropertyLimit::get() as usize,
+                keys.len() <= T::PropertyLimit::get() as usize,
                 Error::<T>::PropertyLimitExceeded
             );
 
@@ -725,8 +724,8 @@ pub mod pallet {
             let remove_count = remove.as_ref().map_or(0, |a| a.len());
 
             ensure!(
-                add_count < T::ControllerLimit::get() as usize
-                    && remove_count < T::ControllerLimit::get() as usize,
+                add_count <= T::ControllerLimit::get() as usize
+                    && remove_count <= T::ControllerLimit::get() as usize,
                 Error::<T>::ControllerLimitExceeded
             );
 
@@ -778,7 +777,7 @@ pub mod pallet {
             );
 
             ensure!(
-                claim_consumers.len() < T::ClaimConsumerLimit::get() as usize,
+                claim_consumers.len() <= T::ClaimConsumerLimit::get() as usize,
                 Error::<T>::ClaimConsumerLimitExceeded
             );
 
@@ -825,7 +824,7 @@ pub mod pallet {
             );
 
             ensure!(
-                claim_consumers.len() < T::ClaimConsumerLimit::get() as usize,
+                claim_consumers.len() <= T::ClaimConsumerLimit::get() as usize,
                 Error::<T>::ClaimConsumerLimitExceeded
             );
 
@@ -864,7 +863,7 @@ pub mod pallet {
             );
 
             ensure!(
-                claim_issuers.len() < T::ClaimIssuerLimit::get() as usize,
+                claim_issuers.len() <= T::ClaimIssuerLimit::get() as usize,
                 Error::<T>::ClaimIssuerLimitExceeded
             );
 
@@ -911,7 +910,7 @@ pub mod pallet {
             );
 
             ensure!(
-                claim_issuers.len() < T::ClaimIssuerLimit::get() as usize,
+                claim_issuers.len() <= T::ClaimIssuerLimit::get() as usize,
                 Error::<T>::ClaimIssuerLimitExceeded
             );
 
@@ -958,7 +957,7 @@ pub mod pallet {
             );
 
             ensure!(
-                statements.len() < T::StatementLimit::get() as usize,
+                statements.len() <= T::StatementLimit::get() as usize,
                 Error::<T>::StatementLimitExceeded
             );
 
@@ -1034,7 +1033,7 @@ pub mod pallet {
             );
 
             ensure!(
-                statements.len() < T::StatementLimit::get() as usize,
+                statements.len() <= T::StatementLimit::get() as usize,
                 Error::<T>::StatementLimitExceeded
             );
 

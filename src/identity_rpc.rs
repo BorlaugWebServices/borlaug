@@ -436,19 +436,19 @@ where
                 value: f64::from_le_bytes(value).to_string(),
             },
             Fact::U8(value) => FactResponse {
-                data_type: String::from("U8"),
+                data_type: String::from("Integer"),
                 value: value.to_string(),
             },
             Fact::U16(value) => FactResponse {
-                data_type: String::from("U16"),
+                data_type: String::from("Integer"),
                 value: value.to_string(),
             },
             Fact::U32(value) => FactResponse {
-                data_type: String::from("U32"),
+                data_type: String::from("Integer"),
                 value: value.to_string(),
             },
             Fact::U128(value) => FactResponse {
-                data_type: String::from("U128"),
+                data_type: String::from("Integer"),
                 value: value.to_string(),
             },
             Fact::Date(year, month, day) => {

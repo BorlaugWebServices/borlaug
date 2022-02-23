@@ -32,7 +32,7 @@ fn create_properties(
         //using x for first 4 chars ensures name is unique across returned vec
         let mut name = x.to_le_bytes().to_vec();
         name.push(property_set);
-        name.extend(vec![42u8; (property_name_len - 4) as usize]);
+        name.extend(vec![42u8; (property_name_len - 5) as usize]);
         properties.push(DidProperty {
             name,
             fact: Fact::Text(vec![42u8; property_fact_len as usize]),
@@ -53,7 +53,7 @@ fn create_statements(
         //using x for first 4 chars ensures name is unique across returned vec
         let mut name = x.to_le_bytes().to_vec();
         name.push(statement_set);
-        name.extend(vec![42u8; (statement_name_len - 4) as usize]);
+        name.extend(vec![42u8; (statement_name_len - 5) as usize]);
         statements.push(Statement {
             name,
             fact: Fact::Text(vec![42u8; statement_fact_len as usize]),
