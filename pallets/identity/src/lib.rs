@@ -95,6 +95,7 @@ pub mod pallet {
         Either,
     };
     use sp_std::prelude::*;
+    use utils::like::ILike;
 
     const MODULE_INDEX: u8 = 2;
 
@@ -1386,6 +1387,215 @@ pub mod pallet {
             did_documents
         }
 
+        pub fn find_did_by_text_or_did_property(
+            catalog_id: T::CatalogId,
+            name: Vec<u8>,
+            filter: Vec<u8>,
+        ) -> Vec<Did> {
+            let mut matching_dids = vec![];
+            let hash = T::Hashing::hash_of(&name);
+            let filter: &[u8] = &filter;
+            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
+                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                if let Some(property) = property_maybe {
+                    let matching = match property.fact {
+                        Fact::Text(value) => {
+                            let value: Vec<u8> = value.into();
+                            let value: &[u8] = &value;
+                            ILike::<false>::ilike(value, filter).unwrap_or(false)
+                        }
+                        Fact::Did(value) => {
+                            ILike::<false>::ilike(&value.id[..], filter).unwrap_or(false)
+                        }
+                        _ => false,
+                    };
+                    if matching {
+                        matching_dids.push(did);
+                    }
+                };
+            });
+            matching_dids
+        }
+
+        pub fn find_did_by_integer_property(
+            catalog_id: T::CatalogId,
+            name: Vec<u8>,
+            min: Option<u128>,
+            max: Option<u128>,
+        ) -> Vec<Did> {
+            let mut matching_dids = vec![];
+            let hash = T::Hashing::hash_of(&name);
+            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
+                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                if let Some(property) = property_maybe {
+                    let matching = match property.fact {
+                        Fact::U8(value) => min_max_check(value, min, max),
+                        Fact::U16(value) => min_max_check(value, min, max),
+                        Fact::U32(value) => min_max_check(value, min, max),
+                        Fact::U128(value) => min_max_check(value, min, max),
+                        _ => false,
+                    };
+                    if matching {
+                        matching_dids.push(did);
+                    }
+                };
+            });
+            matching_dids
+        }
+        pub fn find_did_by_float_property(
+            catalog_id: T::CatalogId,
+            name: Vec<u8>,
+            min: Option<[u8; 8]>,
+            max: Option<[u8; 8]>,
+        ) -> Vec<Did> {
+            let mut matching_dids = vec![];
+            let hash = T::Hashing::hash_of(&name);
+            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
+                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                if let Some(property) = property_maybe {
+                    let matching = match property.fact {
+                        Fact::Float(value) => {
+                            let min_check = if let Some(min) = min {
+                                f64::from_le_bytes(value) >= f64::from_le_bytes(min)
+                            } else {
+                                true
+                            };
+                            let max_check = if let Some(max) = max {
+                                f64::from_le_bytes(value) <= f64::from_le_bytes(max)
+                            } else {
+                                true
+                            };
+                            min_check && max_check
+                        }
+                        _ => false,
+                    };
+                    if matching {
+                        matching_dids.push(did);
+                    }
+                };
+            });
+            matching_dids
+        }
+
+        pub fn find_did_by_date_property(
+            catalog_id: T::CatalogId,
+            name: Vec<u8>,
+            min: Option<(u16, u8, u8)>,
+            max: Option<(u16, u8, u8)>,
+        ) -> Vec<Did> {
+            let mut matching_dids = vec![];
+            let hash = T::Hashing::hash_of(&name);
+            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
+                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                if let Some(property) = property_maybe {
+                    let matching = match property.fact {
+                        Fact::Date(year, month, day) => {
+                            let min_check = if let Some((min_year, min_month, min_day)) = min {
+                                year > min_year
+                                    || (year == min_year
+                                        && (month > min_month
+                                            || (month == min_month && day >= min_day)))
+                            } else {
+                                true
+                            };
+                            let max_check = if let Some((max_year, max_month, max_day)) = max {
+                                year < max_year
+                                    || (year == max_year
+                                        && (month < max_month
+                                            || (month == max_month && day <= max_day)))
+                            } else {
+                                true
+                            };
+                            min_check && max_check
+                        }
+                        _ => false,
+                    };
+                    if matching {
+                        matching_dids.push(did);
+                    }
+                };
+            });
+            matching_dids
+        }
+
+        pub fn find_did_by_iso8601_property(
+            catalog_id: T::CatalogId,
+            name: Vec<u8>,
+            min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+            max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+        ) -> Vec<Did> {
+            let mut matching_dids = vec![];
+            let hash = T::Hashing::hash_of(&name);
+            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
+                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                if let Some(property) = property_maybe {
+                    //TODO: take care of time zones
+                    let matching = match property.fact {
+                        Fact::Iso8601(year, month, day, hour, minute, second, _timezone) => {
+                            let min_check = if let Some((
+                                min_year,
+                                min_month,
+                                min_day,
+                                min_hour,
+                                min_minute,
+                                min_second,
+                                _min_timezone,
+                            )) = &min
+                            {
+                                year > *min_year
+                                    || (year == *min_year
+                                        && (month > *min_month
+                                            || (month == *min_month
+                                                && (day > *min_day
+                                                    || (day == *min_day
+                                                        && (hour > *min_hour
+                                                            || (hour == *min_hour
+                                                                && (minute > *min_minute
+                                                                    || (minute
+                                                                        == *min_minute
+                                                                        && (second
+                                                                            >= *min_second))))))))))
+                            } else {
+                                true
+                            };
+                            let max_check = if let Some((
+                                max_year,
+                                max_month,
+                                max_day,
+                                max_hour,
+                                max_minute,
+                                max_second,
+                                _max_timezone,
+                            )) = &max
+                            {
+                                year < *max_year
+                                    || (year == *max_year
+                                        && (month < *max_month
+                                            || (month == *max_month
+                                                && (day < *max_day
+                                                    || (day == *max_day
+                                                        && (hour < *max_hour
+                                                            || (hour == *max_hour
+                                                                && (minute < *max_minute
+                                                                    || (minute
+                                                                        == *max_minute
+                                                                        && (second
+                                                                            <= *max_second))))))))))
+                            } else {
+                                true
+                            };
+                            min_check && max_check
+                        }
+                        _ => false,
+                    };
+                    if matching {
+                        matching_dids.push(did);
+                    }
+                };
+            });
+            matching_dids
+        }
+
         pub fn get_claims(
             did: Did,
         ) -> Vec<(
@@ -1705,5 +1915,21 @@ pub mod pallet {
         let property_fact_avg = div_up(property_fact_tot, property_count_tot);
 
         (property_name_avg, property_fact_avg, property_count_avg)
+    }
+    fn min_max_check<V>(value: V, min: Option<u128>, max: Option<u128>) -> bool
+    where
+        V: Copy + Into<u128>,
+    {
+        let min_check = if let Some(min) = min {
+            value.into() >= min
+        } else {
+            true
+        };
+        let max_check = if let Some(max) = max {
+            value.into() <= max
+        } else {
+            true
+        };
+        min_check && max_check
     }
 }

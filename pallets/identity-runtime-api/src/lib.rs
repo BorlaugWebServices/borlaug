@@ -38,6 +38,16 @@ sp_api::decl_runtime_apis! {
 
         fn get_dids_by_controller( controller: AccountId,) -> Vec<Did>;
 
+        fn find_did_by_text_or_did_property( catalog_id: CatalogId, name:Vec<u8> ,filter: Vec<u8>) -> Vec<Did>;
+
+        fn find_did_by_integer_property( catalog_id: CatalogId, name:Vec<u8> ,min: Option<u128>,max: Option<u128>) -> Vec<Did>;
+
+        fn find_did_by_float_property( catalog_id: CatalogId, name:Vec<u8> ,min: Option<[u8;8]>,max: Option<[u8;8]>) -> Vec<Did>;
+
+        fn find_did_by_date_property( catalog_id: CatalogId, name:Vec<u8> ,min: Option<(u16, u8, u8)>,max: Option<(u16, u8, u8)>) -> Vec<Did>;
+
+        fn find_did_by_iso8601_property( catalog_id: CatalogId, name:Vec<u8> ,min: Option<(u16, u8, u8,u8, u8, u8, Vec<u8>)>,max: Option<(u16, u8, u8,u8, u8, u8, Vec<u8>)>) -> Vec<Did>;
+
         fn get_claims(did: Did) -> Vec<(ClaimId, Claim<AccountId,MemberCount,Moment,BoundedStringName, BoundedStringFact>)>;
 
         fn get_claim(did: Did, claim_id:ClaimId) -> Option<Claim<AccountId,MemberCount,Moment,BoundedStringName, BoundedStringFact>>;

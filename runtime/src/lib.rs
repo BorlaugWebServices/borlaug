@@ -169,7 +169,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 18,
+    spec_version: 19,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -1391,28 +1391,43 @@ impl_runtime_apis! {
         fn get_catalogs(account_id: AccountId) -> Vec<CatalogId> {
             Identity::get_catalogs(account_id)
         }
-        fn get_dids_in_catalog(catalog_id: CatalogId) -> Vec<Did>  {
+        fn get_dids_in_catalog(catalog_id: CatalogId) -> Vec<Did> {
             Identity::get_dids_in_catalog(catalog_id)
         }
-        fn get_catalogs_by_did(did:Did) -> Vec<CatalogId>  {
+        fn get_catalogs_by_did(did:Did) -> Vec<CatalogId> {
             Identity::get_catalogs_by_did(did)
         }
         fn get_did_in_catalog(catalog_id: CatalogId, did: Did) ->  Option<( DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)> {
             Identity::get_did_in_catalog(catalog_id, did)
         }
-        fn is_controller(account_id: AccountId,did:Did) -> bool  {
+        fn is_controller(account_id: AccountId,did:Did) -> bool {
             Identity::is_controller(account_id, did)
         }
         fn get_did(did:Did) -> Option<(DidDocument<AccountId>,Vec<DidProperty<BoundedStringName,BoundedStringFact>>,Vec<AccountId>)>  {
             Identity::get_did(did)
         }
-        fn get_dids_by_subject( subject: AccountId) -> Vec<Did>  {
+        fn get_dids_by_subject(subject: AccountId) -> Vec<Did> {
             Identity::get_dids_by_subject(subject)
         }
-        fn get_dids_by_controller( controller: AccountId) -> Vec<Did>  {
+        fn get_dids_by_controller(controller: AccountId) -> Vec<Did> {
             Identity::get_dids_by_controller(controller)
         }
-        fn get_claims( did: Did) -> Vec<(ClaimId, Claim<AccountId,MemberCount,Moment,BoundedStringName,BoundedStringFact>)>  {
+        fn find_did_by_text_or_did_property(catalog_id: CatalogId, name: Vec<u8>,filter: Vec<u8>) -> Vec<Did>  {
+            Identity::find_did_by_text_or_did_property(catalog_id,name,filter)
+        }
+        fn find_did_by_integer_property(catalog_id: CatalogId, name: Vec<u8>,min: Option<u128>,max: Option<u128>) -> Vec<Did>  {
+            Identity::find_did_by_integer_property(catalog_id,name,min,max)
+        }
+        fn find_did_by_float_property(catalog_id: CatalogId, name: Vec<u8>,min: Option<[u8;8]>,max: Option<[u8;8]>) -> Vec<Did>  {
+            Identity::find_did_by_float_property(catalog_id,name,min,max)
+        }
+        fn find_did_by_date_property(catalog_id: CatalogId, name: Vec<u8>,min: Option<(u16, u8, u8)>,max: Option<(u16, u8, u8)>) -> Vec<Did>  {
+            Identity::find_did_by_date_property(catalog_id,name,min,max)
+        }
+        fn find_did_by_iso8601_property(catalog_id: CatalogId, name: Vec<u8>,min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>) -> Vec<Did>  {
+            Identity::find_did_by_iso8601_property(catalog_id,name,min,max)
+        }
+        fn get_claims(did: Did) -> Vec<(ClaimId, Claim<AccountId,MemberCount,Moment,BoundedStringName,BoundedStringFact>)>  {
             Identity::get_claims(did)
         }
         fn get_claim(did: Did, claim_id:ClaimId) -> Option<Claim<AccountId,MemberCount,Moment,BoundedStringName, BoundedStringFact>>{

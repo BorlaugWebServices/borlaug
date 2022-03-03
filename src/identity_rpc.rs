@@ -74,6 +74,55 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         at: Option<BlockHash>,
     ) -> Result<Vec<DidDocumentBasicResponse>>;
 
+    #[rpc(name = "find_did_by_text_or_did_property")]
+    fn find_did_by_text_or_did_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        filter: String,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>>;
+
+    #[rpc(name = "find_did_by_integer_property")]
+    fn find_did_by_integer_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        min: Option<u128>,
+        max: Option<u128>,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>>;
+
+    #[rpc(name = "find_did_by_float_property")]
+    fn find_did_by_float_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        min: Option<f64>,
+        max: Option<f64>,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>>;
+
+    #[rpc(name = "find_did_by_date_property")]
+    fn find_did_by_date_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        min: Option<(u16, u8, u8)>,
+        max: Option<(u16, u8, u8)>,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>>;
+
+    #[rpc(name = "find_did_by_iso8601_property")]
+    fn find_did_by_iso8601_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+        max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+        at: Option<BlockHash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>>;
+
     #[rpc(name = "get_claims")]
     fn get_claims(
         &self,
@@ -474,6 +523,164 @@ where
     }
 }
 
+// #[derive(Debug, Display)]
+// pub struct FactParseError(pub String);
+
+// impl de::StdError for FactParseError {}
+
+// impl de::Error for FactParseError {
+//     fn custom<T>(msg: T) -> FactParseError
+//     where
+//         T: std::fmt::Display,
+//     {
+//         FactParseError(format!("{}", msg))
+//     }
+// }
+
+// impl From<FactParseError> for jsonrpc_core::Error {
+//     fn from(err: FactParseError) -> Self {
+//         jsonrpc_core::Error {
+//             code: ErrorCode::ParseError,
+//             message: err.to_string(),
+//             data: None,
+//         }
+//     }
+// }
+// macro_rules! impl_from {
+//     ($type:ty) => {
+//         impl From<$type> for FactParseError {
+//             fn from(err: $type) -> FactParseError {
+//                 FactParseError(err.to_string())
+//             }
+//         }
+//     };
+// }
+// impl_from!(ParseBoolError);
+// impl_from!(FromHexError);
+// impl_from!(ParseIntError);
+// impl_from!(TryFromIntError);
+// impl_from!(ParseFloatError);
+// impl_from!(ParseError);
+
+// impl From<DidParseError> for FactParseError {
+//     fn from(_err: DidParseError) -> Self {
+//         FactParseError("Invalid DID".to_string())
+//     }
+// }
+
+// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+// pub enum DataType {
+//     Bool,
+//     Text,
+//     Attachment,
+//     Location,
+//     Did,
+//     Float,
+//     Integer,
+//     Date,
+//     Iso8601,
+// }
+
+// impl TryFrom<&str> for DataType {
+//     type Error = FactParseError;
+//     fn try_from(s: &str) -> std::result::Result<DataType, FactParseError> {
+//         Ok(match s {
+//             "Bool" => DataType::Bool,
+//             "Text" => DataType::Text,
+//             "Attachment" => DataType::Attachment,
+//             "Location" => DataType::Location,
+//             "Did" => DataType::Did,
+//             "Float" => DataType::Float,
+//             "Integer" => DataType::Integer,
+//             "Date" => DataType::Date,
+//             "Iso8601" => DataType::Iso8601,
+//             _ => return Err(FactParseError("Error parsing fact type".to_string())),
+//         })
+//     }
+// }
+
+// impl<BoundedString> TryFrom<FactResponse> for Fact<BoundedString>
+// where
+//     BoundedString: From<Vec<u8>>,
+// {
+//     type Error = FactParseError;
+//     fn try_from(fact: FactResponse) -> std::result::Result<Fact<BoundedString>, FactParseError> {
+//         let data_type: DataType = (&fact.data_type[..]).try_into()?;
+//         let result = match data_type {
+//             DataType::Bool => Fact::Bool(bool::from_str(&fact.value)?),
+//             DataType::Text => {
+//                 let value: Vec<u8> = fact.value.into();
+//                 Fact::Text(value.into())
+//             }
+//             DataType::Attachment => {
+//                 let vec: Vec<&str> = fact.value.split(';').collect();
+//                 if vec.len() != 2 || vec[0].len() < 2 {
+//                     return Err(FactParseError(format!(
+//                         "parse_error: Bad Attachment format: {}",
+//                         fact.value
+//                     )));
+//                 }
+//                 let hash = sp_core::H256::from_slice(hex::decode(&vec[0][2..])?.as_slice());
+//                 let filename: Vec<u8> = vec[1].into();
+//                 Fact::Attachment(hash, filename.into())
+//             }
+//             DataType::Location => {
+//                 let vec: Vec<&str> = fact.value.split(',').collect();
+//                 if vec.len() != 2 {
+//                     return Err(FactParseError(format!(
+//                         "parse_error: Bad Attachment format: {}",
+//                         fact.value
+//                     )));
+//                 }
+//                 let lat = vec[0].parse::<f64>()?;
+//                 let lng = vec[1].parse::<f64>()?;
+//                 let lat: u32 = (lat * 1_000_000f64) as u32;
+//                 let lng: u32 = (lng * 1_000_000f64) as u32;
+//                 Fact::Location(lat, lng)
+//             }
+//             DataType::Did => {
+//                 let did = Did::try_from(fact.value.to_string())?;
+//                 Fact::Did(pallet_primitives::Did { id: did.id })
+//             }
+//             DataType::Float => Fact::Float(fact.value.parse::<f64>()?.to_le_bytes()),
+//             DataType::Integer => {
+//                 let value = u128::from_str(&fact.value)?;
+//                 if value <= u8::MAX as u128 {
+//                     Fact::U8(value as u8)
+//                 } else if value <= u16::MAX as u128 {
+//                     Fact::U16(value as u16)
+//                 } else if value <= u32::MAX as u128 {
+//                     Fact::U32(value as u32)
+//                 } else {
+//                     Fact::U128(value)
+//                 }
+//             }
+//             DataType::Date => {
+//                 let date = NaiveDate::from_str(&fact.value)?;
+//                 Fact::Date(
+//                     u16::try_from(date.year())?,
+//                     u8::try_from(date.month())?,
+//                     u8::try_from(date.day())?,
+//                 )
+//             }
+//             DataType::Iso8601 => {
+//                 let date: DateTime<Utc> =
+//                     DateTime::parse_from_rfc3339(&fact.value)?.with_timezone(&Utc);
+//                 Fact::Iso8601(
+//                     u16::try_from(date.year())?,
+//                     u8::try_from(date.month())?,
+//                     u8::try_from(date.day())?,
+//                     u8::try_from(date.hour())?,
+//                     u8::try_from(date.minute())?,
+//                     u8::try_from(date.second())?,
+//                     date.timezone().to_string().into(),
+//                 )
+//             }
+//         };
+//         Ok(result)
+//     }
+// }
+
 #[derive(Serialize, Deserialize)]
 pub struct StatementResponse {
     pub name: String,
@@ -788,6 +995,96 @@ where
 
         let dids = api
             .get_dids_by_controller(&at, controller)
+            .map_err(convert_error!())?;
+        Ok(dids.into_iter().map(|did| did.into()).collect())
+    }
+
+    fn find_did_by_text_or_did_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        filter: String,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .find_did_by_text_or_did_property(&at, catalog_id, name.into(), filter.into())
+            .map_err(convert_error!())?;
+        Ok(dids.into_iter().map(|did| did.into()).collect())
+    }
+
+    fn find_did_by_integer_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        min: Option<u128>,
+        max: Option<u128>,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .find_did_by_integer_property(&at, catalog_id, name.into(), min, max)
+            .map_err(convert_error!())?;
+        Ok(dids.into_iter().map(|did| did.into()).collect())
+    }
+
+    fn find_did_by_float_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        min: Option<f64>,
+        max: Option<f64>,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .find_did_by_float_property(
+                &at,
+                catalog_id,
+                name.into(),
+                min.map(|min| f64::to_le_bytes(min)),
+                max.map(|max| f64::to_le_bytes(max)),
+            )
+            .map_err(convert_error!())?;
+        Ok(dids.into_iter().map(|did| did.into()).collect())
+    }
+
+    fn find_did_by_date_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        min: Option<(u16, u8, u8)>,
+        max: Option<(u16, u8, u8)>,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .find_did_by_date_property(&at, catalog_id, name.into(), min, max)
+            .map_err(convert_error!())?;
+        Ok(dids.into_iter().map(|did| did.into()).collect())
+    }
+
+    fn find_did_by_iso8601_property(
+        &self,
+        catalog_id: CatalogId,
+        name: String,
+        min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+        max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<Vec<DidDocumentBasicResponse>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let dids = api
+            .find_did_by_iso8601_property(&at, catalog_id, name.into(), min, max)
             .map_err(convert_error!())?;
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }

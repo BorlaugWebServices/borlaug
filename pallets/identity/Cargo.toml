@@ -19,6 +19,7 @@ timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features =
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
 groups = {package = "pallet-groups", path = "../groups", default-features = false}
 primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
+utils = {package = "utils", path = "../utils", default-features = false}
 
 [dev-dependencies]
 chrono = "0.4"
@@ -39,6 +40,7 @@ std = [
   "randomness/std",
   "timestamp/std",
   "primitives/std",
+  "utils/std",
   "groups/std",
   "extrinsic-extra/std",
 ]

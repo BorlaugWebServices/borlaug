@@ -4133,6 +4133,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "utils",
 ]
 
 [[package]]
@@ -8530,6 +8531,16 @@ dependencies = [
  "idna 0.2.3",
  "matches",
  "percent-encoding 2.1.0",
+]
+
+[[package]]
+name = "utils"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-std",
 ]
 
 [[package]]
