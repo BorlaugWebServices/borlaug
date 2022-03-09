@@ -14,7 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 # third-party dependencies
-codec = {package = "parity-scale-codec", version = "2.0.0"}
+codec = {package = "parity-scale-codec", version = "2.3.1"}
 futures = {version = "0.3.9", features = ["compat"]}
 hex = "0.4"
 hex-literal = "0.3.1"

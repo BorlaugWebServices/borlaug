@@ -22,6 +22,9 @@
 //!                              You can change attestors or threshold.
 //! * `update_process` - A **Process Definition** creator is allowed to rename **Processes** (attestors cannot).
 //! * `remove_process` - A **Process Definition** creator is allowed to remove a **Processes** (attestors cannot).
+//! * `add_child_definition` - A **Process** can have child processes
+//! * `remove_child_definition` - A
+//!
 //!
 //! #### For Attestors
 //! * `create_process` - An attestor of the first step of a **Process Definition** may create a new Process.
@@ -180,6 +183,24 @@ pub mod pallet {
             T::DefinitionId,
             T::ProcessId,
         ),
+        /// A Definition was made a child of another definition (account_id,group_account_id,registry_id, definition_id, child_registry_id, child_definition_id)
+        ChildDefinitionAdded(
+            T::AccountId,
+            T::AccountId,
+            T::RegistryId,
+            T::DefinitionId,
+            T::RegistryId,
+            T::DefinitionId,
+        ),
+        /// A Definition was was removed from the child definitions of another definition (account_id,group_account_id,registry_id, definition_id, child_registry_id, child_definition_id)
+        ChildDefinitionRemoved(
+            T::AccountId,
+            T::AccountId,
+            T::RegistryId,
+            T::DefinitionId,
+            T::RegistryId,
+            T::DefinitionId,
+        ),
 
         /// A  ProcessStep was updated (account_id,group_account_id,registry_id, definition_id, process_id, definition_step_index)
         ProcessStepUpdated(
@@ -224,6 +245,8 @@ pub mod pallet {
         NotFound,
         /// Cannot delete non-empty registry
         NotEmpty,
+        /// Process has parent processes or child processes
+        HasRelatedDefinitions,
         /// Is not an attestor for the necessary definition step
         NotAttestor,
         /// There weren't the expected number of yes votes to match the required threshold
@@ -358,6 +381,34 @@ pub mod pallet {
         Blake2_128Concat,
         T::ProcessId,
         Process<BoundedVec<u8, <T as Config>::NameLimit>>,
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn definition_children)]
+    /// A Definition can have multiple child Definitions
+    /// (T::RegistryId,T::DefinitionId), T::ProcessId => T::RegistryId
+    pub(super) type DefinitionChildren<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        (T::RegistryId, T::DefinitionId),
+        Blake2_128Concat,
+        T::DefinitionId,
+        T::RegistryId,
+        OptionQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn definition_parents)]
+    /// A Definition may be the child of multiple definitions
+    /// (T::RegistryId,T::DefinitionId), T::DefinitionId => T::RegistryId
+    pub(super) type DefinitionParents<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        (T::RegistryId, T::DefinitionId),
+        Blake2_128Concat,
+        T::DefinitionId,
+        T::RegistryId,
         OptionQuery,
     >;
 
@@ -678,6 +729,19 @@ pub mod pallet {
                 Error::<T>::ProcessesExist
             );
 
+            ensure!(
+                <DefinitionChildren<T>>::iter_prefix((registry_id, definition_id))
+                    .next()
+                    .is_none(),
+                Error::<T>::HasRelatedDefinitions
+            );
+            ensure!(
+                <DefinitionParents<T>>::iter_prefix((registry_id, definition_id))
+                    .next()
+                    .is_none(),
+                Error::<T>::HasRelatedDefinitions
+            );
+
             let step_count =
                 <DefinitionSteps<T>>::drain_prefix((registry_id, definition_id)).count() as u32;
 
@@ -916,6 +980,109 @@ pub mod pallet {
                 process_id,
             ));
             Ok(Some(<T as Config>::WeightInfo::remove_process(step_count)).into())
+        }
+
+        /// Add Child definition
+        ///
+        /// Arguments:
+        /// - `registry_id` Registry the Definition is in
+        /// - `definition_id` the Definition
+        /// - `child_definition_registry_id` Registry of the child Definition
+        /// - `child_definition_id` the child Definition
+        // TODO: fix weights
+        // #[pallet::weight(<T as Config>::WeightInfo::add_child_definition())]
+        #[pallet::weight(<T as Config>::WeightInfo::set_definition_active())]
+        pub fn add_child_definition(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            child_definition_registry_id: T::RegistryId,
+            child_definition_id: T::DefinitionId,
+        ) -> DispatchResultWithPostInfo {
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
+
+            ensure!(
+                <Registries<T>>::contains_key(&group_account, registry_id),
+                Error::<T>::NotAuthorized
+            );
+            ensure!(
+                <Registries<T>>::contains_key(&group_account, child_definition_registry_id),
+                Error::<T>::NotAuthorized
+            );
+            ensure!(
+                <Definitions<T>>::contains_key(registry_id, definition_id),
+                Error::<T>::NotFound
+            );
+            ensure!(
+                <Definitions<T>>::contains_key(child_definition_registry_id, child_definition_id),
+                Error::<T>::NotFound
+            );
+
+            <DefinitionChildren<T>>::insert(
+                (registry_id, definition_id),
+                child_definition_id,
+                child_definition_registry_id,
+            );
+            <DefinitionParents<T>>::insert(
+                (child_definition_registry_id, child_definition_id),
+                definition_id,
+                registry_id,
+            );
+
+            Self::deposit_event(Event::ChildDefinitionAdded(
+                account_id,
+                group_account,
+                registry_id,
+                definition_id,
+                child_definition_registry_id,
+                child_definition_id,
+            ));
+            Ok(().into())
+        }
+
+        /// Remove Child definition
+        ///
+        /// Arguments:
+        /// - `registry_id` Registry the Definition is in
+        /// - `definition_id` the Definition
+        /// - `child_definition_registry_id` Registry the Child Definition is in
+        /// - `child_definition_id` child Definition to be removed
+        // TODO: fix weights
+        // #[pallet::weight(<T as Config>::WeightInfo::add_child_definition())]
+        #[pallet::weight(<T as Config>::WeightInfo::set_definition_active())]
+        pub fn remove_child_definition(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            child_definition_registry_id: T::RegistryId,
+            child_definition_id: T::DefinitionId,
+        ) -> DispatchResultWithPostInfo {
+            let (account_id, group_account) = ensure_account_or_executed!(origin);
+
+            ensure!(
+                <Registries<T>>::contains_key(&group_account, registry_id),
+                Error::<T>::NotAuthorized
+            );
+            ensure!(
+                <Registries<T>>::contains_key(&group_account, child_definition_registry_id),
+                Error::<T>::NotAuthorized
+            );
+
+            <DefinitionChildren<T>>::remove((registry_id, definition_id), child_definition_id);
+            <DefinitionParents<T>>::remove(
+                (child_definition_registry_id, child_definition_id),
+                definition_id,
+            );
+
+            Self::deposit_event(Event::ChildDefinitionRemoved(
+                account_id,
+                group_account,
+                registry_id,
+                definition_id,
+                child_definition_registry_id,
+                child_definition_id,
+            ));
+            Ok(().into())
         }
 
         /// Attest a process_step - attestors on the step must propose and vote up to the required threshold
@@ -1274,6 +1441,36 @@ pub mod pallet {
                 definition_step_index,
             )
             .map(|process_step| (definition_step_index, process_step))
+        }
+
+        pub fn get_definition_children(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+        ) -> Vec<(
+            T::DefinitionId,
+            Definition<BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            <DefinitionChildren<T>>::iter_prefix((registry_id, definition_id))
+                .filter_map(|(child_definition_id, child_registry_id)| {
+                    <Definitions<T>>::get(child_registry_id, child_definition_id)
+                        .map(|child_definition| (child_definition_id, child_definition))
+                })
+                .collect()
+        }
+
+        pub fn get_definition_parents(
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+        ) -> Vec<(
+            T::DefinitionId,
+            Definition<BoundedVec<u8, <T as Config>::NameLimit>>,
+        )> {
+            <DefinitionParents<T>>::iter_prefix((registry_id, definition_id))
+                .filter_map(|(parent_definition_id, parent_registry_id)| {
+                    <Definitions<T>>::get(parent_registry_id, parent_definition_id)
+                        .map(|parent_definition| (parent_definition_id, parent_definition))
+                })
+                .collect()
         }
 
         // Definition creators and attestors can view definitions and processes derived from them.

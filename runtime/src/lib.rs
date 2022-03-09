@@ -169,7 +169,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 19,
+    spec_version: 20,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -1376,6 +1376,12 @@ impl_runtime_apis! {
         }
         fn get_process_step(registry_id:RegistryId,definition_id:DefinitionId,process_id:ProcessId,definition_step_index:DefinitionStepIndex) -> Option<(DefinitionStepIndex,ProcessStep<ProposalId,Moment,BoundedStringName,BoundedStringFact>) >  {
             Provenance::get_process_step(registry_id,definition_id,process_id,definition_step_index)
+        }
+        fn get_definition_children(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionId,Definition<BoundedStringName>)>  {
+            Provenance::get_definition_children(registry_id,definition_id)
+        }
+        fn get_definition_parents(registry_id:RegistryId,definition_id:DefinitionId) -> Vec<(DefinitionId,Definition<BoundedStringName>)>  {
+            Provenance::get_definition_parents(registry_id,definition_id)
         }
         fn can_view_definition(account_id: AccountId,registry_id:RegistryId,definition_id:DefinitionId) -> bool  {
             Provenance::can_view_definition(account_id,registry_id,definition_id)

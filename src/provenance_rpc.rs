@@ -177,6 +177,42 @@ pub trait ProvenanceApi<
         at: Option<BlockHash>,
     ) -> Result<ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>>;
 
+    #[rpc(name = "get_definition_children")]
+    fn get_definition_children(
+        &self,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        at: Option<BlockHash>,
+    ) -> Result<
+        Vec<
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
+        >,
+    >;
+
+    #[rpc(name = "get_definition_parents")]
+    fn get_definition_parents(
+        &self,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        at: Option<BlockHash>,
+    ) -> Result<
+        Vec<
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
+        >,
+    >;
+
     #[rpc(name = "can_view_definition")]
     fn can_view_definition(
         &self,
@@ -889,6 +925,69 @@ where
 
         Ok(process_step.into())
     }
+
+    fn get_definition_children(
+        &self,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<
+        Vec<
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
+        >,
+    > {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let definitions = api
+            .get_definition_children(&at, registry_id, definition_id)
+            .map_err(convert_error!())?;
+
+        Ok(definitions
+            .into_iter()
+            .map(|(definition_id, definition)| {
+                (registry_id, definition_id, definition, None).into()
+            })
+            .collect())
+    }
+
+    fn get_definition_parents(
+        &self,
+        registry_id: RegistryId,
+        definition_id: DefinitionId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<
+        Vec<
+            DefinitionResponse<
+                AccountId,
+                RegistryId,
+                DefinitionId,
+                MemberCount,
+                DefinitionStepIndex,
+            >,
+        >,
+    > {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let definitions = api
+            .get_definition_parents(&at, registry_id, definition_id)
+            .map_err(convert_error!())?;
+
+        Ok(definitions
+            .into_iter()
+            .map(|(definition_id, definition)| {
+                (registry_id, definition_id, definition, None).into()
+            })
+            .collect())
+    }
+
     fn can_view_definition(
         &self,
         account_id: AccountId,

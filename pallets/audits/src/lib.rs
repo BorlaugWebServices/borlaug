@@ -180,7 +180,7 @@ pub mod pallet {
             T::EvidenceId,
             T::ObservationId,
         ),
-        /// Evidence Deleted from Audit (auditors, proposal_id, audit_id, evidence_id)      
+        /// Evidence Deleted from Audit (auditors, proposal_id, audit_id, evidence_id)
         EvidenceDeleted(T::AccountId, T::ProposalId, T::AuditId, T::EvidenceId),
         /// Evidence could not be deleted due to too many observation links. Call delete_evidence again. (auditors, proposal_id, audit_id, evidence_id)
         EvidenceDeleteFailed(T::AccountId, T::ProposalId, T::AuditId, T::EvidenceId),
@@ -825,7 +825,6 @@ pub mod pallet {
             name: Vec<u8>,
             content_type: Vec<u8>,
             url: Option<Vec<u8>>,
-            //TODO: use [u8; 32]
             hash: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             let (_, proposal_id, _, _, group_account) =
