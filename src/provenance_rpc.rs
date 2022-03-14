@@ -316,6 +316,7 @@ pub struct DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex> {
     pub definition_step_index: DefinitionStepIndex,
     pub name: String,
     pub attestor: AccountId,
+    pub required: bool,
     pub threshold: MemberCount,
 }
 
@@ -337,6 +338,7 @@ where
             definition_step_index,
             name: String::from_utf8_lossy(&definition_step.name.into()).to_string(),
             attestor: definition_step.attestor,
+            required: definition_step.required,
             threshold: definition_step.threshold,
         }
     }

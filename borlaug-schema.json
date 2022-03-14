@@ -159,6 +159,7 @@
   "DefinitionStep": {
     "name": "Vec<u8>",
     "attestor": "AccountId",
+    "required": "bool",
     "threshold": "MemberCount"
   },
   "ProcessStatus": {

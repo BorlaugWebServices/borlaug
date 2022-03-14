@@ -88,6 +88,7 @@ pub mod pallet {
         V1,
         V2,
         V3,
+        V4,
     }
 
     #[pallet::config]
@@ -249,6 +250,8 @@ pub mod pallet {
         HasRelatedDefinitions,
         /// Is not an attestor for the necessary definition step
         NotAttestor,
+        /// A process cannot be completed until all the required steps are attested
+        NotAllRequiredStepsAttested,
         /// There weren't the expected number of yes votes to match the required threshold
         IncorrectThreshold,
         /// Id out of bounds
@@ -280,6 +283,7 @@ pub mod pallet {
         fn on_runtime_upgrade() -> frame_support::weights::Weight {
             let mut weight: Weight = 0;
             weight += super::migration::migrate_to_v3::<T>();
+            weight += super::migration::migrate_to_v4::<T>();
             weight
         }
     }
@@ -566,7 +570,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
             name: Vec<u8>,
-            steps: Vec<(Vec<u8>, T::AccountId, T::MemberCount)>,
+            steps: Vec<(Vec<u8>, T::AccountId, bool, T::MemberCount)>,
         ) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
@@ -586,9 +590,9 @@ pub mod pallet {
             );
 
             let mut new_steps = vec![];
-            for (name, attestor, threshold) in steps {
+            for (name, attestor, required, threshold) in steps {
                 let bounded_name = enforce_limit!(name);
-                new_steps.push((bounded_name, attestor, threshold));
+                new_steps.push((bounded_name, attestor, required, threshold));
             }
 
             let definition_id = next_id!(NextDefinitionId<T>, T);
@@ -600,13 +604,12 @@ pub mod pallet {
 
             <Definitions<T>>::insert(registry_id, definition_id, definition);
 
-            new_steps
-                .into_iter()
-                .enumerate()
-                .for_each(|(index, (name, attestor, threshold))| {
+            new_steps.into_iter().enumerate().for_each(
+                |(index, (name, attestor, required, threshold))| {
                     let definition_step = DefinitionStep {
                         name,
                         attestor: attestor.clone(),
+                        required,
                         threshold,
                     };
 
@@ -624,7 +627,8 @@ pub mod pallet {
                         (registry_id, definition_id, definition_step_index),
                         (),
                     );
-                });
+                },
+            );
 
             Self::deposit_event(Event::DefinitionCreated(
                 account_id,
@@ -1092,6 +1096,7 @@ pub mod pallet {
         /// - `definition_id` Definition the process is related to
         /// - `process_id` the Process
         /// - `definition_step_index` index of step to be attested
+        /// - `attributes` attributes for the step
         #[pallet::weight(<T as Config>::WeightInfo::attest_process_step(
             attributes.len() as u32,
             get_max_attribute_name_len(attributes),
@@ -1188,6 +1193,95 @@ pub mod pallet {
                 definition_id,
                 process_id,
                 definition_step_index,
+            ));
+
+            Ok(().into())
+        }
+
+        /// Complete process - this must be used if there are some not required steps that have not been attested.
+        ///
+        /// Arguments:
+        /// - `registry_id` Registry the Definition is in
+        /// - `definition_id` Definition the process is related to
+        /// - `process_id` the Process
+        //TODO: benchmarking
+        #[pallet::weight(<T as Config>::WeightInfo::update_definition_step(   ))]
+        pub fn complete_process(
+            origin: OriginFor<T>,
+            registry_id: T::RegistryId,
+            definition_id: T::DefinitionId,
+            process_id: T::ProcessId,
+        ) -> DispatchResultWithPostInfo {
+            //TODO: use macro
+            let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
+            let (sender, yes_votes, _proposal_id) = match either {
+                Either::Left(account_id) => (account_id, None, None),
+                Either::Right((_, proposal_id, yes_votes, _, group_account)) => {
+                    (group_account, yes_votes, Some(proposal_id))
+                }
+            };
+
+            let step_count =
+                <DefinitionSteps<T>>::iter_prefix((registry_id, definition_id)).count() as u32;
+
+            let mut last_attested_step_index = None;
+            let mut can_complete = true;
+
+            for i in 0..step_count {
+                let index = T::DefinitionStepIndex::unique_saturated_from(i);
+                let step = <ProcessSteps<T>>::get((registry_id, definition_id, process_id), index);
+                if step.is_some() {
+                    last_attested_step_index = Some(index);
+                } else {
+                    let definition_step =
+                        <DefinitionSteps<T>>::get((registry_id, definition_id), index);
+                    if let Some(definition_step) = definition_step {
+                        if definition_step.required {
+                            can_complete = false;
+                        }
+                    } else {
+                        can_complete = false;
+                    }
+                }
+            }
+
+            ensure!(can_complete, Error::<T>::NotAttestor);
+
+            ensure!(last_attested_step_index.is_some(), Error::<T>::NotAttestor);
+
+            if let Some(last_attested_step_index) = last_attested_step_index {
+                let definition_step = <DefinitionSteps<T>>::get(
+                    (registry_id, definition_id),
+                    last_attested_step_index,
+                );
+
+                ensure!(
+                    definition_step.is_some()
+                        && definition_step.as_ref().unwrap().attestor == sender,
+                    Error::<T>::NotAttestor
+                );
+
+                ensure!(
+                    yes_votes.is_none() || yes_votes.unwrap() >= definition_step.unwrap().threshold,
+                    Error::<T>::IncorrectThreshold
+                );
+            }
+
+            <Processes<T>>::mutate_exists(
+                (registry_id, definition_id),
+                process_id,
+                |maybe_process| {
+                    if let Some(ref mut process) = maybe_process {
+                        process.status = ProcessStatus::Completed;
+                    }
+                },
+            );
+
+            Self::deposit_event(Event::ProcessCompleted(
+                sender.clone(),
+                registry_id,
+                definition_id,
+                process_id,
             ));
 
             Ok(().into())
@@ -1531,10 +1625,10 @@ pub mod pallet {
     }
 
     fn get_max_step_name<AccountId, MemberCount>(
-        steps: &[(Vec<u8>, AccountId, MemberCount)],
+        steps: &[(Vec<u8>, AccountId, bool, MemberCount)],
     ) -> u32 {
         let mut max_step_name_len = 0;
-        steps.iter().for_each(|(name, _, _)| {
+        steps.iter().for_each(|(name, _, _, _)| {
             if name.len() as u32 > max_step_name_len {
                 max_step_name_len = name.len() as u32;
             };

@@ -92,7 +92,7 @@ fn create_definition_should_work() {
             Origin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
-            vec![(b"TestStep".to_vec(), ATTESTOR, threshold)]
+            vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
         ));
         let definition_id = 1u32;
         assert!(Definitions::<Test>::contains_key(
@@ -119,6 +119,7 @@ fn create_definition_should_work() {
             DefinitionStep {
                 name: b"TestStep".to_vec().try_into().unwrap(),
                 attestor: ATTESTOR,
+                required: true,
                 threshold
             },
             definition_step
@@ -139,7 +140,7 @@ fn remove_definition_should_work() {
             Origin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
-            vec![(b"TestStep".to_vec(), ATTESTOR, threshold)]
+            vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
         ));
         let definition_id = 1u32;
         assert!(Definitions::<Test>::contains_key(
@@ -174,7 +175,7 @@ fn set_definition_inactive_and_active_should_work() {
             Origin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
-            vec![(b"TestStep".to_vec(), ATTESTOR, threshold)]
+            vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
         ));
         let definition_id = 1u32;
         assert!(Definitions::<Test>::contains_key(
@@ -223,7 +224,7 @@ fn create_process_should_work() {
             Origin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
-            vec![(b"TestStep".to_vec(), ATTESTOR, threshold)]
+            vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
         ));
         let definition_id = 1u32;
         assert!(Definitions::<Test>::contains_key(
@@ -267,7 +268,7 @@ fn update_process_should_work() {
             Origin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
-            vec![(b"TestStep".to_vec(), ATTESTOR, threshold)]
+            vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
         ));
         let definition_id = 1u32;
         assert!(Definitions::<Test>::contains_key(
@@ -328,7 +329,7 @@ fn remove_process_should_work() {
             Origin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
-            vec![(b"TestStep".to_vec(), ATTESTOR, threshold)]
+            vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
         ));
         let definition_id = 1u32;
         assert!(Definitions::<Test>::contains_key(
@@ -383,8 +384,8 @@ fn attest_process_step_should_work() {
             registry_id,
             b"TestDefinition".to_vec(),
             vec![
-                (b"TestStep_1".to_vec(), ATTESTOR, threshold),
-                (b"TestStep_2".to_vec(), ATTESTOR, threshold)
+                (b"TestStep_1".to_vec(), ATTESTOR, true, threshold),
+                (b"TestStep_2".to_vec(), ATTESTOR, true, threshold)
             ]
         ));
         let definition_id = 1u32;
@@ -499,6 +500,8 @@ fn attest_process_step_should_work() {
         );
     });
 }
+
+//TODO: test complete process
 
 //Make sure weights cannot exceed 10% of total allowance for block.
 

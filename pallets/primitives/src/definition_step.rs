@@ -5,5 +5,6 @@ use sp_runtime::RuntimeDebug;
 pub struct DefinitionStep<AccountId, MemberCount, BoundedString> {
     pub name: BoundedString,
     pub attestor: AccountId,
+    pub required: bool,
     pub threshold: MemberCount,
 }
