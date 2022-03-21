@@ -501,6 +501,110 @@ fn attest_process_step_should_work() {
     });
 }
 
+#[test]
+fn complete_process_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Provenance::create_registry(
+            Origin::signed(DEFINITION_OWNER),
+            b"John Doe".to_vec()
+        ));
+        let registry_id = 1u32;
+        let threshold = 1u32;
+        assert_ok!(Provenance::create_definition(
+            Origin::signed(DEFINITION_OWNER),
+            registry_id,
+            b"TestDefinition".to_vec(),
+            vec![
+                (b"TestStep_1".to_vec(), ATTESTOR, true, threshold),
+                (b"TestStep_2".to_vec(), ATTESTOR, false, threshold)
+            ]
+        ));
+        let definition_id = 1u32;
+        assert!(Definitions::<Test>::contains_key(
+            registry_id,
+            definition_id
+        ));
+
+        assert_ok!(Provenance::create_process(
+            Origin::signed(ATTESTOR),
+            registry_id,
+            definition_id,
+            b"TestProcess".to_vec(),
+        ));
+        let process_id = 1u32;
+        assert!(Processes::<Test>::contains_key(
+            (registry_id, definition_id),
+            process_id
+        ));
+        let process = Processes::<Test>::get((registry_id, definition_id), process_id).unwrap();
+
+        assert_eq!(
+            process,
+            Process {
+                name: b"TestProcess".to_vec().try_into().unwrap(),
+                status: ProcessStatus::InProgress
+            }
+        );
+        let definition_step_index = 0;
+        assert_ok!(Provenance::attest_process_step(
+            Origin::signed(ATTESTOR),
+            registry_id,
+            definition_id,
+            process_id,
+            definition_step_index,
+            vec![Attribute {
+                name: b"TestAttribute".to_vec(),
+                fact: Fact::Text(b"TestFact".to_vec())
+            }]
+        ));
+
+        assert!(ProcessSteps::<Test>::contains_key(
+            (registry_id, definition_id, process_id),
+            definition_step_index
+        ));
+        let process_step = ProcessSteps::<Test>::get(
+            (registry_id, definition_id, process_id),
+            definition_step_index,
+        )
+        .unwrap();
+
+        assert_eq!(
+            process_step,
+            ProcessStep {
+                proposal_id: None,
+                attested: 0,
+                attributes: vec![Attribute {
+                    name: b"TestAttribute".to_vec().try_into().unwrap(),
+                    fact: Fact::Text(b"TestFact".to_vec().try_into().unwrap())
+                }]
+            }
+        );
+        let process = Processes::<Test>::get((registry_id, definition_id), process_id).unwrap();
+        assert_eq!(
+            process,
+            Process {
+                name: b"TestProcess".to_vec().try_into().unwrap(),
+                status: ProcessStatus::InProgress
+            }
+        );
+        assert_ok!(Provenance::complete_process(
+            Origin::signed(ATTESTOR),
+            registry_id,
+            definition_id,
+            process_id
+        ));
+
+        let process = Processes::<Test>::get((registry_id, definition_id), process_id).unwrap();
+        assert_eq!(
+            process,
+            Process {
+                name: b"TestProcess".to_vec().try_into().unwrap(),
+                status: ProcessStatus::Completed
+            }
+        );
+    });
+}
+
 //TODO: test complete process
 
 //Make sure weights cannot exceed 10% of total allowance for block.

@@ -22,8 +22,8 @@
 //!                              You can change attestors or threshold.
 //! * `update_process` - A **Process Definition** creator is allowed to rename **Processes** (attestors cannot).
 //! * `remove_process` - A **Process Definition** creator is allowed to remove a **Processes** (attestors cannot).
-//! * `add_child_definition` - A **Process** can have child processes
-//! * `remove_child_definition` - A
+//! * `add_child_definition` - A **Process Definition** can have child definition
+//! * `remove_child_definition` - A child definition can be removed
 //!
 //!
 //! #### For Attestors
@@ -31,6 +31,7 @@
 //!                           A Process Step can only be updated after the previous step has been attested and before the step itself is attested.
 //! * `attest_process_step` - Attest that the attributes for a process step are accurate.
 //!                           This is done once for each step in order and the process moves on to the next or completes if it is the last step.
+//! * `complete_process` - If there are some unrequired steps that are not attested, the attestor of the last attested step can complete the process.
 //!
 //! ### RPC Methods
 //!
@@ -252,6 +253,8 @@ pub mod pallet {
         NotAttestor,
         /// A process cannot be completed until all the required steps are attested
         NotAllRequiredStepsAttested,
+        /// There should be at least one step unattested when trying to complete a process
+        NoUnattestedSteps,
         /// There weren't the expected number of yes votes to match the required threshold
         IncorrectThreshold,
         /// Id out of bounds
@@ -993,9 +996,7 @@ pub mod pallet {
         /// - `definition_id` the Definition
         /// - `child_definition_registry_id` Registry of the child Definition
         /// - `child_definition_id` the child Definition
-        // TODO: fix weights
-        // #[pallet::weight(<T as Config>::WeightInfo::add_child_definition())]
-        #[pallet::weight(<T as Config>::WeightInfo::set_definition_active())]
+        #[pallet::weight(<T as Config>::WeightInfo::add_child_definition())]
         pub fn add_child_definition(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
@@ -1051,9 +1052,7 @@ pub mod pallet {
         /// - `definition_id` the Definition
         /// - `child_definition_registry_id` Registry the Child Definition is in
         /// - `child_definition_id` child Definition to be removed
-        // TODO: fix weights
-        // #[pallet::weight(<T as Config>::WeightInfo::add_child_definition())]
-        #[pallet::weight(<T as Config>::WeightInfo::set_definition_active())]
+        #[pallet::weight(<T as Config>::WeightInfo::remove_child_definition())]
         pub fn remove_child_definition(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
@@ -1204,15 +1203,13 @@ pub mod pallet {
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` Definition the process is related to
         /// - `process_id` the Process
-        //TODO: benchmarking
-        #[pallet::weight(<T as Config>::WeightInfo::update_definition_step(   ))]
+        #[pallet::weight(<T as Config>::WeightInfo::complete_process(<T as Config>::DefinitionStepLimit::get()))]
         pub fn complete_process(
             origin: OriginFor<T>,
             registry_id: T::RegistryId,
             definition_id: T::DefinitionId,
             process_id: T::ProcessId,
         ) -> DispatchResultWithPostInfo {
-            //TODO: use macro
             let either = T::GroupsOriginAccountOrApproved::ensure_origin(origin)?;
             let (sender, yes_votes, _proposal_id) = match either {
                 Either::Left(account_id) => (account_id, None, None),
@@ -1220,6 +1217,8 @@ pub mod pallet {
                     (group_account, yes_votes, Some(proposal_id))
                 }
             };
+
+            //TODO: is it OK do do all these db reads even if extrinsic is rejected?
 
             let step_count =
                 <DefinitionSteps<T>>::iter_prefix((registry_id, definition_id)).count() as u32;
@@ -1245,9 +1244,12 @@ pub mod pallet {
                 }
             }
 
-            ensure!(can_complete, Error::<T>::NotAttestor);
+            ensure!(can_complete, Error::<T>::NotAllRequiredStepsAttested);
 
-            ensure!(last_attested_step_index.is_some(), Error::<T>::NotAttestor);
+            ensure!(
+                last_attested_step_index.is_some(),
+                Error::<T>::NoUnattestedSteps
+            );
 
             if let Some(last_attested_step_index) = last_attested_step_index {
                 let definition_step = <DefinitionSteps<T>>::get(
@@ -1284,7 +1286,7 @@ pub mod pallet {
                 process_id,
             ));
 
-            Ok(().into())
+            Ok(Some(<T as Config>::WeightInfo::complete_process(step_count)).into())
         }
     }
 

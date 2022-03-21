@@ -262,6 +262,8 @@ pub mod pallet {
         BulkDidLimitExceeded,
         /// A non-controller account attempted to  modify a DID
         NotController,
+        /// A catalog must be empty to be removed
+        CatalogNotEmpty,
         /// The requested DID Document does not exist
         DidDocumentNotFound,
         /// Not authorized to make a claim or attest a claim
@@ -1198,17 +1200,15 @@ pub mod pallet {
                 Error::<T>::NotController
             );
 
+            ensure!(
+                <DidsByCatalog<T>>::iter_prefix(catalog_id).next().is_none(),
+                Error::<T>::CatalogNotEmpty
+            );
+
             <Catalogs<T>>::remove(&group_account, catalog_id);
-            //TODO: fix this for weights
-            let mut did_count = 0;
-            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
-                <DidCatalogs<T>>::remove(&did, catalog_id);
-                <DidsByCatalog<T>>::remove(catalog_id, &did);
-                did_count += 1;
-            });
 
             Self::deposit_event(Event::CatalogRemoved(account_id, group_account, catalog_id));
-            //TODO: refund weight
+
             Ok(().into())
         }
 
