@@ -87,9 +87,6 @@ pub mod pallet {
     #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
     pub enum Releases {
         V1,
-        V2,
-        V3,
-        V4,
     }
 
     #[pallet::config]
@@ -283,12 +280,12 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            let mut weight: Weight = 0;
-            weight += super::migration::migrate_to_v3::<T>();
-            weight += super::migration::migrate_to_v4::<T>();
-            weight
-        }
+        // fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        //     let mut weight: Weight = 0;
+        //     weight += super::migration::migrate_to_v3::<T>();
+        //     weight += super::migration::migrate_to_v4::<T>();
+        //     weight
+        // }
     }
 
     #[pallet::genesis_config]
@@ -307,7 +304,7 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <StorageVersion<T>>::put(Releases::V2);
+            <StorageVersion<T>>::put(Releases::V1);
         }
     }
 

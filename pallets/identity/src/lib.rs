@@ -109,8 +109,6 @@ pub mod pallet {
     #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
     pub enum Releases {
         V1,
-        V2,
-        V3,
     }
 
     #[pallet::config]
@@ -315,7 +313,7 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <StorageVersion<T>>::put(Releases::V3);
+            <StorageVersion<T>>::put(Releases::V1);
         }
     }
 
