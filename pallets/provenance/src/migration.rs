@@ -57,67 +57,67 @@ pub mod deprecated {
 //     weight
 // }
 
-#[allow(clippy::unnecessary_cast)]
-pub fn migrate_to_v3<T: Config>() -> Weight {
-    let mut weight: Weight = 0;
+// #[allow(clippy::unnecessary_cast)]
+// pub fn migrate_to_v3<T: Config>() -> Weight {
+//     let mut weight: Weight = 0;
 
-    let storage_version_maybe = <StorageVersion<T>>::get();
+//     let storage_version_maybe = <StorageVersion<T>>::get();
 
-    if storage_version_maybe.is_none() || storage_version_maybe.unwrap() == Releases::V2 {
-        <ProcessSteps<T>>::translate::<
-            deprecated::OldProcessStep<
-                T::ProposalId,
-                BoundedVec<u8, <T as Config>::NameLimit>,
-                BoundedVec<u8, <T as Config>::FactStringLimit>,
-            >,
-            _,
-        >(|(_, _, _), _, old| {
-            weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
-            let new = ProcessStep {
-                proposal_id: old.proposal_id,
-                attested: <timestamp::Module<T>>::get(),
-                attributes: old.attributes,
-            };
-            Some(new)
-        });
+//     if storage_version_maybe.is_none() || storage_version_maybe.unwrap() == Releases::V2 {
+//         <ProcessSteps<T>>::translate::<
+//             deprecated::OldProcessStep<
+//                 T::ProposalId,
+//                 BoundedVec<u8, <T as Config>::NameLimit>,
+//                 BoundedVec<u8, <T as Config>::FactStringLimit>,
+//             >,
+//             _,
+//         >(|(_, _, _), _, old| {
+//             weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
+//             let new = ProcessStep {
+//                 proposal_id: old.proposal_id,
+//                 attested: <timestamp::Module<T>>::get(),
+//                 attributes: old.attributes,
+//             };
+//             Some(new)
+//         });
 
-        <StorageVersion<T>>::set(Some(Releases::V3));
-    } else {
-        frame_support::debug::info!(" >>> Unused migration!");
-    }
+//         <StorageVersion<T>>::set(Some(Releases::V3));
+//     } else {
+//         frame_support::debug::info!(" >>> Unused migration!");
+//     }
 
-    weight
-}
+//     weight
+// }
 
-#[allow(clippy::unnecessary_cast)]
-pub fn migrate_to_v4<T: Config>() -> Weight {
-    let mut weight: Weight = 0;
+// #[allow(clippy::unnecessary_cast)]
+// pub fn migrate_to_v4<T: Config>() -> Weight {
+//     let mut weight: Weight = 0;
 
-    let storage_version_maybe = <StorageVersion<T>>::get();
+//     let storage_version_maybe = <StorageVersion<T>>::get();
 
-    if storage_version_maybe.is_none() || storage_version_maybe.unwrap() == Releases::V3 {
-        <DefinitionSteps<T>>::translate::<
-            deprecated::OldDefinitionStep<
-                T::AccountId,
-                T::MemberCount,
-                BoundedVec<u8, <T as Config>::NameLimit>,
-            >,
-            _,
-        >(|(_, _), _, old| {
-            weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
-            let new = DefinitionStep {
-                name: old.name,
-                attestor: old.attestor,
-                required: true,
-                threshold: old.threshold,
-            };
-            Some(new)
-        });
+//     if storage_version_maybe.is_none() || storage_version_maybe.unwrap() == Releases::V3 {
+//         <DefinitionSteps<T>>::translate::<
+//             deprecated::OldDefinitionStep<
+//                 T::AccountId,
+//                 T::MemberCount,
+//                 BoundedVec<u8, <T as Config>::NameLimit>,
+//             >,
+//             _,
+//         >(|(_, _), _, old| {
+//             weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
+//             let new = DefinitionStep {
+//                 name: old.name,
+//                 attestor: old.attestor,
+//                 required: true,
+//                 threshold: old.threshold,
+//             };
+//             Some(new)
+//         });
 
-        <StorageVersion<T>>::set(Some(Releases::V4));
-    } else {
-        frame_support::debug::info!(" >>> Unused migration!");
-    }
+//         <StorageVersion<T>>::set(Some(Releases::V4));
+//     } else {
+//         frame_support::debug::info!(" >>> Unused migration!");
+//     }
 
-    weight
-}
+//     weight
+// }
