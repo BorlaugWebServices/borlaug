@@ -37,68 +37,60 @@
 // --output=./weights/settings/weights.rs
 // --template=./frame-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_settings.
 pub trait WeightInfo {
-fn set_weight_to_fee_coefficients(a: u32, ) -> Weight;
-fn set_transaction_byte_fee() -> Weight;
-fn set_fee_split_ratio() -> Weight;
-fn set_extrinsic_extra() -> Weight;
-fn remove_extrinsic_extra() -> Weight;
+    fn set_weight_to_fee_coefficients(a: u32) -> u64;
+    fn set_transaction_byte_fee() -> u64;
+    fn set_fee_split_ratio() -> u64;
+    fn set_extrinsic_extra() -> u64;
+    fn remove_extrinsic_extra() -> u64;
 }
 
 /// Weights for pallet_settings using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
-		impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-				fn set_weight_to_fee_coefficients(_a: u32, ) -> Weight {
-				(55_210_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn set_transaction_byte_fee() -> Weight {
-				(48_704_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn set_fee_split_ratio() -> Weight {
-				(46_974_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn set_extrinsic_extra() -> Weight {
-				(49_206_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn remove_extrinsic_extra() -> Weight {
-				(48_386_000 as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				}
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+    fn set_weight_to_fee_coefficients(_a: u32) -> u64 {
+        (55_210_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn set_transaction_byte_fee() -> u64 {
+        (48_704_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn set_fee_split_ratio() -> u64 {
+        (46_974_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn set_extrinsic_extra() -> u64 {
+        (49_206_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn remove_extrinsic_extra() -> u64 {
+        (48_386_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+}
 
-				// For backwards compatibility and tests
-				impl WeightInfo for () {
-				fn set_weight_to_fee_coefficients(_a: u32, ) -> Weight {
-				(55_210_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn set_transaction_byte_fee() -> Weight {
-				(48_704_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn set_fee_split_ratio() -> Weight {
-				(46_974_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn set_extrinsic_extra() -> Weight {
-				(49_206_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn remove_extrinsic_extra() -> Weight {
-				(48_386_000 as Weight)
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				}
+// For backwards compatibility and tests
+impl WeightInfo for () {
+    fn set_weight_to_fee_coefficients(_a: u32) -> u64 {
+        (55_210_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn set_transaction_byte_fee() -> u64 {
+        (48_704_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn set_fee_split_ratio() -> u64 {
+        (46_974_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn set_extrinsic_extra() -> u64 {
+        (49_206_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn remove_extrinsic_extra() -> u64 {
+        (48_386_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+}

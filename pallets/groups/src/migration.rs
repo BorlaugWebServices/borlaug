@@ -1,6 +1,6 @@
-use super::*;
-use frame_support::traits::Get;
-use frame_support::weights::Weight;
+// use super::*;
+// use frame_support::traits::Get;
+// use frame_support::weights::Weight;
 
 // #[allow(clippy::unnecessary_cast)]
 // pub fn migrate_to_v2<T: Config>() -> Weight {

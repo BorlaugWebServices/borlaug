@@ -125,14 +125,14 @@ pub mod pallet {
     }
 
     #[pallet::event]
-    #[pallet::metadata(
-        T::AccountId = "AccountId",
-        T::AuditId = "AuditId",
-        T::ObservationId = "ObservationId",
-        T::ControlPointId = "ControlPointId",
-        T::EvidenceId = "EvidenceId",
-        T::ProposalId = "ProposalId"
-    )]
+    // #[pallet::metadata(
+    //     T::AccountId = "AccountId",
+    //     T::AuditId = "AuditId",
+    //     T::ObservationId = "ObservationId",
+    //     T::ControlPointId = "ControlPointId",
+    //     T::EvidenceId = "EvidenceId",
+    //     T::ProposalId = "ProposalId"
+    // )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// New registry created (auditing_org, proposal_id, audit_id)

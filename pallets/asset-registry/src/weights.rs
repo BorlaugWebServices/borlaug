@@ -37,167 +37,169 @@
 // --output=./weights/asset-registry/weights.rs
 // --template=./frame-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_asset_registry.
 pub trait WeightInfo {
-fn create_registry(a: u32, ) -> Weight;
-fn update_registry(a: u32, ) -> Weight;
-fn delete_registry() -> Weight;
-fn create_asset(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, ) -> Weight;
-fn update_asset(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, ) -> Weight;
-fn delete_asset() -> Weight;
-fn new_lease(a: u32, b: u32, ) -> Weight;
-fn void_lease(a: u32, ) -> Weight;
+    fn create_registry(a: u32) -> Weight;
+    fn update_registry(a: u32) -> Weight;
+    fn delete_registry() -> Weight;
+    fn create_asset(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> Weight;
+    fn update_asset(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> Weight;
+    fn delete_asset() -> Weight;
+    fn new_lease(a: u32, b: u32) -> Weight;
+    fn void_lease(a: u32) -> Weight;
 }
 
 /// Weights for pallet_asset_registry using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
-		impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-				fn create_registry(_a: u32, ) -> Weight {
-				(95_517_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(3 as Weight))
-				.saturating_add(T::DbWeight::get().writes(2 as Weight))
-				}
-				fn update_registry(a: u32, ) -> Weight {
-				(91_671_000 as Weight)
-				// Standard Error: 7_000
-				.saturating_add((9_000 as Weight).saturating_mul(a as Weight))
-				.saturating_add(T::DbWeight::get().reads(2 as Weight))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn delete_registry() -> Weight {
-				(106_915_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(3 as Weight))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn create_asset(_a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, ) -> Weight {
-				(2_263_000 as Weight)
-				// Standard Error: 25_000
-				.saturating_add((65_000 as Weight).saturating_mul(b as Weight))
-				// Standard Error: 25_000
-				.saturating_add((3_000 as Weight).saturating_mul(c as Weight))
-				// Standard Error: 25_000
-				.saturating_add((561_000 as Weight).saturating_mul(d as Weight))
-				// Standard Error: 25_000
-				.saturating_add((703_000 as Weight).saturating_mul(e as Weight))
-				// Standard Error: 6_000
-				.saturating_add((1_410_000 as Weight).saturating_mul(f as Weight))
-				.saturating_add(T::DbWeight::get().reads(4 as Weight))
-				.saturating_add(T::DbWeight::get().writes(3 as Weight))
-				}
-				fn update_asset(a: u32, _b: u32, _c: u32, d: u32, e: u32, f: u32, ) -> Weight {
-				(0 as Weight)
-				// Standard Error: 30_000
-				.saturating_add((60_000 as Weight).saturating_mul(a as Weight))
-				// Standard Error: 30_000
-				.saturating_add((669_000 as Weight).saturating_mul(d as Weight))
-				// Standard Error: 30_000
-				.saturating_add((633_000 as Weight).saturating_mul(e as Weight))
-				// Standard Error: 7_000
-				.saturating_add((1_443_000 as Weight).saturating_mul(f as Weight))
-				.saturating_add(T::DbWeight::get().reads(1 as Weight))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn delete_asset() -> Weight {
-				(83_953_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(1 as Weight))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				}
-				fn new_lease(_a: u32, b: u32, ) -> Weight {
-				(0 as Weight)
-				// Standard Error: 109_000
-				.saturating_add((51_033_000 as Weight).saturating_mul(b as Weight))
-				.saturating_add(T::DbWeight::get().reads(4 as Weight))
-				.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(b as Weight)))
-				.saturating_add(T::DbWeight::get().writes(2 as Weight))
-				.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(b as Weight)))
-				}
-				fn void_lease(a: u32, ) -> Weight {
-				(0 as Weight)
-				// Standard Error: 54_000
-				.saturating_add((22_927_000 as Weight).saturating_mul(a as Weight))
-				.saturating_add(T::DbWeight::get().reads(2 as Weight))
-				.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(a as Weight)))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
-				}
-				}
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+    fn create_registry(_a: u32) -> Weight {
+        Weight::from_ref_time(95_517_000 as u64)
+            .saturating_add(T::DbWeight::get().reads(3 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+    fn update_registry(a: u32) -> Weight {
+        Weight::from_ref_time(91_671_000 as u64)
+            // Standard Error: 7_000
+            .saturating_add(Weight::from_ref_time(9_000 as u64).saturating_mul(a as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn delete_registry() -> Weight {
+        Weight::from_ref_time(106_915_000 as u64)
+            .saturating_add(T::DbWeight::get().reads(3 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn create_asset(_a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> Weight {
+        Weight::from_ref_time(2_263_000 as u64)
+            // Standard Error: 25_000
+            .saturating_add(Weight::from_ref_time(65_000 as u64).saturating_mul(b as u64))
+            // Standard Error: 25_000
+            .saturating_add(Weight::from_ref_time(3_000 as u64).saturating_mul(c as u64))
+            // Standard Error: 25_000
+            .saturating_add(Weight::from_ref_time(561_000 as u64).saturating_mul(d as u64))
+            // Standard Error: 25_000
+            .saturating_add(Weight::from_ref_time(703_000 as u64).saturating_mul(e as u64))
+            // Standard Error: 6_000
+            .saturating_add(Weight::from_ref_time(1_410_000 as u64).saturating_mul(f as u64))
+            .saturating_add(T::DbWeight::get().reads(4 as u64))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+    }
+    fn update_asset(a: u32, _b: u32, _c: u32, d: u32, e: u32, f: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
+            // Standard Error: 30_000
+            .saturating_add(Weight::from_ref_time(60_000 as u64).saturating_mul(a as u64))
+            // Standard Error: 30_000
+            .saturating_add(Weight::from_ref_time(669_000 as u64).saturating_mul(d as u64))
+            // Standard Error: 30_000
+            .saturating_add(Weight::from_ref_time(633_000 as u64).saturating_mul(e as u64))
+            // Standard Error: 7_000
+            .saturating_add(Weight::from_ref_time(1_443_000 as u64).saturating_mul(f as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn delete_asset() -> Weight {
+        Weight::from_ref_time(83_953_000 as u64)
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn new_lease(_a: u32, b: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
+            // Standard Error: 109_000
+            .saturating_add(Weight::from_ref_time(51_033_000 as u64).saturating_mul(b as u64))
+            .saturating_add(T::DbWeight::get().reads(4 as u64))
+            .saturating_add(T::DbWeight::get().reads((2 as u64).saturating_mul(b as u64)))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(b as u64)))
+    }
+    fn void_lease(a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
+            // Standard Error: 54_000
+            .saturating_add(Weight::from_ref_time(22_927_000 as u64).saturating_mul(a as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(a as u64)))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(a as u64)))
+    }
+}
 
-				// For backwards compatibility and tests
-				impl WeightInfo for () {
-				fn create_registry(_a: u32, ) -> Weight {
-				(95_517_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-				}
-				fn update_registry(a: u32, ) -> Weight {
-				(91_671_000 as Weight)
-				// Standard Error: 7_000
-				.saturating_add((9_000 as Weight).saturating_mul(a as Weight))
-				.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn delete_registry() -> Weight {
-				(106_915_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn create_asset(_a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, ) -> Weight {
-				(2_263_000 as Weight)
-				// Standard Error: 25_000
-				.saturating_add((65_000 as Weight).saturating_mul(b as Weight))
-				// Standard Error: 25_000
-				.saturating_add((3_000 as Weight).saturating_mul(c as Weight))
-				// Standard Error: 25_000
-				.saturating_add((561_000 as Weight).saturating_mul(d as Weight))
-				// Standard Error: 25_000
-				.saturating_add((703_000 as Weight).saturating_mul(e as Weight))
-				// Standard Error: 6_000
-				.saturating_add((1_410_000 as Weight).saturating_mul(f as Weight))
-				.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-				}
-				fn update_asset(a: u32, _b: u32, _c: u32, d: u32, e: u32, f: u32, ) -> Weight {
-				(0 as Weight)
-				// Standard Error: 30_000
-				.saturating_add((60_000 as Weight).saturating_mul(a as Weight))
-				// Standard Error: 30_000
-				.saturating_add((669_000 as Weight).saturating_mul(d as Weight))
-				// Standard Error: 30_000
-				.saturating_add((633_000 as Weight).saturating_mul(e as Weight))
-				// Standard Error: 7_000
-				.saturating_add((1_443_000 as Weight).saturating_mul(f as Weight))
-				.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn delete_asset() -> Weight {
-				(83_953_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				}
-				fn new_lease(_a: u32, b: u32, ) -> Weight {
-				(0 as Weight)
-				// Standard Error: 109_000
-				.saturating_add((51_033_000 as Weight).saturating_mul(b as Weight))
-				.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-				.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(b as Weight)))
-				.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-				.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(b as Weight)))
-				}
-				fn void_lease(a: u32, ) -> Weight {
-				(0 as Weight)
-				// Standard Error: 54_000
-				.saturating_add((22_927_000 as Weight).saturating_mul(a as Weight))
-				.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-				.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(a as Weight)))
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-				.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(a as Weight)))
-				}
-				}
+// For backwards compatibility and tests
+impl WeightInfo for () {
+    fn create_registry(_a: u32) -> Weight {
+        Weight::from_ref_time(95_517_000 as u64)
+            .saturating_add(RocksDbWeight::get().reads(3 as u64))
+            .saturating_add(RocksDbWeight::get().writes(2 as u64))
+    }
+    fn update_registry(a: u32) -> Weight {
+        Weight::from_ref_time(91_671_000 as u64)
+            // Standard Error: 7_000
+            .saturating_add(Weight::from_ref_time(9_000 as u64).saturating_mul(a as u64))
+            .saturating_add(RocksDbWeight::get().reads(2 as u64))
+            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn delete_registry() -> Weight {
+        Weight::from_ref_time(106_915_000 as u64)
+            .saturating_add(RocksDbWeight::get().reads(3 as u64))
+            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn create_asset(_a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> Weight {
+        Weight::from_ref_time(2_263_000 as u64)
+            // Standard Error: 25_000
+            .saturating_add(Weight::from_ref_time(65_000 as u64).saturating_mul(b as u64))
+            // Standard Error: 25_000
+            .saturating_add(Weight::from_ref_time(3_000 as u64).saturating_mul(c as u64))
+            // Standard Error: 25_000
+            .saturating_add(Weight::from_ref_time(561_000 as u64).saturating_mul(d as u64))
+            // Standard Error: 25_000
+            .saturating_add(Weight::from_ref_time(703_000 as u64).saturating_mul(e as u64))
+            // Standard Error: 6_000
+            .saturating_add(Weight::from_ref_time(1_410_000 as u64).saturating_mul(f as u64))
+            .saturating_add(RocksDbWeight::get().reads(4 as u64))
+            .saturating_add(RocksDbWeight::get().writes(3 as u64))
+    }
+    fn update_asset(a: u32, _b: u32, _c: u32, d: u32, e: u32, f: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
+            // Standard Error: 30_000
+            .saturating_add(Weight::from_ref_time(60_000 as u64).saturating_mul(a as u64))
+            // Standard Error: 30_000
+            .saturating_add(Weight::from_ref_time(669_000 as u64).saturating_mul(d as u64))
+            // Standard Error: 30_000
+            .saturating_add(Weight::from_ref_time(633_000 as u64).saturating_mul(e as u64))
+            // Standard Error: 7_000
+            .saturating_add(Weight::from_ref_time(1_443_000 as u64).saturating_mul(f as u64))
+            .saturating_add(RocksDbWeight::get().reads(1 as u64))
+            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn delete_asset() -> Weight {
+        Weight::from_ref_time(83_953_000 as u64)
+            .saturating_add(RocksDbWeight::get().reads(1 as u64))
+            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn new_lease(_a: u32, b: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
+            // Standard Error: 109_000
+            .saturating_add(Weight::from_ref_time(51_033_000 as u64).saturating_mul(b as u64))
+            .saturating_add(RocksDbWeight::get().reads(4 as u64))
+            .saturating_add(RocksDbWeight::get().reads((2 as u64).saturating_mul(b as u64)))
+            .saturating_add(RocksDbWeight::get().writes(2 as u64))
+            .saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(b as u64)))
+    }
+    fn void_lease(a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
+            // Standard Error: 54_000
+            .saturating_add(Weight::from_ref_time(22_927_000 as u64).saturating_mul(a as u64))
+            .saturating_add(RocksDbWeight::get().reads(2 as u64))
+            .saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(a as u64)))
+            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+            .saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(a as u64)))
+    }
+}

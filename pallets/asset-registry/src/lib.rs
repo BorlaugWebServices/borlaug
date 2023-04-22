@@ -119,11 +119,11 @@ pub mod pallet {
     }
 
     #[pallet::event]
-    #[pallet::metadata(
-        T::RegistryId = "RegistryId",
-        T::AssetId = "AssetId",
-        T::LeaseId = "LeaseId"
-    )]
+    // #[pallet::metadata(
+    //     T::RegistryId = "RegistryId",
+    //     T::AssetId = "AssetId",
+    //     T::LeaseId = "LeaseId"
+    // )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// New registry created (owner_did, registry_id)
@@ -154,7 +154,7 @@ pub mod pallet {
         NotDidSubject,
         /// A non-registry owner account attempted to  modify a registry or asset in the registry
         NotRegistryOwner,
-        /// Delete all assets in registry before deleting registry    
+        /// Delete all assets in registry before deleting registry
         RegistryNotEmpty,
         /// Id out of bounds
         NoIdAvailable,
@@ -579,7 +579,7 @@ pub mod pallet {
         /// Void a lease agreement. Allocations are un-reserved.
         ///
         /// Arguments:
-        /// - `lessor` DID of caller       
+        /// - `lessor` DID of caller
         /// - `lease_id` Lease to be deleted
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn void_lease(

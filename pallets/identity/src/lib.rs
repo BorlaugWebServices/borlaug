@@ -158,16 +158,16 @@ pub mod pallet {
     }
 
     #[pallet::event]
-    #[pallet::metadata(
-        T::AccountId = "AccountId",
-        T::Moment = "Moment",
-        T::CatalogId = "CatalogId",
-        T::ClaimId = "ClaimId",
-        Vec<ClaimConsumer<T::AccountId, T::Moment>> = "ClaimConsumers",
-        Vec<ClaimIssuer<T::AccountId, T::Moment>> = "ClaimIssuers",
-        Vec<T::AccountId> = "AccountIds",
-        Option<Vec<T::AccountId>> = "Option<AccountIds>"
-    )]
+    // #[pallet::metadata(
+    //     T::AccountId = "AccountId",
+    //     T::Moment = "Moment",
+    //     T::CatalogId = "CatalogId",
+    //     T::ClaimId = "ClaimId",
+    //     Vec<ClaimConsumer<T::AccountId, T::Moment>> = "ClaimConsumers",
+    //     Vec<ClaimIssuer<T::AccountId, T::Moment>> = "ClaimIssuers",
+    //     Vec<T::AccountId> = "AccountIds",
+    //     Option<Vec<T::AccountId>> = "Option<AccountIds>"
+    // )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new DID was registered

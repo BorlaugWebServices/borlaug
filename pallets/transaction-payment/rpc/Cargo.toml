@@ -13,13 +13,13 @@ version = "3.0.0"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "2.3.1"}
-jsonrpc-core = "15.1.0"
-jsonrpc-core-client = "15.1.0"
-jsonrpc-derive = "15.1.0"
+codec = {package = "parity-scale-codec", version = "3.4.0"}
+jsonrpc-core = "18.0.0"
+jsonrpc-core-client = "18.0.0"
+jsonrpc-derive = "18.0.0"
 pallet-transaction-payment-rpc-runtime-api = {version = "3.0.0", path = "./runtime-api"}
-sp-api = {version = "3.0.0"}
-sp-blockchain = {version = "3.0.0"}
-sp-core = {version = "3.0.0"}
-sp-rpc = {version = "3.0.0"}
-sp-runtime = {version = "3.0.0"}
+sp-api = {version = "19.0.0"}
+sp-blockchain = {version = "21.0.0"}
+sp-core = {version = "20.0.0"}
+sp-rpc = {version = "19.0.0"}
+sp-runtime = {version = "23.0.0"}

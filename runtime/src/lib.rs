@@ -28,7 +28,7 @@ pub use frame_support::{
         U128CurrencyToVote,
     },
     weights::{
-        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, T::DbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight, WeightToFeeCoefficient,
     },
     RuntimeDebug, StorageValue,
@@ -42,11 +42,11 @@ pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{
     fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_primitives::bounded_vec::BoundedVec;
 use pallet_primitives::*;
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -57,7 +57,7 @@ use primitives::{
     Moment, NameLimit, ObservationId, ProcessId, ProposalId, RegistryId, Signature,
 };
 use sp_api::impl_runtime_apis;
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 #[cfg(feature = "grandpa_aura")]
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -130,6 +130,8 @@ pub mod opaque {
         pub struct SessionKeys {
             pub aura: Aura,
             pub grandpa: Grandpa,
+            pub im_online: ImOnline,
+            pub authority_discovery: AuthorityDiscovery,
         }
     }
 }
@@ -249,7 +251,7 @@ impl frame_system::Config for Runtime {
     /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
     type BlockHashCount = BlockHashCount;
     /// The weight of database operations that the runtime can invoke.
-    type DbWeight = RocksDbWeight;
+    type DbWeight = T::DbWeight;
     /// Version of the runtime.
     type Version = Version;
     /// Converts a module to the index of the module in `construct_runtime!`.
@@ -303,7 +305,7 @@ impl pallet_aura::Config for Runtime {
     type AuthorityId = AuraId;
 }
 
-#[cfg(any(feature = "grandpa_babe"))]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 parameter_types! {
     pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
     pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
@@ -416,12 +418,14 @@ impl pallet_authorship::Config for Runtime {
     #[cfg(feature = "grandpa_babe")]
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
     #[cfg(any(feature = "grandpa_aura", feature = "instant_seal"))]
-    type FindAuthor = ();
+    type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
     #[cfg(feature = "grandpa_babe")]
     type EventHandler = (Staking, ImOnline);
-    #[cfg(any(feature = "grandpa_aura", feature = "instant_seal"))]
+    #[cfg(any(feature = "grandpa_aura"))]
+    type EventHandler = (ImOnline);
+    #[cfg(any(feature = "instant_seal"))]
     type EventHandler = ();
 }
 
@@ -510,24 +514,30 @@ impl_opaque_keys! {
         pub aura: Aura,
     }
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(feature = "grandpa_babe", feature = "grandpa_aura")]
 parameter_types! {
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(feature = "grandpa_babe", feature = "grandpa_aura")]
 impl pallet_session::Config for Runtime {
     type Event = Event;
     type ValidatorId = <Self as frame_system::Config>::AccountId;
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
+    #[cfg(feature = "grandpa_babe")]
     type ShouldEndSession = Babe;
+    #[cfg(feature = "grandpa_babe")]
     type NextSessionRotation = Babe;
+    #[cfg(feature = "grandpa_aura")]
+    type ShouldEndSession = Aura;
+    #[cfg(feature = "grandpa_aura")]
+    type NextSessionRotation = Aura;
     type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(feature = "grandpa_babe", feature = "grandpa_aura")]
 impl pallet_session::historical::Config for Runtime {
     type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
     type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
@@ -680,7 +690,7 @@ impl pallet_treasury::Config for Runtime {
 //     type DeletionQueueDepth = DeletionQueueDepth;
 //     type DeletionWeightLimit = DeletionWeightLimit;
 // }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 impl pallet_im_online::Config for Runtime {
     type AuthorityId = ImOnlineId;
     type Event = Event;
@@ -690,19 +700,22 @@ impl pallet_im_online::Config for Runtime {
     type UnsignedPriority = ImOnlineUnsignedPriority;
     type WeightInfo = pallet_im_online::weights::SubstrateWeight<Runtime>;
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(feature = "grandpa_babe", feature = "grandpa_aura")]
 parameter_types! {
     pub OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) *
         RuntimeBlockWeights::get().max_block;
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(feature = "grandpa_babe", feature = "grandpa_aura")]
 impl pallet_offences::Config for Runtime {
     type Event = Event;
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
+    #[cfg(feature = "grandpa_babe")]
     type OnOffenceHandler = Staking;
+    #[cfg(feature = "grandpa_aura")]
+    type OnOffenceHandler = ();
     type WeightSoftLimit = OffencesWeightSoftLimit;
 }
-#[cfg(feature = "grandpa_babe")]
+#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 impl pallet_authority_discovery::Config for Runtime {}
 
 parameter_types! {
@@ -968,13 +981,17 @@ construct_runtime!(
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
+        Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+        Historical: pallet_session_historical::{Module},
         Aura: pallet_aura::{Module, Config<T>},
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned},
         TransactionPayment: pallet_transaction_payment::{Module,Call,  Storage},
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
         //BorlaugCommittee
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        Offences: pallet_offences::{Module, Call, Storage, Event},
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
+        ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
         Proxy: pallet_proxy::{Module, Call, Storage, Event<T>},
         // Contracts: pallet_contracts::{Module, Call, Config<T>, Storage, Event<T>},
 
