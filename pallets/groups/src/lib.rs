@@ -248,19 +248,17 @@ pub mod pallet {
     >;
 
     #[pallet::event]
-    #[pallet::metadata(
-        T::Moment = "Moment",
-        T::GroupId = "GroupId",
-        T::ProposalId = "ProposalId",
-        T::Hash = "Hash",
-        T::AccountId = "AccountId",
-        T::MemberCount = "MemberCount",
-        T::Currency = "Currency",
-
-        <T::Currency as Currency<T::AccountId>>::Balance = "Balance",
-        DispatchError = "DispatchError"
-
-    )]
+    // #[pallet::metadata(
+    //     T::Moment = "Moment",
+    //     T::GroupId = "GroupId",
+    //     T::ProposalId = "ProposalId",
+    //     T::Hash = "Hash",
+    //     T::AccountId = "AccountId",
+    //     T::MemberCount = "MemberCount",
+    //     T::Currency = "Currency",
+    //     <T::Currency as Currency<T::AccountId>>::Balance = "Balance",
+    //     DispatchError = "DispatchError"
+    // )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new Group was created

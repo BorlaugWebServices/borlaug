@@ -122,15 +122,15 @@ pub mod pallet {
     }
 
     #[pallet::event]
-    #[pallet::metadata(
-        T::AccountId = "AccountId",
-        T::Moment = "Moment",
-        T::RegistryId = "RegistryId",
-        T::DefinitionId = "DefinitionId",
-        T::ProcessId = "ProcessId",
-        T::DefinitionStepIndex = "DefinitionStepIndex",
-        T::MemberCount = "MemberCount"
-    )]
+    // #[pallet::metadata(
+    //     T::AccountId = "AccountId",
+    //     T::Moment = "Moment",
+    //     T::RegistryId = "RegistryId",
+    //     T::DefinitionId = "DefinitionId",
+    //     T::ProcessId = "ProcessId",
+    //     T::DefinitionStepIndex = "DefinitionStepIndex",
+    //     T::MemberCount = "MemberCount"
+    // )]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// A new Registry was created (account_id,group_account_id,registry_id)

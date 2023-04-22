@@ -7,7 +7,7 @@ version = "0.1.0"
 
 [dependencies]
 # Substrate packages
-frame-support = {version = "3.0.0", default-features = false}
+frame-support = {version = "21.0.0", default-features = false}
 
 [features]
 default = ['std']

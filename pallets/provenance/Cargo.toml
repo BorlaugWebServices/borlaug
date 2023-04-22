@@ -5,14 +5,14 @@ name = "pallet-provenance"
 version = "0.1.0"
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "2.3.1", default-features = false}
-frame-benchmarking = {default-features = false, version = "3.1.0", optional = true}
-frame-support = {version = "3.0.0", default-features = false}
-frame-system = {version = "3.0.0", default-features = false}
+codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
+frame-benchmarking = {default-features = false, version = "21.0.0", optional = true}
+frame-support = {version = "21.0.0", default-features = false}
+frame-system = {version = "21.0.0", default-features = false}
 serde = "1.0"
-sp-runtime = {version = "3.0.0", default-features = false}
-sp-std = {package = "sp-std", version = "3.0.0", default-features = false}
-timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
+sp-runtime = {version = "23.0.0", default-features = false}
+sp-std = {package = "sp-std", version = "7.0.0", default-features = false}
+timestamp = {package = "pallet-timestamp", version = "20.0.0", default-features = false}
 
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
 groups = {package = "pallet-groups", path = "../groups", default-features = false}
@@ -21,12 +21,12 @@ primitives = {package = "pallet-primitives", path = "../primitives", default-fea
 [dev-dependencies]
 chrono = "0.4"
 identity = {package = "pallet-identity", path = "../identity", default-features = false}
-pallet-balances = "3.0.0"
+pallet-balances = "21.0.0"
 runtime = {package = "borlaug-runtime", path = "../../runtime", default-features = false}
 settings = {package = "pallet-settings", path = "../settings", default-features = false}
-sp-core = {version = "3.0.0", default-features = false}
-sp-io = {version = "3.0.0", default-features = false}
-timestamp = {package = "pallet-timestamp", version = "3.0.0", default-features = false}
+sp-core = {version = "20.0.0", default-features = false}
+sp-io = {version = "22.0.0", default-features = false}
+timestamp = {package = "pallet-timestamp", version = "20.0.0", default-features = false}
 
 [features]
 default = ["std"]
