@@ -113,15 +113,15 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         at: Option<BlockHash>,
     ) -> Result<Vec<DidDocumentBasicResponse>>;
 
-    #[rpc(name = "find_did_by_iso8601_property")]
-    fn find_did_by_iso8601_property(
-        &self,
-        catalog_id: CatalogId,
-        name: String,
-        min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
-        max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
-        at: Option<BlockHash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>>;
+    // #[rpc(name = "find_did_by_iso8601_property")]
+    // fn find_did_by_iso8601_property(
+    //     &self,
+    //     catalog_id: CatalogId,
+    //     name: String,
+    //     min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+    //     max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+    //     at: Option<BlockHash>,
+    // ) -> Result<Vec<DidDocumentBasicResponse>>;
 
     #[rpc(name = "get_claims")]
     fn get_claims(
@@ -506,19 +506,18 @@ where
                     data_type: String::from("Date"),
                     value: date.to_string(),
                 }
-            }
-            //TODO: check that this conversion is correct
-            Fact::Iso8601(year, month, day, hour, minute, second, timezone) => {
-                let timezone = String::from_utf8_lossy(&timezone).to_string();
-                let date = NaiveDate::from_ymd(i32::from(year), u32::from(month), u32::from(day));
-                let time =
-                    NaiveTime::from_hms(u32::from(hour), u32::from(minute), u32::from(second));
-                let dt = NaiveDateTime::new(date, time);
-                FactResponse {
-                    data_type: String::from("Iso8601"),
-                    value: format!("{}{}", dt, timezone),
-                }
-            }
+            } //TODO: check that this conversion is correct
+              // Fact::Iso8601(year, month, day, hour, minute, second, timezone) => {
+              //     let timezone = String::from_utf8_lossy(&timezone).to_string();
+              //     let date = NaiveDate::from_ymd(i32::from(year), u32::from(month), u32::from(day));
+              //     let time =
+              //         NaiveTime::from_hms(u32::from(hour), u32::from(minute), u32::from(second));
+              //     let dt = NaiveDateTime::new(date, time);
+              //     FactResponse {
+              //         data_type: String::from("Iso8601"),
+              //         value: format!("{}{}", dt, timezone),
+              //     }
+              // }
         }
     }
 }
@@ -1072,22 +1071,22 @@ where
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }
 
-    fn find_did_by_iso8601_property(
-        &self,
-        catalog_id: CatalogId,
-        name: String,
-        min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
-        max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
-        at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>> {
-        let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+    // fn find_did_by_iso8601_property(
+    //     &self,
+    //     catalog_id: CatalogId,
+    //     name: String,
+    //     min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+    //     max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+    //     at: Option<<Block as BlockT>::Hash>,
+    // ) -> Result<Vec<DidDocumentBasicResponse>> {
+    //     let api = self.client.runtime_api();
+    //     let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
-        let dids = api
-            .find_did_by_iso8601_property(&at, catalog_id, name.into(), min, max)
-            .map_err(convert_error!())?;
-        Ok(dids.into_iter().map(|did| did.into()).collect())
-    }
+    //     let dids = api
+    //         .find_did_by_iso8601_property(&at, catalog_id, name.into(), min, max)
+    //         .map_err(convert_error!())?;
+    //     Ok(dids.into_iter().map(|did| did.into()).collect())
+    // }
 
     fn get_claims(
         &self,

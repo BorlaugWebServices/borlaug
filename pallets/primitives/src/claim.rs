@@ -1,10 +1,11 @@
 use crate::{Attestation, Fact};
-
-use codec::{Decode, Encode};
-use frame_support::dispatch::Vec;
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{dispatch::Vec, scale_info::TypeInfo};
 use sp_runtime::RuntimeDebug;
 
-#[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+#[derive(
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct Claim<AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact> {
     /// A claim description
     pub description: BoundedStringName,
@@ -18,7 +19,9 @@ pub struct Claim<AccountId, MemberCount, Moment, BoundedStringName, BoundedStrin
     pub threshold: MemberCount,
 }
 
-#[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+#[derive(
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct Statement<BoundedStringName, BoundedStringFact> {
     /// Name of the property
     pub name: BoundedStringName,
@@ -28,14 +31,14 @@ pub struct Statement<BoundedStringName, BoundedStringFact> {
     pub for_issuer: bool,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug)]
+#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ClaimConsumer<AccountId, Moment> {
     pub consumer: AccountId,
     /// Expiration time
     pub expiration: Moment,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug)]
+#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ClaimIssuer<AccountId, Moment> {
     pub issuer: AccountId,
     /// Expiration time

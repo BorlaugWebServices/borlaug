@@ -54,22 +54,23 @@ pub mod pallet {
     };
     use frame_system::pallet_prelude::*;
     use smallvec::SmallVec;
-    use sp_runtime::{
-        traits::{AtLeast32BitUnsigned, UniqueSaturatedInto},
+    use sp_arithmetic::{
+        traits::{BaseArithmetic, Saturating},
         Perbill,
     };
+    use sp_runtime::traits::{AtLeast32BitUnsigned, UniqueSaturatedInto};
     use sp_std::{fmt::Debug, marker::PhantomData, prelude::*};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
 
         /// The origin which can change settings
-        type ChangeSettingOrigin: EnsureOrigin<Self::Origin>;
+        type ChangeSettingOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
         type Currency: Currency<Self::AccountId>;
 
@@ -79,23 +80,28 @@ pub mod pallet {
             + PartialEq
             + MaybeSerializeDeserialize
             + From<u8>
+            + MaxEncodedLen
             + Copy;
         /// A Unique identifier for each extrinsic within a module
         type ExtrinsicIndex: Parameter
             + Member
             + PartialEq
             + MaybeSerializeDeserialize
+            + MaxEncodedLen
             + From<u8>
             + Copy;
 
         type Balance: Parameter
             + Member
             + AtLeast32BitUnsigned
+            + Saturating
+            + BaseArithmetic
             + Codec
             + Default
             + Copy
             + MaybeSerializeDeserialize
             + Debug
+            + MaxEncodedLen
             + Into<<Self::Currency as Currency<Self::AccountId>>::Balance>;
     }
 
@@ -174,6 +180,7 @@ pub mod pallet {
 
     /// The coefficients used for the WeightToFeePolynomial when calculating fees from weights
     #[pallet::storage]
+    #[pallet::unbounded]
     #[pallet::getter(fn weight_to_fee_coefficients)]
     pub(super) type WeightToFeePolinomialCoefficients<T: Config> =
         StorageValue<_, Vec<WeightToFeeCoefficient<T::Balance>>, ValueQuery>;
@@ -319,7 +326,7 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> Module<T> {
+    impl<T: Config> Pallet<T> {
         // -- rpc api functions --
 
         pub fn get_weight_to_fee_coefficients() -> Vec<(u64, Perbill, bool, u8)> {
@@ -409,7 +416,7 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> GetExtrinsicExtra for Module<T> {
+    impl<T: Config> GetExtrinsicExtra for Pallet<T> {
         type ModuleIndex = T::ModuleIndex;
         type ExtrinsicIndex = T::ExtrinsicIndex;
         type AccountId = T::AccountId;
@@ -434,7 +441,10 @@ pub mod pallet {
     /// Implementor of `WeightToFeePolynomial` that can be changed in the settings pallet.
     pub struct CustomizableFee<T: Config>(sp_std::marker::PhantomData<T>);
 
-    impl<T: Config> WeightToFeePolynomial for CustomizableFee<T> {
+    impl<T: Config> WeightToFeePolynomial for CustomizableFee<T>
+    where
+        <T as Config>::Balance: Saturating,
+    {
         type Balance = <T as Config>::Balance;
 
         fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {

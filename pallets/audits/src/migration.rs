@@ -1,8 +1,3 @@
-use super::*;
-use frame_support::traits::Get;
-use frame_support::weights::Weight;
-use primitives::Observation;
-
 pub mod deprecated {
     use codec::{Decode, Encode};
     use primitives::Compliance;

@@ -135,7 +135,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin,None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -166,7 +166,7 @@ benchmarks! {
         let origional_properties=create_properties(b,a,<T as Config>::FactStringLimit::get()-1,1);
         assert_eq!(origional_properties.len(),b as usize);
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin,Some(origional_properties.clone()))?;
 
         let mut dids_by_controller=Vec::new();
@@ -197,7 +197,7 @@ benchmarks! {
         //these will be removed.
         let origional_controllers=create_accounts::<T>(a,1);
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -227,7 +227,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -238,7 +238,7 @@ benchmarks! {
         let did=dids_by_controller[0];
 
         let claim_consumers=create_accounts::<T>(a,1);
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now=now /(T::Moment::unique_saturated_from(1_000u32)) ;
         let claim_consumers:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.into_iter().map(|account| ClaimConsumer{consumer: account,expiration:  now}).collect();
 
@@ -258,7 +258,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -269,7 +269,7 @@ benchmarks! {
         let did=dids_by_controller[0];
 
         let claim_consumers=create_accounts::<T>(a,1);
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now=now /(T::Moment::unique_saturated_from(1_000u32)) ;
         let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now}).collect();
 
@@ -291,7 +291,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -302,7 +302,7 @@ benchmarks! {
         let did=dids_by_controller[0];
 
         let claim_issuers=create_accounts::<T>(a,1);
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now=now /(T::Moment::unique_saturated_from(1_000u32)) ;
         let claim_issuers:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now}).collect();
 
@@ -322,7 +322,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -333,7 +333,7 @@ benchmarks! {
         let did=dids_by_controller[0];
 
         let claim_issuers=create_accounts::<T>(a,1);
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now=now /(T::Moment::unique_saturated_from(1_000u32)) ;
         let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now}).collect();
 
@@ -358,7 +358,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -372,7 +372,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let claim_consumers=vec![consumer.clone()];
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
         let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
 
@@ -410,7 +410,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -423,7 +423,7 @@ benchmarks! {
         let consumer = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let claim_consumers=vec![consumer];
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
         let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
         IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
@@ -443,7 +443,7 @@ benchmarks! {
         let issuer:T::AccountId = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let claim_issuers=vec![issuer.clone()];
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
 
         let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
@@ -471,7 +471,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::register_did(origin.clone(),None)?;
 
         let mut dids_by_controller=Vec::new();
@@ -484,7 +484,7 @@ benchmarks! {
         let consumer = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let claim_consumers=vec![consumer];
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
         let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
         IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
@@ -504,13 +504,13 @@ benchmarks! {
         let issuer:T::AccountId = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let claim_issuers=vec![issuer.clone()];
-        let now= <timestamp::Module<T>>::get();
+        let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
 
         let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
         IdentityPallet::<T>::authorize_claim_issuers(origin.clone(),did,  claim_issuers_to_add)?;
 
-        let attestor_origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(issuer.clone()).into();
+        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(issuer.clone()).into();
         IdentityPallet::<T>::attest_claim(attestor_origin.clone(),did,  claim_id, vec![],now_plus)?;
 
         let claim=<Claims<T>>::get(did, claim_id);
@@ -546,7 +546,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::create_catalog(origin.clone())?;
 
         let catalog_id=T::CatalogId::unique_saturated_from(1u32);
@@ -565,7 +565,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::create_catalog(origin.clone())?;
 
         let catalog_id=T::CatalogId::unique_saturated_from(1u32);
@@ -596,7 +596,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         IdentityPallet::<T>::create_catalog(origin.clone())?;
 
         let catalog_id=T::CatalogId::unique_saturated_from(1u32);

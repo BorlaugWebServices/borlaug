@@ -1,8 +1,9 @@
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 // use sp_core::H256;
 // use sp_io;
 // use sp_runtime::traits::Hash;
 // use sp_runtime::traits::Printable;
+use frame_support::scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
@@ -11,7 +12,20 @@ use sp_std::prelude::*;
 ///
 /// A simple example of a Borlaug decentralized identifier (DID)
 /// did:bws:123456789abcdefghi
-#[derive(Encode, Decode, Default, PartialOrd, Ord, PartialEq, Eq, Clone, Copy, RuntimeDebug)]
+#[derive(
+    Encode,
+    Decode,
+    Default,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    RuntimeDebug,
+    MaxEncodedLen,
+    TypeInfo,
+)]
 pub struct Did {
     pub id: [u8; 32],
 }

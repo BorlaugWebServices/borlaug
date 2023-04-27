@@ -1,66 +1,63 @@
 [package]
-authors = ['Borlaug Blockchain']
-edition = '2018'
-name = 'borlaug-runtime'
-version = '2.0.0'
+authors = ["Borlaug Blockchain"]
+edition = "2021"
+name = "borlaug-runtime"
+version = "2.0.0"
 
 [dependencies]
 # third-party dependencies
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"]}
+codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
+scale-info = {version = "2.5.0", default-features = false, features = ["derive"]}
 serde = {version = "1.0.101", optional = true, features = ["derive"]}
 
-# primitives
-parity-util-mem = {version = "0.12.0", default-features = false, features = ["primitive-types"]}
-sp-io = {version = "22.0.0", default-features = false}
+sp-api = {version = "4.0.0-dev", default-features = false}
+sp-application-crypto = {version = "8.0.0", default-features = false}
+sp-authority-discovery = {version = "4.0.0-dev", default-features = false}
+sp-block-builder = {version = "4.0.0-dev", default-features = false}
+sp-core = {version = "8.0.0", default-features = false}
+sp-inherents = {version = "4.0.0-dev", default-features = false}
+sp-offchain = {version = "4.0.0-dev", default-features = false}
+sp-runtime = {version = "8.0.0", default-features = false}
+sp-session = {version = "4.0.0-dev", default-features = false}
+sp-std = {version = "5.0.0", default-features = false}
+sp-transaction-pool = {version = "4.0.0-dev", default-features = false}
+sp-version = {version = "6.0.0", default-features = false}
 
-sp-api = {version = "19.0.0", default-features = false}
-sp-application-crypto = {version = "22.0.0", default-features = false}
-sp-authority-discovery = {version = "19.0.0", default-features = false}
-sp-block-builder = {version = "19.0.0", default-features = false}
+frame-executive = {version = "4.0.0-dev", default-features = false}
+frame-support = {version = "4.0.0-dev", default-features = false}
+frame-system = {version = "4.0.0-dev", default-features = false}
+frame-system-rpc-runtime-api = {version = "4.0.0-dev", default-features = false}
 
-sp-core = {version = "20.0.0", default-features = false}
-sp-inherents = {version = "19.0.0", default-features = false}
-sp-offchain = {version = "19.0.0", default-features = false}
-sp-runtime = {version = "23.0.0", default-features = false}
-sp-session = {version = "20.0.0", default-features = false}
-sp-std = {version = "7.0.0", default-features = false}
-sp-transaction-pool = {version = "19.0.0", default-features = false}
-sp-version = {version = "21.0.0", default-features = false}
+pallet-authorship = {version = "4.0.0-dev", default-features = false}
+pallet-balances = {version = "4.0.0-dev", default-features = false}
+pallet-collective = {version = "4.0.0-dev", default-features = false}
+pallet-membership = {version = "4.0.0-dev", default-features = false}
+pallet-proxy = {version = "4.0.0-dev", default-features = false}
+pallet-randomness-collective-flip = {version = "4.0.0", default-features = false}
+pallet-sudo = {version = "4.0.0-dev", default-features = false}
+pallet-timestamp = {version = "4.0.0-dev", default-features = false}
 
-frame-executive = {version = "21.0.0", default-features = false}
-frame-support = {version = "21.0.0", default-features = false}
-frame-system = {version = "21.0.0", default-features = false}
-frame-system-rpc-runtime-api = {version = "19.0.0", default-features = false}
-
-pallet-authorship = {version = "21.0.0", default-features = false}
-pallet-balances = {version = "21.0.0", default-features = false}
-pallet-collective = {version = "21.0.0", default-features = false}
-pallet-membership = {version = "21.0.0", default-features = false}
-pallet-proxy = {version = "21.0.0", default-features = false}
-pallet-randomness-collective-flip = {version = "15.0.0", default-features = false}
-pallet-sudo = {version = "21.0.0", default-features = false}
-pallet-timestamp = {version = "20.0.0", default-features = false}
-
-pallet-treasury = {version = "20.0.0", default-features = false}
+pallet-treasury = {version = "4.0.0-dev", default-features = false}
 
 # grandpa/babe/aura dependencies
 
-pallet-aura = {version = "20.0.0", default-features = false, optional = true}
-pallet-authority-discovery = {version = "21.0.0", default-features = false, optional = true}
-pallet-babe = {version = "21.0.0", default-features = false, optional = true}
-pallet-grandpa = {version = "21.0.0", default-features = false, optional = true}
-pallet-im-online = {version = "20.0.0", default-features = false, optional = true}
-pallet-offences = {version = "20.0.0", default-features = false, optional = true}
-pallet-session = {version = "21.0.0", default-features = false, optional = true}
-pallet-staking = {version = "21.0.0", default-features = false, optional = true}
-pallet-staking-reward-curve = {version = "6.0.0", default-features = false, optional = true}
-sp-consensus-aura = {version = "0.25.0", default-features = false, optional = true}
-sp-consensus-babe = {version = "0.25.0", default-features = false, optional = true}
-sp-staking = {version = "19.0.0", default-features = false, optional = true}
+pallet-aura = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-authority-discovery = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-babe = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-grandpa = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-im-online = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-offences = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-session = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-staking = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-staking-reward-curve = {version = "4.0.0-dev", default-features = false, optional = true}
+sp-consensus-aura = {version = "0.10.0-dev", default-features = false, optional = true}
+sp-consensus-babe = {version = "0.10.0-dev", default-features = false, optional = true}
+# sp-consensus-grandpa = {version = "4.0.0-dev", default-features = false, optional = true}
+sp-staking = {version = "4.0.0-dev", default-features = false, optional = true}
 
 # Used for runtime benchmarking
-frame-benchmarking = {version = "21.0.0", default-features = false, optional = true}
-frame-system-benchmarking = {version = "21.0.0", default-features = false, optional = true}
+frame-benchmarking = {version = "4.0.0-dev", default-features = false, optional = true}
+frame-system-benchmarking = {version = "4.0.0-dev", default-features = false, optional = true}
 hex-literal = {version = "0.4.1", optional = true}
 
 # Borlaug Dependencies
@@ -72,6 +69,7 @@ groups = {package = "pallet-groups", path = "../pallets/groups", default-feature
 groups-runtime-api = {path = "../pallets/groups-runtime-api", default-features = false}
 identity = {package = "pallet-identity", path = "../pallets/identity", default-features = false}
 identity-runtime-api = {path = "../pallets/identity-runtime-api", default-features = false}
+log = "0.4.17"
 pallet-primitives = {package = "pallet-primitives", path = "../pallets/primitives", default-features = false}
 provenance = {package = "pallet-provenance", path = "../pallets/provenance", default-features = false}
 provenance-runtime-api = {path = "../pallets/provenance-runtime-api", default-features = false}
@@ -80,18 +78,19 @@ settings-runtime-api = {path = "../pallets/settings-runtime-api", default-featur
 
 # substrate-validator-set = {path = "../pallets/substrate-validator-set", default-features = false, optional = true}
 
-pallet-transaction-payment = {path = "../pallets/transaction-payment", default-features = false}
-pallet-transaction-payment-rpc-runtime-api = {path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false}
+pallet-transaction-payment = {version = "4.0.0-dev", default-features = false, optional = true}
+pallet-transaction-payment-rpc-runtime-api = {version = "4.0.0-dev", default-features = false, optional = true}
+
+# pallet-transaction-payment = {path = "../pallets/transaction-payment", default-features = false}
+# pallet-transaction-payment-rpc-runtime-api = {path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false}
 
 [build-dependencies]
-substrate-wasm-builder = "10.0.0"
+substrate-wasm-builder = "5.0.0-dev"
 
 [features]
 default = ["std"]
 no_std = []
 std = [
-  "parity-util-mem/std",
-  "sp-io/std",
   "sp-authority-discovery/std",
   "pallet-authority-discovery/std",
   "codec/std",
@@ -141,7 +140,7 @@ std = [
   "pallet-babe/std",
   "pallet-aura/std",
   "pallet-grandpa/std",
-  "pallet-proxy/std", # "substrate-validator-set/std",
+  "pallet-proxy/std", # "sp-consensus-grandpa/std",  # "substrate-validator-set/std",
 ]
 
 grandpa_aura = [
@@ -150,7 +149,7 @@ grandpa_aura = [
   "pallet-session",
   "pallet-im-online",
   "pallet-authority-discovery",
-  "sp-consensus-aura", # "substrate-validator-set",
+  "sp-consensus-aura", # "sp-consensus-grandpa",  # "substrate-validator-set",
 ]
 grandpa_babe = [
   "pallet-babe",
@@ -162,7 +161,7 @@ grandpa_babe = [
   "pallet-staking-reward-curve",
   "pallet-im-online",
   "pallet-authority-discovery",
-  "sp-consensus-babe",
+  "sp-consensus-babe", # "sp-consensus-grandpa",
 ]
 instant_seal = []
 

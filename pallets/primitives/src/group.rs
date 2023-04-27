@@ -1,8 +1,10 @@
-use codec::{Decode, Encode};
-use frame_support::dispatch::Vec;
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{dispatch::Vec, scale_info::TypeInfo};
 use sp_runtime::RuntimeDebug;
 
-#[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+#[derive(
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct Group<GroupId, AccountId, MemberCount, BoundedString> {
     /// A name for the group.
     pub name: BoundedString,
@@ -15,7 +17,7 @@ pub struct Group<GroupId, AccountId, MemberCount, BoundedString> {
     /// If this group is a subgroup, this is the parent group.
     pub parent: Option<GroupId>,
 }
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 /// Info for keeping track of a motion being voted on.
 pub struct Votes<AccountId, MemberCount> {
     /// The number of approval votes that are needed to pass the motion.

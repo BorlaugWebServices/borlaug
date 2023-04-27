@@ -5,9 +5,8 @@
 use super::*;
 
 use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
-use frame_support::dispatch::Vec;
+use frame_support::sp_runtime::Perbill;
 use frame_system::{self, RawOrigin as SystemOrigin};
-use sp_runtime::Perbill;
 use sp_std::{prelude::*, vec};
 
 #[allow(unused)]

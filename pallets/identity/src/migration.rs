@@ -1,9 +1,3 @@
-use super::*;
-use frame_support::traits::Get;
-use frame_support::weights::Weight;
-use primitives::bounded_vec::BoundedVec;
-use primitives::{Attestation, Claim};
-
 pub mod deprecated {
     use codec::{Decode, Encode};
     use frame_support::dispatch::Vec;
@@ -77,7 +71,7 @@ pub mod deprecated {
 //                 created_by: old.created_by,
 //                 attestation: old.attestation.map(|old_attestation| Attestation {
 //                     attested_by: old_attestation.attested_by,
-//                     issued: <timestamp::Module<T>>::get(),
+//                     issued: <timestamp::Pallet<T>>::get(),
 //                     valid_until: old_attestation.valid_until,
 //                 }),
 //                 threshold: old.threshold,

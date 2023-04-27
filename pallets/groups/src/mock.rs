@@ -48,7 +48,7 @@ impl system::Config for Test {
     type BlockLength = ();
     type DbWeight = ();
     type Origin = Origin;
-    type Call = Call;
+    type RuntimeCall = RuntimeCall;
     type Index = u64;
     type BlockNumber = u64;
     type Hash = H256;
@@ -56,7 +56,7 @@ impl system::Config for Test {
     type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type BlockHashCount = BlockHashCount;
     type Version = ();
     type PalletInfo = PalletInfo;
@@ -74,7 +74,7 @@ impl pallet_balances::Config for Test {
     type MaxLocks = ();
     type Balance = u128;
     type DustRemoval = ();
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = ();
@@ -96,7 +96,7 @@ impl pallet_groups::Config for Test {
     type ProposalId = u32;
     type MemberCount = u32;
     type Currency = Balances;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type MaxProposals = GroupMaxProposals;
     type MaxProposalLength = GroupMaxProposalLength;
     type MaxMembers = GroupMaxMembers;
@@ -112,7 +112,7 @@ ord_parameter_types! {
 }
 
 impl settings::Config for Test {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type ChangeSettingOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type ModuleIndex = ModuleIndex;
     type Currency = Balances;

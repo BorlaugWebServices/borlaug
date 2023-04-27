@@ -41,10 +41,10 @@ use runtime::primitives::{
 use runtime::BoundedStringUrl;
 use sc_client_api::AuxStore;
 pub use sc_rpc_api::DenyUnsafe;
+use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_transaction_pool::TransactionPool;
 
 /// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -128,8 +128,8 @@ where
     C::Api: settings_runtime_api::SettingsApi<Block, ModuleIndex, ExtrinsicIndex, Balance>,
     P: TransactionPool + 'static,
 {
-    use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
-    use substrate_frame_rpc_system::{FullSystem, SystemApi};
+    use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
+    // use substrate_frame_rpc_system::{FullSystem, SystemApi};
 
     let mut io = jsonrpc_core::IoHandler::default();
 
@@ -164,18 +164,18 @@ where
         crate::settings_rpc::Settings::new(client.clone()),
     ));
 
-    io.extend_with(SystemApi::to_delegate(FullSystem::new(
-        client.clone(),
-        pool,
-        deny_unsafe,
-    )));
+    // io.extend_with(SystemApi::to_delegate(FullSystem::new(
+    //     client.clone(),
+    //     pool,
+    //     deny_unsafe,
+    // )));
     // Making synchronous calls in light client freezes the browser currently,
     // more context: https://github.com/paritytech/substrate/pull/3480
     // These RPCs should use an asynchronous caller instead.
 
-    io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(
-        client.clone(),
-    )));
+    // io.extend_with(TransactionPaymentApiServer::to_delegate(
+    //     TransactionPayment::new(client.clone()),
+    // ));
 
     io
 }

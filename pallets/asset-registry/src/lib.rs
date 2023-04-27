@@ -49,7 +49,7 @@ pub mod pallet {
     use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use primitives::{bounded_vec::BoundedVec, AssetAllocation, *};
+    use primitives::{AssetAllocation, *};
     use sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
         Either,
@@ -71,7 +71,7 @@ pub mod pallet {
         frame_system::Config + timestamp::Config + groups::Config + identity::Config
     {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         ///A unique id for each Asset Registry. Serial generated on chain.
         type RegistryId: Parameter
             + Member
@@ -79,7 +79,8 @@ pub mod pallet {
             + Default
             + Copy
             + MaybeSerializeDeserialize
-            + PartialEq;
+            + PartialEq
+            + MaxEncodedLen;
         ///A unique id for each Asset. Serial generated on chain.
         type AssetId: Parameter
             + Member
@@ -87,7 +88,8 @@ pub mod pallet {
             + Default
             + Copy
             + MaybeSerializeDeserialize
-            + PartialEq;
+            + PartialEq
+            + MaxEncodedLen;
         ///A unique id for each Lease. Serial generated on chain.
         type LeaseId: Parameter
             + Member
@@ -95,7 +97,8 @@ pub mod pallet {
             + Default
             + Copy
             + MaybeSerializeDeserialize
-            + PartialEq;
+            + PartialEq
+            + MaxEncodedLen;
         ///Type used for asset `purchase_value` and `residual_value`
         type Balance: Parameter
             + Member
@@ -103,7 +106,8 @@ pub mod pallet {
             + Default
             + Copy
             + MaybeSerializeDeserialize
-            + PartialEq;
+            + PartialEq
+            + MaxEncodedLen;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -221,6 +225,7 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
+    #[pallet::unbounded]
     #[pallet::getter(fn assets)]
     /// Registry of assets
     pub(super) type Assets<T: Config> = StorageDoubleMap<
@@ -239,6 +244,7 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
+    #[pallet::unbounded]
     #[pallet::getter(fn allocations)]
     /// Lease allocations of assets
     pub type LeaseAllocations<T: Config> = StorageDoubleMap<
@@ -252,6 +258,7 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
+    #[pallet::unbounded]
     #[pallet::getter(fn leases)]
     /// Lease agreements by lessor
     pub type LeaseAgreements<T: Config> = StorageDoubleMap<
@@ -451,7 +458,14 @@ pub mod pallet {
         /// - `registry_id` Asset is in this registry
         /// - `asset_id` ID of Asset
         /// - `asset` instance to be updated
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::update_asset(
+            asset.name.len() as u32,
+            asset.asset_number.as_ref().map_or(0,|n|n.len()) as u32,
+            asset.serial_number.as_ref().map_or(0,|n|n.len()) as u32,
+            get_max_property_name_len(&asset.properties),
+            get_max_property_fact_len(&asset.properties),
+            asset.properties.len() as u32,
+        ))]
         pub fn update_asset(
             origin: OriginFor<T>,
             owner_did: Did,
@@ -498,7 +512,7 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::delete_asset())]
         pub fn delete_asset(
             origin: OriginFor<T>,
             owner_did: Did,
@@ -524,7 +538,10 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::new_lease(
+            lease.contract_number.len() as u32,
+            lease.allocations.len() as u32
+        ))]
         pub fn new_lease(
             origin: OriginFor<T>,
             //TODO: separate to parameters?
@@ -581,7 +598,8 @@ pub mod pallet {
         /// Arguments:
         /// - `lessor` DID of caller
         /// - `lease_id` Lease to be deleted
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        //TODO: fix weight
+        #[pallet::weight(<T as Config>::WeightInfo::void_lease( 10u32))]
         pub fn void_lease(
             origin: OriginFor<T>,
             lessor: Did,
@@ -620,7 +638,7 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> Module<T> {
+    impl<T: Config> Pallet<T> {
         // -- rpc api functions --
 
         pub fn get_registries(
@@ -730,7 +748,7 @@ pub mod pallet {
             if lease_allocations.is_none() {
                 return false;
             }
-            let now: T::Moment = <timestamp::Module<T>>::get();
+            let now: T::Moment = <timestamp::Pallet<T>>::get();
 
             let lease_allocations = lease_allocations.unwrap();
 
@@ -781,7 +799,7 @@ pub mod pallet {
                 Fact::U32(..) => 4u32,
                 Fact::U128(..) => 16u32,
                 Fact::Date(..) => 4u32,
-                Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
+                // Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
             };
             if fact_len > $max_fact_len {
                 $max_fact_len = fact_len;

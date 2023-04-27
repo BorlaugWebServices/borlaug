@@ -11,8 +11,8 @@ use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
-use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use std::marker::PhantomData;
 
@@ -211,17 +211,7 @@ pub fn aztec_config() -> ChainSpec {
         "borlaug_aztec",
         ChainType::Live,
         aztec_config_genesis,
-        vec![
-            "/ip4/172.31.46.50/tcp/30333/p2p/12D3KooWJmuczUbZajux2XCwqFa1FkfQVtDopzGBgntsEhgMs75t"
-                .parse::<MultiaddrWithPeerId>()
-                .unwrap(),
-            "/ip4/172.31.35.134/tcp/30333/p2p/12D3KooWGWaqt1gEJAAUxR7me5wwCx2oLbnDWbrMpeaRktwHM2Ch"
-                .parse::<MultiaddrWithPeerId>()
-                .unwrap(),
-            "/ip4/172.31.43.71/tcp/30333/p2p/12D3KooWP3PLbFXfMiruc7vZ7rwCDuCP1PnMUTnirkjoVbsS6iXd"
-                .parse::<MultiaddrWithPeerId>()
-                .unwrap(),
-        ],
+        vec![],
         None,
         Some("borlaug"),
         Some(

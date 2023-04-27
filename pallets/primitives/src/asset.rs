@@ -1,9 +1,11 @@
 use crate::AssetProperty;
-use codec::{Decode, Encode};
-use frame_support::dispatch::Vec;
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{dispatch::Vec, scale_info::TypeInfo};
 use sp_runtime::RuntimeDebug;
 
-#[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+#[derive(
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct Asset<Moment, Balance, BoundedStringName, BoundedStringFact> {
     pub properties: Vec<AssetProperty<BoundedStringName, BoundedStringFact>>,
     pub name: BoundedStringName,
@@ -16,7 +18,9 @@ pub struct Asset<Moment, Balance, BoundedStringName, BoundedStringFact> {
     pub acquired_date: Option<Moment>,
 }
 
-#[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+#[derive(
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub enum AssetStatus {
     Draft,
     Active,

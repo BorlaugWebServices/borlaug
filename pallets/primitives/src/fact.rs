@@ -1,10 +1,12 @@
 use crate::Did;
-use codec::{Decode, Encode};
-use frame_support::dispatch::Vec;
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::RuntimeDebug;
 
-#[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
+#[derive(
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub enum Fact<BoundedString> {
     /// true or false
     Bool(bool),
@@ -28,6 +30,6 @@ pub enum Fact<BoundedString> {
     U128(u128),
     /// (Year, Month, Day)
     Date(u16, u8, u8),
-    /// (Year, Month, Day, Hour, Minute, Second, Time Zone Offset)
-    Iso8601(u16, u8, u8, u8, u8, u8, Vec<u8>),
+    // /// (Year, Month, Day, Hour, Minute, Second, Time Zone Offset)
+    // Iso8601(u16, u8, u8, u8, u8, u8, Vec<u8>),
 }

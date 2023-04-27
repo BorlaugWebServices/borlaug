@@ -1,18 +1,19 @@
 [package]
 authors = ["Borlaug Blockchain"]
-edition = "2018"
+edition = "2021"
 name = "pallet-asset-registry"
 version = "0.1.0"
 
 [dependencies]
 codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
-frame-benchmarking = {default-features = false, version = "21.0.0", optional = true}
-frame-support = {version = "21.0.0", default-features = false}
-frame-system = {version = "21.0.0", default-features = false}
-randomness = {package = "pallet-randomness-collective-flip", version = "15.0.0", default-features = false}
-sp-runtime = {version = "23.0.0", default-features = false}
-sp-std = {package = "sp-std", version = "7.0.0", default-features = false}
-timestamp = {package = "pallet-timestamp", version = "20.0.0", default-features = false}
+frame-benchmarking = {default-features = false, version = "4.0.0-dev", optional = true}
+frame-support = {version = "4.0.0-dev", default-features = false}
+frame-system = {version = "4.0.0-dev", default-features = false}
+randomness = {package = "pallet-randomness-collective-flip", version = "4.0.0-dev", default-features = false}
+scale-info = {version = "2.5.0", default-features = false, features = ["derive"]}
+sp-runtime = {version = "8.0.0", default-features = false}
+sp-std = {package = "sp-std", version = "5.0.0", default-features = false}
+timestamp = {package = "pallet-timestamp", version = "4.0.0-dev", default-features = false}
 
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
 groups = {package = "pallet-groups", path = "../groups", default-features = false}
@@ -21,23 +22,23 @@ primitives = {package = "pallet-primitives", path = "../primitives", default-fea
 
 [dev-dependencies]
 chrono = "0.4"
-pallet-balances = "21.0.0"
+pallet-balances = {version = "4.0.0-dev", default-features = false}
 runtime = {package = "borlaug-runtime", path = "../../runtime", default-features = false}
-serde = "1.0"
+serde = {version = "1.0.130", default-features = false}
 settings = {package = "pallet-settings", path = "../settings", default-features = false}
-sp-core = {version = "20.0.0", default-features = false}
-sp-io = {version = "22.0.0", default-features = false}
+sp-core = {version = "8.0.0", default-features = false}
 
 [features]
-default = ['std']
+default = ["std"]
 runtime-benchmarks = ["frame-benchmarking"]
 std = [
-  'codec/std',
+  "codec/std",
   "sp-std/std",
+  "scale-info/std",
   "frame-support/std",
-  'frame-system/std',
-  'sp-runtime/std',
-  'randomness/std',
+  "frame-system/std",
+  "sp-runtime/std",
+  "randomness/std",
   "timestamp/std",
   "primitives/std",
   "groups/std",

@@ -1,14 +1,14 @@
 [package]
 authors = ["Borlaug Blockchain"]
-edition = "2018"
+edition = "2021"
 name = "utils"
 version = "0.1.0"
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"]}
-frame-support = {version = "21.0.0", default-features = false}
-sp-core = {version = "20.0.0", default-features = false}
-sp-std = {package = "sp-std", version = "7.0.0", default-features = false}
+codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
+frame-support = {version = "4.0.0-dev", default-features = false}
+sp-core = {version = "8.0.0", default-features = false}
+sp-std = {version = "5.0.0", default-features = false}
 
 [features]
 default = ['std']

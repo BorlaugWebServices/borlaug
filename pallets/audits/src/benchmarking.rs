@@ -5,10 +5,7 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
-use frame_support::{
-    dispatch::Vec,
-    traits::{Currency, EnsureOrigin, Get, UnfilteredDispatchable},
-};
+use frame_support::traits::{Currency, EnsureOrigin, Get, UnfilteredDispatchable};
 use frame_system::{self, RawOrigin as SystemOrigin};
 use primitives::*;
 use sp_runtime::traits::{Bounded, UniqueSaturatedFrom};
@@ -24,7 +21,7 @@ type BalanceOf<T> =
 fn create_group<T: Config>() -> Result<T::AccountId, &'static str> {
     let account_id: T::AccountId = whitelisted_caller();
     T::Currency::make_free_balance_be(&account_id, BalanceOf::<T>::max_value());
-    let origin: <T as frame_system::Config>::Origin =
+    let origin: <T as frame_system::Config>::RuntimeOrigin =
         SystemOrigin::Signed(account_id.clone()).into();
     groups::Pallet::<T>::create_group(
         origin,
@@ -44,7 +41,10 @@ fn create_group<T: Config>() -> Result<T::AccountId, &'static str> {
 fn audit_create<T: Config>() -> Result<T::AccountId, &'static str> {
     let group_account = create_group::<T>()?;
     let origin = T::GroupsOriginByGroupThreshold::successful_origin();
-    let call = Call::<T>::create_audit(group_account.clone(), 1u32);
+    let call = Call::<T>::create_audit {
+        auditing_org: group_account.clone(),
+        unique_ref: 1u32,
+    };
     call.dispatch_bypass_filter(origin)?;
     let audit_id = T::AuditId::unique_saturated_from(1u32);
     assert!(<Audits<T>>::contains_key(audit_id));
@@ -55,16 +55,19 @@ fn audit_create_and_assign<T: Config>() -> Result<
     (
         T::AccountId,
         T::AuditId,
-        <T as frame_system::Config>::Origin,
+        <T as frame_system::Config>::RuntimeOrigin,
     ),
     &'static str,
 > {
     let group_account = audit_create::<T>()?;
     let origin = T::GroupsOriginByGroupThreshold::successful_origin();
     let audit_id = T::AuditId::unique_saturated_from(1u32);
-    let call = Call::<T>::accept_audit(audit_id);
+    let call = Call::<T>::accept_audit { audit_id };
     call.dispatch_bypass_filter(origin.clone())?;
-    let call = Call::<T>::assign_auditors(audit_id, group_account.clone());
+    let call = Call::<T>::assign_auditors {
+        audit_id,
+        auditors: group_account.clone(),
+    };
     call.dispatch_bypass_filter(origin.clone())?;
     Ok((group_account, audit_id, origin))
 }
@@ -74,7 +77,10 @@ benchmarks! {
         let audit_creator= create_group::<T>()?;
         let auditing_org:T::AccountId=account("auditing_org", 1, 1);
         let origin=T::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::create_audit(auditing_org.clone(),1u32);
+        let call = Call::<T>::create_audit{
+            auditing_org: auditing_org.clone(),
+            unique_ref: 1u32
+        };
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -99,7 +105,7 @@ benchmarks! {
         let audit=<Audits<T>>::get(audit_id).unwrap();
 
         let origin=T::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::delete_audit( audit_id);
+        let call = Call::<T>::delete_audit{ audit_id};
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -112,15 +118,15 @@ benchmarks! {
 
     link_audit {
         let (auditors,parent_audit_id,origin) = audit_create_and_assign::<T>()?;
-        let call = Call::<T>::create_audit(auditors.clone(),1u32);
+        let call = Call::<T>::create_audit{auditing_org:auditors.clone(),unique_ref:1u32};
         call.dispatch_bypass_filter(origin.clone())?;
         let child_audit_id = T::AuditId::unique_saturated_from(2u32);
         assert!(<Audits<T>>::contains_key(child_audit_id));
-        let call = Call::<T>::accept_audit(child_audit_id);
+        let call = Call::<T>::accept_audit{audit_id:child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::assign_auditors(child_audit_id, auditors.clone());
+        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors:auditors.clone()};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::link_audit(parent_audit_id,child_audit_id);
+        let call = Call::<T>::link_audit{parent_audit_id,child_audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -129,18 +135,18 @@ benchmarks! {
 
     unlink_audit {
         let (auditors,parent_audit_id,origin) = audit_create_and_assign::<T>()?;
-        let call = Call::<T>::create_audit(auditors.clone(),1u32);
+        let call = Call::<T>::create_audit{auditing_org:auditors.clone(),unique_ref:1u32};
         call.dispatch_bypass_filter(origin.clone())?;
         let child_audit_id = T::AuditId::unique_saturated_from(2u32);
         assert!(<Audits<T>>::contains_key(child_audit_id));
-        let call = Call::<T>::accept_audit(child_audit_id);
+        let call = Call::<T>::accept_audit{audit_id:child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::assign_auditors(child_audit_id, auditors.clone());
+        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors:auditors.clone()};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::link_audit(parent_audit_id,child_audit_id);
+        let call = Call::<T>::link_audit{parent_audit_id,child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
         assert!(<LinkedAudits<T>>::contains_key(parent_audit_id, child_audit_id));
-        let call = Call::<T>::unlink_audit(parent_audit_id,child_audit_id);
+        let call = Call::<T>::unlink_audit{parent_audit_id,child_audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -153,7 +159,7 @@ benchmarks! {
         let _ = audit_create::<T>()?;
         let audit_id=T::AuditId::unique_saturated_from(1u32);
         let origin=T::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::accept_audit(audit_id);
+        let call = Call::<T>::accept_audit{audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -167,10 +173,10 @@ benchmarks! {
         let _ = audit_create::<T>()?;
         let audit_id=T::AuditId::unique_saturated_from(1u32);
         let origin=T::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::accept_audit(audit_id);
+        let call = Call::<T>::accept_audit{audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
         let auditors:T::AccountId=account("auditors", 1, 1);
-        let call = Call::<T>::assign_auditors(audit_id, auditors.clone());
+        let call = Call::<T>::assign_auditors{audit_id,  auditors: auditors.clone()};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -184,7 +190,7 @@ benchmarks! {
     assign_auditors_replace {
         let (auditors,audit_id,origin) = audit_create_and_assign::<T>()?;
         let new_auditors:T::AccountId=account("new_auditors", 1, 1);
-        let call = Call::<T>::assign_auditors(audit_id, new_auditors.clone());
+        let call = Call::<T>::assign_auditors{audit_id, auditors:new_auditors.clone()};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -200,7 +206,7 @@ benchmarks! {
         let _ = audit_create::<T>()?;
         let audit_id=T::AuditId::unique_saturated_from(1u32);
         let origin=T::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::reject_audit(audit_id);
+        let call = Call::<T>::reject_audit{audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -213,9 +219,9 @@ benchmarks! {
     complete_audit {
         let (auditors,audit_id,origin) = audit_create_and_assign::<T>()?;
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
-        let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
+        let call = Call::<T>::create_observation{audit_id,control_point_id,compliance: Some(Compliance::Compliant),procedural_note_hash:Some([42u8;32])};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::complete_audit(audit_id);
+        let call = Call::<T>::complete_audit{audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -228,7 +234,7 @@ benchmarks! {
     create_observation {
         let (auditors,audit_id,origin) = audit_create_and_assign::<T>()?;
         let control_point_id=T::ControlPointId::unique_saturated_from(1u32);
-        let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
+        let call = Call::<T>::create_observation{audit_id,control_point_id,  compliance:Some(Compliance::Compliant),procedural_note_hash:Some([42u8;32])};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -257,7 +263,7 @@ benchmarks! {
         let url=Some(vec![42u8;c as usize]);
         let hash=vec![42u8;d as usize];
 
-        let call = Call::<T>::create_evidence(audit_id, name, content_type, url, hash);
+        let call = Call::<T>::create_evidence{audit_id, name, content_type, url, hash};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -279,14 +285,14 @@ benchmarks! {
         let content_type=vec![42u8;<T as Config>::NameLimit::get() as usize];
         let url=Some(vec![42u8;<T as Config>::NameLimit::get() as usize]);
         let hash=vec![42u8;<T as Config>::NameLimit::get() as usize];
-        let call = Call::<T>::create_evidence(audit_id, name ,content_type,url,hash);
+        let call = Call::<T>::create_evidence{audit_id, name ,content_type,url,hash};
         call.dispatch_bypass_filter(origin.clone())? ;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
-        let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
+        let call = Call::<T>::create_observation{audit_id,control_point_id, compliance:Some(Compliance::Compliant), procedural_note_hash: Some([42u8;32])};
         call.dispatch_bypass_filter(origin.clone())?;
 
         let observation_id=T::ObservationId::unique_saturated_from(1u32);
-        let call = Call::<T>::link_evidence(audit_id,control_point_id,observation_id,evidence_id);
+        let call = Call::<T>::link_evidence{audit_id,control_point_id,observation_id,evidence_id};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -302,19 +308,19 @@ benchmarks! {
         let content_type=vec![42u8;<T as Config>::NameLimit::get() as usize];
         let url=Some(vec![42u8;<T as Config>::NameLimit::get() as usize]);
         let hash=vec![42u8;<T as Config>::NameLimit::get() as usize];
-        let call = Call::<T>::create_evidence(audit_id, name ,content_type,url,hash);
+        let call = Call::<T>::create_evidence{audit_id, name ,content_type,url,hash};
         call.dispatch_bypass_filter(origin.clone())?;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
-        let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
+        let call = Call::<T>::create_observation{audit_id,control_point_id,compliance:Some(Compliance::Compliant), procedural_note_hash:Some([42u8;32])};
         call.dispatch_bypass_filter(origin.clone())?;
         let observation_id=T::ObservationId::unique_saturated_from(1u32);
-        let call = Call::<T>::link_evidence(audit_id,control_point_id,observation_id,evidence_id);
+        let call = Call::<T>::link_evidence{audit_id,control_point_id,observation_id,evidence_id};
         call.dispatch_bypass_filter(origin.clone())?;
 
         assert!(<EvidenceLinksByEvidence<T>>::contains_key(evidence_id,observation_id));
         assert!(<EvidenceLinksByObservation<T>>::contains_key(observation_id,evidence_id));
 
-        let call = Call::<T>::unlink_evidence(audit_id,control_point_id,observation_id,evidence_id);
+        let call = Call::<T>::unlink_evidence{audit_id,control_point_id,observation_id,evidence_id};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {
@@ -331,20 +337,20 @@ benchmarks! {
         let content_type=vec![42u8;<T as Config>::NameLimit::get() as usize];
         let url=Some(vec![42u8;<T as Config>::NameLimit::get() as usize]);
         let hash=vec![42u8;<T as Config>::NameLimit::get() as usize];
-        let call = Call::<T>::create_evidence(audit_id, name ,content_type,url,hash);
+        let call = Call::<T>::create_evidence{audit_id, name ,content_type,url,hash};
         call.dispatch_bypass_filter(origin.clone())?;
         let evidence_id=T::EvidenceId::unique_saturated_from(1u32);
 
         for i in 0..a {
-            let call = Call::<T>::create_observation(audit_id,control_point_id,Some(Compliance::Compliant),Some([42u8;32]));
+            let call = Call::<T>::create_observation{audit_id,control_point_id, compliance:Some(Compliance::Compliant), procedural_note_hash:Some([42u8;32])};
             call.dispatch_bypass_filter(origin.clone())?;
             let observation_id=T::ObservationId::unique_saturated_from(i+1);
-            let call = Call::<T>::link_evidence(audit_id,control_point_id,observation_id,evidence_id);
+            let call = Call::<T>::link_evidence{audit_id,control_point_id,observation_id,evidence_id};
             call.dispatch_bypass_filter(origin.clone())?;
             assert!(<EvidenceLinksByEvidence<T>>::contains_key(evidence_id,observation_id));
             assert!(<EvidenceLinksByObservation<T>>::contains_key(observation_id,evidence_id));
         }
-        let call = Call::<T>::delete_evidence(audit_id,evidence_id,a);
+        let call = Call::<T>::delete_evidence{audit_id,evidence_id,link_count: a};
     }: { call.dispatch_bypass_filter(origin)? }
 
     verify {

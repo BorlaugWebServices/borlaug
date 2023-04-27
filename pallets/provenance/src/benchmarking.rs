@@ -44,7 +44,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
 
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
@@ -66,7 +66,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
 
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
@@ -85,7 +85,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -116,7 +116,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -143,7 +143,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -172,7 +172,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -201,7 +201,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -234,7 +234,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -270,7 +270,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -288,7 +288,7 @@ benchmarks! {
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let definition_step_index=T::DefinitionStepIndex::unique_saturated_from(0u32);
         let attestor:T::AccountId = whitelisted_caller();
-        let attestor_origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(attestor.clone()).into();
+        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor.clone()).into();
 
 
         ProvenancePallet::<T>::create_process(attestor_origin,registry_id,definition_id,vec![42u8])?;
@@ -311,7 +311,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -329,7 +329,7 @@ benchmarks! {
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let definition_step_index=T::DefinitionStepIndex::unique_saturated_from(0u32);
         let attestor:T::AccountId = whitelisted_caller();
-        let attestor_origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(attestor.clone()).into();
+        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor.clone()).into();
 
 
 
@@ -352,7 +352,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -385,7 +385,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -426,7 +426,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -443,7 +443,7 @@ benchmarks! {
         ProvenancePallet::<T>::create_definition(origin.clone(),registry_id,vec![42u8],steps)?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let attestor:T::AccountId = whitelisted_caller();
-        let attestor_origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(attestor.clone()).into();
+        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor.clone()).into();
 
         ProvenancePallet::<T>::create_process(attestor_origin,registry_id,definition_id,vec![42u8])?;
 
@@ -475,7 +475,7 @@ benchmarks! {
 
         let caller:T::AccountId = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));

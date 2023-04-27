@@ -5,7 +5,7 @@ use crate::mock::*;
 use chrono::Utc;
 use core::convert::TryInto;
 use frame_support::{assert_err, assert_ok, dispatch::Weight};
-use primitives::{bounded_vec::BoundedVec, *};
+use primitives::*;
 
 fn create_did() -> Did {
     let _ = Identity::register_did(Origin::signed(1), None);

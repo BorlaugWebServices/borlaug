@@ -4,14 +4,15 @@
 
 use super::*;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
+use frame_support::sp_runtime::traits::Hash;
 use frame_support::{
-    dispatch::Vec,
     traits::{Currency, EnsureOrigin, Get, UnfilteredDispatchable},
     weights::Weight,
 };
+use frame_system::pallet_prelude::OriginFor;
 use frame_system::Call as SystemCall;
 use frame_system::{self, RawOrigin as SystemOrigin};
-use sp_runtime::traits::{Bounded, Hash, UniqueSaturatedInto};
+use sp_runtime::traits::{Bounded, UniqueSaturatedInto};
 use sp_std::{mem::size_of, prelude::*, vec};
 
 #[allow(unused)]
@@ -19,7 +20,7 @@ use crate::Pallet as GroupPallet;
 
 const SEED: u32 = 0;
 
-fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
     assert_eq!(
         frame_system::Pallet::<T>::events()
             .last()
@@ -64,7 +65,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin=SystemOrigin::Signed(caller.clone()).into();
 
         let mut origional_members = vec![];
         let mut remove=vec![];
@@ -88,7 +89,12 @@ benchmarks! {
         let name = vec![42u8; a as usize];
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::update_group(Some(name),Some(new_members),Some(remove),Some(2u32.into()));
+        let call = Call::<T>::update_group {
+            name:  Some(name),
+            add_members: Some(new_members),
+            remove_members:   Some(remove),
+            threshold:   Some(2u32.into())
+        };
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -106,7 +112,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin=SystemOrigin::Signed(caller.clone()).into();
 
         GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())], 1u32.into(),1_000_000_000u32.into())?;
 
@@ -123,7 +129,12 @@ benchmarks! {
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
 
 
-        let call = Call::<T>::create_sub_group(name,members,1u32.into(),1_000u32.into());
+        let call = Call::<T>::create_sub_group{
+            name,
+            members,
+            threshold: 1u32.into(),
+            initial_balance:1_000u32.into()
+        };
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -141,7 +152,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin=SystemOrigin::Signed(caller.clone()).into();
 
         GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())], 1u32.into(),1_000_000_000u32.into())?;
 
@@ -157,7 +168,12 @@ benchmarks! {
         }
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::create_sub_group(vec![42u8; 2 as usize],origional_members,1u32.into(),1_000u32.into());
+        let call = Call::<T>::create_sub_group{
+            name:vec![42u8; 2 as usize],
+            members:   origional_members,
+            threshold:1u32.into(),
+            initial_balance:  1_000u32.into()
+        };
         call.dispatch_bypass_filter(origin.clone())? ;
 
         let mut new_members = vec![];
@@ -171,7 +187,13 @@ benchmarks! {
 
         let sub_group_id:T::GroupId=2u32.into();
 
-        let call = Call::<T>::update_sub_group(sub_group_id, Some(name),Some(new_members),Some(remove),Some(2u32.into()));
+        let call = Call::<T>::update_sub_group{
+            sub_group_id,
+            name: Some(name),
+            add_members:  Some(new_members),
+            remove_members: Some(remove),
+            threshold:  Some(2u32.into())
+            };
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -189,7 +211,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin=SystemOrigin::Signed(caller.clone()).into();
 
         let mut members = vec![(caller.clone(),1u32.into())];
         for i in 1 .. m {
@@ -202,7 +224,7 @@ benchmarks! {
         assert!(Groups::<T>::contains_key(group_id));
 
         for i in 0 .. p {
-            let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; T::MaxProposalLength::get()  as usize]).into();
+            let proposal: T::Proposal = SystemCall::<T>::remark{ remark: vec![1; T::MaxProposalLength::get()  as usize]}.into();
             let hash=T::Hashing::hash_of(&proposal);
             let proposal_id:T::ProposalId=i.into();
             Proposals::<T>::insert(group_id, proposal_id, proposal);
@@ -210,7 +232,10 @@ benchmarks! {
         }
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::remove_group(group_id, caller);
+        let call = Call::<T>::remove_group{
+            group_id,
+            return_funds_too: caller
+        };
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -229,7 +254,7 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin=SystemOrigin::Signed(caller.clone()).into();
         GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],vec![(caller.clone(),1u32.into())], 1u32.into(),1_000_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
@@ -242,14 +267,19 @@ benchmarks! {
             members.push((member,1u32.into()));
         }
 
-        let call = Call::<T>::create_sub_group(vec![42u8; 2 as usize],members,1u32.into(),1_000u32.into());
+        let call = Call::<T>::create_sub_group{
+            name:  vec![42u8; 2 as usize],
+            members,
+            threshold: 1u32.into(),
+            initial_balance:  1_000u32.into()
+        };
         call.dispatch_bypass_filter(origin)? ;
 
         let sub_group_id:T::GroupId=2u32.into();
         assert!(Groups::<T>::contains_key(sub_group_id));
 
         for i in 0 .. p {
-            let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; T::MaxProposalLength::get()  as usize]).into();
+            let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; T::MaxProposalLength::get()  as usize]}.into();
             let hash=T::Hashing::hash_of(&proposal);
             let proposal_id:T::ProposalId=i.into();
             Proposals::<T>::insert(group_id, proposal_id, proposal);
@@ -257,7 +287,7 @@ benchmarks! {
         }
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::remove_sub_group(sub_group_id);
+        let call = Call::<T>::remove_sub_group{sub_group_id};
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -282,7 +312,7 @@ benchmarks! {
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
-        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; a as usize]).into();
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; a as usize]}.into();
 
     }: execute(SystemOrigin::Signed(caller.clone()), 1u32.into(),Box::new(proposal.clone()),bytes_in_storage)
 
@@ -311,7 +341,7 @@ benchmarks! {
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
-        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; a as usize]).into();
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; a as usize]}.into();
 
     }: propose(SystemOrigin::Signed(caller.clone()), 1u32.into(),Box::new(proposal.clone()),threshold,bytes_in_storage)
 
@@ -342,7 +372,7 @@ benchmarks! {
         let threshold = 2u32.into();
 
 
-        let proposal: T::Proposal = SystemCall::<T>::remark(vec![42u8 as u8; a as usize]).into();
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![42u8 as u8; a as usize]}.into();
 
     }: propose(SystemOrigin::Signed(caller.clone()), group_id,Box::new(proposal.clone()),threshold,bytes_in_storage)
 
@@ -378,7 +408,7 @@ benchmarks! {
         // Threshold is 1 less than the number of members so that one person can vote nay
         let threshold:T::MemberCount = (m - 1).into();
 
-        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; a as usize]).into();GroupPallet::<T>::propose(
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; a as usize]}.into();GroupPallet::<T>::propose(
             SystemOrigin::Signed(proposer.clone()).into(),
             group_id,
             Box::new(proposal.clone()),
@@ -428,7 +458,7 @@ benchmarks! {
     verify {
         // All proposals exist and the last proposal has just been updated.
             assert!(Proposals::<T>::contains_key(group_id,proposal_id));
-        let voting = GroupPallet::<T>::voting(group_id,proposal_id).ok_or(Error::<T>::ProposalMissing)?;
+        let voting = GroupPallet::<T>::voting(group_id,proposal_id).ok_or(Error::<T>::ProposalMissing).unwrap();
         assert_eq!(voting.ayes.len(), (m - 3) as usize);
         assert_eq!(voting.nays.len(), 1);
     }
@@ -457,7 +487,7 @@ benchmarks! {
 
         let threshold = m.into();
 
-        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; 100 as usize]).into();GroupPallet::<T>::propose(
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; 100 as usize]}.into();GroupPallet::<T>::propose(
             SystemOrigin::Signed(caller.clone()).into(),
             group_id,
             Box::new(proposal.clone()),
@@ -517,7 +547,7 @@ benchmarks! {
         // Threshold is two, so any two ayes will pass the vote
         let threshold = m.into();
 
-        let proposal: T::Proposal = SystemCall::<T>::remark(vec![1; a as usize]).into();
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; a as usize]}.into();
 
         GroupPallet::<T>::propose(
             SystemOrigin::Signed(caller.clone()).into(),
@@ -575,14 +605,19 @@ benchmarks! {
         let threshold:T::MemberCount = 2u32.into();
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::create_sub_group(vec![42u8; 2 as usize],members.clone(),threshold,1_000u32.into());
+        let call = Call::<T>::create_sub_group{
+            name:  vec![42u8; 2 as usize],
+            members:   members.clone(),
+            threshold,
+            initial_balance:1_000u32.into()
+        };
         call.dispatch_bypass_filter(origin)? ;
         let sub_group_id:T::GroupId=2u32.into();
         assert!(Groups::<T>::contains_key(sub_group_id));
 
         // Add proposal
 
-        let proposal: T::Proposal = SystemCall::<T>::remark(vec![42u8; bytes as usize]).into();
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![42u8; bytes as usize]}.into();
         let (proposer,_)=&members[0 as usize];
         GroupPallet::<T>::propose(
             SystemOrigin::Signed(proposer.clone()).into(),
@@ -628,14 +663,19 @@ benchmarks! {
         let threshold = 2u32.into();
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::create_sub_group(vec![42u8; 2 as usize],members.clone(),threshold,1_000u32.into());
+        let call = Call::<T>::create_sub_group{
+            name:  vec![42u8; 2 as usize],
+            members:    members.clone(),
+            threshold,
+            initial_balance:   1_000u32.into()
+        };
         call.dispatch_bypass_filter(origin)? ;
         let sub_group_id:T::GroupId=2u32.into();
         assert!(Groups::<T>::contains_key(sub_group_id));
 
         // Add proposal
 
-            let proposal: T::Proposal = SystemCall::<T>::remark(vec![42u8; a as usize]).into();
+            let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![42u8; a as usize]}.into();
             let (proposer,_)=&members[0 as usize];
             GroupPallet::<T>::propose(
                 SystemOrigin::Signed(proposer.clone()).into(),
@@ -669,7 +709,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, 3_000_000u32.into());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin=SystemOrigin::Signed(caller.clone()).into();
 
         let members = vec![(caller.clone(),1u32.into())];
 
@@ -679,7 +719,10 @@ benchmarks! {
         assert!(Groups::<T>::contains_key(group_id));
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::withdraw_funds_group(caller.clone(),1_000_000u32.into());
+        let call = Call::<T>::withdraw_funds_group{
+            target_account: caller.clone(),
+            amount:  1_000_000u32.into()
+        };
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -696,21 +739,29 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:OriginFor<T> = SystemOrigin::Signed(caller.clone()).into();
         GroupPallet::<T>::create_group(origin.clone(),vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())], 1u32.into(),3_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
 
-        let call = Call::<T>::create_sub_group(vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())],1u32.into(),2_000_000u32.into());
+        let call = Call::<T>::create_sub_group{
+            name: vec![42u8; 2 as usize],
+            members:  vec![(caller.clone(),   1u32.into())],
+            threshold:  1u32.into(),
+            initial_balance:  2_000_000u32.into()
+        };
         call.dispatch_bypass_filter(origin.clone())? ;
 
         let sub_group_id:T::GroupId=2u32.into();
         assert!(Groups::<T>::contains_key(sub_group_id));
 
 
-        let call = Call::<T>::withdraw_funds_sub_group(sub_group_id,1_000_000u32.into());
+        let call = Call::<T>::withdraw_funds_sub_group{
+            sub_group_id,
+            amount:1_000_000u32.into()
+        };
 
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -727,20 +778,28 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:OriginFor<T> = SystemOrigin::Signed(caller.clone()).into();
         GroupPallet::<T>::create_group(origin.clone(),vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())], 1u32.into(),3_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
-        let call = Call::<T>::create_sub_group(vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())],1u32.into(),1_000_000u32.into());
+        let call = Call::<T>::create_sub_group{
+            name:   vec![42u8; 2 as usize],
+            members:  vec![(caller.clone(), 1u32.into())],
+            threshold:     1u32.into(),
+            initial_balance:    1_000_000u32.into()
+        };
         call.dispatch_bypass_filter(origin.clone())? ;
 
         let sub_group_id:T::GroupId=2u32.into();
         assert!(Groups::<T>::contains_key(sub_group_id));
 
 
-        let call = Call::<T>::send_funds_to_sub_group(sub_group_id,1_000_000u32.into());
+        let call = Call::<T>::send_funds_to_sub_group{
+            sub_group_id,
+            amount: 1_000_000u32.into()
+        };
 
     }: { call.dispatch_bypass_filter(origin)? }
 

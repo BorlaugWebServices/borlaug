@@ -62,9 +62,11 @@ pub mod pallet {
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use frame_support::{
+        dispatch::DispatchResultWithPostInfo, pallet_prelude::*, scale_info::TypeInfo,
+    };
     use frame_system::pallet_prelude::*;
-    use primitives::{bounded_vec::BoundedVec, *};
+    use primitives::*;
     use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One};
     use sp_std::prelude::*;
 
@@ -77,43 +79,54 @@ pub mod pallet {
         Evidence = 53,
     }
 
-    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    #[derive(
+        Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
+    )]
     pub enum Releases {
-        V1,
+        V0,
+    }
+    impl Default for Releases {
+        fn default() -> Self {
+            Releases::V0
+        }
     }
 
     #[pallet::config]
     pub trait Config: frame_system::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         ///A unique id for each audit. Serial generated on chain.
         type AuditId: Parameter
             + Member
             + AtLeast32Bit
             + Copy
             + MaybeSerializeDeserialize
-            + PartialEq;
+            + PartialEq
+            + MaxEncodedLen;
         ///An identifying id for each control point. Provided by the caller. Only needs to be unique per audit.
         type ControlPointId: Parameter
             + Member
             + AtLeast32Bit
             + Copy
             + MaybeSerializeDeserialize
-            + PartialEq;
+            + PartialEq
+            + MaxEncodedLen;
         ///An identifying id for each evidence item. Serial generated on chain.
         type EvidenceId: Parameter
             + Member
             + AtLeast32Bit
             + Copy
             + MaybeSerializeDeserialize
-            + PartialEq;
+            + PartialEq
+            + MaxEncodedLen;
         ///An identifying id for each observation. Serial generated on chain.
         type ObservationId: Parameter
             + Member
             + AtLeast32Bit
             + Copy
             + MaybeSerializeDeserialize
-            + PartialEq;
+            + PartialEq
+            + MaxEncodedLen;
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
         /// The maximum length of a name or symbol stored on-chain.
@@ -237,11 +250,11 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_runtime_upgrade() -> frame_support::weights::Weight {
-            //forgot to update version number so removed
-            // super::migration::migrate_to_v2::<T>()
-            0
-        }
+        // fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        //     //forgot to update version number so removed
+        //     // super::migration::migrate_to_v2::<T>()
+        //     0
+        // }
     }
 
     #[pallet::genesis_config]
@@ -260,7 +273,7 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <StorageVersion<T>>::put(Releases::V1);
+            <StorageVersion<T>>::put(Releases::V0);
         }
     }
 
@@ -270,8 +283,6 @@ pub mod pallet {
 
     #[pallet::storage]
     /// Storage version of the pallet.
-    ///
-    /// V2 - added proposal_id to observation struct
     pub type StorageVersion<T> = StorageValue<_, Releases, OptionQuery>;
 
     #[pallet::storage]
@@ -1043,7 +1054,7 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> Module<T> {
+    impl<T: Config> Pallet<T> {
         // -- rpc api functions --
 
         pub fn get_audits_by_creator(

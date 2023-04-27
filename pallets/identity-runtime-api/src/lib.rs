@@ -46,7 +46,7 @@ sp_api::decl_runtime_apis! {
 
         fn find_did_by_date_property( catalog_id: CatalogId, name:Vec<u8> ,min: Option<(u16, u8, u8)>,max: Option<(u16, u8, u8)>) -> Vec<Did>;
 
-        fn find_did_by_iso8601_property( catalog_id: CatalogId, name:Vec<u8> ,min: Option<(u16, u8, u8,u8, u8, u8, Vec<u8>)>,max: Option<(u16, u8, u8,u8, u8, u8, Vec<u8>)>) -> Vec<Did>;
+        // fn find_did_by_iso8601_property( catalog_id: CatalogId, name:Vec<u8> ,min: Option<(u16, u8, u8,u8, u8, u8, Vec<u8>)>,max: Option<(u16, u8, u8,u8, u8, u8, Vec<u8>)>) -> Vec<Did>;
 
         fn get_claims(did: Did) -> Vec<(ClaimId, Claim<AccountId,MemberCount,Moment,BoundedStringName, BoundedStringFact>)>;
 

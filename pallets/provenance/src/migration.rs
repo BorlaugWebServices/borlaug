@@ -1,8 +1,3 @@
-use super::*;
-use frame_support::traits::Get;
-use frame_support::weights::Weight;
-use primitives::{bounded_vec::BoundedVec, DefinitionStep, ProcessStep};
-
 pub mod deprecated {
     use codec::{Decode, Encode};
     use frame_support::dispatch::Vec;
@@ -75,7 +70,7 @@ pub mod deprecated {
 //             weight += T::DbWeight::get().reads_writes(1 as Weight, 1 as Weight);
 //             let new = ProcessStep {
 //                 proposal_id: old.proposal_id,
-//                 attested: <timestamp::Module<T>>::get(),
+//                 attested: <timestamp::Pallet<T>>::get(),
 //                 attributes: old.attributes,
 //             };
 //             Some(new)

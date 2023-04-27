@@ -65,22 +65,26 @@ pub mod pallet {
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
+    use frame_support::sp_runtime::traits::Hash;
     use frame_support::{
         codec::{Decode, Encode},
-        dispatch::{DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo, Vec},
+        dispatch::{
+            DispatchResultWithPostInfo, Dispatchable, GetDispatchInfo, Parameter, PostDispatchInfo,
+            Vec,
+        },
         ensure,
         pallet_prelude::*,
         traits::{Currency, ExistenceRequirement::AllowDeath, Get, ReservableCurrency},
-        weights::{GetDispatchInfo, Weight},
+        weights::Weight,
     };
     use frame_system::{self as system, pallet_prelude::*};
     use group_info::GroupInfo;
-    use primitives::{bounded_vec::BoundedVec, Votes, *};
+    use primitives::*;
     use sp_io::hashing::blake2_256;
     use sp_runtime::{
         traits::{
-            AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, Hash, One, Saturating,
-            UniqueSaturatedInto, Zero,
+            AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, One, Saturating, UniqueSaturatedInto,
+            Zero,
         },
         Either,
     };
@@ -95,18 +99,25 @@ pub mod pallet {
         Proposal = 3,
     }
 
-    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    #[derive(
+        Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
+    )]
     pub enum Releases {
-        V1,
+        V0,
+    }
+    impl Default for Releases {
+        fn default() -> Self {
+            Releases::V0
+        }
     }
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
-        type ProposalId: Parameter + AtLeast32Bit + Default + Copy + PartialEq;
+        type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq + MaxEncodedLen;
+        type ProposalId: Parameter + AtLeast32Bit + Default + Copy + PartialEq + MaxEncodedLen;
         /// A number of members.
         ///
         /// This also serves as a number of voting members, and since for motions, each member may
@@ -118,7 +129,8 @@ pub mod pallet {
             + PartialEq
             + PartialOrd
             + Sum
-            + Into<u32>;
+            + Into<u32>
+            + MaxEncodedLen;
 
         type Currency: ReservableCurrency<Self::AccountId>;
 
@@ -129,7 +141,7 @@ pub mod pallet {
 
         /// This allows extrinsics to be executed via a Group account and it requires that the Group Threshold is met.
         type GroupsOriginByGroupThreshold: EnsureOrigin<
-            <Self as frame_system::Config>::Origin,
+            <Self as frame_system::Config>::RuntimeOrigin,
             Success = (
                 Self::GroupId,
                 Self::ProposalId,
@@ -141,7 +153,7 @@ pub mod pallet {
         /// This allows extrinsics to be executed via a Group account but it does not check the group threshold.
         /// The called extrinsic should require a threshold.
         type GroupsOriginByCallerThreshold: EnsureOrigin<
-            <Self as frame_system::Config>::Origin,
+            <Self as frame_system::Config>::RuntimeOrigin,
             Success = (
                 Self::GroupId,
                 Self::ProposalId,
@@ -154,13 +166,13 @@ pub mod pallet {
         /// Any member of the group may execute the extrinsic.
         /// The specific member account is also recorded, which may be useful.
         type GroupsOriginExecuted: EnsureOrigin<
-            <Self as frame_system::Config>::Origin,
+            <Self as frame_system::Config>::RuntimeOrigin,
             Success = (Self::GroupId, Self::AccountId, Self::AccountId),
         >;
         /// This allows extrinsics to be executed either by individual accounts or via a Group account.
         /// If a group account is used, it requires that the Group Threshold is met.
         type GroupsOriginAccountOrThreshold: EnsureOrigin<
-            <Self as frame_system::Config>::Origin,
+            <Self as frame_system::Config>::RuntimeOrigin,
             Success = Either<
                 Self::AccountId,
                 (
@@ -175,7 +187,7 @@ pub mod pallet {
         /// This allows extrinsics to be executed either by individual accounts or via a Group account.
         /// If a group account is used, it does not check the group threshold. The called extrinsic should require a threshold.
         type GroupsOriginAccountOrApproved: EnsureOrigin<
-            <Self as frame_system::Config>::Origin,
+            <Self as frame_system::Config>::RuntimeOrigin,
             Success = Either<
                 Self::AccountId,
                 (
@@ -191,12 +203,12 @@ pub mod pallet {
         /// If a group account is used, there is no proposal or voting. Any member of the group may execute the extrinsic.
         /// The specific member account is also recorded, which may be useful.
         type GroupsOriginAccountOrExecuted: EnsureOrigin<
-            <Self as frame_system::Config>::Origin,
+            <Self as frame_system::Config>::RuntimeOrigin,
             Success = Either<Self::AccountId, (Self::GroupId, Self::AccountId, Self::AccountId)>,
         >;
 
         type Proposal: Parameter
-            + Dispatchable<Origin = <Self as Config>::Origin, PostInfo = PostDispatchInfo>
+            + Dispatchable<RuntimeOrigin = <Self as Config>::Origin, PostInfo = PostDispatchInfo>
             + GetDispatchInfo
             + From<frame_system::Call<Self>>;
 
@@ -225,7 +237,7 @@ pub mod pallet {
 
     /// Origin for groups module proposals.
 
-    #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode)]
+    #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
     pub enum RawOrigin<AccountId, GroupId, ProposalId, MemberCount> {
         /// It has been executed by a member of a group.
         /// (group_id,member_account,group_account)
@@ -444,11 +456,13 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <StorageVersion<T>>::put(Releases::V1);
+            <StorageVersion<T>>::put(Releases::V0);
         }
     }
 
     #[pallet::pallet]
+    //TODO: is this correct
+    #[pallet::without_storage_info]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
@@ -473,6 +487,8 @@ pub mod pallet {
     /// Groups have some properties
     /// GroupId => Group
     #[pallet::storage]
+    //TODO: is this correct
+    #[pallet::unbounded]
     #[pallet::getter(fn groups)]
     pub(super) type Groups<T: Config> = StorageMap<
         _,
@@ -881,7 +897,9 @@ pub mod pallet {
                 member_count += 1;
             });
             let proposal_count = <Proposals<T>>::drain_prefix(group_id).count() as u32;
-            <ProposalHashes<T>>::remove_prefix(group_id);
+            //TODO: handle errors
+            let _results =
+                <ProposalHashes<T>>::clear_prefix(group_id, T::MaxProposals::get(), None);
 
             Self::deposit_event(Event::GroupRemoved(group_id, return_funds_too));
 
@@ -931,7 +949,9 @@ pub mod pallet {
                 member_count += 1;
             });
             let proposal_count = <Proposals<T>>::drain_prefix(sub_group_id).count() as u32;
-            <ProposalHashes<T>>::remove_prefix(sub_group_id);
+            //TODO: handle errors
+            let _results =
+                <ProposalHashes<T>>::clear_prefix(sub_group_id, T::MaxProposals::get(), None);
 
             Self::deposit_event(Event::SubGroupRemoved(caller_group_id, sub_group_id));
 
@@ -1213,7 +1233,8 @@ pub mod pallet {
 
                 let dispatch_weight = proposal.get_dispatch_info().weight;
                 ensure!(
-                    dispatch_weight <= proposal_weight_bound,
+                    dispatch_weight.ref_time() <= proposal_weight_bound.ref_time()
+                        && dispatch_weight.proof_size() <= proposal_weight_bound.proof_size(),
                     Error::<T>::WrongProposalWeight
                 );
 
@@ -1327,7 +1348,8 @@ pub mod pallet {
                 );
                 let dispatch_weight = proposal.get_dispatch_info().weight;
                 ensure!(
-                    dispatch_weight <= proposal_weight_bound,
+                    dispatch_weight.ref_time() <= proposal_weight_bound.ref_time()
+                        && dispatch_weight.proof_size() <= proposal_weight_bound.proof_size(),
                     Error::<T>::WrongProposalWeight
                 );
 
@@ -1485,7 +1507,7 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> Module<T> {
+    impl<T: Config> Pallet<T> {
         // -- rpc api functions --
 
         pub fn member_of(
@@ -1716,12 +1738,12 @@ pub mod pallet {
 
         fn anonymous_account(who: &T::AccountId, index: T::GroupId) -> T::AccountId {
             let (height, ext_index) = (
-                system::Module::<T>::block_number(),
-                system::Module::<T>::extrinsic_index().unwrap_or_default(),
+                system::Pallet::<T>::block_number(),
+                system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
             );
             let entropy =
                 (b"modlpy/proxy____", who, height, ext_index, index).using_encoded(blake2_256);
-            T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()
+            T::AccountId::decode(&mut &entropy[..]).unwrap()
         }
     }
 
@@ -1756,7 +1778,7 @@ pub mod pallet {
         )
     }
 
-    impl<T: Config> GroupInfo for Module<T> {
+    impl<T: Config> GroupInfo for Pallet<T> {
         type AccountId = T::AccountId;
         type GroupId = T::GroupId;
 
@@ -1813,7 +1835,7 @@ pub mod pallet {
             O::from(RawOrigin::ProposalApprovedByVeto(
                 group_id,
                 proposal_id,
-                T::AccountId::default(),
+                group.anonymous_account.clone(),
                 group.anonymous_account.clone(),
             ))
         }
@@ -1842,7 +1864,7 @@ pub mod pallet {
             let group = Groups::<T>::get(group_id).unwrap();
             O::from(RawOrigin::ProposalExecuted(
                 group_id,
-                T::AccountId::default(),
+                group.anonymous_account.clone(),
                 group.anonymous_account.clone(),
             ))
         }
@@ -1906,7 +1928,7 @@ pub mod pallet {
             O::from(RawOrigin::ProposalApprovedByVeto(
                 group_id,
                 proposal_id,
-                T::AccountId::default(),
+                group.anonymous_account.clone(),
                 group.anonymous_account.clone(),
             ))
         }

@@ -70,197 +70,97 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn create_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(78_623_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
+        Weight::from_ref_time(0 as u64)
     }
-    fn update_registry(a: u32) -> Weight {
-        Weight::from_ref_time(73_259_000 as u64)
-            // Standard Error: 3_000
-            .saturating_add(Weight::from_ref_time(4_000 as u64).saturating_mul(a as u64))
-            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    fn update_registry(_a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
     fn remove_registry() -> Weight {
-        Weight::from_ref_time(86_710_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
+        Weight::from_ref_time(0 as u64)
     }
-    fn create_definition(_a: u32, _b: u32, c: u32) -> Weight {
-        Weight::from_ref_time(212_030_000 as u64)
-            // Standard Error: 32_000
-            .saturating_add(Weight::from_ref_time(12_336_000 as u64).saturating_mul(c as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-            .saturating_add(T::DbWeight::get().writes((2 as u64).saturating_mul(c as u64)))
+    fn create_definition(_a: u32, _b: u32, _c: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
     fn set_definition_active() -> Weight {
-        Weight::from_ref_time(82_682_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
+        Weight::from_ref_time(0 as u64)
     }
     fn set_definition_inactive() -> Weight {
-        Weight::from_ref_time(77_616_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
-    fn remove_definition(a: u32) -> Weight {
         Weight::from_ref_time(0 as u64)
-            // Standard Error: 304_000
-            .saturating_add(Weight::from_ref_time(40_502_000 as u64).saturating_mul(a as u64))
-            .saturating_add(T::DbWeight::get().reads(6 as u64))
-            .saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(a as u64)))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(a as u64)))
+    }
+    fn remove_definition(_a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
     fn update_definition_step() -> Weight {
-        Weight::from_ref_time(112_441_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
+        Weight::from_ref_time(0 as u64)
     }
     fn create_process(_a: u32) -> Weight {
-        Weight::from_ref_time(114_075_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
+        Weight::from_ref_time(0 as u64)
     }
     fn update_process(_a: u32) -> Weight {
-        Weight::from_ref_time(88_524_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
+        Weight::from_ref_time(0 as u64)
     }
-    fn remove_process(a: u32) -> Weight {
-        Weight::from_ref_time(118_246_000 as u64)
-            // Standard Error: 6_000
-            .saturating_add(Weight::from_ref_time(36_000 as u64).saturating_mul(a as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    fn remove_process(_a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
     fn add_child_definition() -> Weight {
-        Weight::from_ref_time(121_169_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
+        Weight::from_ref_time(0 as u64)
     }
     fn remove_child_definition() -> Weight {
-        Weight::from_ref_time(92_507_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-    }
-    fn attest_process_step(a: u32, b: u32, c: u32) -> Weight {
-        Weight::from_ref_time(19_146_000 as u64)
-            // Standard Error: 2_000
-            .saturating_add(Weight::from_ref_time(643_000 as u64).saturating_mul(a as u64))
-            // Standard Error: 11_000
-            .saturating_add(Weight::from_ref_time(586_000 as u64).saturating_mul(b as u64))
-            // Standard Error: 11_000
-            .saturating_add(Weight::from_ref_time(546_000 as u64).saturating_mul(c as u64))
-            .saturating_add(T::DbWeight::get().reads(5 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
-    fn complete_process(a: u32) -> Weight {
         Weight::from_ref_time(0 as u64)
-            // Standard Error: 147_000
-            .saturating_add(Weight::from_ref_time(58_951_000 as u64).saturating_mul(a as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().reads((2 as u64).saturating_mul(a as u64)))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn attest_process_step(_a: u32, _b: u32, _c: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
+    }
+    fn complete_process(_a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
     fn create_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(78_623_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(2 as u64))
-            .saturating_add(RocksDbWeight::get().writes(2 as u64))
+        Weight::from_ref_time(0 as u64)
     }
-    fn update_registry(a: u32) -> Weight {
-        Weight::from_ref_time(73_259_000 as u64)
-            // Standard Error: 3_000
-            .saturating_add(Weight::from_ref_time(4_000 as u64).saturating_mul(a as u64))
-            .saturating_add(RocksDbWeight::get().reads(1 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+    fn update_registry(_a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
     fn remove_registry() -> Weight {
-        Weight::from_ref_time(86_710_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(2 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+        Weight::from_ref_time(0 as u64)
     }
-    fn create_definition(_a: u32, _b: u32, c: u32) -> Weight {
-        Weight::from_ref_time(212_030_000 as u64)
-            // Standard Error: 32_000
-            .saturating_add(Weight::from_ref_time(12_336_000 as u64).saturating_mul(c as u64))
-            .saturating_add(RocksDbWeight::get().reads(3 as u64))
-            .saturating_add(RocksDbWeight::get().writes(2 as u64))
-            .saturating_add(RocksDbWeight::get().writes((2 as u64).saturating_mul(c as u64)))
+    fn create_definition(_a: u32, _b: u32, _c: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
     fn set_definition_active() -> Weight {
-        Weight::from_ref_time(82_682_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(2 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+        Weight::from_ref_time(0 as u64)
     }
     fn set_definition_inactive() -> Weight {
-        Weight::from_ref_time(77_616_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(2 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
-    }
-    fn remove_definition(a: u32) -> Weight {
         Weight::from_ref_time(0 as u64)
-            // Standard Error: 304_000
-            .saturating_add(Weight::from_ref_time(40_502_000 as u64).saturating_mul(a as u64))
-            .saturating_add(RocksDbWeight::get().reads(6 as u64))
-            .saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(a as u64)))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
-            .saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(a as u64)))
+    }
+    fn remove_definition(_a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
     fn update_definition_step() -> Weight {
-        Weight::from_ref_time(112_441_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(3 as u64))
-            .saturating_add(RocksDbWeight::get().writes(2 as u64))
+        Weight::from_ref_time(0 as u64)
     }
     fn create_process(_a: u32) -> Weight {
-        Weight::from_ref_time(114_075_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(4 as u64))
-            .saturating_add(RocksDbWeight::get().writes(2 as u64))
+        Weight::from_ref_time(0 as u64)
     }
     fn update_process(_a: u32) -> Weight {
-        Weight::from_ref_time(88_524_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(2 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+        Weight::from_ref_time(0 as u64)
     }
-    fn remove_process(a: u32) -> Weight {
-        Weight::from_ref_time(118_246_000 as u64)
-            // Standard Error: 6_000
-            .saturating_add(Weight::from_ref_time(36_000 as u64).saturating_mul(a as u64))
-            .saturating_add(RocksDbWeight::get().reads(3 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+    fn remove_process(_a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
     fn add_child_definition() -> Weight {
-        Weight::from_ref_time(121_169_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(4 as u64))
-            .saturating_add(RocksDbWeight::get().writes(2 as u64))
+        Weight::from_ref_time(0 as u64)
     }
     fn remove_child_definition() -> Weight {
-        Weight::from_ref_time(92_507_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(2 as u64))
-            .saturating_add(RocksDbWeight::get().writes(2 as u64))
-    }
-    fn attest_process_step(a: u32, b: u32, c: u32) -> Weight {
-        Weight::from_ref_time(19_146_000 as u64)
-            // Standard Error: 2_000
-            .saturating_add(Weight::from_ref_time(643_000 as u64).saturating_mul(a as u64))
-            // Standard Error: 11_000
-            .saturating_add(Weight::from_ref_time(586_000 as u64).saturating_mul(b as u64))
-            // Standard Error: 11_000
-            .saturating_add(Weight::from_ref_time(546_000 as u64).saturating_mul(c as u64))
-            .saturating_add(RocksDbWeight::get().reads(5 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
-    }
-    fn complete_process(a: u32) -> Weight {
         Weight::from_ref_time(0 as u64)
-            // Standard Error: 147_000
-            .saturating_add(Weight::from_ref_time(58_951_000 as u64).saturating_mul(a as u64))
-            .saturating_add(RocksDbWeight::get().reads(2 as u64))
-            .saturating_add(RocksDbWeight::get().reads((2 as u64).saturating_mul(a as u64)))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
+    }
+    fn attest_process_step(_a: u32, _b: u32, _c: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
+    }
+    fn complete_process(_a: u32) -> Weight {
+        Weight::from_ref_time(0 as u64)
     }
 }

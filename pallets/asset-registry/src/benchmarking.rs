@@ -27,7 +27,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         identity::Pallet::<T>::register_did(origin, None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -53,7 +53,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         identity::Pallet::<T>::register_did(origin.clone(),None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -80,7 +80,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         identity::Pallet::<T>::register_did(origin.clone(),None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -110,7 +110,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -165,7 +165,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -225,7 +225,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -265,7 +265,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -328,7 +328,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let origin:<T as frame_system::Config>::Origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         identity::Pallet::<T>::register_did(origin.clone(), None)?;
         let mut dids_by_controller=Vec::new();
         <identity::DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {

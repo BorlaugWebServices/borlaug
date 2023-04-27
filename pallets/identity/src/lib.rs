@@ -85,13 +85,13 @@ pub mod pallet {
     use codec::Encode;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::{
-        dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Randomness,
-    };
+    use frame_support::sp_runtime::traits::Hash;
+    use frame_support::sp_runtime::Saturating;
+    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use primitives::{bounded_vec::BoundedVec, *};
+    use primitives::*;
     use sp_runtime::{
-        traits::{AtLeast32Bit, CheckedAdd, Hash, One, Saturating, UniqueSaturatedFrom},
+        traits::{AtLeast32Bit, CheckedAdd, One, UniqueSaturatedFrom},
         Either,
     };
     use sp_std::prelude::*;
@@ -106,19 +106,25 @@ pub mod pallet {
         Claim = 23,
     }
 
-    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    #[derive(
+        Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
+    )]
     pub enum Releases {
-        V1,
+        V0,
     }
-
+    impl Default for Releases {
+        fn default() -> Self {
+            Releases::V0
+        }
+    }
     #[pallet::config]
     pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        type CatalogId: Parameter + AtLeast32Bit + Copy + PartialEq;
+        type CatalogId: Parameter + AtLeast32Bit + Copy + PartialEq + MaxEncodedLen;
 
-        type ClaimId: Parameter + AtLeast32Bit + Copy + PartialEq;
+        type ClaimId: Parameter + AtLeast32Bit + Copy + PartialEq + MaxEncodedLen;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -313,7 +319,7 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <StorageVersion<T>>::put(Releases::V1);
+            <StorageVersion<T>>::put(Releases::V0);
         }
     }
 
@@ -449,6 +455,7 @@ pub mod pallet {
     /// Claims associated with a DID
     /// Subject DID => (Claim ID => Claim)
     #[pallet::storage]
+    #[pallet::unbounded]
     #[pallet::getter(fn claims)]
     pub type Claims<T: Config> = StorageDoubleMap<
         _,
@@ -570,7 +577,7 @@ pub mod pallet {
         /// - `dids` the DIDs to be created
         #[pallet::weight({
             let (a,b,c)=get_did_for_bulk_lens::<T>(dids);
-            <T as Config>::WeightInfo::register_did_for(a,b,c).saturating_mul(dids.len() as Weight)
+            <T as Config>::WeightInfo::register_did_for(a,b,c).saturating_mul(dids.len() as u64)
 
         })]
         pub fn register_did_for_bulk(
@@ -1080,7 +1087,7 @@ pub mod pallet {
                     claim.statements.append(&mut stmts);
                     claim.attestation = Some(Attestation {
                         attested_by: account_id.clone(),
-                        issued: <timestamp::Module<T>>::get(),
+                        issued: <timestamp::Pallet<T>>::get(),
                         valid_until,
                     });
                 }
@@ -1289,7 +1296,7 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> Module<T> {
+    impl<T: Config> Pallet<T> {
         // -- rpc api functions --
 
         pub fn is_catalog_owner(account_id: T::AccountId, catalog_id: T::CatalogId) -> bool {
@@ -1516,83 +1523,83 @@ pub mod pallet {
             matching_dids
         }
 
-        pub fn find_did_by_iso8601_property(
-            catalog_id: T::CatalogId,
-            name: Vec<u8>,
-            min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
-            max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
-        ) -> Vec<Did> {
-            let mut matching_dids = vec![];
-            let hash = T::Hashing::hash_of(&name);
-            <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
-                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
-                if let Some(property) = property_maybe {
-                    //TODO: take care of time zones
-                    let matching = match property.fact {
-                        Fact::Iso8601(year, month, day, hour, minute, second, _timezone) => {
-                            let min_check = if let Some((
-                                min_year,
-                                min_month,
-                                min_day,
-                                min_hour,
-                                min_minute,
-                                min_second,
-                                _min_timezone,
-                            )) = &min
-                            {
-                                year > *min_year
-                                    || (year == *min_year
-                                        && (month > *min_month
-                                            || (month == *min_month
-                                                && (day > *min_day
-                                                    || (day == *min_day
-                                                        && (hour > *min_hour
-                                                            || (hour == *min_hour
-                                                                && (minute > *min_minute
-                                                                    || (minute
-                                                                        == *min_minute
-                                                                        && (second
-                                                                            >= *min_second))))))))))
-                            } else {
-                                true
-                            };
-                            let max_check = if let Some((
-                                max_year,
-                                max_month,
-                                max_day,
-                                max_hour,
-                                max_minute,
-                                max_second,
-                                _max_timezone,
-                            )) = &max
-                            {
-                                year < *max_year
-                                    || (year == *max_year
-                                        && (month < *max_month
-                                            || (month == *max_month
-                                                && (day < *max_day
-                                                    || (day == *max_day
-                                                        && (hour < *max_hour
-                                                            || (hour == *max_hour
-                                                                && (minute < *max_minute
-                                                                    || (minute
-                                                                        == *max_minute
-                                                                        && (second
-                                                                            <= *max_second))))))))))
-                            } else {
-                                true
-                            };
-                            min_check && max_check
-                        }
-                        _ => false,
-                    };
-                    if matching {
-                        matching_dids.push(did);
-                    }
-                };
-            });
-            matching_dids
-        }
+        // pub fn find_did_by_iso8601_property(
+        //     catalog_id: T::CatalogId,
+        //     name: Vec<u8>,
+        //     min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+        //     max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
+        // ) -> Vec<Did> {
+        //     let mut matching_dids = vec![];
+        //     let hash = T::Hashing::hash_of(&name);
+        //     <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
+        //         let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+        //         if let Some(property) = property_maybe {
+        //             //TODO: take care of time zones
+        //             let matching = match property.fact {
+        //                 Fact::Iso8601(year, month, day, hour, minute, second, _timezone) => {
+        //                     let min_check = if let Some((
+        //                         min_year,
+        //                         min_month,
+        //                         min_day,
+        //                         min_hour,
+        //                         min_minute,
+        //                         min_second,
+        //                         _min_timezone,
+        //                     )) = &min
+        //                     {
+        //                         year > *min_year
+        //                             || (year == *min_year
+        //                                 && (month > *min_month
+        //                                     || (month == *min_month
+        //                                         && (day > *min_day
+        //                                             || (day == *min_day
+        //                                                 && (hour > *min_hour
+        //                                                     || (hour == *min_hour
+        //                                                         && (minute > *min_minute
+        //                                                             || (minute
+        //                                                                 == *min_minute
+        //                                                                 && (second
+        //                                                                     >= *min_second))))))))))
+        //                     } else {
+        //                         true
+        //                     };
+        //                     let max_check = if let Some((
+        //                         max_year,
+        //                         max_month,
+        //                         max_day,
+        //                         max_hour,
+        //                         max_minute,
+        //                         max_second,
+        //                         _max_timezone,
+        //                     )) = &max
+        //                     {
+        //                         year < *max_year
+        //                             || (year == *max_year
+        //                                 && (month < *max_month
+        //                                     || (month == *max_month
+        //                                         && (day < *max_day
+        //                                             || (day == *max_day
+        //                                                 && (hour < *max_hour
+        //                                                     || (hour == *max_hour
+        //                                                         && (minute < *max_minute
+        //                                                             || (minute
+        //                                                                 == *max_minute
+        //                                                                 && (second
+        //                                                                     <= *max_second))))))))))
+        //                     } else {
+        //                         true
+        //                     };
+        //                     min_check && max_check
+        //                 }
+        //                 _ => false,
+        //             };
+        //             if matching {
+        //                 matching_dids.push(did);
+        //             }
+        //         };
+        //     });
+        //     matching_dids
+        // }
 
         pub fn get_claims(
             did: Did,
@@ -1681,7 +1688,7 @@ pub mod pallet {
         pub fn is_valid_consumer(target_did: &Did, account: &T::AccountId) -> bool {
             <ClaimConsumers<T>>::contains_key(target_did, account) && {
                 let expiry = <ClaimConsumers<T>>::get(target_did, account).unwrap();
-                let now = <timestamp::Module<T>>::get();
+                let now = <timestamp::Pallet<T>>::get();
                 expiry.saturating_mul(T::Moment::unique_saturated_from(1_000u32)) > now
             }
         }
@@ -1690,7 +1697,7 @@ pub mod pallet {
         pub fn is_valid_issuer(target_did: &Did, account: &T::AccountId) -> bool {
             <ClaimIssuers<T>>::contains_key(target_did, account) && {
                 let expiry = <ClaimIssuers<T>>::get(target_did, account).unwrap();
-                let now = <timestamp::Module<T>>::get();
+                let now = <timestamp::Pallet<T>>::get();
                 expiry.saturating_mul(T::Moment::unique_saturated_from(1_000u32)) > now
             }
         }
@@ -1716,7 +1723,10 @@ pub mod pallet {
             >,
         ) {
             let nonce = Self::next_nonce();
-            let random = <randomness::Module<T>>::random(&b"mint_did context"[..]);
+            //TODO: upgrade - fix this
+            // let random = <randomness::Pallet<T>>::random(&b"mint_did context"[..]);
+            // let random = <randomness::Pallet<T>>::random_material();
+            let random = sp_core::H256::zero();
             let encoded = (random, subject, nonce).encode();
             let id = sp_io::hashing::blake2_256(&encoded);
 
@@ -1766,7 +1776,7 @@ pub mod pallet {
                 Fact::U32(..) => 4u32,
                 Fact::U128(..) => 16u32,
                 Fact::Date(..) => 4u32,
-                Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
+                // Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
             };
             if fact_len > $max_fact_len {
                 $max_fact_len = fact_len;

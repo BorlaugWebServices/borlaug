@@ -68,7 +68,7 @@ pub mod pallet {
     use extrinsic_extra::GetExtrinsicExtra;
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use primitives::{bounded_vec::BoundedVec, *};
+    use primitives::*;
     use sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, One, Saturating, UniqueSaturatedFrom},
         Either,
@@ -84,20 +84,51 @@ pub mod pallet {
         Process = 33,
     }
 
-    #[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+    #[derive(
+        Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
+    )]
     pub enum Releases {
-        V1,
+        V0,
+    }
+    impl Default for Releases {
+        fn default() -> Self {
+            Releases::V0
+        }
     }
 
     #[pallet::config]
     pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        type RegistryId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
-        type DefinitionId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
-        type ProcessId: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
-        type DefinitionStepIndex: Parameter + Member + AtLeast32Bit + Default + Copy + PartialEq;
+        type RegistryId: Parameter
+            + Member
+            + AtLeast32Bit
+            + Default
+            + Copy
+            + PartialEq
+            + MaxEncodedLen;
+        type DefinitionId: Parameter
+            + Member
+            + AtLeast32Bit
+            + Default
+            + Copy
+            + PartialEq
+            + MaxEncodedLen;
+        type ProcessId: Parameter
+            + Member
+            + AtLeast32Bit
+            + Default
+            + Copy
+            + PartialEq
+            + MaxEncodedLen;
+        type DefinitionStepIndex: Parameter
+            + Member
+            + AtLeast32Bit
+            + Default
+            + Copy
+            + PartialEq
+            + MaxEncodedLen;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -304,7 +335,7 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <StorageVersion<T>>::put(Releases::V1);
+            <StorageVersion<T>>::put(Releases::V0);
         }
     }
 
@@ -417,6 +448,7 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
+    #[pallet::unbounded]
     #[pallet::getter(fn process_steps)]
     /// A Process can have multiple process Process Steps
     /// (T::RegistryId,T::DefinitionId,T::ProcessId), DefinitionStepIndex => ProcessStep
@@ -1139,7 +1171,7 @@ pub mod pallet {
 
             let process_step = ProcessStep {
                 proposal_id,
-                attested: <timestamp::Module<T>>::get(),
+                attested: <timestamp::Pallet<T>>::get(),
                 attributes,
             };
 
@@ -1287,7 +1319,7 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> Module<T> {
+    impl<T: Config> Pallet<T> {
         // -- rpc api functions --
         pub fn get_registries(
             account_id: T::AccountId,
@@ -1615,7 +1647,7 @@ pub mod pallet {
                 Fact::U32(..) => 4u32,
                 Fact::U128(..) => 16u32,
                 Fact::Date(..) => 4u32,
-                Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
+                // Fact::Iso8601(..) => 17u32, //Timezone should be max 10 ?
             };
             if fact_len > $max_fact_len {
                 $max_fact_len = fact_len;

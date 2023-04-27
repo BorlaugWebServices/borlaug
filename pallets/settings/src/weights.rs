@@ -60,37 +60,37 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn set_weight_to_fee_coefficients(_a: u32) -> u64 {
-        (55_210_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+        (55_210_000 as u64).saturating_add(1 as u64)
     }
     fn set_transaction_byte_fee() -> u64 {
-        (48_704_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+        (48_704_000 as u64).saturating_add(1 as u64)
     }
     fn set_fee_split_ratio() -> u64 {
-        (46_974_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+        (46_974_000 as u64).saturating_add(1 as u64)
     }
     fn set_extrinsic_extra() -> u64 {
-        (49_206_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+        (49_206_000 as u64).saturating_add(1 as u64)
     }
     fn remove_extrinsic_extra() -> u64 {
-        (48_386_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
+        (48_386_000 as u64).saturating_add(1 as u64)
     }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
     fn set_weight_to_fee_coefficients(_a: u32) -> u64 {
-        (55_210_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+        (55_210_000 as u64).saturating_add(1 as u64)
     }
     fn set_transaction_byte_fee() -> u64 {
-        (48_704_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+        (48_704_000 as u64).saturating_add(1 as u64)
     }
     fn set_fee_split_ratio() -> u64 {
-        (46_974_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+        (46_974_000 as u64).saturating_add(1 as u64)
     }
     fn set_extrinsic_extra() -> u64 {
-        (49_206_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+        (49_206_000 as u64).saturating_add(1 as u64)
     }
     fn remove_extrinsic_extra() -> u64 {
-        (48_386_000 as u64).saturating_add(RocksDbWeight::get().writes(1 as u64))
+        (48_386_000 as u64).saturating_add(1 as u64)
     }
 }
