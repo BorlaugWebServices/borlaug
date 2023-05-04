@@ -2,9 +2,9 @@ use crate::identity_rpc::FactResponse;
 use codec::Codec;
 use core::fmt::Display;
 use jsonrpsee::{
-    core::{Error as JsonRpseeError, RpcResult},
+    core::RpcResult,
     proc_macros::rpc,
-    types::error::{CallError, ErrorCode, ErrorObject},
+    types::error::{CallError, ErrorObject},
 };
 use pallet_primitives::{
     Definition, DefinitionStep, Process, ProcessStatus, ProcessStep, Registry,
@@ -13,7 +13,7 @@ use provenance_runtime_api::ProvenanceApi as ProvenanceRuntimeApi;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
 #[rpc(client, server)]

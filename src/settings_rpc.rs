@@ -1,15 +1,14 @@
 use codec::Codec;
 use jsonrpsee::{
-    core::{Error as JsonRpseeError, RpcResult},
+    core::RpcResult,
     proc_macros::rpc,
-    types::error::{CallError, ErrorCode, ErrorObject},
+    types::error::{CallError, ErrorObject},
 };
 use serde::{Deserialize, Serialize};
 use settings_runtime_api::SettingsApi as SettingsRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{
-    generic::BlockId,
     traits::{AtLeast32BitUnsigned, Block as BlockT},
     Perbill,
 };

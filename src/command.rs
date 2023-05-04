@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 use super::benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
-use crate::service::new_partial;
+
 use crate::{
     chain_spec,
     cli::{Cli, Subcommand},
@@ -24,7 +24,7 @@ use frame_benchmarking_cli::*;
 // use node_executor::ExecutorDispatch;
 
 use runtime::{Block, EXISTENTIAL_DEPOSIT};
-use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
+use sc_cli::{ChainSpec,  RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
 

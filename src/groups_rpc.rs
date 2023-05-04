@@ -2,16 +2,16 @@ use codec::Codec;
 use frame_support::dispatch::fmt::Display;
 use groups_runtime_api::GroupsApi as GroupsRuntimeApi;
 use jsonrpsee::{
-    core::{Error as JsonRpseeError, RpcResult},
+    core::{RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorCode, ErrorObject},
+    types::error::{CallError,  ErrorObject},
 };
 use pallet_primitives::{Group, Votes};
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{
-    generic::BlockId,
+
     traits::{AtLeast32BitUnsigned, Block as BlockT},
 };
 use std::sync::Arc;

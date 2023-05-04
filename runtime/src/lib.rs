@@ -1145,6 +1145,27 @@ pub type Executive = frame_executive::Executive<
     //TODO: do we need to add Migrations struct for runtime upgrades
 >;
 
+#[cfg(feature = "runtime-benchmarks")]
+#[macro_use]
+extern crate frame_benchmarking;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benches {
+    define_benchmarks!(
+        [frame_benchmarking, BaselineBench::<Runtime>]
+        //TODO: fix this
+        // [frame_system, SystemBench::<Runtime>]
+        [pallet_balances, Balances]
+        [pallet_timestamp, Timestamp]
+        [pallet_groups, Groups]
+        [pallet_identity, Identity]
+        [pallet_audits, Audits]
+        [pallet_provenance, Provenance]
+        [pallet_asset_registry, AssetRegistry]
+        [pallet_settings, Settings]
+    );
+}
+
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
         fn version() -> RuntimeVersion {
@@ -1220,17 +1241,17 @@ impl_runtime_apis! {
         }
 
         fn submit_report_equivocation_unsigned_extrinsic(
-            equivocation_proof: fg_primitives::EquivocationProof<
+            _equivocation_proof: fg_primitives::EquivocationProof<
                 <Block as BlockT>::Hash,
                 NumberFor<Block>,
             >,
-            key_owner_proof: fg_primitives::OpaqueKeyOwnershipProof,
+            _key_owner_proof: fg_primitives::OpaqueKeyOwnershipProof,
         ) -> Option<()> {
             #[cfg(feature = "grandpa_babe")]
             {
-                let key_owner_proof = key_owner_proof.decode()?;
+                let key_owner_proof = _key_owner_proof.decode()?;
                 Grandpa::submit_unsigned_equivocation_report(
-                    equivocation_proof,
+                    _equivocation_proof,
                     key_owner_proof,
                 )
             }
@@ -1242,13 +1263,13 @@ impl_runtime_apis! {
 
         fn generate_key_ownership_proof(
             _set_id: fg_primitives::SetId,
-            authority_id: GrandpaId,
+            _authority_id: GrandpaId,
         ) -> Option<fg_primitives::OpaqueKeyOwnershipProof> {
             #[cfg(feature = "grandpa_babe")]
             {
                 use codec::Encode;
 
-                Historical::prove((fg_primitives::KEY_TYPE, authority_id))
+                Historical::prove((fg_primitives::KEY_TYPE, _authority_id))
                     .map(|p| p.encode())
                     .map(fg_primitives::OpaqueKeyOwnershipProof::new)
             }
@@ -1654,8 +1675,8 @@ impl_runtime_apis! {
             use baseline::Pallet as BaselineBench;
 
             let mut list = Vec::<BenchmarkList>::new();
-            //TODO: upgrade fix this
-            // list_benchmarks!(list, extra);
+
+            list_benchmarks!(list, extra);
 
             let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1665,26 +1686,33 @@ impl_runtime_apis! {
         fn dispatch_benchmark(
             config: frame_benchmarking::BenchmarkConfig
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-            use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+            use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch, TrackedStorageKey};
 
             use frame_system_benchmarking::Pallet as SystemBench;
+            use baseline::Pallet as BaselineBench;
+
             impl frame_system_benchmarking::Config for Runtime {}
+            impl baseline::Config for Runtime {}
+
+            use frame_support::traits::WhitelistedStorageKeys;
 
             let whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
 
             let mut batches = Vec::<BenchmarkBatch>::new();
             let params = (&config, &whitelist);
 
-            add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-            add_benchmark!(params, batches, pallet_balances, Balances);
-            add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+            add_benchmarks!(params, batches);
 
-            add_benchmark!(params, batches, pallet_groups, Groups);
-            add_benchmark!(params, batches, pallet_identity, Identity);
-            add_benchmark!(params, batches, pallet_audits, Audits);
-            add_benchmark!(params, batches, pallet_provenance, Provenance);
-            add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
-            add_benchmark!(params, batches, pallet_settings, Settings);
+            // add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
+            // add_benchmark!(params, batches, pallet_balances, Balances);
+            // add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+
+            // add_benchmark!(params, batches, pallet_groups, Groups);
+            // add_benchmark!(params, batches, pallet_identity, Identity);
+            // add_benchmark!(params, batches, pallet_audits, Audits);
+            // add_benchmark!(params, batches, pallet_provenance, Provenance);
+            // add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
+            // add_benchmark!(params, batches, pallet_settings, Settings);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

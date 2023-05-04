@@ -40,7 +40,7 @@ fn create_group<T: Config>() -> Result<T::AccountId, &'static str> {
 
 fn audit_create<T: Config>() -> Result<T::AccountId, &'static str> {
     let group_account = create_group::<T>()?;
-    let origin = T::GroupsOriginByGroupThreshold::successful_origin();
+    let origin = T::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
     let call = Call::<T>::create_audit {
         auditing_org: group_account.clone(),
         unique_ref: 1u32,
@@ -60,7 +60,7 @@ fn audit_create_and_assign<T: Config>() -> Result<
     &'static str,
 > {
     let group_account = audit_create::<T>()?;
-    let origin = T::GroupsOriginByGroupThreshold::successful_origin();
+    let origin = T::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
     let audit_id = T::AuditId::unique_saturated_from(1u32);
     let call = Call::<T>::accept_audit { audit_id };
     call.dispatch_bypass_filter(origin.clone())?;
@@ -76,7 +76,7 @@ benchmarks! {
     create_audit {
         let audit_creator= create_group::<T>()?;
         let auditing_org:T::AccountId=account("auditing_org", 1, 1);
-        let origin=T::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=T::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_audit{
             auditing_org: auditing_org.clone(),
             unique_ref: 1u32
@@ -104,7 +104,7 @@ benchmarks! {
         assert!(<Audits<T>>::contains_key(audit_id));
         let audit=<Audits<T>>::get(audit_id).unwrap();
 
-        let origin=T::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=T::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::delete_audit{ audit_id};
 
     }: { call.dispatch_bypass_filter(origin)? }
@@ -158,7 +158,7 @@ benchmarks! {
     accept_audit {
         let _ = audit_create::<T>()?;
         let audit_id=T::AuditId::unique_saturated_from(1u32);
-        let origin=T::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=T::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::accept_audit{audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
 
@@ -172,7 +172,7 @@ benchmarks! {
     assign_auditors_initial_assign {
         let _ = audit_create::<T>()?;
         let audit_id=T::AuditId::unique_saturated_from(1u32);
-        let origin=T::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=T::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::accept_audit{audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
         let auditors:T::AccountId=account("auditors", 1, 1);
@@ -205,7 +205,7 @@ benchmarks! {
     reject_audit {
         let _ = audit_create::<T>()?;
         let audit_id=T::AuditId::unique_saturated_from(1u32);
-        let origin=T::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=T::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::reject_audit{audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
 

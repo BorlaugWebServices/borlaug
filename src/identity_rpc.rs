@@ -1,11 +1,11 @@
-use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{NaiveDate, };
 use codec::{Codec, Decode, Encode};
 use core::fmt::Display;
 use identity_runtime_api::IdentityApi as IdentityRuntimeApi;
 use jsonrpsee::{
-    core::{Error as JsonRpseeError, RpcResult},
+    core::{ RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorCode, ErrorObject},
+    types::error::{CallError,  ErrorObject},
 };
 use pallet_primitives::{Attestation, DidDocument, DidProperty, Fact, Statement};
 use serde::{
@@ -17,7 +17,7 @@ use serde::{
 };
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::{ traits::Block as BlockT};
 use std::convert::TryFrom;
 use std::fmt;
 use std::sync::Arc;
@@ -510,7 +510,9 @@ where
                 value: value.to_string(),
             },
             Fact::Date(year, month, day) => {
-                let date = NaiveDate::from_ymd(i32::from(year), u32::from(month), u32::from(day));
+                let date =
+                    NaiveDate::from_ymd_opt(i32::from(year), u32::from(month), u32::from(day))
+                        .unwrap_or_default();
                 FactResponse {
                     data_type: String::from("Date"),
                     value: date.to_string(),

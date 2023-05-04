@@ -1831,16 +1831,16 @@ pub mod pallet {
         }
 
         #[cfg(feature = "runtime-benchmarks")]
-        fn successful_origin() -> O {
+        fn try_successful_origin() -> Result<O, ()> {
             let group_id: T::GroupId = 1u32.into();
             let proposal_id: T::ProposalId = 1u32.into();
             let group = Groups::<T>::get(group_id).unwrap();
-            O::from(RawOrigin::ProposalApprovedByVeto(
+            Ok(O::from(RawOrigin::ProposalApprovedByVeto(
                 group_id,
                 proposal_id,
                 group.anonymous_account.clone(),
                 group.anonymous_account.clone(),
-            ))
+            )))
         }
     }
     /// This just verifies that the origin came from a proposal. It does NOT do any threshold checks. The proposer specifies a threshold and that is used for voting. It is up to the recieving extrinsic to enforce a threshold.
@@ -1862,14 +1862,14 @@ pub mod pallet {
         }
 
         #[cfg(feature = "runtime-benchmarks")]
-        fn successful_origin() -> O {
+        fn try_successful_origin() -> Result<O, ()> {
             let group_id: T::GroupId = 1u32.into();
             let group = Groups::<T>::get(group_id).unwrap();
-            O::from(RawOrigin::ProposalExecuted(
+            Ok(O::from(RawOrigin::ProposalExecuted(
                 group_id,
                 group.anonymous_account.clone(),
                 group.anonymous_account.clone(),
-            ))
+            )))
         }
     }
 
@@ -1924,16 +1924,16 @@ pub mod pallet {
         }
 
         #[cfg(feature = "runtime-benchmarks")]
-        fn successful_origin() -> O {
+        fn try_successful_origin() -> Result<O, ()> {
             let group_id: T::GroupId = 1u32.into();
             let proposal_id: T::ProposalId = 1u32.into();
             let group = Groups::<T>::get(group_id).unwrap();
-            O::from(RawOrigin::ProposalApprovedByVeto(
+            Ok(O::from(RawOrigin::ProposalApprovedByVeto(
                 group_id,
                 proposal_id,
                 group.anonymous_account.clone(),
                 group.anonymous_account.clone(),
-            ))
+            )))
         }
     }
 }

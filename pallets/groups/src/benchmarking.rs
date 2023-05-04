@@ -88,7 +88,7 @@ benchmarks! {
         }
         let name = vec![42u8; a as usize];
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::update_group {
             name:  Some(name),
             add_members: Some(new_members),
@@ -126,7 +126,7 @@ benchmarks! {
         }
         let name = vec![42u8; a as usize];
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
 
 
         let call = Call::<T>::create_sub_group{
@@ -167,7 +167,7 @@ benchmarks! {
             remove.push(member);
         }
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
             name:vec![42u8; 2 as usize],
             members:   origional_members,
@@ -231,7 +231,7 @@ benchmarks! {
             ProposalHashes::<T>::insert(group_id,  hash,());
         }
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::remove_group{
             group_id,
             return_funds_too: caller
@@ -259,7 +259,7 @@ benchmarks! {
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
 
         let mut members = vec![];
         for i in 0 .. m {
@@ -286,7 +286,7 @@ benchmarks! {
             ProposalHashes::<T>::insert(group_id,  hash,());
         }
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::remove_sub_group{sub_group_id};
 
     }: { call.dispatch_bypass_filter(origin)? }
@@ -604,7 +604,7 @@ benchmarks! {
         }
         let threshold:T::MemberCount = 2u32.into();
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
             name:  vec![42u8; 2 as usize],
             members:   members.clone(),
@@ -662,7 +662,7 @@ benchmarks! {
         }
         let threshold = 2u32.into();
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
             name:  vec![42u8; 2 as usize],
             members:    members.clone(),
@@ -718,7 +718,7 @@ benchmarks! {
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::withdraw_funds_group{
             target_account: caller.clone(),
             amount:  1_000_000u32.into()
@@ -744,7 +744,7 @@ benchmarks! {
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
 
         let call = Call::<T>::create_sub_group{
             name: vec![42u8; 2 as usize],
@@ -783,7 +783,7 @@ benchmarks! {
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
-        let origin=<T as Config>::GroupsOriginByGroupThreshold::successful_origin();
+        let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
             name:   vec![42u8; 2 as usize],
             members:  vec![(caller.clone(), 1u32.into())],

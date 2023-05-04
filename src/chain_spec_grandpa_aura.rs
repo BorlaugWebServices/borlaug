@@ -1,6 +1,5 @@
 use runtime::{
-    constants::currency::*,
-    primitives::{AccountId, Balance, Signature},
+    primitives::{AccountId, Signature},
     wasm_binary_unwrap, BalancesConfig, Block, CouncilConfig, GenesisConfig, SudoConfig,
     SystemConfig,
 };
@@ -14,6 +13,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use std::marker::PhantomData;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -94,8 +94,6 @@ fn create_genesis(
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
 ) -> GenesisConfig {
-    const ENDOWMENT: Balance = 10_000_000_000_000 * GRAM;
-
     GenesisConfig {
         system: SystemConfig {
             // Add Wasm runtime to storage.
@@ -129,7 +127,10 @@ fn create_genesis(
             extrinisic_extra: vec![(3, vec![(1, 100_000)])],
         },
         treasury: Default::default(),
-        council: Default::default(),
+        council: CouncilConfig {
+            members: get_initial_council(),
+            phantom: PhantomData,
+        },
         // membership_Instance1: Some(GeneralCouncilMembershipConfig {
         //     members: vec![root_key],
         //     phantom: Default::default(),

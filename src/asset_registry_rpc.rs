@@ -3,9 +3,9 @@ use asset_registry_runtime_api::AssetRegistryApi as AssetRegistryRuntimeApi;
 use codec::Codec;
 use core::fmt::Display;
 use jsonrpsee::{
-    core::{Error as JsonRpseeError, RpcResult},
+    core::{ RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorCode, ErrorObject},
+    types::error::{CallError, ErrorObject},
 };
 use pallet_primitives::{
     Asset, AssetAllocation, AssetProperty, AssetStatus, LeaseAgreement, Registry,
