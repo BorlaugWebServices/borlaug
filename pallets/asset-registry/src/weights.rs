@@ -63,55 +63,55 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn create_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn delete_registry() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_asset(_a: u32, _b: u32, _c: u32, _d: u32, _e: u32, _f: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_asset(_a: u32, _b: u32, _c: u32, _d: u32, _e: u32, _f: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn delete_asset() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn new_lease(_a: u32, _b: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn void_lease(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
     fn create_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn delete_registry() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_asset(_a: u32, _b: u32, _c: u32, _d: u32, _e: u32, _f: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_asset(_a: u32, _b: u32, _c: u32, _d: u32, _e: u32, _f: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn delete_asset() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn new_lease(_a: u32, _b: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn void_lease(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }

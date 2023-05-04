@@ -340,7 +340,6 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
@@ -491,6 +490,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `name` name of the registry
+        #[pallet::call_index(0)]
         #[pallet::weight(<T as Config>::WeightInfo::create_registry(
             name.len() as u32
         ))]
@@ -526,6 +526,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `name` new name of the registry
+        #[pallet::call_index(1)]
         #[pallet::weight(<T as Config>::WeightInfo::update_registry(
             name.len() as u32
         ))]
@@ -561,6 +562,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `registry_id` Registry to be removed
+        #[pallet::call_index(2)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_registry())]
         pub fn remove_registry(
             origin: OriginFor<T>,
@@ -593,6 +595,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry to put definition in
         /// - `name` name of the definition
+        #[pallet::call_index(3)]
         #[pallet::weight(<T as Config>::WeightInfo::create_definition(
             name.len() as u32,
             steps.len() as u32,
@@ -676,6 +679,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the definition is in
         /// - `definition_id` Definition to set active
+        #[pallet::call_index(4)]
         #[pallet::weight(<T as Config>::WeightInfo::set_definition_active())]
         pub fn set_definition_active(
             origin: OriginFor<T>,
@@ -708,6 +712,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the definition is in
         /// - `definition_id` Definition to set active
+        #[pallet::call_index(5)]
         #[pallet::weight(<T as Config>::WeightInfo::set_definition_inactive())]
         pub fn set_definition_inactive(
             origin: OriginFor<T>,
@@ -741,6 +746,7 @@ pub mod pallet {
         /// Arguments:
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` Definition to be removed
+        #[pallet::call_index(6)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_definition(<T as Config>::DefinitionStepLimit::get()))]
         pub fn remove_definition(
             origin: OriginFor<T>,
@@ -800,7 +806,7 @@ pub mod pallet {
         /// - `definition_step_index` index of definition step to be updated
         /// - `attestor` Attestor for the step.
         /// - `threshold` Required threshold if Attestor is a group account else set to 1
-
+        #[pallet::call_index(7)]
         #[pallet::weight(<T as Config>::WeightInfo::update_definition_step(   ))]
         pub fn update_definition_step(
             origin: OriginFor<T>,
@@ -869,6 +875,7 @@ pub mod pallet {
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` Definition the process is related to
         /// - `name` name of the Process
+        #[pallet::call_index(8)]
         #[pallet::weight(<T as Config>::WeightInfo::create_process(
             name.len() as u32
         ))]
@@ -933,6 +940,7 @@ pub mod pallet {
         /// - `definition_id` Definition the process is related to
         /// - `process_id` Process to be renamed
         /// - `name` name of the Process
+        #[pallet::call_index(9)]
         #[pallet::weight(<T as Config>::WeightInfo::update_process(
             name.len()   as u32
         ))]
@@ -983,6 +991,7 @@ pub mod pallet {
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` Definition the process is related to
         /// - `process_id` Process to be removed
+        #[pallet::call_index(10)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_process(
             <T as Config>::DefinitionStepLimit::get()
         ))]
@@ -1025,6 +1034,7 @@ pub mod pallet {
         /// - `definition_id` the Definition
         /// - `child_definition_registry_id` Registry of the child Definition
         /// - `child_definition_id` the child Definition
+        #[pallet::call_index(11)]
         #[pallet::weight(<T as Config>::WeightInfo::add_child_definition())]
         pub fn add_child_definition(
             origin: OriginFor<T>,
@@ -1081,6 +1091,7 @@ pub mod pallet {
         /// - `definition_id` the Definition
         /// - `child_definition_registry_id` Registry the Child Definition is in
         /// - `child_definition_id` child Definition to be removed
+        #[pallet::call_index(12)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_child_definition())]
         pub fn remove_child_definition(
             origin: OriginFor<T>,
@@ -1125,6 +1136,7 @@ pub mod pallet {
         /// - `process_id` the Process
         /// - `definition_step_index` index of step to be attested
         /// - `attributes` attributes for the step
+        #[pallet::call_index(13)]
         #[pallet::weight(<T as Config>::WeightInfo::attest_process_step(
             attributes.len() as u32,
             get_max_attribute_name_len(attributes),
@@ -1232,6 +1244,7 @@ pub mod pallet {
         /// - `registry_id` Registry the Definition is in
         /// - `definition_id` Definition the process is related to
         /// - `process_id` the Process
+        #[pallet::call_index(14)]
         #[pallet::weight(<T as Config>::WeightInfo::complete_process(<T as Config>::DefinitionStepLimit::get()))]
         pub fn complete_process(
             origin: OriginFor<T>,

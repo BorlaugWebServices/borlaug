@@ -324,7 +324,6 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
@@ -504,6 +503,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `properties` initial DID properties to be added to the new DID
+        #[pallet::call_index(0)]
         #[pallet::weight(<T as Config>::WeightInfo::register_did(
             get_max_property_name_len_option(properties),
             get_max_property_fact_len_option(properties),
@@ -540,6 +540,7 @@ pub mod pallet {
         /// Arguments:
         /// - `subject` the Subject of the DID
         /// - `properties` initial DID properties to be added to the new DID
+        #[pallet::call_index(1)]
         #[pallet::weight(<T as Config>::WeightInfo::register_did(
             get_max_property_name_len_option(properties),
             get_max_property_fact_len_option(properties),
@@ -575,6 +576,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `dids` the DIDs to be created
+        #[pallet::call_index(2)]
         #[pallet::weight({
             let (a,b,c)=get_did_for_bulk_lens::<T>(dids);
             <T as Config>::WeightInfo::register_did_for(a,b,c).saturating_mul(dids.len() as u64)
@@ -633,6 +635,7 @@ pub mod pallet {
         /// Arguments:
         /// - `did` DID to which properties are to be added
         /// - `properties` DID properties to be added
+        #[pallet::call_index(3)]
         #[pallet::weight(<T as Config>::WeightInfo::add_did_properties(
             get_max_property_name_len(properties),
             get_max_property_fact_len(properties),
@@ -671,6 +674,7 @@ pub mod pallet {
         /// Arguments:
         /// - `did` DID to which properties are to be added
         /// - `keys` Keys of DID properties to be removed
+        #[pallet::call_index(4)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_did_properties(
             get_max_key_len(keys),
             keys.len() as u32,
@@ -712,6 +716,7 @@ pub mod pallet {
         /// - `did` subject
         /// - `add` DIDs to be added as controllers
         /// - `remove` DIDs to be removed as controllers
+        #[pallet::call_index(5)]
         #[pallet::weight(<T as Config>::WeightInfo::manage_controllers(
             add.as_ref().map_or(0,|a|a.len()) as u32,
             remove.as_ref().map_or(0,|a|a.len()) as u32,
@@ -769,6 +774,7 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_consumers` DIDs of claim consumer
+        #[pallet::call_index(6)]
         #[pallet::weight(<T as Config>::WeightInfo::authorize_claim_consumers(
             claim_consumers.len() as u32
         ))]
@@ -816,6 +822,7 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_consumers` DIDs of claim consumers to be revoked
+        #[pallet::call_index(7)]
         #[pallet::weight(<T as Config>::WeightInfo::revoke_claim_consumers(
             claim_consumers.len() as u32
         ))]
@@ -855,6 +862,7 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_issuers` DIDs of claim issuer
+        #[pallet::call_index(8)]
         #[pallet::weight(<T as Config>::WeightInfo::authorize_claim_issuers(
             claim_issuers.len() as u32
         ))]
@@ -902,6 +910,7 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID to which claims are to be added
         /// - `claim_issuers` DIDs of claim issuers to be revoked
+        #[pallet::call_index(9)]
         #[pallet::weight(<T as Config>::WeightInfo::revoke_claim_issuers(
             claim_issuers.len() as u32
         ))]
@@ -943,6 +952,7 @@ pub mod pallet {
         /// - `description` description of claim
         /// - `statements` statements of claim
         /// - `threshold` threshold required to attest claim if group makes attestation
+        #[pallet::call_index(10)]
         #[pallet::weight(<T as Config>::WeightInfo::make_claim(
             description.len() as u32,
             statements.len() as u32,
@@ -1014,6 +1024,7 @@ pub mod pallet {
         /// - `claim_id` Claim to be attested
         /// - `statements` Claim issuer overwrites these statements
         /// - `valid_until` Attestation expires
+        #[pallet::call_index(11)]
         #[pallet::weight(<T as Config>::WeightInfo::attest_claim(
             statements.len() as u32,
             <T as Config>::StatementLimit::get() as u32,
@@ -1109,6 +1120,7 @@ pub mod pallet {
         /// Arguments:
         /// - `target_did` DID against which claims are to be attested
         /// - `claim_id` Claim to be attested
+        #[pallet::call_index(12)]
         #[pallet::weight(<T as Config>::WeightInfo::revoke_attestation(
             <T as Config>::StatementLimit::get() as u32,
             <T as Config>::NameLimit::get() as u32,
@@ -1171,6 +1183,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `name` name of the catalog
+        #[pallet::call_index(13)]
         #[pallet::weight(<T as Config>::WeightInfo::create_catalog())]
         pub fn create_catalog(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
@@ -1193,6 +1206,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `catalog_id` Catalog to be removed
+        #[pallet::call_index(14)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_catalog())]
         pub fn remove_catalog(
             origin: OriginFor<T>,
@@ -1222,6 +1236,7 @@ pub mod pallet {
         /// Arguments:
         /// - `catalog_id` Catalog to which DID are to be added
         /// - `dids` DIDs are to be added
+        #[pallet::call_index(15)]
         #[pallet::weight(<T as Config>::WeightInfo::add_dids_to_catalog(
             dids.len() as u32,
         ))]
@@ -1262,6 +1277,7 @@ pub mod pallet {
         /// Arguments:
         /// - `catalog_id` Catalog to which DID are to be removed
         /// - `dids` DIDs are to be removed
+        #[pallet::call_index(16)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_dids_from_catalog(
             dids.len() as u32,
         ))]

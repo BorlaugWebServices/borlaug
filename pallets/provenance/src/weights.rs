@@ -70,97 +70,97 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn create_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_registry() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_definition(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn set_definition_active() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn set_definition_inactive() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_definition(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_definition_step() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_process(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_process(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_process(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn add_child_definition() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_child_definition() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn attest_process_step(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn complete_process(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
     fn create_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_registry(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_registry() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_definition(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn set_definition_active() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn set_definition_inactive() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_definition(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_definition_step() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_process(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_process(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_process(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn add_child_definition() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_child_definition() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn attest_process_step(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn complete_process(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }

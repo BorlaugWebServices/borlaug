@@ -71,103 +71,103 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn register_did(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn register_did_for(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn add_did_properties(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_did_properties(_a: u32, _b: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn manage_controllers(_a: u32, _b: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn authorize_claim_consumers(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn revoke_claim_consumers(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn authorize_claim_issuers(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn revoke_claim_issuers(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn make_claim(_a: u32, _b: u32, _c: u32, _d: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn attest_claim(_a: u32, _b: u32, _c: u32, _d: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn revoke_attestation(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_catalog() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_catalog() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn add_dids_to_catalog(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_dids_from_catalog(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
     fn register_did(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn register_did_for(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn add_did_properties(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_did_properties(_a: u32, _b: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn manage_controllers(_a: u32, _b: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn authorize_claim_consumers(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn revoke_claim_consumers(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn authorize_claim_issuers(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn revoke_claim_issuers(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn make_claim(_a: u32, _b: u32, _c: u32, _d: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn attest_claim(_a: u32, _b: u32, _c: u32, _d: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn revoke_attestation(_a: u32, _b: u32, _c: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_catalog() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_catalog() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn add_dids_to_catalog(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_dids_from_catalog(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }

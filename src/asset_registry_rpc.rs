@@ -1,21 +1,22 @@
 use crate::identity_rpc::{Did, FactResponse};
 use asset_registry_runtime_api::AssetRegistryApi as AssetRegistryRuntimeApi;
 use codec::Codec;
-use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
-use jsonrpc_derive::rpc;
+use core::fmt::Display;
+use jsonrpsee::{
+    core::{Error as JsonRpseeError, RpcResult},
+    proc_macros::rpc,
+    types::error::{CallError, ErrorCode, ErrorObject},
+};
 use pallet_primitives::{
     Asset, AssetAllocation, AssetProperty, AssetStatus, LeaseAgreement, Registry,
 };
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{
-    generic::BlockId,
-    traits::{AtLeast32BitUnsigned, Block as BlockT},
-};
+use sp_runtime::traits::{AtLeast32BitUnsigned, Block as BlockT};
 use std::sync::Arc;
 
-#[rpc]
+#[rpc(client, server)]
 pub trait AssetRegistryApi<
     BlockHash,
     AccountId,
@@ -29,52 +30,52 @@ pub trait AssetRegistryApi<
     BoundedStringFact,
 >
 {
-    #[rpc(name = "get_asset_registries")]
+    #[method(name = "get_asset_registries")]
     fn get_registries(
         &self,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<Vec<RegistryResponse<RegistryId>>>;
-    #[rpc(name = "get_asset_registry")]
+    ) -> RpcResult<Vec<RegistryResponse<RegistryId>>>;
+    #[method(name = "get_asset_registry")]
     fn get_registry(
         &self,
         did: Did,
         registry_id: RegistryId,
         at: Option<BlockHash>,
-    ) -> Result<RegistryResponse<RegistryId>>;
-    #[rpc(name = "get_assets")]
+    ) -> RpcResult<RegistryResponse<RegistryId>>;
+    #[method(name = "get_assets")]
     fn get_assets(
         &self,
         registry_id: RegistryId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AssetResponse<AssetId, Moment>>>;
-    #[rpc(name = "get_asset")]
+    ) -> RpcResult<Vec<AssetResponse<AssetId, Moment>>>;
+    #[method(name = "get_asset")]
     fn get_asset(
         &self,
         registry_id: RegistryId,
         asset_id: AssetId,
         at: Option<BlockHash>,
-    ) -> Result<AssetResponse<AssetId, Moment>>;
-    #[rpc(name = "get_leases")]
+    ) -> RpcResult<AssetResponse<AssetId, Moment>>;
+    #[method(name = "get_leases")]
     fn get_leases(
         &self,
         lessor: Did,
         at: Option<BlockHash>,
-    ) -> Result<Vec<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>>;
-    #[rpc(name = "get_lease")]
+    ) -> RpcResult<Vec<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>>;
+    #[method(name = "get_lease")]
     fn get_lease(
         &self,
         lessor: Did,
         lease_id: LeaseId,
         at: Option<BlockHash>,
-    ) -> Result<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>;
-    #[rpc(name = "get_lease_allocations")]
+    ) -> RpcResult<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>;
+    #[method(name = "get_lease_allocations")]
     fn get_lease_allocations(
         &self,
         registry_id: RegistryId,
         asset_id: AssetId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<LeaseAllocationResponse<LeaseId, Moment>>>;
+    ) -> RpcResult<Vec<LeaseAllocationResponse<LeaseId, Moment>>>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -265,22 +266,28 @@ impl<C, M> AssetRegistry<C, M> {
     }
 }
 
+static RPC_MODULE: &str = "AssetRegistry API";
+
 macro_rules! convert_error {
     () => {{
-        |e| RpcError {
-            code: ErrorCode::ServerError(1),
-            message: "Error in AssetRegistry API".into(),
-            data: Some(format!("{:?}", e).into()),
+        |e| {
+            CallError::Custom(ErrorObject::owned(
+                1i32,
+                format!("Runtime Error in {}", RPC_MODULE),
+                Some(format!("{:?}", e)),
+            ))
         }
     }};
 }
 
 macro_rules! not_found_error {
-    () => {{
-        RpcError {
-            code: ErrorCode::ServerError(404),
-            message: "Entity not found".into(),
-            data: Some("Entity not found".into()),
+    ($id:expr) => {{
+        {
+            CallError::Custom(ErrorObject::owned(
+                404i32,
+                format!("Entity not found Error in {}", RPC_MODULE),
+                Some(format!("{}", $id)),
+            ))
         }
     }};
 }
@@ -298,7 +305,7 @@ impl<
         BoundedStringName,
         BoundedStringFact,
     >
-    AssetRegistryApi<
+    AssetRegistryApiServer<
         <Block as BlockT>::Hash,
         AccountId,
         ProposalId,
@@ -342,11 +349,11 @@ where
         BoundedStringName,
         BoundedStringFact,
     >,
-    AccountId: Codec + Send + Sync + 'static,
-    ProposalId: Codec + Send + Sync + 'static,
-    RegistryId: Codec + Copy + Send + Sync + 'static,
-    AssetId: Codec + Copy + Send + Sync + 'static,
-    LeaseId: Codec + Copy + Send + Sync + 'static,
+    AccountId: Codec + Send + Sync + 'static + Display,
+    ProposalId: Codec + Send + Sync + 'static + Display,
+    RegistryId: Codec + Copy + Send + Sync + 'static + Display,
+    AssetId: Codec + Copy + Send + Sync + 'static + Display,
+    LeaseId: Codec + Copy + Send + Sync + 'static + Display,
     Moment: Codec + Copy + Send + Sync + 'static,
     Balance: Codec + Copy + Send + Sync + AtLeast32BitUnsigned + 'static,
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
@@ -356,12 +363,13 @@ where
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<RegistryResponse<RegistryId>>> {
+    ) -> RpcResult<Vec<RegistryResponse<RegistryId>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        // let at: BlockId<_> = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let registries = api
-            .get_registries(&at, did.into())
+            .get_registries(at, did.into())
             .map_err(convert_error!())?;
         Ok(registries
             .into_iter()
@@ -376,14 +384,14 @@ where
         did: Did,
         registry_id: RegistryId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<RegistryResponse<RegistryId>> {
+    ) -> RpcResult<RegistryResponse<RegistryId>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let registry = api
-            .get_registry(&at, did.into(), registry_id)
+            .get_registry(at, did.into(), registry_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(registry_id))?;
         Ok((registry_id, registry).into())
     }
 
@@ -391,11 +399,11 @@ where
         &self,
         registry_id: RegistryId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AssetResponse<AssetId, Moment>>> {
+    ) -> RpcResult<Vec<AssetResponse<AssetId, Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
-        let assets = api.get_assets(&at, registry_id).map_err(convert_error!())?;
+        let assets = api.get_assets(at, registry_id).map_err(convert_error!())?;
         Ok(assets
             .into_iter()
             .map(|(asset_id, asset)| (asset_id, asset).into())
@@ -406,14 +414,14 @@ where
         registry_id: RegistryId,
         asset_id: AssetId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<AssetResponse<AssetId, Moment>> {
+    ) -> RpcResult<AssetResponse<AssetId, Moment>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let asset = api
-            .get_asset(&at, registry_id, asset_id)
+            .get_asset(at, registry_id, asset_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(asset_id))?;
         Ok((asset_id, asset).into())
     }
 
@@ -421,12 +429,13 @@ where
         &self,
         lessor: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>> {
+    ) -> RpcResult<Vec<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>>>
+    {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let leases = api
-            .get_leases(&at, lessor.into())
+            .get_leases(at, lessor.into())
             .map_err(convert_error!())?;
         Ok(leases
             .into_iter()
@@ -439,14 +448,14 @@ where
         lessor: Did,
         lease_id: LeaseId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>> {
+    ) -> RpcResult<LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let lease = api
-            .get_lease(&at, lessor.into(), lease_id)
+            .get_lease(at, lessor.into(), lease_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(lease_id))?;
         Ok((lease_id, lease).into())
     }
 
@@ -455,14 +464,14 @@ where
         registry_id: RegistryId,
         asset_id: AssetId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<LeaseAllocationResponse<LeaseId, Moment>>> {
+    ) -> RpcResult<Vec<LeaseAllocationResponse<LeaseId, Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let lease_allocations = api
-            .get_lease_allocations(&at, registry_id, asset_id)
+            .get_lease_allocations(at, registry_id, asset_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(asset_id))?;
         Ok(lease_allocations
             .into_iter()
             .map(|lease_allocation| lease_allocation.into())

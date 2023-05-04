@@ -1,7 +1,11 @@
 use crate::identity_rpc::FactResponse;
 use codec::Codec;
-use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
-use jsonrpc_derive::rpc;
+use core::fmt::Display;
+use jsonrpsee::{
+    core::{Error as JsonRpseeError, RpcResult},
+    proc_macros::rpc,
+    types::error::{CallError, ErrorCode, ErrorObject},
+};
 use pallet_primitives::{
     Definition, DefinitionStep, Process, ProcessStatus, ProcessStep, Registry,
 };
@@ -12,7 +16,7 @@ use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 
-#[rpc]
+#[rpc(client, server)]
 pub trait ProvenanceApi<
     BlockHash,
     AccountId,
@@ -25,27 +29,27 @@ pub trait ProvenanceApi<
     DefinitionStepIndex,
 >
 {
-    #[rpc(name = "get_definition_registries")]
+    #[method(name = "get_definition_registries")]
     fn get_registries(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<RegistryResponse<RegistryId>>>;
+    ) -> RpcResult<Vec<RegistryResponse<RegistryId>>>;
 
-    #[rpc(name = "get_definition_registry")]
+    #[method(name = "get_definition_registry")]
     fn get_registry(
         &self,
         account_id: AccountId,
         registry_id: RegistryId,
         at: Option<BlockHash>,
-    ) -> Result<RegistryResponse<RegistryId>>;
+    ) -> RpcResult<RegistryResponse<RegistryId>>;
 
-    #[rpc(name = "get_definitions")]
+    #[method(name = "get_definitions")]
     fn get_definitions(
         &self,
         registry_id: RegistryId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             DefinitionResponse<
                 AccountId,
@@ -57,31 +61,31 @@ pub trait ProvenanceApi<
         >,
     >;
 
-    #[rpc(name = "get_definition")]
+    #[method(name = "get_definition")]
     fn get_definition(
         &self,
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     >;
 
-    #[rpc(name = "get_definition_step")]
+    #[method(name = "get_definition_step")]
     fn get_definition_step(
         &self,
         registry_id: RegistryId,
         definition_id: DefinitionId,
         step_index: DefinitionStepIndex,
         at: Option<BlockHash>,
-    ) -> Result<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>>;
+    ) -> RpcResult<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>>;
 
-    #[rpc(name = "get_available_definitions")]
+    #[method(name = "get_available_definitions")]
     fn get_available_definitions(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             DefinitionResponse<
                 AccountId,
@@ -93,13 +97,13 @@ pub trait ProvenanceApi<
         >,
     >;
 
-    #[rpc(name = "get_processes")]
+    #[method(name = "get_processes")]
     fn get_processes(
         &self,
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             ProcessResponse<
                 RegistryId,
@@ -112,14 +116,14 @@ pub trait ProvenanceApi<
         >,
     >;
 
-    #[rpc(name = "get_process")]
+    #[method(name = "get_process")]
     fn get_process(
         &self,
         registry_id: RegistryId,
         definition_id: DefinitionId,
         process_id: ProcessId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         ProcessResponse<
             RegistryId,
             DefinitionId,
@@ -130,13 +134,13 @@ pub trait ProvenanceApi<
         >,
     >;
 
-    #[rpc(name = "get_processes_for_attestor_by_status")]
+    #[method(name = "get_processes_for_attestor_by_status")]
     fn get_processes_for_attestor_by_status(
         &self,
         account_id: AccountId,
         status: String,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             ProcessResponse<
                 RegistryId,
@@ -149,12 +153,12 @@ pub trait ProvenanceApi<
         >,
     >;
 
-    #[rpc(name = "get_processes_for_attestor_pending")]
+    #[method(name = "get_processes_for_attestor_pending")]
     fn get_processes_for_attestor_pending(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             ProcessResponse<
                 RegistryId,
@@ -167,7 +171,7 @@ pub trait ProvenanceApi<
         >,
     >;
 
-    #[rpc(name = "get_process_step")]
+    #[method(name = "get_process_step")]
     fn get_process_step(
         &self,
         registry_id: RegistryId,
@@ -175,15 +179,15 @@ pub trait ProvenanceApi<
         process_id: ProcessId,
         definition_step_index: DefinitionStepIndex,
         at: Option<BlockHash>,
-    ) -> Result<ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>>;
+    ) -> RpcResult<ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>>;
 
-    #[rpc(name = "get_definition_children")]
+    #[method(name = "get_definition_children")]
     fn get_definition_children(
         &self,
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             DefinitionResponse<
                 AccountId,
@@ -195,13 +199,13 @@ pub trait ProvenanceApi<
         >,
     >;
 
-    #[rpc(name = "get_definition_parents")]
+    #[method(name = "get_definition_parents")]
     fn get_definition_parents(
         &self,
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             DefinitionResponse<
                 AccountId,
@@ -213,16 +217,16 @@ pub trait ProvenanceApi<
         >,
     >;
 
-    #[rpc(name = "can_view_definition")]
+    #[method(name = "can_view_definition")]
     fn can_view_definition(
         &self,
         account_id: AccountId,
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<BlockHash>,
-    ) -> Result<bool>;
+    ) -> RpcResult<bool>;
 
-    #[rpc(name = "is_attestor")]
+    #[method(name = "is_attestor")]
     fn is_attestor(
         &self,
         account_id: AccountId,
@@ -230,7 +234,7 @@ pub trait ProvenanceApi<
         definition_id: DefinitionId,
         definition_step_index: DefinitionStepIndex,
         at: Option<BlockHash>,
-    ) -> Result<bool>;
+    ) -> RpcResult<bool>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -528,22 +532,58 @@ impl<C, M> Provenance<C, M> {
     }
 }
 
+/// Error type of this RPC api.
+pub enum Error {
+    /// The transaction was not decodable.
+    DecodeError,
+    /// The call to runtime failed.
+    RuntimeError,
+    NotFoundError,
+}
+
+impl From<Error> for i32 {
+    fn from(e: Error) -> i32 {
+        match e {
+            Error::RuntimeError => 1,
+            Error::DecodeError => 2,
+            Error::NotFoundError => 404,
+        }
+    }
+}
+
+static RPC_MODULE: &str = "Provenance API";
+
 macro_rules! convert_error {
     () => {{
-        |e| RpcError {
-            code: ErrorCode::ServerError(1),
-            message: "Error in Provenance API".into(),
-            data: Some(format!("{:?}", e).into()),
+        |e| {
+            CallError::Custom(ErrorObject::owned(
+                Error::RuntimeError.into(),
+                format!("Runtime Error in {}", RPC_MODULE),
+                Some(format!("{:?}", e)),
+            ))
         }
     }};
 }
 
+// macro_rules! decode_error {
+//     () => {{
+//         |e| {
+//             CallError::Custom(ErrorObject::owned(
+//                 Error::DecodeError.into(),
+//                 format!("Decode Error in {}", RPC_MODULE),
+//                 Some(format!("{:?}", e)),
+//             ))
+//         }
+//     }};
+// }
 macro_rules! not_found_error {
-    () => {{
-        RpcError {
-            code: ErrorCode::ServerError(404),
-            message: "Entity not found".into(),
-            data: Some("Entity not found".into()),
+    ($id:expr) => {{
+        {
+            CallError::Custom(ErrorObject::owned(
+                Error::DecodeError.into(),
+                format!("Entity not found Error in {}", RPC_MODULE),
+                Some(format!("{}", $id)),
+            ))
         }
     }};
 }
@@ -562,7 +602,7 @@ impl<
         BoundedStringName,
         BoundedStringFact,
     >
-    ProvenanceApi<
+    ProvenanceApiServer<
         <Block as BlockT>::Hash,
         AccountId,
         RegistryId,
@@ -607,14 +647,14 @@ where
         BoundedStringName,
         BoundedStringFact,
     >,
-    AccountId: Codec + Send + Sync + 'static,
-    RegistryId: Codec + Copy + Send + Sync + 'static,
-    DefinitionId: Codec + Copy + Send + Sync + 'static,
-    ProcessId: Codec + Copy + Send + Sync + 'static,
-    ProposalId: Codec + Copy + Send + Sync + 'static,
+    AccountId: Codec + Send + Sync + 'static + Display,
+    RegistryId: Codec + Copy + Send + Sync + 'static + Display,
+    DefinitionId: Codec + Copy + Send + Sync + 'static + Display,
+    ProcessId: Codec + Copy + Send + Sync + 'static + Display,
+    ProposalId: Codec + Copy + Send + Sync + 'static + Display,
     Moment: Codec + Copy + Send + Sync + 'static,
     MemberCount: Codec + Copy + Send + Sync + 'static,
-    DefinitionStepIndex: Codec + Copy + Send + Sync + 'static,
+    DefinitionStepIndex: Codec + Copy + Send + Sync + 'static + Display,
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
     BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
 {
@@ -622,14 +662,12 @@ where
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<RegistryResponse<RegistryId>>> {
+    ) -> RpcResult<Vec<RegistryResponse<RegistryId>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(||
-            // If the block hash is not supplied assume the best block.
-            self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let registries = api
-            .get_registries(&at, account_id)
+            .get_registries(at, account_id)
             .map_err(convert_error!())?;
         Ok(registries
             .into_iter()
@@ -642,14 +680,14 @@ where
         account_id: AccountId,
         registry_id: RegistryId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<RegistryResponse<RegistryId>> {
+    ) -> RpcResult<RegistryResponse<RegistryId>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let registry = api
-            .get_registry(&at, account_id, registry_id)
+            .get_registry(at, account_id, registry_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(registry_id))?;
 
         Ok((registry_id, registry).into())
     }
@@ -658,7 +696,7 @@ where
         &self,
         registry_id: RegistryId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             DefinitionResponse<
                 AccountId,
@@ -670,10 +708,10 @@ where
         >,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let definitions = api
-            .get_definitions(&at, registry_id)
+            .get_definitions(at, registry_id)
             .map_err(convert_error!())?;
 
         Ok(definitions
@@ -689,19 +727,19 @@ where
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let definition = api
-            .get_definition(&at, registry_id, definition_id)
+            .get_definition(at, registry_id, definition_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(definition_id))?;
 
         let definition_steps = api
-            .get_definition_steps(&at, registry_id, definition_id)
+            .get_definition_steps(at, registry_id, definition_id)
             .map_err(convert_error!())?;
 
         Ok((
@@ -719,14 +757,14 @@ where
         definition_id: DefinitionId,
         step_index: DefinitionStepIndex,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>> {
+    ) -> RpcResult<DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let definition_step = api
-            .get_definition_step(&at, registry_id, definition_id, step_index)
+            .get_definition_step(at, registry_id, definition_id, step_index)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(step_index))?;
 
         Ok((step_index, definition_step).into())
     }
@@ -735,7 +773,7 @@ where
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             DefinitionResponse<
                 AccountId,
@@ -747,10 +785,10 @@ where
         >,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let definitions = api
-            .get_available_definitions(&at, account_id)
+            .get_available_definitions(at, account_id)
             .map_err(convert_error!())?;
 
         Ok(definitions
@@ -766,7 +804,7 @@ where
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             ProcessResponse<
                 RegistryId,
@@ -779,10 +817,10 @@ where
         >,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let processes = api
-            .get_processes(&at, registry_id, definition_id)
+            .get_processes(at, registry_id, definition_id)
             .map_err(convert_error!())?;
 
         Ok(processes
@@ -797,7 +835,7 @@ where
         definition_id: DefinitionId,
         process_id: ProcessId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         ProcessResponse<
             RegistryId,
             DefinitionId,
@@ -808,15 +846,15 @@ where
         >,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let process = api
-            .get_process(&at, registry_id, definition_id, process_id)
+            .get_process(at, registry_id, definition_id, process_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(process_id))?;
 
         let process_steps = api
-            .get_process_steps(&at, registry_id, definition_id, process_id)
+            .get_process_steps(at, registry_id, definition_id, process_id)
             .map_err(convert_error!())?;
 
         Ok((
@@ -834,7 +872,7 @@ where
         account_id: AccountId,
         status: String,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             ProcessResponse<
                 RegistryId,
@@ -847,21 +885,22 @@ where
         >,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let status = match status.as_str() {
             "InProgress" => ProcessStatus::InProgress,
             "Completed" => ProcessStatus::Completed,
             _ => {
-                return Err(RpcError {
-                    code: ErrorCode::ServerError(1),
-                    message: "Unknown status".into(),
-                    data: Some("Unknown status".into()),
-                })
+                return Err(CallError::Custom(ErrorObject::owned(
+                    Error::RuntimeError.into(),
+                    "Unknown status",
+                    Some("Unknown status"),
+                ))
+                .into())
             }
         };
         let processes = api
-            .get_processes_for_attestor_by_status(&at, account_id, status)
+            .get_processes_for_attestor_by_status(at, account_id, status)
             .map_err(convert_error!())?;
 
         Ok(processes
@@ -876,7 +915,7 @@ where
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             ProcessResponse<
                 RegistryId,
@@ -889,10 +928,10 @@ where
         >,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let processes = api
-            .get_processes_for_attestor_pending(&at, account_id)
+            .get_processes_for_attestor_pending(at, account_id)
             .map_err(convert_error!())?;
 
         Ok(processes
@@ -910,20 +949,20 @@ where
         process_id: ProcessId,
         definition_step_index: DefinitionStepIndex,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>> {
+    ) -> RpcResult<ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let process_step = api
             .get_process_step(
-                &at,
+                at,
                 registry_id,
                 definition_id,
                 process_id,
                 definition_step_index,
             )
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(definition_step_index))?;
 
         Ok(process_step.into())
     }
@@ -933,7 +972,7 @@ where
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             DefinitionResponse<
                 AccountId,
@@ -945,10 +984,10 @@ where
         >,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let definitions = api
-            .get_definition_children(&at, registry_id, definition_id)
+            .get_definition_children(at, registry_id, definition_id)
             .map_err(convert_error!())?;
 
         Ok(definitions
@@ -964,7 +1003,7 @@ where
         registry_id: RegistryId,
         definition_id: DefinitionId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<
             DefinitionResponse<
                 AccountId,
@@ -976,10 +1015,10 @@ where
         >,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let definitions = api
-            .get_definition_parents(&at, registry_id, definition_id)
+            .get_definition_parents(at, registry_id, definition_id)
             .map_err(convert_error!())?;
 
         Ok(definitions
@@ -997,12 +1036,12 @@ where
         definition_id: DefinitionId,
 
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<bool> {
+    ) -> RpcResult<bool> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let can_veiw = api
-            .can_view_definition(&at, account_id, registry_id, definition_id)
+            .can_view_definition(at, account_id, registry_id, definition_id)
             .map_err(convert_error!())?;
 
         Ok(can_veiw)
@@ -1015,13 +1054,13 @@ where
         definition_id: DefinitionId,
         definition_step_index: DefinitionStepIndex,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<bool> {
+    ) -> RpcResult<bool> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let can_veiw = api
             .is_attestor(
-                &at,
+                at,
                 account_id,
                 registry_id,
                 definition_id,

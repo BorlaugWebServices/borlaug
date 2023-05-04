@@ -5,6 +5,7 @@ use sc_client_api::BlockBackend;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_grandpa::SharedVoterState;
 pub use sc_executor::NativeElseWasmExecutor;
+use sc_network_common::sync::warp::WarpSyncParams;
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
@@ -186,7 +187,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
             block_announce_validator_builder: None,
-            warp_sync: Some(warp_sync),
+            warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
         })?;
 
     if config.offchain_worker.enabled {

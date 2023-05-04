@@ -10,6 +10,7 @@ mod chain_spec;
 mod service;
 mod asset_registry_rpc;
 mod audits_rpc;
+mod benchmarking;
 mod cli;
 mod command;
 mod groups_rpc;

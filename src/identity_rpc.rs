@@ -1,8 +1,12 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use codec::{Codec, Decode, Encode};
+use core::fmt::Display;
 use identity_runtime_api::IdentityApi as IdentityRuntimeApi;
-use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
-use jsonrpc_derive::rpc;
+use jsonrpsee::{
+    core::{Error as JsonRpseeError, RpcResult},
+    proc_macros::rpc,
+    types::error::{CallError, ErrorCode, ErrorObject},
+};
 use pallet_primitives::{Attestation, DidDocument, DidProperty, Fact, Statement};
 use serde::{
     Deserialize, Serialize,
@@ -18,72 +22,77 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::sync::Arc;
 
-#[rpc]
+#[rpc(client, server)]
 pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Moment> {
-    #[rpc(name = "is_catalog_owner")]
+    #[method(name = "is_catalog_owner")]
     fn is_catalog_owner(
         &self,
         account_id: AccountId,
         catalog_id: CatalogId,
         at: Option<BlockHash>,
-    ) -> Result<bool>;
+    ) -> RpcResult<bool>;
 
-    #[rpc(name = "get_catalogs")]
+    #[method(name = "get_catalogs")]
     fn get_catalogs(
         &self,
         account_id: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<CatalogResponse<CatalogId>>>;
+    ) -> RpcResult<Vec<CatalogResponse<CatalogId>>>;
 
-    #[rpc(name = "get_dids_in_catalog")]
+    #[method(name = "get_dids_in_catalog")]
     fn get_dids_in_catalog(
         &self,
         catalog_id: CatalogId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>>;
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>>;
 
-    #[rpc(name = "get_catalogs_by_did")]
-    fn get_catalogs_by_did(&self, did: Did, at: Option<BlockHash>) -> Result<Vec<CatalogId>>;
+    #[method(name = "get_catalogs_by_did")]
+    fn get_catalogs_by_did(&self, did: Did, at: Option<BlockHash>) -> RpcResult<Vec<CatalogId>>;
 
-    #[rpc(name = "get_did_in_catalog")]
+    #[method(name = "get_did_in_catalog")]
     fn get_did_in_catalog(
         &self,
         catalog_id: CatalogId,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<DidDocumentResponse<AccountId>>;
+    ) -> RpcResult<DidDocumentResponse<AccountId>>;
 
-    #[rpc(name = "is_controller")]
-    fn is_controller(&self, account_id: AccountId, did: Did, at: Option<BlockHash>)
-        -> Result<bool>;
+    #[method(name = "is_controller")]
+    fn is_controller(
+        &self,
+        account_id: AccountId,
+        did: Did,
+        at: Option<BlockHash>,
+    ) -> RpcResult<bool>;
 
-    #[rpc(name = "get_did")]
-    fn get_did(&self, did: Did, at: Option<BlockHash>) -> Result<DidDocumentResponse<AccountId>>;
+    #[method(name = "get_did")]
+    fn get_did(&self, did: Did, at: Option<BlockHash>)
+        -> RpcResult<DidDocumentResponse<AccountId>>;
 
-    #[rpc(name = "get_dids_by_subject")]
+    #[method(name = "get_dids_by_subject")]
     fn get_dids_by_subject(
         &self,
         subject: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>>;
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>>;
 
-    #[rpc(name = "get_dids_by_controller")]
+    #[method(name = "get_dids_by_controller")]
     fn get_dids_by_controller(
         &self,
         controller: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>>;
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>>;
 
-    #[rpc(name = "find_did_by_text_or_did_property")]
+    #[method(name = "find_did_by_text_or_did_property")]
     fn find_did_by_text_or_did_property(
         &self,
         catalog_id: CatalogId,
         name: String,
         filter: String,
         at: Option<BlockHash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>>;
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>>;
 
-    #[rpc(name = "find_did_by_integer_property")]
+    #[method(name = "find_did_by_integer_property")]
     fn find_did_by_integer_property(
         &self,
         catalog_id: CatalogId,
@@ -91,9 +100,9 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         min: Option<u128>,
         max: Option<u128>,
         at: Option<BlockHash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>>;
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>>;
 
-    #[rpc(name = "find_did_by_float_property")]
+    #[method(name = "find_did_by_float_property")]
     fn find_did_by_float_property(
         &self,
         catalog_id: CatalogId,
@@ -101,9 +110,9 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         min: Option<f64>,
         max: Option<f64>,
         at: Option<BlockHash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>>;
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>>;
 
-    #[rpc(name = "find_did_by_date_property")]
+    #[method(name = "find_did_by_date_property")]
     fn find_did_by_date_property(
         &self,
         catalog_id: CatalogId,
@@ -111,9 +120,9 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
         min: Option<(u16, u8, u8)>,
         max: Option<(u16, u8, u8)>,
         at: Option<BlockHash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>>;
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>>;
 
-    // #[rpc(name = "find_did_by_iso8601_property")]
+    // #[method(name = "find_did_by_iso8601_property")]
     // fn find_did_by_iso8601_property(
     //     &self,
     //     catalog_id: CatalogId,
@@ -121,80 +130,80 @@ pub trait IdentityApi<BlockHash, AccountId, CatalogId, ClaimId, MemberCount, Mom
     //     min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
     //     max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
     //     at: Option<BlockHash>,
-    // ) -> Result<Vec<DidDocumentBasicResponse>>;
+    // ) ->RpcResult<Vec<DidDocumentBasicResponse>>;
 
-    #[rpc(name = "get_claims")]
+    #[method(name = "get_claims")]
     fn get_claims(
         &self,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<Vec<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>>;
+    ) -> RpcResult<Vec<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>>;
 
-    #[rpc(name = "get_claim")]
+    #[method(name = "get_claim")]
     fn get_claim(
         &self,
         did: Did,
         claim_id: ClaimId,
         at: Option<BlockHash>,
-    ) -> Result<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>;
+    ) -> RpcResult<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>;
 
-    #[rpc(name = "get_claim_consumers")]
+    #[method(name = "get_claim_consumers")]
     fn get_claim_consumers(
         &self,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuthorizationsResponse<AccountId, Moment>>>;
+    ) -> RpcResult<Vec<AuthorizationsResponse<AccountId, Moment>>>;
 
-    #[rpc(name = "get_claim_issuers")]
+    #[method(name = "get_claim_issuers")]
     fn get_claim_issuers(
         &self,
         did: Did,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuthorizationsResponse<AccountId, Moment>>>;
+    ) -> RpcResult<Vec<AuthorizationsResponse<AccountId, Moment>>>;
 
-    #[rpc(name = "get_dids_by_consumer")]
+    #[method(name = "get_dids_by_consumer")]
     fn get_dids_by_consumer(
         &self,
         consumer: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
-    #[rpc(name = "get_dids_by_consumer_with_claims")]
+    ) -> RpcResult<Vec<AuthorizedDidResponse<Moment>>>;
+    #[method(name = "get_dids_by_consumer_with_claims")]
     fn get_dids_by_consumer_with_claims(
         &self,
         consumer: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
     >;
 
-    #[rpc(name = "get_dids_by_issuer")]
+    #[method(name = "get_dids_by_issuer")]
     fn get_dids_by_issuer(
         &self,
         issuer: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
-    #[rpc(name = "get_dids_by_issuer_with_claims")]
+    ) -> RpcResult<Vec<AuthorizedDidResponse<Moment>>>;
+    #[method(name = "get_dids_by_issuer_with_claims")]
     fn get_dids_by_issuer_with_claims(
         &self,
         issuer: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
     >;
 
-    #[rpc(name = "get_outstanding_claims")]
+    #[method(name = "get_outstanding_claims")]
     fn get_outstanding_claims(
         &self,
         consumer: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
+    ) -> RpcResult<Vec<AuthorizedDidResponse<Moment>>>;
 
-    #[rpc(name = "get_outstanding_attestations")]
+    #[method(name = "get_outstanding_attestations")]
     fn get_outstanding_attestations(
         &self,
         issuer: AccountId,
         at: Option<BlockHash>,
-    ) -> Result<Vec<AuthorizedDidResponse<Moment>>>;
+    ) -> RpcResult<Vec<AuthorizedDidResponse<Moment>>>;
 }
 
 #[derive(Encode, Default, Decode, Debug, Clone)]
@@ -798,22 +807,58 @@ impl<C, M> Identity<C, M> {
     }
 }
 
+/// Error type of this RPC api.
+pub enum Error {
+    /// The transaction was not decodable.
+    DecodeError,
+    /// The call to runtime failed.
+    RuntimeError,
+    NotFoundError,
+}
+
+impl From<Error> for i32 {
+    fn from(e: Error) -> i32 {
+        match e {
+            Error::RuntimeError => 1,
+            Error::DecodeError => 2,
+            Error::NotFoundError => 404,
+        }
+    }
+}
+
+static RPC_MODULE: &str = "Identity API";
+
 macro_rules! convert_error {
     () => {{
-        |e| RpcError {
-            code: ErrorCode::ServerError(1),
-            message: "Error in Identity API".into(),
-            data: Some(format!("{:?}", e).into()),
+        |e| {
+            CallError::Custom(ErrorObject::owned(
+                Error::RuntimeError.into(),
+                format!("Runtime Error in {}", RPC_MODULE),
+                Some(format!("{:?}", e)),
+            ))
         }
     }};
 }
 
+// macro_rules! decode_error {
+//     () => {{
+//         |e| {
+//             CallError::Custom(ErrorObject::owned(
+//                 Error::DecodeError.into(),
+//                 format!("Decode Error in {}", RPC_MODULE),
+//                 Some(format!("{:?}", e)),
+//             ))
+//         }
+//     }};
+// }
 macro_rules! not_found_error {
-    () => {{
-        RpcError {
-            code: ErrorCode::ServerError(404),
-            message: "Entity not found".into(),
-            data: Some("Entity not found".into()),
+    ($id:expr) => {{
+        {
+            CallError::Custom(ErrorObject::owned(
+                Error::NotFoundError.into(),
+                format!("Entity not found Error in {}", RPC_MODULE),
+                Some(format!("{}", $id)),
+            ))
         }
     }};
 }
@@ -828,7 +873,7 @@ impl<
         Moment,
         BoundedStringName,
         BoundedStringFact,
-    > IdentityApi<<Block as BlockT>::Hash, AccountId, CatalogId, ClaimId, MemberCount, Moment>
+    > IdentityApiServer<<Block as BlockT>::Hash, AccountId, CatalogId, ClaimId, MemberCount, Moment>
     for Identity<
         C,
         (
@@ -856,10 +901,10 @@ where
         BoundedStringName,
         BoundedStringFact,
     >,
-    AccountId: Codec + Send + Sync + 'static,
-    CatalogId: Codec + Copy + Send + Sync + 'static,
-    ClaimId: Codec + Copy + Send + Sync + 'static,
-    MemberCount: Codec + Copy + Send + Sync + 'static,
+    AccountId: Codec + Send + Sync + 'static + Display,
+    CatalogId: Codec + Copy + Send + Sync + 'static + Display,
+    ClaimId: Codec + Copy + Send + Sync + 'static + Display,
+    MemberCount: Codec + Copy + Send + Sync + 'static + Display,
     Moment: Codec + Copy + Send + Sync + 'static,
     BoundedStringName: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
     BoundedStringFact: Codec + Clone + Send + Sync + 'static + Into<Vec<u8>>,
@@ -869,12 +914,12 @@ where
         account_id: AccountId,
         catalog_id: CatalogId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<bool> {
+    ) -> RpcResult<bool> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let is_owner = api
-            .is_catalog_owner(&at, account_id, catalog_id)
+            .is_catalog_owner(at, account_id, catalog_id)
             .map_err(convert_error!())?;
         Ok(is_owner)
     }
@@ -883,13 +928,11 @@ where
         &self,
         account_id: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<CatalogResponse<CatalogId>>> {
+    ) -> RpcResult<Vec<CatalogResponse<CatalogId>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
-        let catalogs = api
-            .get_catalogs(&at, account_id)
-            .map_err(convert_error!())?;
+        let catalogs = api.get_catalogs(at, account_id).map_err(convert_error!())?;
         Ok(catalogs
             .into_iter()
             .map(|catalog_id| CatalogResponse { catalog_id })
@@ -900,12 +943,12 @@ where
         &self,
         catalog_id: CatalogId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>> {
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_dids_in_catalog(&at, catalog_id)
+            .get_dids_in_catalog(at, catalog_id)
             .map_err(convert_error!())?;
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }
@@ -914,12 +957,12 @@ where
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<CatalogId>> {
+    ) -> RpcResult<Vec<CatalogId>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let catalogs = api
-            .get_catalogs_by_did(&at, did.into())
+            .get_catalogs_by_did(at, did.into())
             .map_err(convert_error!())?;
         Ok(catalogs)
     }
@@ -929,14 +972,14 @@ where
         catalog_id: CatalogId,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<DidDocumentResponse<AccountId>> {
+    ) -> RpcResult<DidDocumentResponse<AccountId>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let (did_document, properties, controllers) = api
-            .get_did_in_catalog(&at, catalog_id, did.into())
+            .get_did_in_catalog(at, catalog_id, did.clone().into())
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(did))?;
         Ok((did_document, properties, controllers).into())
     }
 
@@ -945,12 +988,12 @@ where
         account_id: AccountId,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<bool> {
+    ) -> RpcResult<bool> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let is_controller = api
-            .is_controller(&at, account_id, did.into())
+            .is_controller(at, account_id, did.into())
             .map_err(convert_error!())?;
         Ok(is_controller)
     }
@@ -959,14 +1002,14 @@ where
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<DidDocumentResponse<AccountId>> {
+    ) -> RpcResult<DidDocumentResponse<AccountId>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let (did_document, properties, controllers) = api
-            .get_did(&at, did.into())
+            .get_did(at, did.clone().into())
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(did))?;
         Ok((did_document, properties, controllers).into())
     }
 
@@ -974,12 +1017,12 @@ where
         &self,
         subject: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>> {
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_dids_by_subject(&at, subject)
+            .get_dids_by_subject(at, subject)
             .map_err(convert_error!())?;
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }
@@ -988,12 +1031,12 @@ where
         &self,
         controller: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>> {
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_dids_by_controller(&at, controller)
+            .get_dids_by_controller(at, controller)
             .map_err(convert_error!())?;
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }
@@ -1004,12 +1047,12 @@ where
         name: String,
         filter: String,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>> {
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .find_did_by_text_or_did_property(&at, catalog_id, name.into(), filter.into())
+            .find_did_by_text_or_did_property(at, catalog_id, name.into(), filter.into())
             .map_err(convert_error!())?;
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }
@@ -1021,12 +1064,12 @@ where
         min: Option<u128>,
         max: Option<u128>,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>> {
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .find_did_by_integer_property(&at, catalog_id, name.into(), min, max)
+            .find_did_by_integer_property(at, catalog_id, name.into(), min, max)
             .map_err(convert_error!())?;
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }
@@ -1038,13 +1081,13 @@ where
         min: Option<f64>,
         max: Option<f64>,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>> {
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
             .find_did_by_float_property(
-                &at,
+                at,
                 catalog_id,
                 name.into(),
                 min.map(|min| f64::to_le_bytes(min)),
@@ -1061,12 +1104,12 @@ where
         min: Option<(u16, u8, u8)>,
         max: Option<(u16, u8, u8)>,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<DidDocumentBasicResponse>> {
+    ) -> RpcResult<Vec<DidDocumentBasicResponse>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .find_did_by_date_property(&at, catalog_id, name.into(), min, max)
+            .find_did_by_date_property(at, catalog_id, name.into(), min, max)
             .map_err(convert_error!())?;
         Ok(dids.into_iter().map(|did| did.into()).collect())
     }
@@ -1078,12 +1121,12 @@ where
     //     min: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
     //     max: Option<(u16, u8, u8, u8, u8, u8, Vec<u8>)>,
     //     at: Option<<Block as BlockT>::Hash>,
-    // ) -> Result<Vec<DidDocumentBasicResponse>> {
+    // ) ->RpcResult<Vec<DidDocumentBasicResponse>> {
     //     let api = self.client.runtime_api();
-    //     let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+    //     let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
     //     let dids = api
-    //         .find_did_by_iso8601_property(&at, catalog_id, name.into(), min, max)
+    //         .find_did_by_iso8601_property(at, catalog_id, name.into(), min, max)
     //         .map_err(convert_error!())?;
     //     Ok(dids.into_iter().map(|did| did.into()).collect())
     // }
@@ -1092,11 +1135,11 @@ where
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>> {
+    ) -> RpcResult<Vec<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
-        let claims = api.get_claims(&at, did.into()).map_err(convert_error!())?;
+        let claims = api.get_claims(at, did.into()).map_err(convert_error!())?;
         Ok(claims
             .into_iter()
             .map(|(claim_id, claim)| (claim_id, claim).into())
@@ -1108,14 +1151,14 @@ where
         did: Did,
         claim_id: ClaimId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>> {
+    ) -> RpcResult<ClaimResponse<ClaimId, AccountId, MemberCount, Moment>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let claim = api
-            .get_claim(&at, did.into(), claim_id)
+            .get_claim(at, did.into(), claim_id)
             .map_err(convert_error!())?
-            .ok_or(not_found_error!())?;
+            .ok_or(not_found_error!(claim_id))?;
         Ok((claim_id, claim).into())
     }
 
@@ -1123,12 +1166,12 @@ where
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuthorizationsResponse<AccountId, Moment>>> {
+    ) -> RpcResult<Vec<AuthorizationsResponse<AccountId, Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let claim_consumers = api
-            .get_claim_consumers(&at, did.into())
+            .get_claim_consumers(at, did.into())
             .map_err(convert_error!())?;
         Ok(claim_consumers
             .into_iter()
@@ -1145,12 +1188,12 @@ where
         &self,
         did: Did,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuthorizationsResponse<AccountId, Moment>>> {
+    ) -> RpcResult<Vec<AuthorizationsResponse<AccountId, Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let claim_issuers = api
-            .get_claim_issuers(&at, did.into())
+            .get_claim_issuers(at, did.into())
             .map_err(convert_error!())?;
         Ok(claim_issuers
             .into_iter()
@@ -1167,12 +1210,12 @@ where
         &self,
         consumer: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuthorizedDidResponse<Moment>>> {
+    ) -> RpcResult<Vec<AuthorizedDidResponse<Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_dids_by_consumer(&at, consumer)
+            .get_dids_by_consumer(at, consumer)
             .map_err(convert_error!())?;
         Ok(dids
             .into_iter()
@@ -1184,37 +1227,35 @@ where
         &self,
         consumer: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_dids_by_consumer(&at, consumer)
+            .get_dids_by_consumer(at, consumer)
             .map_err(convert_error!())?;
 
         dids.into_iter()
             .map(|(did, expiry)| {
-                let catalogs = api
-                    .get_catalogs_by_did(&at, did)
-                    .map_err(convert_error!())?;
-                let claims = api.get_claims(&at, did).map_err(convert_error!())?;
+                let catalogs = api.get_catalogs_by_did(at, did).map_err(convert_error!())?;
+                let claims = api.get_claims(at, did).map_err(convert_error!())?;
                 Ok((did, catalogs, expiry, claims).into())
             })
-            .collect::<Result<Vec<_>>>()
+            .collect::<RpcResult<Vec<_>>>()
     }
 
     fn get_dids_by_issuer(
         &self,
         issuer: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuthorizedDidResponse<Moment>>> {
+    ) -> RpcResult<Vec<AuthorizedDidResponse<Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_dids_by_issuer(&at, issuer)
+            .get_dids_by_issuer(at, issuer)
             .map_err(convert_error!())?;
         Ok(dids
             .into_iter()
@@ -1226,36 +1267,34 @@ where
         &self,
         issuer: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<
+    ) -> RpcResult<
         Vec<AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment>>,
     > {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_dids_by_issuer(&at, issuer)
+            .get_dids_by_issuer(at, issuer)
             .map_err(convert_error!())?;
         dids.into_iter()
             .map(|(did, expiry)| {
-                let catalogs = api
-                    .get_catalogs_by_did(&at, did)
-                    .map_err(convert_error!())?;
-                let claims = api.get_claims(&at, did).map_err(convert_error!())?;
+                let catalogs = api.get_catalogs_by_did(at, did).map_err(convert_error!())?;
+                let claims = api.get_claims(at, did).map_err(convert_error!())?;
                 Ok((did, catalogs, expiry, claims).into())
             })
-            .collect::<Result<Vec<_>>>()
+            .collect::<RpcResult<Vec<_>>>()
     }
 
     fn get_outstanding_claims(
         &self,
         consumer: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuthorizedDidResponse<Moment>>> {
+    ) -> RpcResult<Vec<AuthorizedDidResponse<Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_outstanding_claims(&at, consumer)
+            .get_outstanding_claims(at, consumer)
             .map_err(convert_error!())?;
         Ok(dids
             .into_iter()
@@ -1267,12 +1306,12 @@ where
         &self,
         issuer: AccountId,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<Vec<AuthorizedDidResponse<Moment>>> {
+    ) -> RpcResult<Vec<AuthorizedDidResponse<Moment>>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let dids = api
-            .get_outstanding_attestations(&at, issuer)
+            .get_outstanding_attestations(at, issuer)
             .map_err(convert_error!())?;
         Ok(dids
             .into_iter()

@@ -26,8 +26,8 @@ pub use frame_support::{
     dispatch::DispatchClass,
     parameter_types,
     traits::{
-        ConstU32, Currency, Imbalance, InstanceFilter, KeyOwnerProofSystem, OnUnbalanced,
-        Randomness, U128CurrencyToVote,
+        ConstU128, ConstU32, ConstU64, Currency, Imbalance, InstanceFilter, KeyOwnerProofSystem,
+        OnUnbalanced, Randomness, U128CurrencyToVote,
     },
     traits::{EitherOfDiverse, Get},
     weights::{
@@ -42,7 +42,6 @@ use frame_system::{
     limits::{BlockLength, BlockWeights},
     EnsureRoot, EnsureSigned, EnsureWithSuccess,
 };
-pub use pallet_balances::Call as BalancesCall;
 #[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 #[cfg(feature = "grandpa_babe")]
@@ -51,7 +50,9 @@ use pallet_primitives::*;
 #[cfg(feature = "grandpa_babe")]
 use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
-pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
+pub use pallet_transaction_payment::{
+    CurrencyAdapter, FeeDetails, Multiplier, RuntimeDispatchInfo, TargetedFeeAdjustment,
+};
 use primitives::{
     AccountId, AssetId, AuditId, Balance, BlockNumber, BoundedStringFact, BoundedStringName,
     CatalogId, ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId,
@@ -84,14 +85,20 @@ use sp_runtime::{
 #[cfg(feature = "grandpa_aura")]
 use sp_runtime::{impl_opaque_keys, traits::NumberFor};
 use sp_std::prelude::*;
+#[cfg(any(feature = "std", test))]
+use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 #[cfg(any(feature = "std", test))]
+pub use frame_system::Call as SystemCall;
+#[cfg(any(feature = "std", test))]
+pub use pallet_balances::Call as BalancesCall;
+#[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
 #[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
+pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
-use sp_version::NativeVersion;
+pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
 use constants::{currency::*, time::*};
@@ -112,6 +119,8 @@ pub mod opaque {
 
     /// Opaque block header type.
     pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+    /// Opaque block type.
+    pub type Block = generic::Block<Header, UncheckedExtrinsic>;
     /// Opaque block identifier type.
     pub type BlockId = generic::BlockId<Block>;
 
@@ -342,6 +351,7 @@ where
             .saturating_sub(1);
         let era = Era::mortal(period, current_block);
         let extra = (
+            frame_system::CheckNonZeroSender::<Runtime>::new(),
             frame_system::CheckSpecVersion::<Runtime>::new(),
             frame_system::CheckTxVersion::<Runtime>::new(),
             frame_system::CheckGenesis::<Runtime>::new(),
@@ -377,23 +387,31 @@ where
     type OverarchingCall = RuntimeCall;
 }
 
+#[cfg(feature = "grandpa_babe")]
 parameter_types! {
     pub const MaxAuthorities: u32 = 100;
+    pub const MaxSetIdSessionEntries: u32 = BondingDuration::get() * SessionsPerEra::get();
 }
 
-#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
+#[cfg(feature = "grandpa_babe")]
 impl pallet_grandpa::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type KeyOwnerProofSystem = ();
-    type KeyOwnerProof =
-        <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
-    type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-        KeyTypeId,
-        GrandpaId,
-    )>>::IdentificationTuple;
-    type HandleEquivocation = ();
     type WeightInfo = ();
     type MaxAuthorities = MaxAuthorities;
+    type MaxSetIdSessionEntries = MaxSetIdSessionEntries;
+    type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+    type EquivocationReportSystem =
+        pallet_grandpa::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
+}
+
+#[cfg(feature = "grandpa_aura")]
+impl pallet_grandpa::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
+    type MaxAuthorities = ConstU32<32>;
+    type MaxSetIdSessionEntries = ConstU64<0>;
+    type KeyOwnerProof = sp_core::Void;
+    type EquivocationReportSystem = ();
 }
 
 parameter_types! {
@@ -417,25 +435,28 @@ parameter_types! {
     pub const UncleGenerations: BlockNumber = 5;
 }
 
+#[cfg(feature = "grandpa_babe")]
 impl pallet_authorship::Config for Runtime {
-    #[cfg(feature = "grandpa_babe")]
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
-    #[cfg(any(feature = "grandpa_aura", feature = "instant_seal"))]
-    type FindAuthor = ();
-    type UncleGenerations = UncleGenerations;
-    type FilterUncle = ();
-    #[cfg(feature = "grandpa_babe")]
     type EventHandler = (Staking, ImOnline);
-    #[cfg(any(feature = "grandpa_aura", feature = "instant_seal"))]
+}
+#[cfg(any(feature = "grandpa_aura", feature = "instant_seal"))]
+impl pallet_authorship::Config for Runtime {
+    type FindAuthor = ();
     type EventHandler = ();
 }
 
+pub const EXISTENTIAL_DEPOSIT: u128 = 500;
+
 parameter_types! {
-    pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
     pub const MaxReserves: u32 = 50;
 }
 
+/// A reason for placing a hold on funds.
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, Debug, TypeInfo,
+)]
 pub enum HoldReason {
     /// The NIS Pallet has reserved it for a non-fungible receipt.
     Nis,
@@ -448,9 +469,13 @@ impl pallet_balances::Config for Runtime {
     type Balance = Balance;
     type DustRemoval = ();
     type RuntimeEvent = RuntimeEvent;
-    type ExistentialDeposit = ExistentialDeposit;
+    type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
     type AccountStore = frame_system::Pallet<Runtime>;
     type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
+    type FreezeIdentifier = ();
+    type MaxFreezes = ();
+    type HoldIdentifier = HoldReason;
+    type MaxHolds = ConstU32<1>;
 }
 
 parameter_types! {
@@ -732,18 +757,21 @@ parameter_types! {
     pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
     pub const CouncilMaxProposals: u32 = 100;
     pub const CouncilMaxMembers: u32 = 100;
+    // pub MaxCollectivesProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
 impl pallet_collective::Config<CouncilCollective> for Runtime {
-    type RuntimeEvent = RuntimeEvent;
     type RuntimeOrigin = RuntimeOrigin;
     type Proposal = RuntimeCall;
+    type RuntimeEvent = RuntimeEvent;
     type MotionDuration = CouncilMotionDuration;
     type MaxProposals = CouncilMaxProposals;
     type MaxMembers = CouncilMaxMembers;
     type DefaultVote = pallet_collective::PrimeDefaultVote;
     type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+    type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+    // type MaxProposalWeight = MaxCollectivesProposalWeight;
 }
 
 parameter_types! {
@@ -945,7 +973,7 @@ impl provenance::Config for Runtime {
     type GetExtrinsicExtraSource = Settings;
 }
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 #[cfg(feature = "grandpa_babe")]
 construct_runtime!(
@@ -955,7 +983,7 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>} ,
-        CollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
+        CollectiveFlip: pallet_insecure_randomness_collective_flip::{Pallet, Storage},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
@@ -1003,10 +1031,10 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>} ,
-        CollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
+        CollectiveFlip: pallet_insecure_randomness_collective_flip::{Pallet, Storage},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+        Authorship: pallet_authorship::{Pallet,  Storage},
         // Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
         // Historical: pallet_session_historical::{Pallet},
         Aura: pallet_aura::{Pallet, Config<T>},
@@ -1044,7 +1072,7 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        CollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
+        CollectiveFlip: pallet_insecure_randomness_collective_flip::{Pallet, Storage},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
@@ -1087,6 +1115,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
+    frame_system::CheckNonZeroSender<Runtime>,
     frame_system::CheckSpecVersion<Runtime>,
     frame_system::CheckTxVersion<Runtime>,
     frame_system::CheckGenesis<Runtime>,
@@ -1134,6 +1163,13 @@ impl_runtime_apis! {
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
             OpaqueMetadata::new(Runtime::metadata().into())
+        }
+        fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+            Runtime::metadata_at_version(version)
+        }
+
+        fn metadata_versions() -> sp_std::vec::Vec<u32> {
+            Runtime::metadata_versions()
         }
     }
 
@@ -1560,18 +1596,21 @@ impl_runtime_apis! {
             Settings::get_extrinsic_extras()
         }
     }
-    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
-        fn query_info(
-            uxt: <Block as BlockT>::Extrinsic,
-            len: u32,
-        ) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
+    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
+        Block,
+        Balance,
+    > for Runtime {
+        fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
             TransactionPayment::query_info(uxt, len)
         }
-        fn query_fee_details(
-            uxt: <Block as BlockT>::Extrinsic,
-            len: u32,
-        ) -> pallet_transaction_payment::FeeDetails<Balance> {
+        fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
             TransactionPayment::query_fee_details(uxt, len)
+        }
+        fn query_weight_to_fee(weight: Weight) -> Balance {
+            TransactionPayment::weight_to_fee(weight)
+        }
+        fn query_length_to_fee(length: u32) -> Balance {
+            TransactionPayment::length_to_fee(length)
         }
     }
 

@@ -72,109 +72,109 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn create_group(_a: u32, _m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_group(_a: u32, _n: u32, _o: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_sub_group(_a: u32, _m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_sub_group(_a: u32, _n: u32, _o: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_group(_m: u32, _p: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_sub_group(_m: u32, _p: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn execute(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn propose_execute(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn propose_proposed(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn vote(_m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn close_disapproved(_m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn close_approved(_a: u32, _m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn veto_disapproved() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn veto_approved(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn withdraw_funds_group() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn withdraw_funds_sub_group() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn send_funds_to_sub_group() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
     fn create_group(_a: u32, _m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_group(_a: u32, _n: u32, _o: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_sub_group(_a: u32, _m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn update_sub_group(_a: u32, _n: u32, _o: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_group(_m: u32, _p: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn remove_sub_group(_m: u32, _p: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn execute(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn propose_execute(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn propose_proposed(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn vote(_m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn close_disapproved(_m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn close_approved(_a: u32, _m: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn veto_disapproved() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn veto_approved(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn withdraw_funds_group() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn withdraw_funds_sub_group() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn send_funds_to_sub_group() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }

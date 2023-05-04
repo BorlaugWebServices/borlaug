@@ -142,7 +142,6 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     #[pallet::genesis_config]
@@ -214,6 +213,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `new_coefficents` new polinomial coefficients
+        #[pallet::call_index(0)]
         #[pallet::weight(<T as Config>::WeightInfo::set_weight_to_fee_coefficients(
             new_coefficents.len() as u32
         ))]
@@ -246,6 +246,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `new_fee` new transaction byte fee
+        #[pallet::call_index(1)]
         #[pallet::weight(<T as Config>::WeightInfo::set_transaction_byte_fee())]
         pub fn set_transaction_byte_fee(
             origin: OriginFor<T>,
@@ -264,6 +265,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `new_ratio` new Fee Split Ratio as an integer 0..100 inclusive. This number represents the percentage going to the Treasury. Remainder goes to block author.
+        #[pallet::call_index(2)]
         #[pallet::weight(<T as Config>::WeightInfo::set_fee_split_ratio())]
         pub fn set_fee_split_ratio(
             origin: OriginFor<T>,
@@ -286,6 +288,7 @@ pub mod pallet {
         /// - `module_index` module of the extrinsic. See module code for indicies.
         /// - `extrinsic_index` index of the extrinsic within the module. See module code for indicies.
         /// - `extra` fee to be charged for calling the extrinsic.
+        #[pallet::call_index(3)]
         #[pallet::weight(<T as Config>::WeightInfo::set_extrinsic_extra())]
         pub fn set_extrinsic_extra(
             origin: OriginFor<T>,
@@ -310,6 +313,7 @@ pub mod pallet {
         /// Arguments:
         /// - `module_index` module of the extrinsic. See module code for indicies.
         /// - `extrinsic_index` index of the extrinsic within the module. See module code for indicies.
+        #[pallet::call_index(4)]
         #[pallet::weight(<T as Config>::WeightInfo::remove_extrinsic_extra())]
         pub fn remove_extrinsic_extra(
             origin: OriginFor<T>,

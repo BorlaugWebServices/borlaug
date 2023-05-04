@@ -463,7 +463,6 @@ pub mod pallet {
     #[pallet::pallet]
     //TODO: is this correct
     #[pallet::without_storage_info]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
@@ -604,6 +603,7 @@ pub mod pallet {
         /// - `members`: The members of the group. If there are duplicates the last one will be used.
         /// - `threshold`: The threshold number of votes required to make modifications to the group.
         /// - `initial_balance`: The initial GRAMs to transfer from the sender to the group account to be used for calling extrinsics by the group.
+        #[pallet::call_index(0)]
         #[pallet::weight(
             T::WeightInfo::create_group(
                 name.len() as u32,
@@ -675,7 +675,7 @@ pub mod pallet {
         /// - `name`: New group name
         /// - `add_members`: Add new members or overwrite existing member weights.
         /// - `threshold`: New threshold
-
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::update_group(
             name.as_ref().map_or(0,|a|a.len()) as u32,
             add_members.as_ref().map_or(0,|a|a.len()) as u32,
@@ -731,7 +731,7 @@ pub mod pallet {
         /// - `members`: The members of the group. Sender is automatically added to members if not already included.
         /// - `threshold`: The threshold number of votes required to make modifications to the group.
         /// - `initial_balance`: The initial GRAMs to transfer from the sender to the group account to be used for calling extrinsics by the group.
-
+        #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::create_sub_group(
             name.len() as u32,
             members.len() as u32,
@@ -802,8 +802,8 @@ pub mod pallet {
         /// - `sub_group_id`: Group to be updated
         /// - `name`: New group name
         /// - `members`: New set of members. Old set will be overwritten, so sender should ensure they are included if desired.
-
         /// - `threshold`: New threshold
+        #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::update_sub_group(
             name.as_ref().map_or(0,|a|a.len()) as u32,
             add_members.as_ref().map_or(0,|a|a.len()) as u32,
@@ -860,7 +860,7 @@ pub mod pallet {
         ///
         /// - `group_id`: Group to be updated
         /// - `return_funds_too`: account to transfer remaining group funds to
-
+        #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::remove_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
         pub fn remove_group(
             origin: OriginFor<T>,
@@ -909,7 +909,7 @@ pub mod pallet {
         /// Remove a Sub-group. Remove all child groups first. Can only be called via a proposal from any group in the parent chain. Funds returned to immediate parent.
         ///
         /// - `sub_group_id`: Group to be updated
-
+        #[pallet::call_index(5)]
         #[pallet::weight(T::WeightInfo::remove_sub_group(T::MaxMembers::get().into(),T::MaxProposals::get()))]
         pub fn remove_sub_group(
             origin: OriginFor<T>,
@@ -969,6 +969,7 @@ pub mod pallet {
         /// - `group_id`: Group executing the extrinsic
         /// - `proposal`: Proposal to be executed
         /// - `length_bound`: The length of the Proposal for weight estimation
+        #[pallet::call_index(6)]
         #[pallet::weight(T::WeightInfo::execute(
             *length_bound as u32
         ).saturating_add(proposal.get_dispatch_info().weight))]
@@ -1018,7 +1019,7 @@ pub mod pallet {
         /// - `proposal`: Proposal to be executed
         /// - `threshold`: Declaration of the threshold required - will be checked by the extrinsic after approval.
         /// - `length_bound`: The length of the Proposal for weight estimation
-
+        #[pallet::call_index(7)]
         #[pallet::weight(
             if *threshold == 1u32.into() {
                 T::WeightInfo::propose_execute(
@@ -1111,6 +1112,7 @@ pub mod pallet {
         /// - `group_id`: Group executing the extrinsic
         /// - `proposal_id`: Proposal to be voted on
         /// - `approve`: approval.
+        #[pallet::call_index(8)]
         #[pallet::weight(T::WeightInfo::vote(
             T::MaxMembers::get().into()
         ))]
@@ -1193,6 +1195,7 @@ pub mod pallet {
         /// - `proposal_weight_bound`: maximum expected weight of the proposal.
         /// - `length_bound`: length of the proposal.
         // #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        #[pallet::call_index(9)]
         #[pallet::weight(	{
             let a = *length_bound;
             let m = T::MaxMembers::get().into();
@@ -1306,6 +1309,7 @@ pub mod pallet {
         /// - `approve`: approval.
         /// - `proposal_weight_bound`: maximum expected weight of the proposal.
         /// - `length_bound`: length of the proposal.
+        #[pallet::call_index(10)]
         #[allow(clippy::needless_return)]
         #[pallet::weight(	{
             let a = *length_bound;
@@ -1396,9 +1400,8 @@ pub mod pallet {
         ///
         /// - `target_account`: account to withdraw the funds to
         /// - `amount`: amount to withdraw
-
+        #[pallet::call_index(11)]
         #[pallet::weight(T::WeightInfo::withdraw_funds_group())]
-
         pub fn withdraw_funds_group(
             origin: OriginFor<T>,
             target_account: T::AccountId,
@@ -1431,8 +1434,8 @@ pub mod pallet {
 
         /// - `sub_group_id`: Subgroup to withdraw funds from
         /// - `amount`: amount to withdraw
+        #[pallet::call_index(12)]
         #[pallet::weight(T::WeightInfo::withdraw_funds_sub_group())]
-
         pub fn withdraw_funds_sub_group(
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,
@@ -1471,8 +1474,8 @@ pub mod pallet {
         /// - `sub_group_id`: Subgroup to deposit funds to
 
         /// - `amount`: amount to send
+        #[pallet::call_index(13)]
         #[pallet::weight(T::WeightInfo::send_funds_to_sub_group())]
-
         pub fn send_funds_to_sub_group(
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,

@@ -1,6 +1,9 @@
 use codec::Codec;
-use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
-use jsonrpc_derive::rpc;
+use jsonrpsee::{
+    core::{Error as JsonRpseeError, RpcResult},
+    proc_macros::rpc,
+    types::error::{CallError, ErrorCode, ErrorObject},
+};
 use serde::{Deserialize, Serialize};
 use settings_runtime_api::SettingsApi as SettingsRuntimeApi;
 use sp_api::ProvideRuntimeApi;
@@ -12,33 +15,35 @@ use sp_runtime::{
 };
 use std::sync::Arc;
 
-#[rpc]
+#[rpc(client, server)]
 pub trait SettingsApi<BlockHash, ModuleIndex, ExtrinsicIndex, Balance> {
-    #[rpc(name = "get_weight_to_fee_coefficients")]
+    #[method(name = "get_weight_to_fee_coefficients")]
     fn get_weight_to_fee_coefficients(
         &self,
         at: Option<BlockHash>,
-    ) -> Result<WeightToFeeCoefficientsResponse>;
+    ) -> RpcResult<WeightToFeeCoefficientsResponse>;
 
-    #[rpc(name = "get_transaction_byte_fee")]
-    fn get_transaction_byte_fee(&self, at: Option<BlockHash>)
-        -> Result<TransactionByteFeeResponse>;
+    #[method(name = "get_transaction_byte_fee")]
+    fn get_transaction_byte_fee(
+        &self,
+        at: Option<BlockHash>,
+    ) -> RpcResult<TransactionByteFeeResponse>;
 
-    #[rpc(name = "get_fee_split_ratio")]
-    fn get_fee_split_ratio(&self, at: Option<BlockHash>) -> Result<FeeSplitRatioResponse>;
+    #[method(name = "get_fee_split_ratio")]
+    fn get_fee_split_ratio(&self, at: Option<BlockHash>) -> RpcResult<FeeSplitRatioResponse>;
 
-    #[rpc(name = "get_extrinsic_extra")]
+    #[method(name = "get_extrinsic_extra")]
     fn get_extrinsic_extra(
         &self,
         module_index: ModuleIndex,
         extrinsic_index: ExtrinsicIndex,
         at: Option<BlockHash>,
-    ) -> Result<ExtrinsicExtraResponse>;
-    #[rpc(name = "get_extrinsic_extras")]
+    ) -> RpcResult<ExtrinsicExtraResponse>;
+    #[method(name = "get_extrinsic_extras")]
     fn get_extrinsic_extras(
         &self,
         at: Option<BlockHash>,
-    ) -> Result<ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex>>;
+    ) -> RpcResult<ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex>>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -85,18 +90,53 @@ impl<C, M> Settings<C, M> {
     }
 }
 
+/// Error type of this RPC api.
+pub enum Error {
+    /// The transaction was not decodable.
+    DecodeError,
+    /// The call to runtime failed.
+    RuntimeError,
+    NotFoundError,
+}
+
+impl From<Error> for i32 {
+    fn from(e: Error) -> i32 {
+        match e {
+            Error::RuntimeError => 1,
+            Error::DecodeError => 2,
+            Error::NotFoundError => 404,
+        }
+    }
+}
+
+static RPC_MODULE: &str = "Settings API";
+
 macro_rules! convert_error {
     () => {{
-        |e| RpcError {
-            code: ErrorCode::ServerError(1),
-            message: "Error in Settings API".into(),
-            data: Some(format!("{:?}", e).into()),
+        |e| {
+            CallError::Custom(ErrorObject::owned(
+                Error::RuntimeError.into(),
+                format!("Runtime Error in {}", RPC_MODULE),
+                Some(format!("{:?}", e)),
+            ))
         }
     }};
 }
 
+// macro_rules! decode_error {
+//     () => {{
+//         |e| {
+//             CallError::Custom(ErrorObject::owned(
+//                 Error::DecodeError.into(),
+//                 format!("Decode Error in {}", RPC_MODULE),
+//                 Some(format!("{:?}", e)),
+//             ))
+//         }
+//     }};
+// }
+
 impl<C, Block, ModuleIndex, ExtrinsicIndex, Balance>
-    SettingsApi<<Block as BlockT>::Hash, ModuleIndex, ExtrinsicIndex, Balance>
+    SettingsApiServer<<Block as BlockT>::Hash, ModuleIndex, ExtrinsicIndex, Balance>
     for Settings<C, (Block, ModuleIndex, ExtrinsicIndex, Balance)>
 where
     Block: BlockT,
@@ -111,14 +151,12 @@ where
     fn get_weight_to_fee_coefficients(
         &self,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<WeightToFeeCoefficientsResponse> {
+    ) -> RpcResult<WeightToFeeCoefficientsResponse> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(||
-            // If the block hash is not supplied assume the best block.
-            self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let weight_to_fee_coefficients = api
-            .get_weight_to_fee_coefficients(&at)
+            .get_weight_to_fee_coefficients(at)
             .map_err(convert_error!())?;
 
         Ok(WeightToFeeCoefficientsResponse {
@@ -129,15 +167,11 @@ where
     fn get_transaction_byte_fee(
         &self,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<TransactionByteFeeResponse> {
+    ) -> RpcResult<TransactionByteFeeResponse> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(||
-            // If the block hash is not supplied assume the best block.
-            self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
-        let transaction_byte_fee = api
-            .get_transaction_byte_fee(&at)
-            .map_err(convert_error!())?;
+        let transaction_byte_fee = api.get_transaction_byte_fee(at).map_err(convert_error!())?;
         Ok(TransactionByteFeeResponse {
             transaction_byte_fee: transaction_byte_fee.unique_saturated_into(),
         })
@@ -146,13 +180,11 @@ where
     fn get_fee_split_ratio(
         &self,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<FeeSplitRatioResponse> {
+    ) -> RpcResult<FeeSplitRatioResponse> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(||
-            // If the block hash is not supplied assume the best block.
-            self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
-        let fee_split_ratio = api.get_fee_split_ratio(&at).map_err(convert_error!())?;
+        let fee_split_ratio = api.get_fee_split_ratio(at).map_err(convert_error!())?;
         Ok(FeeSplitRatioResponse { fee_split_ratio })
     }
 
@@ -161,12 +193,12 @@ where
         module_index: ModuleIndex,
         extrinsic_index: ExtrinsicIndex,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ExtrinsicExtraResponse> {
+    ) -> RpcResult<ExtrinsicExtraResponse> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
         let fee = api
-            .get_extrinsic_extra(&at, module_index, extrinsic_index)
+            .get_extrinsic_extra(at, module_index, extrinsic_index)
             .map_err(convert_error!())?;
 
         Ok(ExtrinsicExtraResponse {
@@ -177,11 +209,11 @@ where
     fn get_extrinsic_extras(
         &self,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex>> {
+    ) -> RpcResult<ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex>> {
         let api = self.client.runtime_api();
-        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+        let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
-        let fees = api.get_extrinsic_extras(&at).map_err(convert_error!())?;
+        let fees = api.get_extrinsic_extras(at).map_err(convert_error!())?;
 
         Ok(ExtrinsicExtrasResponse {
             fees: fees

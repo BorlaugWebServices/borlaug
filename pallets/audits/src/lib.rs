@@ -278,7 +278,6 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
@@ -455,6 +454,7 @@ pub mod pallet {
         /// Arguments:
         /// `auditing_org` : account_id of the auditing_org (can be an individual account or a group)
         /// `unique_ref` : a reference to ensure that proposals remain unique.
+        #[pallet::call_index(0)]
         #[pallet::weight(<T as Config>::WeightInfo::create_audit())]
         pub fn create_audit(
             origin: OriginFor<T>,
@@ -493,6 +493,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `audit_id`
+        #[pallet::call_index(1)]
         #[pallet::weight(<T as Config>::WeightInfo::delete_audit())]
         pub fn delete_audit(
             origin: OriginFor<T>,
@@ -523,6 +524,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `audit_id`
+        #[pallet::call_index(2)]
         #[pallet::weight(<T as Config>::WeightInfo::accept_audit())]
         pub fn accept_audit(
             origin: OriginFor<T>,
@@ -552,7 +554,7 @@ pub mod pallet {
         /// Arguments:
         /// - `audit_id` the Audit
         /// - `auditors` the account or group account of the auditors that will create observations/evidence
-
+        #[pallet::call_index(3)]
         #[pallet::weight(<T as Config>::WeightInfo::assign_auditors_initial_assign().max(<T as Config>::WeightInfo::assign_auditors_replace()))]
         pub fn assign_auditors(
             origin: OriginFor<T>,
@@ -601,6 +603,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `audit_id`
+        #[pallet::call_index(4)]
         #[pallet::weight(<T as Config>::WeightInfo::reject_audit())]
         pub fn reject_audit(
             origin: OriginFor<T>,
@@ -630,6 +633,7 @@ pub mod pallet {
         ///
         /// Arguments:
         /// - `audit_id`
+        #[pallet::call_index(5)]
         #[pallet::weight(<T as Config>::WeightInfo::complete_audit())]
         pub fn complete_audit(
             origin: OriginFor<T>,
@@ -660,6 +664,7 @@ pub mod pallet {
         /// Arguments:
         /// - `parent_audit_id`
         /// - `child_audit_id`
+        #[pallet::call_index(6)]
         #[pallet::weight(<T as Config>::WeightInfo::link_audit())]
         pub fn link_audit(
             origin: OriginFor<T>,
@@ -711,6 +716,7 @@ pub mod pallet {
         /// Arguments:
         /// - `parent_audit_id`
         /// - `child_audit_id`
+        #[pallet::call_index(7)]
         #[pallet::weight(<T as Config>::WeightInfo::unlink_audit())]
         pub fn unlink_audit(
             origin: OriginFor<T>,
@@ -752,6 +758,7 @@ pub mod pallet {
         /// - `audit_id` id created on chain of audit
         /// - `control_point_id` control point id of audit
         /// - `observation` (compliance, procedural notes)
+        #[pallet::call_index(8)]
         #[pallet::weight(<T as Config>::WeightInfo::create_observation())]
         pub fn create_observation(
             origin: OriginFor<T>,
@@ -822,6 +829,7 @@ pub mod pallet {
         /// Arguments:
         /// - `audit_id` id of audit created on chain
         /// - `evidence` Body of evidence
+        #[pallet::call_index(9)]
         #[pallet::weight(<T as Config>::WeightInfo::create_evidence(
             name.len() as u32,
             content_type.len() as u32,
@@ -893,6 +901,7 @@ pub mod pallet {
         /// - `audit_id` id of audit created on chain
         /// - `evidence_id` id of evidence created on chain
         /// - `observation_id` id of observation created on chain
+        #[pallet::call_index(10)]
         #[pallet::weight(<T as Config>::WeightInfo::link_evidence())]
         pub fn link_evidence(
             origin: OriginFor<T>,
@@ -945,6 +954,7 @@ pub mod pallet {
         /// - `control_point_id` id of observation created on chain
         /// - `observation_id` id of observation created on chain
         /// - `evidence_id` id of evidence created on chain
+        #[pallet::call_index(11)]
         #[pallet::weight(<T as Config>::WeightInfo::unlink_evidence())]
         pub fn unlink_evidence(
             origin: OriginFor<T>,
@@ -996,6 +1006,7 @@ pub mod pallet {
         /// - `audit_id` id of audit created on chain
         /// - `evidence_id` id of evidence created on chain
         /// - `link_count` a declaration of how many links the evidence has (for weight estimation)
+        #[pallet::call_index(12)]
         #[pallet::weight(<T as Config>::WeightInfo::delete_evidence(*link_count))]
         pub fn delete_evidence(
             origin: OriginFor<T>,

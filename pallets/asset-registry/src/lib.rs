@@ -187,7 +187,6 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
@@ -284,6 +283,7 @@ pub mod pallet {
         /// Arguments:
         /// - `owner_did` DID of caller
         /// - `name` name of registry
+        #[pallet::call_index(0)]
         #[pallet::weight(<T as Config>::WeightInfo::create_registry(
             name.len() as u32
         ))]
@@ -321,6 +321,7 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         /// - `registry_id` Registry
         /// - `name` new name of registry
+        #[pallet::call_index(1)]
         #[pallet::weight(<T as Config>::WeightInfo::update_registry(
             name.len() as u32
         ))]
@@ -354,6 +355,7 @@ pub mod pallet {
         /// Arguments:
         /// - `owner_did` DID of caller
         /// - `registry_id` Registry to be removed
+        #[pallet::call_index(2)]
         #[pallet::weight(<T as Config>::WeightInfo::delete_registry())]
         pub fn delete_registry(
             origin: OriginFor<T>,
@@ -388,6 +390,7 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset` instance to be added
+        #[pallet::call_index(3)]
         #[pallet::weight(<T as Config>::WeightInfo::create_asset(
             asset.name.len() as u32,
             asset.asset_number.as_ref().map_or(0,|n|n.len()) as u32,
@@ -458,6 +461,7 @@ pub mod pallet {
         /// - `registry_id` Asset is in this registry
         /// - `asset_id` ID of Asset
         /// - `asset` instance to be updated
+        #[pallet::call_index(4)]
         #[pallet::weight(<T as Config>::WeightInfo::update_asset(
             asset.name.len() as u32,
             asset.asset_number.as_ref().map_or(0,|n|n.len()) as u32,
@@ -512,6 +516,7 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
+        #[pallet::call_index(5)]
         #[pallet::weight(<T as Config>::WeightInfo::delete_asset())]
         pub fn delete_asset(
             origin: OriginFor<T>,
@@ -538,6 +543,7 @@ pub mod pallet {
         /// - `owner_did` DID of caller
         /// - `registry_id` Asset is created in this registry
         /// - `asset_id` Asset to be deleted
+        #[pallet::call_index(6)]
         #[pallet::weight(<T as Config>::WeightInfo::new_lease(
             lease.contract_number.len() as u32,
             lease.allocations.len() as u32
@@ -599,6 +605,7 @@ pub mod pallet {
         /// - `lessor` DID of caller
         /// - `lease_id` Lease to be deleted
         //TODO: fix weight
+        #[pallet::call_index(7)]
         #[pallet::weight(<T as Config>::WeightInfo::void_lease( 10u32))]
         pub fn void_lease(
             origin: OriginFor<T>,

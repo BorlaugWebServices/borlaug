@@ -69,91 +69,91 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn create_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn delete_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn link_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn unlink_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn accept_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn assign_auditors_initial_assign() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn assign_auditors_replace() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn reject_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn complete_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_observation() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_evidence(_a: u32, _b: u32, _c: u32, _d: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn link_evidence() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn unlink_evidence() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn delete_evidence(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
     fn create_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn delete_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn link_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn unlink_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn accept_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn assign_auditors_initial_assign() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn assign_auditors_replace() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn reject_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn complete_audit() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_observation() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn create_evidence(_a: u32, _b: u32, _c: u32, _d: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn link_evidence() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn unlink_evidence() -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
     fn delete_evidence(_a: u32) -> Weight {
-        Weight::from_ref_time(0 as u64)
+        Weight::from_parts(0, 0)
     }
 }

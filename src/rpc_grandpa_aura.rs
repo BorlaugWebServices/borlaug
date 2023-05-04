@@ -32,6 +32,7 @@
 
 use std::sync::Arc;
 
+use jsonrpsee::RpcModule;
 use runtime::primitives::{
     AccountId, AssetId, AuditId, Balance, Block, BoundedStringFact, BoundedStringName, CatalogId,
     ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId, ExtrinsicIndex,
@@ -57,7 +58,9 @@ pub struct FullDeps<C, P> {
 }
 
 /// Instantiate all Full RPC extensions.
-pub fn create_full<C, P>(deps: FullDeps<C, P>) -> jsonrpc_core::IoHandler<sc_rpc_api::Metadata>
+pub fn create_full<C, P>(
+    deps: FullDeps<C, P>,
+) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>
         + HeaderBackend<Block>
@@ -129,53 +132,32 @@ where
     P: TransactionPool + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
-    // use substrate_frame_rpc_system::{FullSystem, SystemApi};
+    use substrate_frame_rpc_system::{System, SystemApiServer};
 
-    let mut io = jsonrpc_core::IoHandler::default();
+    use crate::asset_registry_rpc::{AssetRegistry, AssetRegistryApiServer};
+    use crate::audits_rpc::{Audits, AuditsApiServer};
+    use crate::groups_rpc::{Groups, GroupsApiServer};
+    use crate::identity_rpc::{Identity, IdentityApiServer};
+    use crate::provenance_rpc::{Provenance, ProvenanceApiServer};
+    use crate::settings_rpc::{Settings, SettingsApiServer};
 
+    let mut module = RpcModule::new(());
     let FullDeps {
         client,
         pool,
         deny_unsafe,
     } = deps;
 
-    // Add the groups api
-    io.extend_with(crate::groups_rpc::GroupsApi::to_delegate(
-        crate::groups_rpc::Groups::new(client.clone()),
-    ));
-    // Add the provenance api
-    io.extend_with(crate::provenance_rpc::ProvenanceApi::to_delegate(
-        crate::provenance_rpc::Provenance::new(client.clone()),
-    ));
-    // Add the identity api
-    io.extend_with(crate::identity_rpc::IdentityApi::to_delegate(
-        crate::identity_rpc::Identity::new(client.clone()),
-    ));
-    // Add the audits api
-    io.extend_with(crate::audits_rpc::AuditsApi::to_delegate(
-        crate::audits_rpc::Audits::new(client.clone()),
-    ));
-    // Add the asset_registry api
-    io.extend_with(crate::asset_registry_rpc::AssetRegistryApi::to_delegate(
-        crate::asset_registry_rpc::AssetRegistry::new(client.clone()),
-    ));
-    // Add the settings api
-    io.extend_with(crate::settings_rpc::SettingsApi::to_delegate(
-        crate::settings_rpc::Settings::new(client.clone()),
-    ));
+    module.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
+    module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
-    // io.extend_with(SystemApi::to_delegate(FullSystem::new(
-    //     client.clone(),
-    //     pool,
-    //     deny_unsafe,
-    // )));
-    // Making synchronous calls in light client freezes the browser currently,
-    // more context: https://github.com/paritytech/substrate/pull/3480
-    // These RPCs should use an asynchronous caller instead.
+    module.merge(Groups::new(client.clone()).into_rpc())?;
+    module.merge(Groups::new(client.clone()).into_rpc())?;
+    module.merge(Provenance::new(client.clone()).into_rpc())?;
+    module.merge(Identity::new(client.clone()).into_rpc())?;
+    module.merge(Audits::new(client.clone()).into_rpc())?;
+    module.merge(AssetRegistry::new(client.clone()).into_rpc())?;
+    module.merge(Settings::new(client.clone()).into_rpc())?;
 
-    // io.extend_with(TransactionPaymentApiServer::to_delegate(
-    //     TransactionPayment::new(client.clone()),
-    // ));
-
-    io
+    Ok(module)
 }

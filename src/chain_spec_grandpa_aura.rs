@@ -14,7 +14,6 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use std::marker::PhantomData;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -98,39 +97,39 @@ fn create_genesis(
     const ENDOWMENT: Balance = 10_000_000_000_000 * GRAM;
 
     GenesisConfig {
-        frame_system: Some(SystemConfig {
+        system: SystemConfig {
+            // Add Wasm runtime to storage.
             code: wasm_binary_unwrap().to_vec(),
-            changes_trie_config: Default::default(),
-        }),
-        // indices: Some(IndicesConfig { indices: vec![] }),
-        pallet_balances: Some(BalancesConfig {
+        },
+        balances: BalancesConfig {
+            // Configure endowed accounts with initial balance of 1 << 60.
             balances: endowed_accounts
                 .iter()
                 .cloned()
-                .map(|x| (x, ENDOWMENT))
+                .map(|k| (k, 1 << 60))
                 .collect(),
-        }),
-        pallet_sudo: Some(SudoConfig { key: root_key }),
-        pallet_collective_Instance1: Some(CouncilConfig {
-            members: get_initial_council(),
-            phantom: PhantomData,
-        }),
-        settings: Some(SettingsConfig {
-            transaction_byte_fee: 10_000u32.into(),
-            fee_split_ratio: 80,
-            extrinisic_extra: vec![(3, vec![(1, 100_000)])],
-        }),
-        pallet_aura: Some(AuraConfig {
+        },
+        aura: AuraConfig {
             authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
-        }),
-        pallet_grandpa: Some(GrandpaConfig {
+        },
+        grandpa: GrandpaConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.1.clone(), 1))
                 .collect(),
-        }),
-        pallet_treasury: Some(Default::default()),
-        // collective_Instance1: Some(Default::default()),
+        },
+        sudo: SudoConfig {
+            // Assign network admin rights.
+            key: Some(root_key),
+        },
+        // transaction_payment: Default::default(),
+        settings: SettingsConfig {
+            transaction_byte_fee: 10_000u32.into(),
+            fee_split_ratio: 80,
+            extrinisic_extra: vec![(3, vec![(1, 100_000)])],
+        },
+        treasury: Default::default(),
+        council: Default::default(),
         // membership_Instance1: Some(GeneralCouncilMembershipConfig {
         //     members: vec![root_key],
         //     phantom: Default::default(),
@@ -166,6 +165,7 @@ pub fn development_config() -> ChainSpec {
         vec![],
         None,
         Some("borlaug"),
+        Some("aztec"),
         Some(
             json!({
                 "tokenDecimals": 6,
@@ -214,6 +214,7 @@ pub fn aztec_config() -> ChainSpec {
         vec![],
         None,
         Some("borlaug"),
+        Some("aztec"),
         Some(
             json!({
                 "tokenDecimals": 6,
@@ -246,6 +247,7 @@ pub fn local_config() -> ChainSpec {
         ],
         None,
         Some("borlaug"),
+        Some("aztec"),
         Some(
             json!({
                 "tokenDecimals": 6,
