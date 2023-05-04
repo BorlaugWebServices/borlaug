@@ -50,9 +50,7 @@ use pallet_primitives::*;
 #[cfg(feature = "grandpa_babe")]
 use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
-pub use pallet_transaction_payment::{
-    CurrencyAdapter, FeeDetails, Multiplier, RuntimeDispatchInfo, TargetedFeeAdjustment,
-};
+pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use primitives::{
     AccountId, AssetId, AuditId, Balance, BlockNumber, BoundedStringFact, BoundedStringName,
     CatalogId, ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId,
@@ -982,45 +980,41 @@ construct_runtime!(
         NodeBlock = primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} ,
-        CollectiveFlip: pallet_insecure_randomness_collective_flip::{Pallet, Storage},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        Historical: pallet_session_historical::{Pallet},
-        Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>, ValidateUnsigned},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
-
-        Babe: pallet_babe::{Pallet, Call, Storage, Config, Inherent, ValidateUnsigned},
-
-        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned},
-        TransactionPayment: pallet_transaction_payment::{Pallet,Call,  Storage},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
+        System: frame_system ,
+        CollectiveFlip: pallet_insecure_randomness_collective_flip,
+        Balances: pallet_balances,
+        Session: pallet_session,
+        Historical: pallet_session_historical,
+        Staking: pallet_staking,
+        Timestamp: pallet_timestamp,
+        Authorship: pallet_authorship,
+        Babe: pallet_babe,
+        Grandpa: pallet_grandpa,
+        TransactionPayment: pallet_transaction_payment,
+        Sudo: pallet_sudo,
         //BorlaugCommittee
-        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        Offences: pallet_offences::{Pallet,  Storage, Event},
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Call, Config},
+        Council: pallet_collective::<Instance1>,
+        Offences: pallet_offences,
+        Treasury: pallet_treasury,
+        ImOnline: pallet_im_online,
+        AuthorityDiscovery: pallet_authority_discovery,
+        Proxy: pallet_proxy,
 
-        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
-
-        // Contracts: pallet_contracts::{Pallet, Call, Config<T>, Storage, Event<T>},
+        // Contracts: pallet_contracts,
 
         // // Governance
-        // GeneralCouncil: collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        // GeneralCouncilMembership: membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>},
+        // GeneralCouncil: collective::<Instance1>,
+        // GeneralCouncilMembership: membership::<Instance1>,
 
         // BWS Modules
 
-        Groups: groups::{Pallet, Call, Storage, Origin<T>, Event<T>},
+        Groups: groups,
         //Borlaug
-        Settings: settings::{Pallet, Call, Config<T>,Storage, Event<T>},
-        Identity: identity::{Pallet, Call, Storage, Event<T>},
-        AssetRegistry: asset_registry::{Pallet, Call, Storage, Event<T>},
-        Audits: audits::{Pallet, Call, Storage, Event<T>},
-        Provenance: provenance::{Pallet, Call,Storage, Event<T>},
+        Settings: settings,
+        Identity: identity,
+        AssetRegistry: asset_registry,
+        Audits: audits,
+        Provenance: provenance,
     }
 );
 #[cfg(feature = "grandpa_aura")]
@@ -1030,38 +1024,38 @@ construct_runtime!(
         NodeBlock = primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} ,
-        CollectiveFlip: pallet_insecure_randomness_collective_flip::{Pallet, Storage},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Authorship: pallet_authorship::{Pallet,  Storage},
-        // Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
-        // Historical: pallet_session_historical::{Pallet},
-        Aura: pallet_aura::{Pallet, Config<T>},
-        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned},
-        TransactionPayment: pallet_transaction_payment::{Pallet,Storage, Event<T>},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
+        System: frame_system ,
+        CollectiveFlip: pallet_insecure_randomness_collective_flip,
+        Balances: pallet_balances,
+        Timestamp: pallet_timestamp,
+        Authorship: pallet_authorship,
+        // Session: pallet_session,
+        // Historical: pallet_session_historical,
+        Aura: pallet_aura,
+        Grandpa: pallet_grandpa,
+        TransactionPayment: pallet_transaction_payment,
+        Sudo: pallet_sudo,
         //BorlaugCommittee
-        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        // Offences: pallet_offences::{Pallet,  Storage, Event},
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        // ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
-        // Contracts: pallet_contracts::{Pallet, Call, Config<T>, Storage, Event<T>},
+        Council: pallet_collective::<Instance1>,
+        // Offences: pallet_offences,
+        Treasury: pallet_treasury,
+        // ImOnline: pallet_im_online,
+        Proxy: pallet_proxy,
+        // Contracts: pallet_contracts,
 
         // // Governance
-        // GeneralCouncil: collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        // GeneralCouncilMembership: membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>},
+        // GeneralCouncil: collective::<Instance1>,
+        // GeneralCouncilMembership: membership::<Instance1>,
 
         // BWS Modules
 
-        Groups: groups::{Pallet, Call, Storage, Origin<T>, Event<T>},
+        Groups: groups,
         //Borlaug
-        Settings: settings::{Pallet, Call, Config<T>,Storage, Event<T>},
-        Identity: identity::{Pallet, Call, Storage, Event<T>},
-        AssetRegistry: asset_registry::{Pallet, Call, Storage, Event<T>},
-        Audits: audits::{Pallet, Call, Storage, Event<T>},
-        Provenance: provenance::{Pallet, Call,Storage, Event<T>},
+        Settings: settings,
+        Identity: identity,
+        AssetRegistry: asset_registry,
+        Audits: audits,
+        Provenance: provenance,
     }
 );
 #[cfg(feature = "instant_seal")]
@@ -1071,35 +1065,35 @@ construct_runtime!(
         NodeBlock = primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        CollectiveFlip: pallet_insecure_randomness_collective_flip::{Pallet, Storage},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+        System: frame_system,
+        CollectiveFlip: pallet_insecure_randomness_collective_flip,
+        Balances: pallet_balances,
 
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},
+        Timestamp: pallet_timestamp,
+        Authorship: pallet_authorship,
 
-        TransactionPayment: pallet_transaction_payment::{Pallet,Call, Storage},
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        TransactionPayment: pallet_transaction_payment,
+        Sudo: pallet_sudo,
+        Council: pallet_collective::<Instance1>,
 
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
+        Treasury: pallet_treasury,
 
-        Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
+        Proxy: pallet_proxy,
 
-        // Contracts: pallet_contracts::{Pallet, Call, Config<T>, Storage, Event<T>},
+        // Contracts: pallet_contracts,
 
         // // Governance
-        // GeneralCouncil: collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        // GeneralCouncilMembership: membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>},
+        // GeneralCouncil: collective::<Instance1>,
+        // GeneralCouncilMembership: membership::<Instance1>,
 
         // BWS Modules
 
-        Groups: groups::{Pallet, Call, Storage, Origin<T>, Event<T>},
-        Settings: settings::{Pallet, Call, Config<T>, Storage, Event<T>},
-        Identity: identity::{Pallet, Call, Storage, Event<T>},
-        AssetRegistry: asset_registry::{Pallet, Call, Storage, Event<T>},
-        Audits: audits::{Pallet, Call, Storage, Event<T>},
-        Provenance: provenance::{Pallet, Call, Storage, Event<T>},
+        Groups: groups,
+        Settings: settings,
+        Identity: identity,
+        AssetRegistry: asset_registry,
+        Audits: audits,
+        Provenance: provenance,
     }
 );
 
@@ -1617,15 +1611,41 @@ impl_runtime_apis! {
             Settings::get_extrinsic_extras()
         }
     }
-    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
-        Block,
-        Balance,
-    > for Runtime {
-        fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
+    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
+        fn query_info(
+            uxt: <Block as BlockT>::Extrinsic,
+            len: u32,
+        ) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
             TransactionPayment::query_info(uxt, len)
         }
-        fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
+        fn query_fee_details(
+            uxt: <Block as BlockT>::Extrinsic,
+            len: u32,
+        ) -> pallet_transaction_payment::FeeDetails<Balance> {
             TransactionPayment::query_fee_details(uxt, len)
+        }
+        fn query_weight_to_fee(weight: Weight) -> Balance {
+            TransactionPayment::weight_to_fee(weight)
+        }
+        fn query_length_to_fee(length: u32) -> Balance {
+            TransactionPayment::length_to_fee(length)
+        }
+    }
+
+    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentCallApi<Block, Balance, RuntimeCall>
+        for Runtime
+    {
+        fn query_call_info(
+            call: RuntimeCall,
+            len: u32,
+        ) -> pallet_transaction_payment::RuntimeDispatchInfo<Balance> {
+            TransactionPayment::query_call_info(call, len)
+        }
+        fn query_call_fee_details(
+            call: RuntimeCall,
+            len: u32,
+        ) -> pallet_transaction_payment::FeeDetails<Balance> {
+            TransactionPayment::query_call_fee_details(call, len)
         }
         fn query_weight_to_fee(weight: Weight) -> Balance {
             TransactionPayment::weight_to_fee(weight)

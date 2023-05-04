@@ -77,11 +77,11 @@ settings-runtime-api = {path = "../pallets/settings-runtime-api", default-featur
 
 # substrate-validator-set = {path = "../pallets/substrate-validator-set", default-features = false, optional = true}
 
-pallet-transaction-payment = {version = "21.0.0", default-features = false, optional = true}
-pallet-transaction-payment-rpc-runtime-api = {version = "21.0.0", default-features = false, optional = true}
+# pallet-transaction-payment = {version = "21.0.0", default-features = false, optional = true}
+# pallet-transaction-payment-rpc-runtime-api = {version = "21.0.0", default-features = false, optional = true}
 
-# pallet-transaction-payment = {path = "../pallets/transaction-payment", default-features = false}
-# pallet-transaction-payment-rpc-runtime-api = {path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false}
+pallet-transaction-payment = {version = "4.0.0-dev", path = "../pallets/transaction-payment", default-features = false}
+pallet-transaction-payment-rpc-runtime-api = {path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false}
 
 [build-dependencies]
 substrate-wasm-builder = "10.0.0"

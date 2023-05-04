@@ -120,7 +120,7 @@ fn create_genesis(
             // Assign network admin rights.
             key: Some(root_key),
         },
-        // transaction_payment: Default::default(),
+        transaction_payment: Default::default(),
         settings: SettingsConfig {
             transaction_byte_fee: 10_000u32.into(),
             fee_split_ratio: 80,
@@ -135,6 +135,10 @@ fn create_genesis(
         //     members: vec![root_key],
         //     phantom: Default::default(),
         // }),
+        audits: Default::default(),
+        groups: Default::default(),
+        identity: Default::default(),
+        provenance: Default::default(),
     }
 }
 

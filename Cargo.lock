@@ -5421,26 +5421,27 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-payment"
-version = "21.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a12f7de6ba5a0262a088a425e441daab729f10e952a0cbcf3b512b6a7d26bc39"
+version = "4.0.0-dev"
 dependencies = [
  "frame-support 21.0.0",
  "frame-system 21.0.0",
+ "pallet-balances",
+ "pallet-groups",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "serde_json",
+ "smallvec",
  "sp-core 20.0.0",
  "sp-io 22.0.0",
  "sp-runtime 23.0.0",
  "sp-std 7.0.0",
+ "sp-storage 12.0.0",
 ]
 
 [[package]]
 name = "pallet-transaction-payment-rpc"
-version = "23.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "397579fdec7cda472068755141322fe6a02207b6e1e1de4272375342d12bfca1"
+version = "4.0.0-dev"
 dependencies = [
  "jsonrpsee",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -5455,9 +5456,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-payment-rpc-runtime-api"
-version = "21.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e96e538985736e4f422289d16ce89a26d8045f1ccbaa53519e24009d01f971e"
+version = "4.0.0-dev"
 dependencies = [
  "pallet-transaction-payment",
  "parity-scale-codec",

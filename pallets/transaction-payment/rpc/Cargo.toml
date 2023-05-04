@@ -1,0 +1,25 @@
+[package]
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "RPC interface for the transaction payment pallet."
+edition = "2021"
+homepage = "https://substrate.io"
+license = "Apache-2.0"
+name = "pallet-transaction-payment-rpc"
+readme = "README.md"
+repository = "https://github.com/paritytech/substrate/"
+version = "4.0.0-dev"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = {package = "parity-scale-codec", version = "3.4.0"}
+jsonrpsee = {version = "0.16.2", features = ["client-core", "server", "macros"]}
+pallet-transaction-payment-rpc-runtime-api = {path = "runtime-api", default-features = false}
+
+sp-api = {version = "19.0.0"}
+sp-blockchain = {version = "21.0.0"}
+sp-core = {version = "20.0.0"}
+sp-rpc = {version = "19.0.0"}
+sp-runtime = {version = "23.0.0"}
+sp-weights = {version = "19.0.0"}
