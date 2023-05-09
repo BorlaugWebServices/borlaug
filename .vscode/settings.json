@@ -1,0 +1,15 @@
+{
+    "rust-analyzer.cargo.features": [
+        "grandpa_aura"
+    ],
+    "workbench.colorCustomizations": {
+        "titleBar.inactiveBackground": "#bd8e2a",
+        "titleBar.activeBackground": "#bd8e2a",
+        "titleBar.activeForeground": "#FDFCFF"
+    },
+    "rust-analyzer.cargo.noDefaultFeatures": true,
+    "rust-analyzer.diagnostics.disabled": [
+        "unresolved-import"
+    ],
+    "crates.localCargoIndexBranch": ""
+}

@@ -1,0 +1,376 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Tests - Audits",
+            "type": "shell",
+            "command": "cargo test --package pallet-audits --lib --features 'instant_seal'  -- tests --nocapture",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Tests - Identity",
+            "type": "shell",
+            "command": "cargo test --package pallet-identity --lib --features 'instant_seal'  -- tests --nocapture",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Tests - Provenance",
+            "type": "shell",
+            "command": "cargo test --package pallet-provenance --lib --features 'instant_seal'  -- tests --nocapture",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Tests - AssetRegistry",
+            "type": "shell",
+            "command": "cargo test --package pallet-asset-registry --lib  -- tests --nocapture",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Tests - Groups",
+            "type": "shell",
+            "command": "cargo test --package pallet-groups --lib --features 'instant_seal'  -- tests --nocapture",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Tests - Settings",
+            "type": "shell",
+            "command": "cargo test --package pallet-settings --lib --features 'instant_seal'  -- tests --nocapture",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Test chains - Alpha chain",
+            "type": "shell",
+            "command": "./target/release/borlaug --base-path /tmp/alpha --chain ./customSpecRawLocal.json --port 30333 --ws-port 9944 --rpc-port 9933 --prometheus-port 9615  --prometheus-external --validator --name alpha ", // --rpc-methods=Unsafe -l libp2p,sub-libp2p
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Test chains - Beta chain",
+            "type": "shell",
+            "command": "./target/release/borlaug --base-path /tmp/beta --chain ./customSpecRawLocal.json --port 30334 --ws-port 9945 --rpc-port 9934 --prometheus-port 9616  --prometheus-external --validator  --name beta",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Test chains - Gamma chain",
+            "type": "shell",
+            "command": "./target/release/borlaug --base-path /tmp/gamma --chain ./customSpecRawLocal.json --port 30335 --ws-port 9946 --rpc-port 9935 --prometheus-port 9617  --prometheus-external --validator  --name gamma",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Test chains - Public Node chain",
+            "type": "shell",
+            "command": "./target/release/borlaug --base-path /tmp/public --chain ./customSpecRawLocal.json --port 30336 --ws-port 9947 --rpc-port 9936 --prometheus-port 9617  --prometheus-external --name public_node  --unsafe-ws-external --unsafe-rpc-external --rpc-cors=all --pruning archive",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Test chains - Purge Alpha , Beta , Gamma",
+            "type": "shell",
+            "command": "./target/release/borlaug purge-chain --base-path /tmp/alpha --chain borlaug_aztec -y && ./target/release/borlaug purge-chain --base-path /tmp/beta --chain borlaug_aztec -y && ./target/release/borlaug purge-chain --base-path /tmp/gamma --chain borlaug_aztec -y ",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Build instant_seal",
+            "type": "shell",
+            "command": "/home/timothy/.cargo/bin/cargo build --release --features instant_seal",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Build grandpa_aura",
+            "type": "shell",
+            "command": "/home/timothy/.cargo/bin/cargo build --release --features grandpa_aura",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Build benchmarks",
+            "type": "shell",
+            "command": "/home/timothy/.cargo/bin/cargo build --release --features 'grandpa_aura runtime-benchmarks'",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - Groups - showing command to run on AWS",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_groups --extrinsic '*' --steps=50 --repeat=5 --execution=wasm --wasm-execution=compiled --heap-pages=4096 --output=./pallets/groups/src/weights.rs --template=./.maintain/frame-weight-template.hbs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - Groups",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_groups --extrinsic '*' --steps=50 --repeat=5  --heap-pages=4096 --output=./pallets/groups/src/weights.rs --template=./.maintain/frame-weight-template.hbs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - Identity",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_identity --extrinsic '*' --steps=30 --repeat=5  --heap-pages=4096 --output=./pallets/identity/src/weights.rs --template=./.maintain/frame-weight-template.hbs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - Identity - register_did_for_bulk",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_identity --extrinsic 'register_did_for_bulk' --steps=10 --repeat=2  --heap-pages=4096",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - Groups - create_group",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_groups --extrinsic 'create_group' --steps=50 --repeat=5  --heap-pages=4096",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - Audits",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_audits --extrinsic '*' --steps=50 --repeat=5  --heap-pages=4096 --output=./pallets/audits/src/weights.rs --template=./.maintain/frame-weight-template.hbs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - Provenance",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_provenance --extrinsic '*' --steps=50 --repeat=5  --heap-pages=4096 --output=./pallets/provenance/src/weights.rs --template=./.maintain/frame-weight-template.hbs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - Settings",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_settings --extrinsic '*' --steps=50 --repeat=5  --heap-pages=4096 --output=./pallets/settings/src/weights.rs --template=./.maintain/frame-weight-template.hbs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run benchmarks - AssetRegistry",
+            "type": "shell",
+            "command": "./target/release/borlaug benchmark pallet --pallet pallet_asset_registry --extrinsic '*' --steps=50 --repeat=5  --heap-pages=4096 --output=./pallets/asset-registry/src/weights.rs --template=./.maintain/frame-weight-template.hbs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Build grandpa_babe",
+            "type": "shell",
+            "command": "/home/timothy/.cargo/bin/cargo build --release --features grandpa_babe",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Cargo +nightly test",
+            "type": "shell",
+            "command": "cargo +nightly test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Cargo check",
+            "type": "shell",
+            "command": "cargo check",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Purge test chain",
+            "type": "shell",
+            "command": "./target/release/borlaug purge-chain -y --base-path /tmp/test --dev",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Purge test chain aura",
+            "type": "shell",
+            "command": "./target/release/borlaug purge-chain -y --base-path /tmp/aura --dev",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Export config - Inca",
+            "type": "shell",
+            "command": "./target/release/borlaug build-spec --chain=inca > customSpecInca.json",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Export config - Maya",
+            "type": "shell",
+            "command": "./target/release/borlaug build-spec --chain=borlaug_maya > customSpecMaya.json",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Export config - Aztec",
+            "type": "shell",
+            "command": "./target/release/borlaug build-spec --chain=borlaug_aztec > customSpecAztec.json",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Export config Raw - Inca",
+            "type": "shell",
+            "command": "./target/release/borlaug build-spec --chain customSpecInca.json --raw > customSpecRawInca.json",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Export config Raw - Maya",
+            "type": "shell",
+            "command": "./target/release/borlaug build-spec --chain customSpecMaya.json --raw > customSpecRawMaya.json",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Export config Raw - Aztec",
+            "type": "shell",
+            "command": "RUST_LOG=runtime::staking=trace ./target/release/borlaug build-spec --chain=customSpecAztec.json --raw --disable-default-bootnode > customSpecRawAztec.json",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Export config Raw - Local",
+            "type": "shell",
+            "command": "./target/release/borlaug build-spec --chain customSpecAztec.json --raw > customSpecRawLocal.json",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Test chains - Alice chain",
+            "type": "shell",
+            "command": "./target/release/borlaug --base-path /tmp/alice --chain ./customSpecRaw.json --port 30333 --ws-port 9944 --rpc-port 9933  --validator  --name test_node_1",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Test chains - Bob chain",
+            "type": "shell",
+            "command": "./target/release/borlaug --base-path /tmp/bob --chain ./customSpecRaw.json --port 30334 --ws-port 9945 --rpc-port 9934  --validator  --name test_node_2",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "parameters help",
+            "type": "shell",
+            "command": "./target/release/borlaug --help",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "expand",
+            "type": "shell",
+            "command": "cargo expand --features instant_seal > ./expanded.rs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Start blockchain node",
+            "type": "shell",
+            "command": "./target/release/borlaug --base-path /tmp/test --dev -lruntime=debug",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Start blockchain node aura",
+            "type": "shell",
+            "command": "./target/release/borlaug --base-path /tmp/aura --dev -lruntime=debug",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+    ]
+}

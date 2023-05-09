@@ -1,5 +1,3 @@
-//! The Substrate Node Template runtime. This can be compiled with `#[no_std]`, ready for Wasm.
-
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
@@ -204,11 +202,11 @@ const MAXIMUM_BLOCK_WEIGHT: Weight =
     Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
 
 parameter_types! {
-    pub const Version: RuntimeVersion = VERSION;
     pub const BlockHashCount: BlockNumber = 2400;
+    pub const Version: RuntimeVersion = VERSION;
     pub RuntimeBlockLength: BlockLength =
     BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
+    pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
     .base_block(BlockExecutionWeight::get())
     .for_class(DispatchClass::all(), |weights| {
         weights.base_extrinsic = ExtrinsicBaseWeight::get();
@@ -230,17 +228,16 @@ pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
 }
 
 impl frame_system::Config for Runtime {
-    type RuntimeOrigin = RuntimeOrigin;
-    type RuntimeCall = RuntimeCall;
-    type RuntimeEvent = RuntimeEvent;
     /// The basic call filter to use in dispatchable.
-    type BaseCallFilter = ();
+    type BaseCallFilter = frame_support::traits::Everything;
     /// Block & extrinsics weights: base values and limits.
     type BlockWeights = RuntimeBlockWeights;
     /// The maximum length of a block (in bytes).
     type BlockLength = RuntimeBlockLength;
     /// The identifier used to distinguish between accounts.
     type AccountId = AccountId;
+    /// The aggregated dispatch type that is available for extrinsics.
+    type RuntimeCall = RuntimeCall;
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
     type Lookup = AccountIdLookup<AccountId, ()>;
     /// The index type for storing how many extrinsics an account has signed.
@@ -253,7 +250,10 @@ impl frame_system::Config for Runtime {
     type Hashing = BlakeTwo256;
     /// The header type.
     type Header = generic::Header<BlockNumber, BlakeTwo256>;
-
+    /// The ubiquitous event type.
+    type RuntimeEvent = RuntimeEvent;
+    /// The ubiquitous origin type.
+    type RuntimeOrigin = RuntimeOrigin;
     /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
     type BlockHashCount = BlockHashCount;
     /// The weight of database operations that the runtime can invoke.
@@ -412,10 +412,6 @@ impl pallet_grandpa::Config for Runtime {
     type EquivocationReportSystem = ();
 }
 
-parameter_types! {
-    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
-}
-
 impl pallet_timestamp::Config for Runtime {
     /// A timestamp: milliseconds since the unix epoch.
     type Moment = Moment;
@@ -425,7 +421,7 @@ impl pallet_timestamp::Config for Runtime {
     type OnTimestampSet = Aura;
     #[cfg(feature = "instant_seal")]
     type OnTimestampSet = ();
-    type MinimumPeriod = MinimumPeriod;
+    type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
     type WeightInfo = ();
 }
 
@@ -438,6 +434,7 @@ impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
     type EventHandler = (Staking, ImOnline);
 }
+
 #[cfg(any(feature = "grandpa_aura", feature = "instant_seal"))]
 impl pallet_authorship::Config for Runtime {
     type FindAuthor = ();
@@ -445,11 +442,6 @@ impl pallet_authorship::Config for Runtime {
 }
 
 pub const EXISTENTIAL_DEPOSIT: u128 = 500;
-
-parameter_types! {
-    pub const MaxLocks: u32 = 50;
-    pub const MaxReserves: u32 = 50;
-}
 
 /// A reason for placing a hold on funds.
 #[derive(
@@ -461,12 +453,14 @@ pub enum HoldReason {
 }
 
 impl pallet_balances::Config for Runtime {
-    type MaxLocks = MaxLocks;
-    type MaxReserves = MaxReserves;
+    type MaxLocks = ConstU32<50>;
+    type MaxReserves = ConstU32<50>;
     type ReserveIdentifier = [u8; 8];
+    /// The type for recording an account's balance.
     type Balance = Balance;
-    type DustRemoval = ();
+    /// The ubiquitous event type.
     type RuntimeEvent = RuntimeEvent;
+    type DustRemoval = ();
     type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
     type AccountStore = frame_system::Pallet<Runtime>;
     type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
@@ -537,22 +531,6 @@ impl pallet_sudo::Config for Runtime {
 //     type MembershipInitialized = GeneralCouncil;
 //     type MembershipChanged = GeneralCouncil;
 // }
-#[cfg(feature = "grandpa_babe")]
-impl_opaque_keys! {
-    pub struct SessionKeys {
-        pub grandpa: Grandpa,
-        pub babe: Babe,
-        pub im_online: ImOnline,
-        pub authority_discovery: AuthorityDiscovery,
-    }
-}
-#[cfg(feature = "grandpa_aura")]
-impl_opaque_keys! {
-    pub struct SessionKeys {
-        pub grandpa: Grandpa,
-        pub aura: Aura,
-    }
-}
 
 #[cfg(feature = "grandpa_babe")]
 impl pallet_session::Config for Runtime {
@@ -1119,13 +1097,13 @@ pub type SignedExtra = (
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 
+/// Unchecked extrinsic type as expected by this runtime.
+pub type UncheckedExtrinsic =
+    generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
-/// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic =
-    generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 
@@ -1223,6 +1201,46 @@ impl_runtime_apis! {
             Executive::offchain_worker(header)
         }
     }
+
+    #[cfg(feature = "grandpa_aura")]
+    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
+        fn slot_duration() -> sp_consensus_aura::SlotDuration {
+            sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
+        }
+
+        fn authorities() -> Vec<AuraId> {
+            Aura::authorities().into_inner()
+        }
+    }
+
+
+    impl sp_session::SessionKeys<Block> for Runtime {
+        #[allow(unused_variables)]
+        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
+            #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
+            {
+                opaque::SessionKeys::generate(seed)
+            }
+            #[cfg(feature = "instant_seal")]
+            {
+            Vec::new()
+            }
+        }
+        #[allow(unused_variables)]
+        fn decode_session_keys(
+            encoded: Vec<u8>,
+        ) -> Option<Vec<(Vec<u8>, KeyTypeId)>> {
+            #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
+            {
+            opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
+            }
+            #[cfg(feature = "instant_seal")]
+            {
+            None
+            }
+        }
+    }
+
 
     #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
     impl fg_primitives::GrandpaApi<Block> for Runtime {
@@ -1328,16 +1346,7 @@ impl_runtime_apis! {
             )
         }
     }
-    #[cfg(feature = "grandpa_aura")]
-    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-        fn slot_duration() -> sp_consensus_aura::SlotDuration {
-            sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
-        }
 
-        fn authorities() -> Vec<AuraId> {
-            Aura::authorities().into_inner()
-        }
-    }
 
 
     #[cfg(any(feature = "grandpa_babe"))]
@@ -1656,33 +1665,6 @@ impl_runtime_apis! {
     }
 
 
-    impl sp_session::SessionKeys<Block> for Runtime {
-        #[allow(unused_variables)]
-        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-            #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
-            {
-                opaque::SessionKeys::generate(seed)
-            }
-            #[cfg(feature = "instant_seal")]
-            {
-            Vec::new()
-            }
-        }
-        #[allow(unused_variables)]
-        fn decode_session_keys(
-            encoded: Vec<u8>,
-        ) -> Option<Vec<(Vec<u8>, KeyTypeId)>> {
-            #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
-            {
-            opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
-            }
-            #[cfg(feature = "instant_seal")]
-            {
-            None
-            }
-        }
-    }
-
     #[cfg(feature = "runtime-benchmarks")]
     impl frame_benchmarking::Benchmark<Block> for Runtime {
         fn benchmark_metadata(extra: bool) -> (
@@ -1722,17 +1704,6 @@ impl_runtime_apis! {
             let params = (&config, &whitelist);
 
             add_benchmarks!(params, batches);
-
-            // add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-            // add_benchmark!(params, batches, pallet_balances, Balances);
-            // add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-
-            // add_benchmark!(params, batches, pallet_groups, Groups);
-            // add_benchmark!(params, batches, pallet_identity, Identity);
-            // add_benchmark!(params, batches, pallet_audits, Audits);
-            // add_benchmark!(params, batches, pallet_provenance, Provenance);
-            // add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
-            // add_benchmark!(params, batches, pallet_settings, Settings);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

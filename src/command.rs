@@ -24,7 +24,7 @@ use frame_benchmarking_cli::*;
 // use node_executor::ExecutorDispatch;
 
 use runtime::{Block, EXISTENTIAL_DEPOSIT};
-use sc_cli::{ChainSpec,  RuntimeVersion, SubstrateCli};
+use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
 

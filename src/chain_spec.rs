@@ -80,29 +80,35 @@ fn get_initial_council() -> Vec<AccountId> {
 fn create_genesis(root_key: AccountId, endowed_accounts: Vec<AccountId>) -> GenesisConfig {
     const ENDOWMENT: Balance = 10_000_000_000_000 * GRAM;
     GenesisConfig {
-        frame_system: Some(SystemConfig {
+        system: SystemConfig {
             code: wasm_binary_unwrap().to_vec(),
-            changes_trie_config: Default::default(),
-        }),
+        },
         // indices: Some(IndicesConfig { indices: vec![] }),
-        pallet_balances: Some(BalancesConfig {
+        balances: BalancesConfig {
             balances: endowed_accounts
                 .iter()
                 .cloned()
                 .map(|x| (x, ENDOWMENT))
                 .collect(),
-        }),
-        pallet_sudo: Some(SudoConfig { key: root_key }),
-        pallet_collective_Instance1: Some(CouncilConfig {
+        },
+        sudo: SudoConfig {
+            key: Some(root_key),
+        },
+        council: CouncilConfig {
             members: get_initial_council(),
             phantom: PhantomData,
-        }),
-        settings: Some(SettingsConfig {
+        },
+        transaction_payment: Default::default(),
+        settings: SettingsConfig {
             transaction_byte_fee: 10_000u32.into(),
             fee_split_ratio: 80,
             extrinisic_extra: vec![(3, vec![(1, 100_000)])],
-        }),
-        pallet_treasury: Some(Default::default()),
+        },
+        treasury: Default::default(),
+        audits: Default::default(),
+        groups: Default::default(),
+        identity: Default::default(),
+        provenance: Default::default(),
     }
 }
 
@@ -124,6 +130,7 @@ pub fn development_config() -> ChainSpec {
         vec![],
         None,
         Some("borlaug"),
+        Some("aztec"),
         Some(
             json!({
                 "tokenDecimals": 6,

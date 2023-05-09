@@ -152,7 +152,6 @@ where
     module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
     module.merge(Groups::new(client.clone()).into_rpc())?;
-    module.merge(Groups::new(client.clone()).into_rpc())?;
     module.merge(Provenance::new(client.clone()).into_rpc())?;
     module.merge(Identity::new(client.clone()).into_rpc())?;
     module.merge(Audits::new(client.clone()).into_rpc())?;

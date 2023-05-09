@@ -1,5 +1,6 @@
 use runtime::{
-    primitives::{AccountId, Signature},
+    constants::currency::*,
+    primitives::{AccountId, Balance, Signature},
     wasm_binary_unwrap, BalancesConfig, Block, CouncilConfig, GenesisConfig, SudoConfig,
     SystemConfig,
 };
@@ -94,17 +95,17 @@ fn create_genesis(
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
 ) -> GenesisConfig {
+    const ENDOWMENT: Balance = 10_000_000_000_000 * GRAM;
     GenesisConfig {
         system: SystemConfig {
             // Add Wasm runtime to storage.
             code: wasm_binary_unwrap().to_vec(),
         },
         balances: BalancesConfig {
-            // Configure endowed accounts with initial balance of 1 << 60.
             balances: endowed_accounts
                 .iter()
                 .cloned()
-                .map(|k| (k, 1 << 60))
+                .map(|k| (k, ENDOWMENT))
                 .collect(),
         },
         aura: AuraConfig {
@@ -219,7 +220,7 @@ pub fn aztec_config() -> ChainSpec {
         vec![],
         None,
         Some("borlaug"),
-        Some("aztec"),
+        None,
         Some(
             json!({
                 "tokenDecimals": 6,

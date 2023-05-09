@@ -25,11 +25,11 @@ frame_support::construct_runtime!(
         NodeBlock = Block,
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Settings: settings::{Module, Call, Config<T>,Storage, Event<T>},
-        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-        Groups: groups::{Module, Call, Storage, Event<T>, Origin<T>},
-        AuditsModule: pallet_audits::{Module, Call, Storage, Event<T>},
+        System: frame_system,
+        Settings: settings,
+        Balances: pallet_balances,
+        Groups: groups,
+        AuditsModule: pallet_audits,
     }
 );
 
