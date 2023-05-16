@@ -11,7 +11,7 @@ frame-support = {version = "21.0.0", default-features = false}
 frame-system = {version = "21.0.0", default-features = false}
 scale-info = {version = "2.5.0", default-features = false, features = ["derive"]}
 sp-runtime = {version = "23.0.0", default-features = false}
-sp-std = {package = "sp-std", version = "7.0.0", default-features = false}
+sp-std = {version = "7.0.0", default-features = false}
 timestamp = {package = "pallet-timestamp", version = "20.0.0", default-features = false}
 
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}

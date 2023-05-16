@@ -843,6 +843,7 @@ dependencies = [
  "sp-std 7.0.0",
  "sp-transaction-pool",
  "sp-version 21.0.0",
+ "substrate-validator-set",
  "substrate-wasm-builder",
 ]
 
@@ -10580,6 +10581,24 @@ dependencies = [
  "sc-rpc-api 0.26.0",
  "serde",
  "sp-runtime 23.0.0",
+]
+
+[[package]]
+name = "substrate-validator-set"
+version = "0.9.37"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support 21.0.0",
+ "frame-system 21.0.0",
+ "log",
+ "pallet-session",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 20.0.0",
+ "sp-io 22.0.0",
+ "sp-runtime 23.0.0",
+ "sp-staking 19.0.0",
+ "sp-std 7.0.0",
 ]
 
 [[package]]

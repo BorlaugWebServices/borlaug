@@ -8,7 +8,7 @@ version = "2.0.0"
 # third-party dependencies
 codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
 scale-info = {version = "2.5.0", default-features = false, features = ["derive"]}
-serde = {version = "1.0.101", optional = true, features = ["derive"]}
+serde = {version = "1.0.126", features = ["derive"]}
 
 sp-api = {version = "19.0.0-dev", default-features = false}
 sp-application-crypto = {version = "22.0.0", default-features = false}
@@ -52,7 +52,7 @@ pallet-staking = {version = "21.0.0", default-features = false, optional = true}
 pallet-staking-reward-curve = {version = "6.0.0", default-features = false, optional = true}
 sp-consensus-aura = {version = "0.25.0", default-features = false, optional = true}
 sp-consensus-babe = {version = "0.25.0", default-features = false, optional = true}
-sp-staking = {version = "19.0.0", default-features = false, optional = true}
+sp-staking = {version = "19.0.0", default-features = false}
 
 # Used for runtime benchmarking
 frame-benchmarking = {version = "21.0.0", default-features = false, optional = true}
@@ -83,6 +83,11 @@ settings-runtime-api = {path = "../pallets/settings-runtime-api", default-featur
 pallet-transaction-payment = {version = "4.0.0-dev", path = "../pallets/transaction-payment", default-features = false}
 pallet-transaction-payment-rpc-runtime-api = {path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false}
 
+[dependencies.validator-set]
+default-features = false
+package = 'substrate-validator-set'
+path = "../../substrate-validator-set"
+
 [build-dependencies]
 substrate-wasm-builder = "10.0.0"
 
@@ -97,8 +102,6 @@ std = [
   "sp-core/std",
   "sp-runtime/std",
   "sp-version/std",
-  "sp-staking/std",
-  "serde",
   "sp-offchain/std",
   "sp-session/std",
   "sp-transaction-pool/std",
@@ -139,7 +142,8 @@ std = [
   "pallet-babe/std",
   "pallet-aura/std",
   "pallet-grandpa/std",
-  "pallet-proxy/std", # "sp-consensus-grandpa/std",  # "substrate-validator-set/std",
+  "pallet-proxy/std",
+  'validator-set/std',
 ]
 
 grandpa_aura = [
@@ -148,19 +152,18 @@ grandpa_aura = [
   "pallet-session",
   "pallet-im-online",
   "pallet-authority-discovery",
-  "sp-consensus-aura", # "sp-consensus-grandpa",  # "substrate-validator-set",
+  "sp-consensus-aura",
 ]
 grandpa_babe = [
   "pallet-babe",
   "pallet-grandpa",
   "pallet-session",
   "pallet-offences",
-  "sp-staking",
   "pallet-staking",
   "pallet-staking-reward-curve",
   "pallet-im-online",
   "pallet-authority-discovery",
-  "sp-consensus-babe", # "sp-consensus-grandpa",
+  "sp-consensus-babe",
 ]
 instant_seal = []
 

@@ -1,10 +1,10 @@
 use runtime::{
     constants::currency::*,
+    opaque::SessionKeys,
     primitives::{AccountId, Balance, Signature},
-    wasm_binary_unwrap, BalancesConfig, Block, CouncilConfig, GenesisConfig, SudoConfig,
-    SystemConfig,
+    wasm_binary_unwrap, AuraConfig, BalancesConfig, Block, CouncilConfig, GenesisConfig,
+    GrandpaConfig, SessionConfig, SettingsConfig, SudoConfig, SystemConfig, ValidatorSetConfig,
 };
-use runtime::{AuraConfig, GrandpaConfig, SettingsConfig};
 use sc_chain_spec::ChainSpecExtension;
 use sc_network::config::MultiaddrWithPeerId;
 use sc_service::ChainType;
@@ -91,7 +91,7 @@ fn get_initial_council() -> Vec<AccountId> {
 }
 
 fn create_genesis(
-    initial_authorities: Vec<(AuraId, GrandpaId)>,
+    initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>,
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
 ) -> GenesisConfig {
@@ -108,14 +108,29 @@ fn create_genesis(
                 .map(|k| (k, ENDOWMENT))
                 .collect(),
         },
+        validator_set: ValidatorSetConfig {
+            initial_validators: initial_authorities
+                .iter()
+                .map(|x| x.0.clone())
+                .collect::<Vec<_>>(),
+        },
+        session: SessionConfig {
+            keys: initial_authorities
+                .iter()
+                .map(|x| {
+                    (
+                        x.0.clone(),
+                        x.0.clone(),
+                        session_keys(x.1.clone(), x.2.clone()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        },
         aura: AuraConfig {
-            authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
+            authorities: vec![],
         },
         grandpa: GrandpaConfig {
-            authorities: initial_authorities
-                .iter()
-                .map(|x| (x.1.clone(), 1))
-                .collect(),
+            authorities: vec![],
         },
         sudo: SudoConfig {
             // Assign network admin rights.
@@ -143,9 +158,14 @@ fn create_genesis(
     }
 }
 
+fn session_keys(aura: AuraId, grandpa: GrandpaId) -> SessionKeys {
+    SessionKeys { aura, grandpa }
+}
+
 /// Helper function to generate stash, controller and session key from seed
-pub fn authority_keys_from_seed(seed: &str) -> (AuraId, GrandpaId) {
+pub fn authority_keys_from_seed(seed: &str) -> (AccountId, AuraId, GrandpaId) {
     (
+        get_account_id_from_seed::<sr25519::Public>(seed),
         get_from_seed::<AuraId>(seed),
         get_from_seed::<GrandpaId>(seed),
     )
@@ -185,13 +205,16 @@ pub fn development_config() -> ChainSpec {
     )
 }
 /// Helper function to generate stash, controller and session key from public key
-pub fn authority_keys_from_public_keys(public_keys: Vec<(&str, &str)>) -> Vec<(AuraId, GrandpaId)> {
+pub fn authority_keys_from_public_keys(
+    public_keys: Vec<(&str, &str)>,
+) -> Vec<(AccountId, AuraId, GrandpaId)> {
     public_keys
         .into_iter()
-        .map(|(aura, grandpa)| {
-            let aura = sp_core::sr25519::Public::from_ss58check(aura).unwrap();
-            let grandpa = sp_core::ed25519::Public::from_ss58check(grandpa).unwrap();
-            (aura.into(), grandpa.into())
+        .map(|(aura_key, grandpa_key)| {
+            let aura = sp_core::sr25519::Public::from_ss58check(aura_key).unwrap();
+            let account_id = AccountPublic::from(aura).into_account();
+            let grandpa = sp_core::ed25519::Public::from_ss58check(grandpa_key).unwrap();
+            (account_id.into(), aura.into(), grandpa.into())
         })
         .collect()
 }

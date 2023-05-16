@@ -66,7 +66,7 @@ use sp_inherents::{CheckInherentsResult, InherentData};
 #[cfg(feature = "grandpa_babe")]
 use sp_runtime::traits::{self, OpaqueKeys, SaturatedConversion};
 #[cfg(feature = "grandpa_aura")]
-use sp_runtime::traits::{self, SaturatedConversion};
+use sp_runtime::traits::{self, OpaqueKeys, SaturatedConversion};
 use sp_runtime::{
     create_runtime_str, generic,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded},
@@ -543,6 +543,24 @@ impl pallet_session::Config for Runtime {
     type Keys = SessionKeys;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
+#[cfg(feature = "grandpa_aura")]
+parameter_types! {
+    pub const Period: u32 = 2 * MINUTES;
+    pub const Offset: u32 = 0;
+}
+
+#[cfg(feature = "grandpa_aura")]
+impl pallet_session::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type ValidatorId = <Self as frame_system::Config>::AccountId;
+    type ValidatorIdOf = validator_set::ValidatorOf<Self>;
+    type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+    type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+    type SessionManager = ValidatorSet;
+    type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+    type Keys = opaque::SessionKeys;
+    type WeightInfo = ();
+}
 #[cfg(feature = "grandpa_babe")]
 impl pallet_session::historical::Config for Runtime {
     type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
@@ -652,6 +670,16 @@ impl pallet_treasury::Config for Runtime {
     type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
     type MaxApprovals = MaxApprovals;
     type SpendOrigin = EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, MaxBalance>;
+}
+
+parameter_types! {
+    pub const MinAuthorities: u32 = 2;
+}
+
+impl validator_set::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type AddRemoveOrigin = EnsureRoot<AccountId>;
+    type MinAuthorities = MinAuthorities;
 }
 
 // parameter_types! {
@@ -1007,7 +1035,8 @@ construct_runtime!(
         Balances: pallet_balances,
         Timestamp: pallet_timestamp,
         Authorship: pallet_authorship,
-        // Session: pallet_session,
+        ValidatorSet: validator_set,
+        Session: pallet_session,
         // Historical: pallet_session_historical,
         Aura: pallet_aura,
         Grandpa: pallet_grandpa,

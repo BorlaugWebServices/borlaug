@@ -11,7 +11,7 @@ serde = {version = "1.0.101", default-features = false, features = ["derive"]}
 
 sp-core = {version = "20.0.0", default-features = false}
 sp-runtime = {version = "23.0.0", default-features = false}
-sp-std = {package = "sp-std", version = "7.0.0", default-features = false}
+sp-std = {version = "7.0.0", default-features = false}
 
 timestamp = {package = "pallet-timestamp", version = "20.0.0", default-features = false}
 
