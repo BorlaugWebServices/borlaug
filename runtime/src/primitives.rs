@@ -60,8 +60,7 @@ pub type LeaseId = u32;
 
 parameter_types! {
     pub const NameLimit: u32 = 100;
-    pub const FactStringLimit: u32 = 100;
-
+    pub const FactStringLimit: u32 = 640;
 }
 
 pub type BoundedStringName = BoundedVec<u8, NameLimit>;

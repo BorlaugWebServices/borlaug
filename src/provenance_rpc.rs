@@ -2,7 +2,7 @@ use crate::identity_rpc::FactResponse;
 use codec::Codec;
 use core::fmt::Display;
 use jsonrpsee::{
-    core::RpcResult,
+    core::{async_trait, RpcResult},
     proc_macros::rpc,
     types::error::{CallError, ErrorObject},
 };
@@ -588,6 +588,7 @@ macro_rules! not_found_error {
     }};
 }
 
+#[async_trait]
 impl<
         C,
         Block,

@@ -190,8 +190,8 @@
   "Votes": {
     "threshold": "MemberCount",
     "total_vote_weight": "MemberCount",
-    "ayes": "Vec<(AccountId, MemberCount)>",
-    "nays": "Vec<(AccountId, MemberCount)>",
+    "ayes": "Vec<GroupMember<AccountId, MemberCount>>",
+    "nays": "Vec<GroupMember<AccountId, MemberCount>>",
     "veto": "Option<bool>"
   },
   "Registry": {

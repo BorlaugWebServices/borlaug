@@ -1030,7 +1030,7 @@ construct_runtime!(
         NodeBlock = primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: frame_system ,
+        System: frame_system,
         CollectiveFlip: pallet_insecure_randomness_collective_flip,
         Balances: pallet_balances,
         Timestamp: pallet_timestamp,
@@ -1055,46 +1055,6 @@ construct_runtime!(
         // GeneralCouncilMembership: membership::<Instance1>,
 
         // BWS Modules
-
-        Groups: groups,
-        //Borlaug
-        Settings: settings,
-        Identity: identity,
-        AssetRegistry: asset_registry,
-        Audits: audits,
-        Provenance: provenance,
-    }
-);
-#[cfg(feature = "instant_seal")]
-construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = primitives::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        System: frame_system,
-        CollectiveFlip: pallet_insecure_randomness_collective_flip,
-        Balances: pallet_balances,
-
-        Timestamp: pallet_timestamp,
-        Authorship: pallet_authorship,
-
-        TransactionPayment: pallet_transaction_payment,
-        Sudo: pallet_sudo,
-        Council: pallet_collective::<Instance1>,
-
-        Treasury: pallet_treasury,
-
-        Proxy: pallet_proxy,
-
-        // Contracts: pallet_contracts,
-
-        // // Governance
-        // GeneralCouncil: collective::<Instance1>,
-        // GeneralCouncilMembership: membership::<Instance1>,
-
-        // BWS Modules
-
         Groups: groups,
         Settings: settings,
         Identity: identity,
@@ -1103,6 +1063,44 @@ construct_runtime!(
         Provenance: provenance,
     }
 );
+// #[cfg(feature = "instant_seal")]
+// construct_runtime!(
+//     pub enum Runtime where
+//         Block = Block,
+//         NodeBlock = primitives::Block,
+//         UncheckedExtrinsic = UncheckedExtrinsic
+//     {
+//         System: frame_system,
+//         CollectiveFlip: pallet_insecure_randomness_collective_flip,
+//         Balances: pallet_balances,
+
+//         Timestamp: pallet_timestamp,
+//         Authorship: pallet_authorship,
+
+//         TransactionPayment: pallet_transaction_payment,
+//         Sudo: pallet_sudo,
+//         Council: pallet_collective::<Instance1>,
+
+//         Treasury: pallet_treasury,
+
+//         Proxy: pallet_proxy,
+
+//         // Contracts: pallet_contracts,
+
+//         // // Governance
+//         // GeneralCouncil: collective::<Instance1>,
+//         // GeneralCouncilMembership: membership::<Instance1>,
+
+//         // BWS Modules
+
+//         Groups: groups,
+//         Settings: settings,
+//         Identity: identity,
+//         AssetRegistry: asset_registry,
+//         Audits: audits,
+//         Provenance: provenance,
+//     }
+// );
 
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
@@ -1424,31 +1422,31 @@ impl_runtime_apis! {
 
 
     impl groups_runtime_api::GroupsApi<Block,AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedStringName,Balance> for Runtime {
-        fn member_of(account_id:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>  {
+        fn member_of(account_id:AccountId) -> Vec<(GroupId, Group<GroupId, AccountId, MemberCount, BoundedStringName>,Vec<GroupMember<AccountId, MemberCount>>,Balance)>  {
             Groups::member_of(account_id)
         }
         fn is_member(group_id:GroupId,account_id:AccountId) -> bool  {
             Groups::is_member(group_id,&account_id)
         }
-        fn get_group_by_account(account_id:AccountId) -> Option<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
+        fn get_group_by_account(account_id:AccountId) -> Option<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<GroupMember<AccountId, MemberCount>>,Balance)>{
             Groups::get_group_by_account(account_id)
         }
         fn get_group_account(group_id:GroupId) -> Option<AccountId>  {
             Groups::get_group_account(group_id)
         }
-        fn get_group(group_id:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
+        fn get_group(group_id:GroupId) -> Option<(Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<GroupMember<AccountId, MemberCount>>,Balance)>{
             Groups::get_group(group_id)
         }
-        fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<(AccountId, MemberCount)>,Balance)>{
+        fn get_sub_groups(group_id:GroupId) -> Vec<(GroupId,Group<GroupId, AccountId, MemberCount,BoundedStringName>,Vec<GroupMember<AccountId, MemberCount>>,Balance)>{
             Groups::get_sub_groups(group_id)
         }
-        fn get_proposal(proposal_id:ProposalId) ->Option<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
+        fn get_proposal(proposal_id:ProposalId) ->Option<(ProposalId, GroupId,Vec<GroupMember<AccountId, MemberCount>>, Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
             Groups::get_proposal(proposal_id)
         }
-        fn get_proposals_by_group(group_id:GroupId) -> Vec<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>,Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
+        fn get_proposals_by_group(group_id:GroupId) -> Vec<(ProposalId, GroupId,Vec<GroupMember<AccountId, MemberCount>>,Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>{
             Groups::get_proposals_by_group(group_id)
         }
-        fn get_proposals_by_account(account_id: AccountId) -> Vec<(GroupId, Vec<(ProposalId, GroupId,Vec<(AccountId, MemberCount)>,Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>)>{
+        fn get_proposals_by_account(account_id: AccountId) -> Vec<(GroupId, Vec<(ProposalId, GroupId,Vec<GroupMember<AccountId, MemberCount>>,Option<(Hash,u32)>,Votes<AccountId, MemberCount>)>)>{
             Groups::get_proposals_by_account(account_id)
         }
     }

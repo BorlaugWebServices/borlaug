@@ -1,6 +1,6 @@
 use codec::Codec;
 use jsonrpsee::{
-    core::RpcResult,
+    core::{async_trait, RpcResult},
     proc_macros::rpc,
     types::error::{CallError, ErrorObject},
 };
@@ -134,6 +134,7 @@ macro_rules! convert_error {
 //     }};
 // }
 
+#[async_trait]
 impl<C, Block, ModuleIndex, ExtrinsicIndex, Balance>
     SettingsApiServer<<Block as BlockT>::Hash, ModuleIndex, ExtrinsicIndex, Balance>
     for Settings<C, (Block, ModuleIndex, ExtrinsicIndex, Balance)>

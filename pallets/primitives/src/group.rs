@@ -5,6 +5,16 @@ use sp_runtime::RuntimeDebug;
 #[derive(
     Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
 )]
+pub struct GroupMember<AccountId, MemberCount> {
+    /// The members account
+    pub account: AccountId,
+    /// The voting weight of the member in the group
+    pub weight: MemberCount,
+}
+
+#[derive(
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
 pub struct Group<GroupId, AccountId, MemberCount, BoundedString> {
     /// A name for the group.
     pub name: BoundedString,
@@ -25,9 +35,9 @@ pub struct Votes<AccountId, MemberCount> {
     /// The total_vote_weight of group at the time the proposal was made.
     pub total_vote_weight: MemberCount,
     /// The current set of voters that approved it.
-    pub ayes: Vec<(AccountId, MemberCount)>,
+    pub ayes: Vec<GroupMember<AccountId, MemberCount>>,
     /// The current set of voters that rejected it.
-    pub nays: Vec<(AccountId, MemberCount)>,
+    pub nays: Vec<GroupMember<AccountId, MemberCount>>,
     /// whether or not the vote was vetoed
     pub veto: Option<bool>,
 }

@@ -613,7 +613,7 @@ pub mod pallet {
         pub fn create_group(
             origin: OriginFor<T>,
             name: Vec<u8>,
-            members: Vec<(T::AccountId, T::MemberCount)>,
+            members: Vec<GroupMember<T::AccountId, T::MemberCount>>,
             threshold: T::MemberCount,
             initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
@@ -684,7 +684,7 @@ pub mod pallet {
         pub fn update_group(
             origin: OriginFor<T>,
             name: Option<Vec<u8>>,
-            add_members: Option<Vec<(T::AccountId, T::MemberCount)>>,
+            add_members: Option<Vec<GroupMember<T::AccountId, T::MemberCount>>>,
             remove_members: Option<Vec<T::AccountId>>,
             threshold: Option<T::MemberCount>,
         ) -> DispatchResultWithPostInfo {
@@ -739,7 +739,7 @@ pub mod pallet {
         pub fn create_sub_group(
             origin: OriginFor<T>,
             name: Vec<u8>,
-            members: Vec<(T::AccountId, T::MemberCount)>,
+            members: Vec<GroupMember<T::AccountId, T::MemberCount>>,
             threshold: T::MemberCount,
             initial_balance: <<T as Config>::Currency as Currency<T::AccountId>>::Balance,
         ) -> DispatchResultWithPostInfo {
@@ -813,7 +813,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             sub_group_id: T::GroupId,
             name: Option<Vec<u8>>,
-            add_members: Option<Vec<(T::AccountId, T::MemberCount)>>,
+            add_members: Option<Vec<GroupMember<T::AccountId, T::MemberCount>>>,
             remove_members: Option<Vec<T::AccountId>>,
             threshold: Option<T::MemberCount>,
         ) -> DispatchResultWithPostInfo {
@@ -1066,7 +1066,10 @@ pub mod pallet {
             let votes = Votes {
                 threshold,
                 total_vote_weight: group.total_vote_weight,
-                ayes: vec![(sender.clone(), weight)],
+                ayes: vec![GroupMember {
+                    account: sender.clone(),
+                    weight,
+                }],
                 nays: vec![],
                 veto: None,
             };
@@ -1132,18 +1135,21 @@ pub mod pallet {
             let position_yes = voting
                 .ayes
                 .iter()
-                .position(|(account, _)| account == &sender);
+                .position(|member| &member.account == &sender);
             let position_no = voting
                 .nays
                 .iter()
-                .position(|(account, _)| account == &sender);
+                .position(|member| &member.account == &sender);
 
             // Detects first vote of the member in the motion
             let is_account_voting_first_time = position_yes.is_none() && position_no.is_none();
 
             if approve {
                 if position_yes.is_none() {
-                    voting.ayes.push((sender.clone(), weight));
+                    voting.ayes.push(GroupMember {
+                        account: sender.clone(),
+                        weight,
+                    });
                 } else {
                     #[allow(clippy::try_err)]
                     Err(Error::<T>::DuplicateVote)?;
@@ -1153,7 +1159,10 @@ pub mod pallet {
                 }
             } else {
                 if position_no.is_none() {
-                    voting.nays.push((sender.clone(), weight));
+                    voting.nays.push(GroupMember {
+                        account: sender.clone(),
+                        weight,
+                    });
                 } else {
                     #[allow(clippy::try_err)]
                     Err(Error::<T>::DuplicateVote)?;
@@ -1216,8 +1225,8 @@ pub mod pallet {
 
             let voting = Self::voting(group_id, proposal_id).ok_or(Error::<T>::VoteMissing)?;
 
-            let yes_votes = voting.ayes.into_iter().map(|(_, w)| w).sum();
-            let no_votes = voting.nays.into_iter().map(|(_, w)| w).sum();
+            let yes_votes = voting.ayes.into_iter().map(|member| member.weight).sum();
+            let no_votes = voting.nays.into_iter().map(|member| member.weight).sum();
 
             let approved = yes_votes >= voting.threshold;
             let disapproved = voting.total_vote_weight.saturating_sub(no_votes) < voting.threshold;
@@ -1518,7 +1527,7 @@ pub mod pallet {
         ) -> Vec<(
             T::GroupId,
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
-            Vec<(T::AccountId, T::MemberCount)>,
+            Vec<GroupMember<T::AccountId, T::MemberCount>>,
             <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <MemberOf<T>>::iter_prefix(&account_id)
@@ -1527,7 +1536,7 @@ pub mod pallet {
                         let balance =
                             <T as Config>::Currency::free_balance(&group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(group_id)
-                            .map(|(account_id, weight)| (account_id, weight))
+                            .map(|(account, weight)| GroupMember { account, weight })
                             .collect();
                         (group_id, group, members, balance)
                     })
@@ -1544,7 +1553,7 @@ pub mod pallet {
         ) -> Option<(
             T::GroupId,
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
-            Vec<(T::AccountId, T::MemberCount)>,
+            Vec<GroupMember<T::AccountId, T::MemberCount>>,
             <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <GroupByAccount<T>>::get(account_id)
@@ -1553,7 +1562,7 @@ pub mod pallet {
                         let balance =
                             <T as Config>::Currency::free_balance(&group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(group_id)
-                            .map(|(account, weight)| (account, weight))
+                            .map(|(account, weight)| GroupMember { account, weight })
                             .collect();
                         (group_id, group, members, balance)
                     })
@@ -1569,13 +1578,13 @@ pub mod pallet {
             group_id: T::GroupId,
         ) -> Option<(
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
-            Vec<(T::AccountId, T::MemberCount)>,
+            Vec<GroupMember<T::AccountId, T::MemberCount>>,
             <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <Groups<T>>::get(group_id).map(|group| {
                 let balance = <T as Config>::Currency::free_balance(&group.anonymous_account);
                 let members = <GroupMembers<T>>::iter_prefix(group_id)
-                    .map(|(account, weight)| (account, weight))
+                    .map(|(account, weight)| GroupMember { account, weight })
                     .collect();
                 (group, members, balance)
             })
@@ -1585,7 +1594,7 @@ pub mod pallet {
         ) -> Vec<(
             T::GroupId,
             Group<T::GroupId, T::AccountId, T::MemberCount, BoundedVec<u8, T::NameLimit>>,
-            Vec<(T::AccountId, T::MemberCount)>,
+            Vec<GroupMember<T::AccountId, T::MemberCount>>,
             <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
             <GroupChildren<T>>::iter_prefix(group_id)
@@ -1594,7 +1603,7 @@ pub mod pallet {
                         let balance =
                             <T as Config>::Currency::free_balance(&child_group.anonymous_account);
                         let members = <GroupMembers<T>>::iter_prefix(child_group_id)
-                            .map(|(account, weight)| (account, weight))
+                            .map(|(account, weight)| GroupMember { account, weight })
                             .collect();
                         (child_group_id, child_group, members, balance)
                     })
@@ -1607,7 +1616,7 @@ pub mod pallet {
         ) -> Option<(
             T::ProposalId,
             T::GroupId,
-            Vec<(T::AccountId, T::MemberCount)>,
+            Vec<GroupMember<T::AccountId, T::MemberCount>>,
             Option<(T::Hash, u32)>,
             Votes<T::AccountId, T::MemberCount>,
         )> {
@@ -1624,7 +1633,7 @@ pub mod pallet {
         ) -> Vec<(
             T::ProposalId,
             T::GroupId,
-            Vec<(T::AccountId, T::MemberCount)>,
+            Vec<GroupMember<T::AccountId, T::MemberCount>>,
             Option<(T::Hash, u32)>,
             Votes<T::AccountId, T::MemberCount>,
         )> {
@@ -1642,7 +1651,7 @@ pub mod pallet {
             Vec<(
                 T::ProposalId,
                 T::GroupId,
-                Vec<(T::AccountId, T::MemberCount)>,
+                Vec<GroupMember<T::AccountId, T::MemberCount>>,
                 Option<(T::Hash, u32)>,
                 Votes<T::AccountId, T::MemberCount>,
             )>,
@@ -1671,22 +1680,22 @@ pub mod pallet {
                 BoundedVec<u8, T::NameLimit>,
             >,
             group_id: T::GroupId,
-            members: Vec<(T::AccountId, T::MemberCount)>,
+            members: Vec<GroupMember<T::AccountId, T::MemberCount>>,
         ) {
-            for (account, mut weight) in members {
-                if weight == Zero::zero() {
-                    weight = 1u32.into();
+            for mut member in members {
+                if member.weight == Zero::zero() {
+                    member.weight = 1u32.into();
                 }
                 let mut total_vote_weight = group.total_vote_weight;
-                let old_member_maybe = <GroupMembers<T>>::get(group_id, &account);
+                let old_member_maybe = <GroupMembers<T>>::get(group_id, &member.account);
                 if let Some(old_weight) = old_member_maybe {
                     total_vote_weight -= old_weight;
                 }
-                total_vote_weight += weight;
+                total_vote_weight += member.weight;
                 if total_vote_weight <= T::MaxMembers::get() {
                     group.total_vote_weight = total_vote_weight;
-                    <GroupMembers<T>>::insert(group_id, &account, weight);
-                    <MemberOf<T>>::insert(&account, group_id, ());
+                    <GroupMembers<T>>::insert(group_id, &member.account, member.weight);
+                    <MemberOf<T>>::insert(&member.account, group_id, ());
                 } else {
                     //Use event not error here because we have already mutated data in the db so we want to complete.
                     Self::deposit_event(Event::GroupMembersExceeded(group_id));
@@ -1758,7 +1767,7 @@ pub mod pallet {
     ) -> (
         T::ProposalId,
         T::GroupId,
-        Vec<(T::AccountId, T::MemberCount)>,
+        Vec<GroupMember<T::AccountId, T::MemberCount>>,
         Option<(T::Hash, u32)>,
         Votes<T::AccountId, T::MemberCount>,
     )
@@ -1769,7 +1778,7 @@ pub mod pallet {
             proposal_id,
             group_id,
             <GroupMembers<T>>::iter_prefix(group_id)
-                .map(|(account, weight)| (account, weight))
+                .map(|(account, weight)| GroupMember { account, weight })
                 .collect(),
             <Proposals<T>>::get(group_id, proposal_id).map(|proposal| {
                 (

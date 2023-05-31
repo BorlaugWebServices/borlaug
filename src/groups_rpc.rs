@@ -2,18 +2,15 @@ use codec::Codec;
 use frame_support::dispatch::fmt::Display;
 use groups_runtime_api::GroupsApi as GroupsRuntimeApi;
 use jsonrpsee::{
-    core::{RpcResult},
+    core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError,  ErrorObject},
+    types::error::{CallError, ErrorObject},
 };
-use pallet_primitives::{Group, Votes};
+use pallet_primitives::{Group, GroupMember, Votes};
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{
-
-    traits::{AtLeast32BitUnsigned, Block as BlockT},
-};
+use sp_runtime::traits::{AtLeast32BitUnsigned, Block as BlockT};
 use std::sync::Arc;
 
 #[rpc(client, server)]
@@ -89,7 +86,7 @@ pub struct GroupResponse<GroupId, AccountId, MemberCount> {
     pub group_id: GroupId,
     pub name: String,
     pub total_vote_weight: MemberCount,
-    pub members: Vec<(AccountId, MemberCount)>,
+    pub members: Vec<GroupMemberResponse<AccountId, MemberCount>>,
     pub threshold: MemberCount,
     pub anonymous_account: AccountId,
     //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
@@ -100,7 +97,7 @@ impl<GroupId, AccountId, MemberCount, BoundedString, Balance>
     From<(
         GroupId,
         Group<GroupId, AccountId, MemberCount, BoundedString>,
-        Vec<(AccountId, MemberCount)>,
+        Vec<GroupMember<AccountId, MemberCount>>,
         Balance,
     )> for GroupResponse<GroupId, AccountId, MemberCount>
 where
@@ -111,7 +108,7 @@ where
         (group_id, group, members, balance): (
             GroupId,
             Group<GroupId, AccountId, MemberCount, BoundedString>,
-            Vec<(AccountId, MemberCount)>,
+            Vec<GroupMember<AccountId, MemberCount>>,
             Balance,
         ),
     ) -> Self {
@@ -119,11 +116,26 @@ where
             group_id,
             name: String::from_utf8_lossy(&group.name.into()).to_string(),
             total_vote_weight: group.total_vote_weight,
-            members,
+            members: members.into_iter().map(|member| member.into()).collect(),
             threshold: group.threshold,
             anonymous_account: group.anonymous_account,
             balance: balance.unique_saturated_into(),
             parent: group.parent,
+        }
+    }
+}
+#[derive(Serialize, Deserialize)]
+pub struct GroupMemberResponse<AccountId, MemberCount> {
+    pub account: AccountId,
+    pub weight: MemberCount,
+}
+impl<AccountId, MemberCount> From<GroupMember<AccountId, MemberCount>>
+    for GroupMemberResponse<AccountId, MemberCount>
+{
+    fn from(member: GroupMember<AccountId, MemberCount>) -> Self {
+        GroupMemberResponse {
+            account: member.account,
+            weight: member.weight,
         }
     }
 }
@@ -132,7 +144,7 @@ where
 pub struct ProposalResponse<ProposalId, GroupId, AccountId, MemberCount> {
     pub proposal_id: ProposalId,
     pub group_id: GroupId,
-    pub members: Vec<(AccountId, MemberCount)>,
+    pub members: Vec<GroupMemberResponse<AccountId, MemberCount>>,
     pub hash: Option<String>,
     pub proposal_len: Option<u32>,
     pub votes: VotesResponse<AccountId, MemberCount>,
@@ -141,7 +153,7 @@ impl<ProposalId, GroupId, Hash, AccountId, MemberCount>
     From<(
         ProposalId,
         GroupId,
-        Vec<(AccountId, MemberCount)>,
+        Vec<GroupMember<AccountId, MemberCount>>,
         Option<(Hash, u32)>,
         Votes<AccountId, MemberCount>,
     )> for ProposalResponse<ProposalId, GroupId, AccountId, MemberCount>
@@ -152,7 +164,7 @@ where
         (proposal_id, group_id, members, proposal, votes): (
             ProposalId,
             GroupId,
-            Vec<(AccountId, MemberCount)>,
+            Vec<GroupMember<AccountId, MemberCount>>,
             Option<(Hash, u32)>,
             Votes<AccountId, MemberCount>,
         ),
@@ -160,7 +172,7 @@ where
         ProposalResponse {
             proposal_id,
             group_id,
-            members,
+            members: members.into_iter().map(|member| member.into()).collect(),
             hash: proposal
                 .as_ref()
                 .map(|(hash, _len)| String::from_utf8_lossy(hash.as_ref()).to_string()),
@@ -174,8 +186,8 @@ where
 pub struct VotesResponse<AccountId, MemberCount> {
     pub threshold: MemberCount,
     pub total_vote_weight: MemberCount,
-    pub ayes: Vec<(AccountId, MemberCount)>,
-    pub nays: Vec<(AccountId, MemberCount)>,
+    pub ayes: Vec<GroupMemberResponse<AccountId, MemberCount>>,
+    pub nays: Vec<GroupMemberResponse<AccountId, MemberCount>>,
 }
 impl<AccountId, MemberCount> From<Votes<AccountId, MemberCount>>
     for VotesResponse<AccountId, MemberCount>
@@ -184,8 +196,8 @@ impl<AccountId, MemberCount> From<Votes<AccountId, MemberCount>>
         VotesResponse {
             threshold: votes.threshold,
             total_vote_weight: votes.total_vote_weight,
-            ayes: votes.ayes,
-            nays: votes.nays,
+            ayes: votes.ayes.into_iter().map(|member| member.into()).collect(),
+            nays: votes.nays.into_iter().map(|member| member.into()).collect(),
         }
     }
 }
@@ -261,6 +273,7 @@ macro_rules! not_found_error {
     }};
 }
 
+#[async_trait]
 impl<C, Block, AccountId, GroupId, MemberCount, ProposalId, Hash, BoundedString, Balance>
     GroupsApiServer<<Block as BlockT>::Hash, AccountId, GroupId, MemberCount, ProposalId, Hash>
     for Groups<

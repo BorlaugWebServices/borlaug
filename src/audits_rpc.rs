@@ -2,15 +2,15 @@ use audits_runtime_api::AuditsApi as AuditsRuntimeApi;
 use codec::Codec;
 use frame_support::dispatch::fmt::Display;
 use jsonrpsee::{
-    core::{ RpcResult},
+    core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError,  ErrorObject},
+    types::error::{CallError, ErrorObject},
 };
 use pallet_primitives::{Audit, AuditStatus, Compliance, Evidence, Observation};
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{traits::Block as BlockT};
+use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
 #[rpc(client, server)]
@@ -312,6 +312,8 @@ macro_rules! not_found_error {
         }
     }};
 }
+
+#[async_trait]
 impl<
         C,
         Block,

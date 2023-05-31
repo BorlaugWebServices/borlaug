@@ -1,11 +1,11 @@
-use chrono::{NaiveDate, };
+use chrono::NaiveDate;
 use codec::{Codec, Decode, Encode};
 use core::fmt::Display;
 use identity_runtime_api::IdentityApi as IdentityRuntimeApi;
 use jsonrpsee::{
-    core::{ RpcResult},
+    core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError,  ErrorObject},
+    types::error::{CallError, ErrorObject},
 };
 use pallet_primitives::{Attestation, DidDocument, DidProperty, Fact, Statement};
 use serde::{
@@ -17,7 +17,7 @@ use serde::{
 };
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{ traits::Block as BlockT};
+use sp_runtime::traits::Block as BlockT;
 use std::convert::TryFrom;
 use std::fmt;
 use std::sync::Arc;
@@ -865,6 +865,7 @@ macro_rules! not_found_error {
     }};
 }
 
+#[async_trait]
 impl<
         C,
         Block,
