@@ -297,7 +297,7 @@ pub mod pallet {
             let bounded_name = enforce_limit!(name);
 
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, owner_did),
                 Error::<T>::NotDidSubject
             );
 
@@ -309,7 +309,7 @@ pub mod pallet {
 
             let registry_id = next_id!(NextRegistryId<T>, T);
 
-            <Registries<T>>::insert(&owner_did, &registry_id, Registry { name: bounded_name });
+            <Registries<T>>::insert(owner_did, registry_id, Registry { name: bounded_name });
 
             Self::deposit_event(Event::RegistryCreated(owner_did, registry_id));
             Ok(().into())
@@ -336,15 +336,15 @@ pub mod pallet {
             let bounded_name = enforce_limit!(name);
 
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, owner_did),
                 Error::<T>::NotDidSubject
             );
             ensure!(
-                <Registries<T>>::contains_key(&owner_did, registry_id),
+                <Registries<T>>::contains_key(owner_did, registry_id),
                 <Error<T>>::NotRegistryOwner
             );
 
-            <Registries<T>>::insert(&owner_did, &registry_id, Registry { name: bounded_name });
+            <Registries<T>>::insert(owner_did, registry_id, Registry { name: bounded_name });
 
             Self::deposit_event(Event::RegistryRenamed(owner_did, registry_id));
             Ok(().into())
@@ -365,11 +365,11 @@ pub mod pallet {
             let (_sender, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, owner_did),
                 Error::<T>::NotDidSubject
             );
             ensure!(
-                <Registries<T>>::contains_key(&owner_did, registry_id),
+                <Registries<T>>::contains_key(owner_did, registry_id),
                 <Error<T>>::NotRegistryOwner
             );
 
@@ -378,7 +378,7 @@ pub mod pallet {
                 Error::<T>::RegistryNotEmpty
             );
 
-            <Registries<T>>::remove(&owner_did, registry_id);
+            <Registries<T>>::remove(owner_did, registry_id);
 
             Self::deposit_event(Event::RegistryDeleted(owner_did, registry_id));
             Ok(().into())
@@ -408,12 +408,12 @@ pub mod pallet {
             let (_sender, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, owner_did),
                 Error::<T>::NotDidSubject
             );
 
             ensure!(
-                <Registries<T>>::contains_key(&owner_did, registry_id),
+                <Registries<T>>::contains_key(owner_did, registry_id),
                 <Error<T>>::NotRegistryOwner
             );
 
@@ -479,7 +479,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let (_sender, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, owner_did),
                 Error::<T>::NotDidSubject
             );
 
@@ -504,7 +504,7 @@ pub mod pallet {
                 acquired_date: asset.acquired_date,
             };
 
-            <Assets<T>>::insert(&registry_id, &asset_id, asset);
+            <Assets<T>>::insert(registry_id, asset_id, asset);
 
             Self::deposit_event(Event::AssetUpdated(registry_id, asset_id));
             Ok(().into())
@@ -526,11 +526,11 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let (_sender, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&group_account, &owner_did),
+                <identity::DidBySubject<T>>::contains_key(&group_account, owner_did),
                 Error::<T>::NotDidSubject
             );
 
-            <Assets<T>>::remove(&registry_id, &asset_id);
+            <Assets<T>>::remove(registry_id, asset_id);
 
             Self::deposit_event(Event::AssetDeleted(registry_id, asset_id));
 
@@ -555,7 +555,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let (sender, proposal_id) = ensure_account_or_threshold!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &lease.lessor),
+                <identity::DidBySubject<T>>::contains_key(&sender, lease.lessor),
                 Error::<T>::NotDidSubject
             );
 
@@ -590,7 +590,7 @@ pub mod pallet {
                 allocations: lease.allocations,
             };
 
-            <LeaseAgreements<T>>::insert(&lessor, &lease_id, lease);
+            <LeaseAgreements<T>>::insert(lessor, lease_id, lease);
 
             Self::deposit_event(Event::LeaseCreated(lease_id, lessor, lessee));
 
@@ -615,11 +615,11 @@ pub mod pallet {
             //TODO: can this be handled from the API?
             let (sender, _) = ensure_account_or_threshold!(origin);
             ensure!(
-                <identity::DidBySubject<T>>::contains_key(&sender, &lessor),
+                <identity::DidBySubject<T>>::contains_key(&sender, lessor),
                 Error::<T>::NotDidSubject
             );
 
-            let lease_agreement = <LeaseAgreements<T>>::take(&lessor, &lease_id);
+            let lease_agreement = <LeaseAgreements<T>>::take(lessor, lease_id);
 
             ensure!(lease_agreement.is_some(), Error::<T>::NotDidSubject);
 
@@ -768,8 +768,8 @@ pub mod pallet {
 
             if not_expired_allocations.len() < lease_allocations_len {
                 <LeaseAllocations<T>>::insert(
-                    &asset_allocation.registry_id,
-                    &asset_allocation.asset_id,
+                    asset_allocation.registry_id,
+                    asset_allocation.asset_id,
                     &not_expired_allocations,
                 );
             }
@@ -787,7 +787,7 @@ pub mod pallet {
             <LeaseAllocations<T>>::append(
                 asset_allocation.registry_id,
                 asset_allocation.asset_id,
-                &(lease_id, asset_allocation.allocated_shares, lease_expiry),
+                (lease_id, asset_allocation.allocated_shares, lease_expiry),
             )
         }
     }

@@ -214,7 +214,7 @@ pub fn authority_keys_from_public_keys(
             let aura = sp_core::sr25519::Public::from_ss58check(aura_key).unwrap();
             let account_id = AccountPublic::from(aura).into_account();
             let grandpa = sp_core::ed25519::Public::from_ss58check(grandpa_key).unwrap();
-            (account_id.into(), aura.into(), grandpa.into())
+            (account_id, aura.into(), grandpa.into())
         })
         .collect()
 }

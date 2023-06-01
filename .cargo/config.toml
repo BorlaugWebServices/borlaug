@@ -3,7 +3,7 @@ build.incremental = false
 [alias]
 # Run commands as CI does
 ci-check = "check --all --all-targets --all-features"
-ci-clippy = "clippy --all --all-targets --features grandpa_babe -- -Dwarnings -Drust-2018-idioms -Adeprecated"
+ci-clippy = "clippy --all --all-targets --features 'grandpa_aura runtime-benchmarks' -- -Dwarnings -Drust-2018-idioms -Adeprecated -Atype_complexity -Atabs_in_doc_comments"
 ci-fmt = "fmt --all -- --check"
 
 # Format Rust code with stable-compatible nightly features

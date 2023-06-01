@@ -100,15 +100,18 @@ pub mod pallet {
     }
 
     #[derive(
-        Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
+        Default,
+        Encode,
+        Decode,
+        Clone,
+        frame_support::RuntimeDebug,
+        TypeInfo,
+        MaxEncodedLen,
+        PartialEq,
     )]
     pub enum Releases {
+        #[default]
         V0,
-    }
-    impl Default for Releases {
-        fn default() -> Self {
-            Releases::V0
-        }
     }
 
     #[pallet::config]
@@ -971,7 +974,7 @@ pub mod pallet {
         /// - `length_bound`: The length of the Proposal for weight estimation
         #[pallet::call_index(6)]
         #[pallet::weight(T::WeightInfo::execute(
-            *length_bound as u32
+            *length_bound
         ).saturating_add(proposal.get_dispatch_info().weight))]
         pub fn execute(
             origin: OriginFor<T>,
@@ -1135,11 +1138,11 @@ pub mod pallet {
             let position_yes = voting
                 .ayes
                 .iter()
-                .position(|member| &member.account == &sender);
+                .position(|member| member.account == sender);
             let position_no = voting
                 .nays
                 .iter()
-                .position(|member| &member.account == &sender);
+                .position(|member| member.account == sender);
 
             // Detects first vote of the member in the motion
             let is_account_voting_first_time = position_yes.is_none() && position_no.is_none();
@@ -1556,18 +1559,15 @@ pub mod pallet {
             Vec<GroupMember<T::AccountId, T::MemberCount>>,
             <T::Currency as Currency<T::AccountId>>::Balance,
         )> {
-            <GroupByAccount<T>>::get(account_id)
-                .map(|group_id| {
-                    <Groups<T>>::get(group_id).map(|group| {
-                        let balance =
-                            <T as Config>::Currency::free_balance(&group.anonymous_account);
-                        let members = <GroupMembers<T>>::iter_prefix(group_id)
-                            .map(|(account, weight)| GroupMember { account, weight })
-                            .collect();
-                        (group_id, group, members, balance)
-                    })
+            <GroupByAccount<T>>::get(account_id).and_then(|group_id| {
+                <Groups<T>>::get(group_id).map(|group| {
+                    let balance = <T as Config>::Currency::free_balance(&group.anonymous_account);
+                    let members = <GroupMembers<T>>::iter_prefix(group_id)
+                        .map(|(account, weight)| GroupMember { account, weight })
+                        .collect();
+                    (group_id, group, members, balance)
                 })
-                .flatten()
+            })
         }
 
         pub fn get_group_account(group_id: T::GroupId) -> Option<T::AccountId> {
@@ -1620,12 +1620,10 @@ pub mod pallet {
             Option<(T::Hash, u32)>,
             Votes<T::AccountId, T::MemberCount>,
         )> {
-            <GroupByProposal<T>>::get(proposal_id)
-                .map(|group_id| {
-                    <Voting<T>>::get(group_id, proposal_id)
-                        .map(|voting| proposal_with_votes::<T>(group_id, proposal_id, voting))
-                })
-                .flatten()
+            <GroupByProposal<T>>::get(proposal_id).and_then(|group_id| {
+                <Voting<T>>::get(group_id, proposal_id)
+                    .map(|voting| proposal_with_votes::<T>(group_id, proposal_id, voting))
+            })
         }
 
         pub fn get_proposals_by_group(
@@ -1719,7 +1717,7 @@ pub mod pallet {
                     group.total_vote_weight -= old_weight;
                 }
                 <GroupMembers<T>>::remove(group_id, &account);
-                <MemberOf<T>>::remove(&account, group_id);
+                <MemberOf<T>>::remove(account, group_id);
             });
         }
 
@@ -1848,7 +1846,7 @@ pub mod pallet {
                 group_id,
                 proposal_id,
                 group.anonymous_account.clone(),
-                group.anonymous_account.clone(),
+                group.anonymous_account,
             )))
         }
     }
@@ -1877,7 +1875,7 @@ pub mod pallet {
             Ok(O::from(RawOrigin::ProposalExecuted(
                 group_id,
                 group.anonymous_account.clone(),
-                group.anonymous_account.clone(),
+                group.anonymous_account,
             )))
         }
     }
@@ -1941,7 +1939,7 @@ pub mod pallet {
                 group_id,
                 proposal_id,
                 group.anonymous_account.clone(),
-                group.anonymous_account.clone(),
+                group.anonymous_account,
             )))
         }
     }

@@ -148,7 +148,7 @@ where
         deny_unsafe,
     } = deps;
 
-    module.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
+    module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
     module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
     module.merge(Groups::new(client.clone()).into_rpc())?;
@@ -156,7 +156,7 @@ where
     module.merge(Identity::new(client.clone()).into_rpc())?;
     module.merge(Audits::new(client.clone()).into_rpc())?;
     module.merge(AssetRegistry::new(client.clone()).into_rpc())?;
-    module.merge(Settings::new(client.clone()).into_rpc())?;
+    module.merge(Settings::new(client).into_rpc())?;
 
     Ok(module)
 }

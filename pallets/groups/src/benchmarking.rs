@@ -12,6 +12,7 @@ use frame_support::{
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Call as SystemCall;
 use frame_system::{self, RawOrigin as SystemOrigin};
+use primitives::GroupMember;
 use sp_runtime::traits::{Bounded, UniqueSaturatedInto};
 use sp_std::{mem::size_of, prelude::*, vec};
 
@@ -41,10 +42,15 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let mut members = vec![(caller.clone(),1u32.into())];
+        let mut members = vec![
+            GroupMember{
+                account:caller.clone(),
+                weight:1u32.into()
+            }
+        ];
         for i in 1 .. m {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
         let name = vec![42u8; a as usize];
 
@@ -65,17 +71,17 @@ benchmarks! {
 
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        let origin=SystemOrigin::Signed(caller.clone()).into();
+        let origin=SystemOrigin::Signed(caller).into();
 
         let mut origional_members = vec![];
         let mut remove=vec![];
         for i in 0 .. o {
             let member:T::AccountId = account("member", i, SEED);
-            origional_members.push((member.clone(),1u32.into()));
+            origional_members.push(GroupMember{account:member.clone(),weight:1u32.into()});
             remove.push(member);
         }
 
-        GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],origional_members, 1u32.into(),1_000_000_000u32.into())?;
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2_usize],origional_members, 1u32.into(),1_000_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
@@ -83,8 +89,8 @@ benchmarks! {
         //don't overlap members
         //TODO: verify that performance is not worse for overlaps
         for i in o .. o+n {
-            let member = account("member", i, SEED);
-            new_members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            new_members.push(GroupMember{account,weight:1u32.into()});
         }
         let name = vec![42u8; a as usize];
 
@@ -114,15 +120,15 @@ benchmarks! {
 
         let origin=SystemOrigin::Signed(caller.clone()).into();
 
-        GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())], 1u32.into(),1_000_000_000u32.into())?;
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2_usize],vec![GroupMember{account:caller,weight: 1u32.into()}], 1u32.into(),1_000_000_000u32.into())?;
 
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         let mut members = vec![];
         for i in 0 .. m {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
         let name = vec![42u8; a as usize];
 
@@ -154,7 +160,7 @@ benchmarks! {
 
         let origin=SystemOrigin::Signed(caller.clone()).into();
 
-        GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())], 1u32.into(),1_000_000_000u32.into())?;
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2_usize],vec![GroupMember{account:caller, weight:1u32.into()}], 1u32.into(),1_000_000_000u32.into())?;
 
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
@@ -162,14 +168,14 @@ benchmarks! {
         let mut origional_members = vec![];
         let mut remove=vec![];
         for i in 0 .. o {
-            let member:T::AccountId = account("member", i, SEED);
-            origional_members.push((member.clone(),1u32.into()));
-            remove.push(member);
+            let account:T::AccountId = account("member", i, SEED);
+            origional_members.push(GroupMember{account:account.clone(),weight:1u32.into()});
+            remove.push(account);
         }
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
-            name:vec![42u8; 2 as usize],
+            name:vec![42u8; 2_usize],
             members:   origional_members,
             threshold:1u32.into(),
             initial_balance:  1_000u32.into()
@@ -180,8 +186,8 @@ benchmarks! {
         //don't overlap members
         //TODO: verify that performance is not worse for overlaps
         for i in o .. o+n {
-            let member = account("member", i, SEED);
-            new_members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            new_members.push(GroupMember{account,weight:1u32.into()});
         }
         let name = vec![42u8; a as usize];
 
@@ -213,13 +219,18 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let origin=SystemOrigin::Signed(caller.clone()).into();
 
-        let mut members = vec![(caller.clone(),1u32.into())];
+        let mut members = vec![
+            GroupMember{
+                account:caller.clone(),
+                weight:1u32.into()
+            }
+        ];
         for i in 1 .. m {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
 
-        GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],members, 1u32.into(),1_000_000_000u32.into())?;
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2_usize],members, 1u32.into(),1_000_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
@@ -255,7 +266,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let origin=SystemOrigin::Signed(caller.clone()).into();
-        GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],vec![(caller.clone(),1u32.into())], 1u32.into(),1_000_000_000u32.into())?;
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2_usize],vec![GroupMember{account:caller,weight:1u32.into()}], 1u32.into(),1_000_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
@@ -263,12 +274,12 @@ benchmarks! {
 
         let mut members = vec![];
         for i in 0 .. m {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
 
         let call = Call::<T>::create_sub_group{
-            name:  vec![42u8; 2 as usize],
+            name:  vec![42u8; 2_usize],
             members,
             threshold: 1u32.into(),
             initial_balance:  1_000u32.into()
@@ -308,7 +319,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],vec![(caller.clone(),1u32.into())], 1u32.into(),1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2_usize],vec![GroupMember{account:caller.clone(),weight:1u32.into()}], 1u32.into(),1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
@@ -337,13 +348,13 @@ benchmarks! {
 
         let threshold = 1u32.into();
 
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],vec![(caller.clone(),1u32.into())], threshold,1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2_usize],vec![GroupMember{account:caller.clone(),weight:1u32.into()}], threshold,1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; a as usize]}.into();
 
-    }: propose(SystemOrigin::Signed(caller.clone()), 1u32.into(),Box::new(proposal.clone()),threshold,bytes_in_storage)
+    }: propose(SystemOrigin::Signed(caller.clone()), 1u32.into(),Box::new(proposal),threshold,bytes_in_storage)
 
     verify {
         let proposal_id:T::ProposalId=1u32.into();
@@ -363,16 +374,16 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
-        let members = vec![(caller.clone(),1u32.into()),(account("member", 1, SEED),1u32.into())];
+        let members = vec![GroupMember{account:caller.clone(),weight:1u32.into()},GroupMember{account:account("member", 1, SEED),weight:1u32.into()}];
 
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(), vec![42u8; 2 as usize], members, 2u32.into(), 1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(), vec![42u8; 2_usize], members, 2u32.into(), 1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         let threshold = 2u32.into();
 
 
-        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![42u8 as u8; a as usize]}.into();
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![42u8; a as usize]}.into();
 
     }: propose(SystemOrigin::Signed(caller.clone()), group_id,Box::new(proposal.clone()),threshold,bytes_in_storage)
 
@@ -392,16 +403,16 @@ benchmarks! {
 
         let mut members = vec![];
         let proposer: T::AccountId = account("proposer", 0, SEED);
-        members.push((proposer.clone(),1u32.into()));
+        members.push(GroupMember{account:proposer.clone(),weight:1u32.into()});
         for i in 1 .. m - 1  {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
         let voter: T::AccountId = account("voter", 0, SEED);
-        members.push((voter.clone(),1u32.into()));
+        members.push(GroupMember{account:voter.clone(),weight:1u32.into()});
 
         T::Currency::make_free_balance_be(&voter, BalanceOf::<T>::max_value());
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(voter.clone()).into(),vec![42u8; 2 as usize],members.clone(), m.into(),1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(voter.clone()).into(),vec![42u8; 2_usize],members.clone(), m.into(),1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
@@ -409,9 +420,9 @@ benchmarks! {
         let threshold:T::MemberCount = (m - 1).into();
 
         let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; a as usize]}.into();GroupPallet::<T>::propose(
-            SystemOrigin::Signed(proposer.clone()).into(),
+            SystemOrigin::Signed(proposer).into(),
             group_id,
-            Box::new(proposal.clone()),
+            Box::new(proposal),
             threshold,
             bytes_in_storage,
         )?;
@@ -421,7 +432,7 @@ benchmarks! {
 
         // Have almost everyone vote aye on last proposal, while keeping it from passing.
         for j in 1 .. m - 3 {
-            let (other_voter,_) = &members[j as usize];
+            let other_voter= &members[j as usize].account;
             let approve = true;
             GroupPallet::<T>::vote(
                 SystemOrigin::Signed(other_voter.clone()).into(),
@@ -474,23 +485,28 @@ benchmarks! {
         let caller: T::AccountId = whitelisted_caller();
 
         // Construct `members`.
-        let mut members = vec![(caller.clone(),1u32.into())];
+        let mut members = vec![
+            GroupMember{
+                account:caller.clone(),
+                weight:1u32.into()
+            }
+        ];
         for i in 1 .. m {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
 
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members.clone(), m.into(),1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2_usize],members.clone(), m.into(),1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         let threshold = m.into();
 
-        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; 100 as usize]}.into();GroupPallet::<T>::propose(
+        let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![1; 100_usize]}.into();GroupPallet::<T>::propose(
             SystemOrigin::Signed(caller.clone()).into(),
             group_id,
-            Box::new(proposal.clone()),
+            Box::new(proposal),
             threshold,
             bytes_in_storage,
         )?;
@@ -500,7 +516,7 @@ benchmarks! {
 
         // Everyone except proposer votes nay
         for j in 1 .. m   {
-            let (voter,_) = &members[j as usize];
+            let voter = &members[j as usize].account;
             let approve = false;
             GroupPallet::<T>::vote(
                 SystemOrigin::Signed(voter.clone()).into(),
@@ -533,14 +549,19 @@ benchmarks! {
         let caller: T::AccountId = whitelisted_caller();
 
         // Construct `members`.
-        let mut members = vec![(caller.clone(),1u32.into())];
+        let mut members = vec![
+            GroupMember{
+                account:caller.clone(),
+                weight:1u32.into()
+            }
+        ];
         for i in 1 .. m {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
 
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2 as usize],members.clone(), m.into(),1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(caller.clone()).into(),vec![42u8; 2_usize],members.clone(), m.into(),1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
@@ -552,7 +573,7 @@ benchmarks! {
         GroupPallet::<T>::propose(
             SystemOrigin::Signed(caller.clone()).into(),
             group_id,
-            Box::new(proposal.clone()),
+            Box::new(proposal),
             threshold,
             bytes_in_storage,
         )?;
@@ -562,7 +583,7 @@ benchmarks! {
 
          // Everyone except proposer votes yes
          for j in 1 .. m   {
-            let (voter,_) = &members[j as usize];
+            let voter = &members[j as usize].account;
             let approve = true;
             GroupPallet::<T>::vote(
                 SystemOrigin::Signed(voter.clone()).into(),
@@ -592,21 +613,22 @@ benchmarks! {
 
         let admin: T::AccountId = whitelisted_caller();
         T::Currency::make_free_balance_be(&admin, BalanceOf::<T>::max_value());
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(admin.clone()).into(),vec![42u8; 2 as usize],vec![(admin.clone(),1u32.into())], 1u32.into(),1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(admin.clone()).into(),vec![42u8; 2_usize],vec![GroupMember{account:admin.clone(),weight:1u32.into()}], 1u32.into(),1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         // Construct `members`.
         let mut members = vec![];
         for i in 0 .. 2  {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
+
         let threshold:T::MemberCount = 2u32.into();
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
-            name:  vec![42u8; 2 as usize],
+            name:  vec![42u8; 2_usize],
             members:   members.clone(),
             threshold,
             initial_balance:1_000u32.into()
@@ -618,11 +640,11 @@ benchmarks! {
         // Add proposal
 
         let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![42u8; bytes as usize]}.into();
-        let (proposer,_)=&members[0 as usize];
+        let proposer=&members[0_usize].account;
         GroupPallet::<T>::propose(
             SystemOrigin::Signed(proposer.clone()).into(),
             sub_group_id,
-            Box::new(proposal.clone()),
+            Box::new(proposal),
             threshold,
             bytes_in_storage,
         )?;
@@ -650,21 +672,21 @@ benchmarks! {
 
         let admin: T::AccountId = whitelisted_caller();
         T::Currency::make_free_balance_be(&admin, BalanceOf::<T>::max_value());
-        GroupPallet::<T>::create_group(SystemOrigin::Signed(admin.clone()).into(),vec![42u8; 2 as usize],vec![(admin.clone(),1u32.into())], 1u32.into(),1_000_000u32.into())?;
+        GroupPallet::<T>::create_group(SystemOrigin::Signed(admin.clone()).into(),vec![42u8; 2_usize],vec![GroupMember{account:admin.clone(),weight:1u32.into()}], 1u32.into(),1_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         // Construct `members`.
         let mut members = vec![];
         for i in 0 .. 2  {
-            let member = account("member", i, SEED);
-            members.push((member,1u32.into()));
+            let account = account("member", i, SEED);
+            members.push(GroupMember{account,weight:1u32.into()});
         }
         let threshold = 2u32.into();
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
-            name:  vec![42u8; 2 as usize],
+            name:  vec![42u8; 2_usize],
             members:    members.clone(),
             threshold,
             initial_balance:   1_000u32.into()
@@ -676,11 +698,11 @@ benchmarks! {
         // Add proposal
 
             let proposal: T::Proposal = SystemCall::<T>::remark{remark:vec![42u8; a as usize]}.into();
-            let (proposer,_)=&members[0 as usize];
+            let proposer=&members[0_usize].account;
             GroupPallet::<T>::propose(
                 SystemOrigin::Signed(proposer.clone()).into(),
                 sub_group_id,
-                Box::new(proposal.clone()),
+                Box::new(proposal),
                 threshold,
                 bytes_in_storage,
             )?;
@@ -693,7 +715,7 @@ benchmarks! {
         let votes=Voting::<T>::get(sub_group_id,proposal_id);
         assert!(votes.is_some());
         let votes=votes.unwrap();
-        assert_eq!(votes.nays.len(),0 as usize);
+        assert_eq!(votes.nays.len(),0_usize);
 
 
     }: veto(SystemOrigin::Signed(admin.clone()), sub_group_id, proposal_id, true,Weight::max_value(), bytes_in_storage)
@@ -711,9 +733,9 @@ benchmarks! {
 
         let origin=SystemOrigin::Signed(caller.clone()).into();
 
-        let members = vec![(caller.clone(),1u32.into())];
+        let members = vec![GroupMember{account:caller.clone(),weight:1u32.into()}];
 
-        GroupPallet::<T>::create_group(origin,vec![42u8; 2 as usize],members, 1u32.into(),2_000_000u32.into())?;
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2_usize],members, 1u32.into(),2_000_000u32.into())?;
 
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
@@ -740,15 +762,15 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:OriginFor<T> = SystemOrigin::Signed(caller.clone()).into();
-        GroupPallet::<T>::create_group(origin.clone(),vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())], 1u32.into(),3_000_000u32.into())?;
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2_usize],vec![GroupMember{account:caller.clone(), weight:1u32.into()}], 1u32.into(),3_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
 
         let call = Call::<T>::create_sub_group{
-            name: vec![42u8; 2 as usize],
-            members:  vec![(caller.clone(),   1u32.into())],
+            name: vec![42u8; 2_usize],
+            members:  vec![GroupMember{account:caller, weight:1u32.into()}],
             threshold:  1u32.into(),
             initial_balance:  2_000_000u32.into()
         };
@@ -779,14 +801,14 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:OriginFor<T> = SystemOrigin::Signed(caller.clone()).into();
-        GroupPallet::<T>::create_group(origin.clone(),vec![42u8; 2 as usize],vec![(caller.clone(), 1u32.into())], 1u32.into(),3_000_000u32.into())?;
+        GroupPallet::<T>::create_group(origin,vec![42u8; 2_usize],vec![GroupMember{account:caller.clone(), weight:1u32.into()}], 1u32.into(),3_000_000u32.into())?;
         let group_id:T::GroupId=1u32.into();
         assert!(Groups::<T>::contains_key(group_id));
 
         let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
-            name:   vec![42u8; 2 as usize],
-            members:  vec![(caller.clone(), 1u32.into())],
+            name:   vec![42u8; 2_usize],
+            members:  vec![GroupMember{account:caller.clone(), weight:1u32.into()}],
             threshold:     1u32.into(),
             initial_balance:    1_000_000u32.into()
         };

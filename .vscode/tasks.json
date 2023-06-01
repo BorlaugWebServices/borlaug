@@ -238,6 +238,15 @@
             }
         },
         {
+            "label": "Clippy",
+            "type": "shell",
+            "command": "cargo clippy --fix --features 'grandpa_aura runtime-benchmarks' -- -Aclippy::type_complexity -Aclippy::enum_variant_names -Aclippy::tabs_in_doc_comments",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
             "label": "Purge test chain",
             "type": "shell",
             "command": "./target/release/borlaug purge-chain -y --base-path /tmp/test --dev",

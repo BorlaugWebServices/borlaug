@@ -38,7 +38,7 @@ benchmarks! {
 
         let name = vec![42u8; a as usize];
 
-    }: _(SystemOrigin::Signed(caller.clone()),did.clone(),name.clone())
+    }: _(SystemOrigin::Signed(caller.clone()),did,name.clone())
 
     verify {
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
@@ -67,7 +67,7 @@ benchmarks! {
 
         let name = vec![42u8; a as usize];
 
-    }: _(SystemOrigin::Signed(caller.clone()),did.clone(),registry_id,name.clone())
+    }: _(SystemOrigin::Signed(caller.clone()),did,registry_id,name.clone())
 
     verify {
         let registry=<Registries<T>>::get(did,registry_id);
@@ -132,7 +132,7 @@ benchmarks! {
         }
 
         let asset=Asset{
-            properties:properties,
+            properties,
             name: vec![42u8; a as usize],
             asset_number: Some(vec![42u8; b as usize]),
             status: AssetStatus::Draft,
@@ -143,7 +143,7 @@ benchmarks! {
             acquired_date: Some(T::Moment::unique_saturated_from(100u32)),
         };
 
-    }: _(SystemOrigin::Signed(caller.clone()),did.clone(),registry_id,asset.clone())
+    }: _(SystemOrigin::Signed(caller.clone()),did,registry_id,asset.clone())
 
     verify {
         let asset_id=T::AssetId::unique_saturated_from(1u32);
@@ -200,7 +200,7 @@ benchmarks! {
         }
 
         let asset=Asset{
-            properties:properties,
+            properties,
             name: vec![42u8; a as usize],
             asset_number: Some(vec![42u8; b as usize]),
             status: AssetStatus::Draft,
@@ -211,7 +211,7 @@ benchmarks! {
             acquired_date: Some(T::Moment::unique_saturated_from(100u32)),
         };
 
-    }: _(SystemOrigin::Signed(caller.clone()),did.clone(),registry_id,asset_id,asset.clone())
+    }: _(SystemOrigin::Signed(caller.clone()),did,registry_id,asset_id,asset.clone())
 
     verify {
         let stored_asset=<Assets<T>>::get(registry_id,asset_id);
@@ -234,7 +234,7 @@ benchmarks! {
         assert_eq!(dids_by_controller.len(), 1);
         let did=dids_by_controller[0];
 
-        AssetRegistryPallet::<T>::create_registry(origin.clone(), did.clone(),vec![42u8])?;
+        AssetRegistryPallet::<T>::create_registry(origin.clone(), did,vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
 
         AssetRegistryPallet::<T>::create_asset(origin, did.clone(),registry_id,Asset{
@@ -250,7 +250,7 @@ benchmarks! {
         })?;
         let asset_id=T::AssetId::unique_saturated_from(1u32);
 
-    }: _(SystemOrigin::Signed(caller.clone()),did.clone(),registry_id,asset_id)
+    }: _(SystemOrigin::Signed(caller.clone()),did,registry_id,asset_id)
 
     verify {
         assert!(!<Assets<T>>::contains_key(registry_id,asset_id));
@@ -274,7 +274,7 @@ benchmarks! {
         assert_eq!(dids_by_controller.len(), 1);
         let did=dids_by_controller[0];
 
-        AssetRegistryPallet::<T>::create_registry(origin.clone(), did.clone(),vec![42u8])?;
+        AssetRegistryPallet::<T>::create_registry(origin.clone(), did,vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
 
         let asset=Asset{
@@ -304,11 +304,11 @@ benchmarks! {
         let lease=LeaseAgreement{
             proposal_id:None,
             contract_number: vec![42u8; a as usize],
-            lessor: did.clone(),
-            lessee: did.clone(),
+            lessor: did,
+            lessee: did,
             effective_ts: T::Moment::unique_saturated_from(100u32),
             expiry_ts: T::Moment::unique_saturated_from(100u32),
-            allocations: allocations,
+            allocations,
         };
 
     }: _(SystemOrigin::Signed(caller.clone()),lease.clone())
@@ -337,7 +337,7 @@ benchmarks! {
         assert_eq!(dids_by_controller.len(), 1);
         let did=dids_by_controller[0];
 
-        AssetRegistryPallet::<T>::create_registry(origin.clone(), did.clone(),vec![42u8])?;
+        AssetRegistryPallet::<T>::create_registry(origin.clone(), did,vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
 
         let asset=Asset{
@@ -354,7 +354,7 @@ benchmarks! {
 
         let mut allocations=vec![];
         for i in 0..a {
-            AssetRegistryPallet::<T>::create_asset(origin.clone(), did.clone(),registry_id,asset.clone())?;
+            AssetRegistryPallet::<T>::create_asset(origin.clone(), did,registry_id,asset.clone())?;
             let asset_id=T::AssetId::unique_saturated_from(i+1);
             assert!(<Assets<T>>::contains_key(registry_id,asset_id));
             allocations.push(AssetAllocation{
@@ -368,13 +368,13 @@ benchmarks! {
             proposal_id:None,
             contract_number: vec![42u8],
             lessor: did.clone(),
-            lessee: did.clone(),
+            lessee: did,
             effective_ts: T::Moment::unique_saturated_from(100u32),
             expiry_ts: T::Moment::unique_saturated_from(100u32),
-            allocations: allocations,
+            allocations,
         };
 
-        AssetRegistryPallet::<T>::new_lease(origin.clone(), lease.clone())?;
+        AssetRegistryPallet::<T>::new_lease(origin, lease)?;
         let lease_id=T::LeaseId::unique_saturated_from(1u32);
 
     }: _(SystemOrigin::Signed(caller.clone()),did,lease_id)

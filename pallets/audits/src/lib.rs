@@ -80,17 +80,19 @@ pub mod pallet {
     }
 
     #[derive(
-        Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
+        Encode,
+        Decode,
+        Default,
+        Clone,
+        frame_support::RuntimeDebug,
+        TypeInfo,
+        MaxEncodedLen,
+        PartialEq,
     )]
     pub enum Releases {
+        #[default]
         V0,
     }
-    impl Default for Releases {
-        fn default() -> Self {
-            Releases::V0
-        }
-    }
-
     #[pallet::config]
     pub trait Config: frame_system::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -481,7 +483,7 @@ pub mod pallet {
             );
 
             <Audits<T>>::insert(&audit_id, audit);
-            <AuditByProposal<T>>::insert(&proposal_id, audit_id);
+            <AuditByProposal<T>>::insert(proposal_id, audit_id);
             <AuditsByCreator<T>>::insert(&group_account, &audit_id, ());
             <AuditsByAuditingOrg<T>>::insert(&auditing_org, &audit_id, ());
 
@@ -884,7 +886,7 @@ pub mod pallet {
 
             <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
 
-            <EvidenceByProposal<T>>::insert(&proposal_id, (audit_id, evidence_id));
+            <EvidenceByProposal<T>>::insert(proposal_id, (audit_id, evidence_id));
 
             Self::deposit_event(Event::EvidenceAttached(
                 group_account,

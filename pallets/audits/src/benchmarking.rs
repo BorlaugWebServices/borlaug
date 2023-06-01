@@ -25,8 +25,11 @@ fn create_group<T: Config>() -> Result<T::AccountId, &'static str> {
         SystemOrigin::Signed(account_id.clone()).into();
     groups::Pallet::<T>::create_group(
         origin,
-        vec![42u8; 2 as usize],
-        vec![(account_id.clone(), 1u32.into())],
+        vec![42u8; 2_usize],
+        vec![GroupMember {
+            account: account_id,
+            weight: 1u32.into(),
+        }],
         1u32.into(),
         1_000_000_000u32.into(),
     )?;
@@ -124,7 +127,7 @@ benchmarks! {
         assert!(<Audits<T>>::contains_key(child_audit_id));
         let call = Call::<T>::accept_audit{audit_id:child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors:auditors.clone()};
+        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors:auditors};
         call.dispatch_bypass_filter(origin.clone())?;
         let call = Call::<T>::link_audit{parent_audit_id,child_audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
@@ -141,7 +144,7 @@ benchmarks! {
         assert!(<Audits<T>>::contains_key(child_audit_id));
         let call = Call::<T>::accept_audit{audit_id:child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors:auditors.clone()};
+        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors:auditors};
         call.dispatch_bypass_filter(origin.clone())?;
         let call = Call::<T>::link_audit{parent_audit_id,child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;

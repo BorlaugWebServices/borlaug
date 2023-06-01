@@ -96,7 +96,7 @@ benchmarks! {
             dids_by_subject.push(did);
         });
         assert_eq!(dids_by_subject.len(), 1);
-        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&dids_by_subject[0]).count(), c as usize);
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(dids_by_subject[0]).count(), c as usize);
     }
 
     register_did_for {
@@ -619,7 +619,7 @@ benchmarks! {
         <DidsByCatalog<T>>::iter_prefix(&catalog_id).for_each(|(did, _)| {
             dids_in_catalog.push(did);
         });
-        assert_eq!(dids_in_catalog.len(), 0 as usize);
+        assert_eq!(dids_in_catalog.len(), 0_usize);
     }
 
 }

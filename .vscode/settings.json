@@ -1,6 +1,7 @@
 {
     "rust-analyzer.cargo.features": [
-        "grandpa_aura"
+        "grandpa_aura",
+        "runtime-benchmarks"
     ],
     "workbench.colorCustomizations": {
         "titleBar.inactiveBackground": "#bd8e2a",

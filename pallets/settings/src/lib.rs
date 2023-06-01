@@ -298,7 +298,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             T::ChangeSettingOrigin::ensure_origin(origin)?;
 
-            <ExtrinsicExtra<T>>::insert(&module_index, &extrinsic_index, extra);
+            <ExtrinsicExtra<T>>::insert(module_index, extrinsic_index, extra);
 
             Self::deposit_event(Event::ExtrinsicExtraUpdated(
                 module_index,
@@ -322,7 +322,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             T::ChangeSettingOrigin::ensure_origin(origin)?;
 
-            <ExtrinsicExtra<T>>::remove(&module_index, &extrinsic_index);
+            <ExtrinsicExtra<T>>::remove(module_index, extrinsic_index);
 
             Self::deposit_event(Event::ExtrinsicExtraRemoved(module_index, extrinsic_index));
 
@@ -404,7 +404,7 @@ pub mod pallet {
                 .into_iter()
                 .for_each(|(module, extrinsic_extras)| {
                     extrinsic_extras.into_iter().for_each(|(extrinsic, extra)| {
-                        <ExtrinsicExtra<T>>::insert(&module, &extrinsic, extra)
+                        <ExtrinsicExtra<T>>::insert(module, extrinsic, extra)
                     })
                 })
         }

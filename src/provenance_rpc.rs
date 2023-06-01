@@ -498,7 +498,7 @@ where
     ) -> Self {
         ProcessStepResponse {
             proposal_id: process_step.proposal_id,
-            definition_step_index: definition_step_index,
+            definition_step_index,
             attested: process_step.attested,
             attributes: process_step
                 .attributes

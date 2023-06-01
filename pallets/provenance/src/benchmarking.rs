@@ -67,7 +67,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
-        ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
+        ProvenancePallet::<T>::create_registry(origin, vec![42u8])?;
 
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -86,7 +86,7 @@ benchmarks! {
         let caller = whitelisted_caller();
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
         let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
-        ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
+        ProvenancePallet::<T>::create_registry(origin, vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
 
@@ -127,7 +127,7 @@ benchmarks! {
         let threshold=T::MemberCount::unique_saturated_from(1u32);
 
 
-        ProvenancePallet::<T>::create_definition(origin.clone(),registry_id,vec![42u8],vec![(name,attestor,required,threshold)])?;
+        ProvenancePallet::<T>::create_definition(origin,registry_id,vec![42u8],vec![(name,attestor,required,threshold)])?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
 
     }: _(SystemOrigin::Signed(caller.clone()),registry_id,definition_id)
@@ -153,7 +153,7 @@ benchmarks! {
         let required=true;
         let threshold=T::MemberCount::unique_saturated_from(1u32);
 
-        ProvenancePallet::<T>::create_definition(origin.clone(),registry_id,vec![42u8],vec![(name,attestor,required,threshold)])?;
+        ProvenancePallet::<T>::create_definition(origin,registry_id,vec![42u8],vec![(name,attestor,required,threshold)])?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
 
     }: _(SystemOrigin::Signed(caller.clone()),registry_id,definition_id)
@@ -186,7 +186,7 @@ benchmarks! {
                 steps.push((name,attestor,required,threshold));
         }
 
-        ProvenancePallet::<T>::create_definition(origin.clone(),registry_id,vec![42u8],steps)?;
+        ProvenancePallet::<T>::create_definition(origin,registry_id,vec![42u8],steps)?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
 
 
@@ -212,7 +212,7 @@ benchmarks! {
         let required=true;
         let threshold=T::MemberCount::unique_saturated_from(1u32);
 
-        ProvenancePallet::<T>::create_definition(origin.clone(),registry_id,vec![42u8],vec![(name,attestor,required,threshold)])?;
+        ProvenancePallet::<T>::create_definition(origin,registry_id,vec![42u8],vec![(name,attestor,required,threshold)])?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let definition_step_index=T::DefinitionStepIndex::unique_saturated_from(0u32);
 
@@ -237,7 +237,7 @@ benchmarks! {
         let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
-        assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
+        assert!(<Registries<T>>::contains_key(caller,registry_id));
 
         let mut steps=vec![];
         for i in 0..2 {
@@ -284,7 +284,7 @@ benchmarks! {
                 steps.push((name,attestor,required,threshold));
         }
 
-        ProvenancePallet::<T>::create_definition(origin.clone(),registry_id,vec![42u8],steps)?;
+        ProvenancePallet::<T>::create_definition(origin,registry_id,vec![42u8],steps)?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let definition_step_index=T::DefinitionStepIndex::unique_saturated_from(0u32);
         let attestor:T::AccountId = whitelisted_caller();
@@ -329,7 +329,7 @@ benchmarks! {
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let definition_step_index=T::DefinitionStepIndex::unique_saturated_from(0u32);
         let attestor:T::AccountId = whitelisted_caller();
-        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor.clone()).into();
+        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor).into();
 
 
 
@@ -344,7 +344,7 @@ benchmarks! {
 
     verify {
         assert!(!<Processes<T>>::contains_key((registry_id, definition_id),process_id));
-        assert_eq!(<ProcessSteps<T>>::iter_prefix((registry_id, definition_id,process_id)).count(),0 as usize);
+        assert_eq!(<ProcessSteps<T>>::iter_prefix((registry_id, definition_id,process_id)).count(),0_usize);
     }
 
 
@@ -367,7 +367,7 @@ benchmarks! {
         assert!(<Definitions<T>>::contains_key(registry_id,definition_id));
         ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
         let child_registry_id=T::RegistryId::unique_saturated_from(2u32);
-        ProvenancePallet::<T>::create_definition(origin.clone(),child_registry_id,vec![42u8],vec![(name,attestor,required,threshold)])?;
+        ProvenancePallet::<T>::create_definition(origin,child_registry_id,vec![42u8],vec![(name,attestor,required,threshold)])?;
         let child_definition_id=T::DefinitionId::unique_saturated_from(2u32);
         assert!(<Definitions<T>>::contains_key(child_registry_id,child_definition_id));
     }: _(SystemOrigin::Signed(caller.clone()),registry_id,definition_id,child_registry_id,child_definition_id)
@@ -440,7 +440,7 @@ benchmarks! {
                 steps.push((name,attestor,required,threshold));
         }
 
-        ProvenancePallet::<T>::create_definition(origin.clone(),registry_id,vec![42u8],steps)?;
+        ProvenancePallet::<T>::create_definition(origin,registry_id,vec![42u8],steps)?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let attestor:T::AccountId = whitelisted_caller();
         let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor.clone()).into();
