@@ -3,15 +3,18 @@
 use super::*;
 use crate::mock::*;
 use core::convert::TryInto;
-use frame_support::{assert_ok, dispatch::Weight};
+use frame_support::assert_ok;
 use primitives::*;
 use sp_core::blake2_256;
 
 fn create_group(member: u64, group_id: u32) -> u64 {
     assert_ok!(Groups::create_group(
-        Origin::signed(member),
+        RuntimeOrigin::signed(member),
         b"Test".to_vec(),
-        vec![(member, 1)],
+        vec![GroupMember {
+            account: member,
+            weight: 1
+        }],
         1,
         10_000,
     ));
@@ -27,12 +30,14 @@ fn create_audit(
     auditing_org: u64,
 ) -> u32 {
     assert_ok!(Groups::propose(
-        Origin::signed(audit_creator_member),
+        RuntimeOrigin::signed(audit_creator_member),
         1,
-        Box::new(crate::mock::Call::AuditsModule(super::Call::create_audit(
-            auditing_org,
-            1u32
-        ))),
+        Box::new(crate::mock::RuntimeCall::AuditsModule(
+            super::Call::create_audit {
+                auditing_org,
+                unique_ref: 1u32
+            }
+        )),
         1,
         100
     ));
@@ -56,11 +61,11 @@ fn create_audit(
 
 fn accept_audit(auditing_org_group_id: u32, audit_id: u32, auditing_org_member: u64) {
     assert_ok!(Groups::propose(
-        Origin::signed(auditing_org_member),
+        RuntimeOrigin::signed(auditing_org_member),
         auditing_org_group_id,
-        Box::new(crate::mock::Call::AuditsModule(super::Call::accept_audit(
-            audit_id
-        ))),
+        Box::new(crate::mock::RuntimeCall::AuditsModule(
+            super::Call::accept_audit { audit_id }
+        )),
         1,
         100
     ));
@@ -77,10 +82,13 @@ fn assign_auditors(
     auditors_group_account: u64,
 ) {
     assert_ok!(Groups::propose(
-        Origin::signed(auditing_org_member),
+        RuntimeOrigin::signed(auditing_org_member),
         auditing_org_group_id,
-        Box::new(crate::mock::Call::AuditsModule(
-            super::Call::assign_auditors(audit_id, auditors_group_account)
+        Box::new(crate::mock::RuntimeCall::AuditsModule(
+            super::Call::assign_auditors {
+                audit_id,
+                auditors: auditors_group_account
+            }
         )),
         1,
         100
@@ -102,7 +110,9 @@ fn get_proposal_id() -> u32 {
         .unwrap()
         .clone();
     match last_event.event {
-        mock::Event::groups(groups::Event::Approved(_, proposal_id, _, _, _, _)) => proposal_id,
+        mock::RuntimeEvent::Groups(groups::Event::Approved(_, proposal_id, _, _, _, _)) => {
+            proposal_id
+        }
         _ => panic!("unexpected event"),
     }
 }
@@ -111,15 +121,15 @@ fn create_observation(auditors_member: u64, auditors_group_id: u32, audit_id: u3
     let control_point_id = 1;
 
     assert_ok!(Groups::propose(
-        Origin::signed(auditors_member),
+        RuntimeOrigin::signed(auditors_member),
         auditors_group_id,
-        Box::new(crate::mock::Call::AuditsModule(
-            super::Call::create_observation(
+        Box::new(crate::mock::RuntimeCall::AuditsModule(
+            super::Call::create_observation {
                 audit_id,
                 control_point_id,
-                Some(Compliance::Compliant),
-                Some(blake2_256(b"test note"))
-            )
+                compliance: Some(Compliance::Compliant),
+                procedural_note_hash: Some(blake2_256(b"test note"))
+            }
         )),
         1,
         100
@@ -150,16 +160,16 @@ fn create_observation(auditors_member: u64, auditors_group_id: u32, audit_id: u3
 
 fn create_evidence(auditors_member: u64, auditors_group_id: u32, audit_id: u32) {
     assert_ok!(Groups::propose(
-        Origin::signed(auditors_member),
+        RuntimeOrigin::signed(auditors_member),
         auditors_group_id,
-        Box::new(crate::mock::Call::AuditsModule(
-            super::Call::create_evidence(
+        Box::new(crate::mock::RuntimeCall::AuditsModule(
+            super::Call::create_evidence {
                 audit_id,
-                b"name".to_vec(),
-                b"image/png".to_vec(),
-                Some(b"url".to_vec()),
-                b"hash".to_vec(),
-            )
+                name: b"name".to_vec(),
+                content_type: b"image/png".to_vec(),
+                url: Some(b"url".to_vec()),
+                hash: b"hash".to_vec(),
+            }
         )),
         1,
         100
@@ -215,11 +225,11 @@ fn delete_audit_should_work() {
 
         //delete audit
         assert_ok!(Groups::propose(
-            Origin::signed(audit_creator_member),
+            RuntimeOrigin::signed(audit_creator_member),
             audit_creator_group_id,
-            Box::new(crate::mock::Call::AuditsModule(super::Call::delete_audit(
-                audit_id
-            ))),
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::delete_audit { audit_id }
+            )),
             1,
             100
         ));
@@ -339,11 +349,11 @@ fn reject_audit_should_work() {
         );
         //reject audit
         assert_ok!(Groups::propose(
-            Origin::signed(auditing_org_member),
+            RuntimeOrigin::signed(auditing_org_member),
             auditing_org_group_id,
-            Box::new(crate::mock::Call::AuditsModule(super::Call::reject_audit(
-                audit_id
-            ))),
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::reject_audit { audit_id }
+            )),
             1,
             100
         ));
@@ -384,10 +394,10 @@ fn complete_audit_should_work() {
         //complete audit
 
         assert_ok!(Groups::propose(
-            Origin::signed(auditing_org_member),
+            RuntimeOrigin::signed(auditing_org_member),
             auditing_org_group_id,
-            Box::new(crate::mock::Call::AuditsModule(
-                super::Call::complete_audit(audit_id)
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::complete_audit { audit_id }
             )),
             1,
             100
@@ -504,14 +514,16 @@ fn link_evidence_should_work() {
 
         //link evidence
         assert_ok!(Groups::propose(
-            Origin::signed(auditors_member),
+            RuntimeOrigin::signed(auditors_member),
             auditors_group_id,
-            Box::new(crate::mock::Call::AuditsModule(super::Call::link_evidence(
-                audit_id,
-                control_point_id,
-                observation_id,
-                evidence_id
-            ))),
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::link_evidence {
+                    audit_id,
+                    control_point_id,
+                    observation_id,
+                    evidence_id
+                }
+            )),
             1,
             100
         ));
@@ -561,14 +573,16 @@ fn unlink_evidence_should_work() {
 
         //link evidence
         assert_ok!(Groups::propose(
-            Origin::signed(auditors_member),
+            RuntimeOrigin::signed(auditors_member),
             auditors_group_id,
-            Box::new(crate::mock::Call::AuditsModule(super::Call::link_evidence(
-                audit_id,
-                control_point_id,
-                observation_id,
-                evidence_id
-            ))),
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::link_evidence {
+                    audit_id,
+                    control_point_id,
+                    observation_id,
+                    evidence_id
+                }
+            )),
             1,
             100
         ));
@@ -582,15 +596,15 @@ fn unlink_evidence_should_work() {
         ));
         //unlink evidence
         assert_ok!(Groups::propose(
-            Origin::signed(auditors_member),
+            RuntimeOrigin::signed(auditors_member),
             auditors_group_id,
-            Box::new(crate::mock::Call::AuditsModule(
-                super::Call::unlink_evidence(
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::unlink_evidence {
                     audit_id,
                     control_point_id,
                     observation_id,
                     evidence_id
-                )
+                }
             )),
             1,
             100
@@ -640,10 +654,14 @@ fn delete_evidence_should_work() {
 
         //delete evidence
         assert_ok!(Groups::propose(
-            Origin::signed(auditors_member),
+            RuntimeOrigin::signed(auditors_member),
             auditors_group_id,
-            Box::new(crate::mock::Call::AuditsModule(
-                super::Call::delete_evidence(audit_id, evidence_id, 0)
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::delete_evidence {
+                    audit_id,
+                    evidence_id,
+                    link_count: 0
+                }
             )),
             1,
             100
@@ -698,14 +716,16 @@ fn delete_evidence_should_have_link_limit() {
             let observation_id = i + 1;
             //link evidence
             assert_ok!(Groups::propose(
-                Origin::signed(auditors_member),
+                RuntimeOrigin::signed(auditors_member),
                 auditors_group_id,
-                Box::new(crate::mock::Call::AuditsModule(super::Call::link_evidence(
-                    audit_id,
-                    control_point_id,
-                    observation_id,
-                    evidence_id
-                ))),
+                Box::new(crate::mock::RuntimeCall::AuditsModule(
+                    super::Call::link_evidence {
+                        audit_id,
+                        control_point_id,
+                        observation_id,
+                        evidence_id
+                    }
+                )),
                 1,
                 100
             ));
@@ -720,14 +740,14 @@ fn delete_evidence_should_have_link_limit() {
         }
         // try to delete evidence with high link_count
         assert_ok!(Groups::propose(
-            Origin::signed(auditors_member),
+            RuntimeOrigin::signed(auditors_member),
             auditors_group_id,
-            Box::new(crate::mock::Call::AuditsModule(
-                super::Call::delete_evidence(
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::delete_evidence {
                     audit_id,
                     evidence_id,
-                    <Test as Config>::MaxLinkRemove::get() + 1
-                )
+                    link_count: <Test as Config>::MaxLinkRemove::get() + 1
+                }
             )),
             1,
             100
@@ -738,7 +758,7 @@ fn delete_evidence_should_have_link_limit() {
             .unwrap()
             .clone();
         let success = match last_event.event {
-            mock::Event::groups(groups::Event::Approved(_, _, _, _, success, _)) => success,
+            mock::RuntimeEvent::Groups(groups::Event::Approved(_, _, _, _, success, _)) => success,
             _ => panic!("unexpected event"),
         };
 
@@ -748,14 +768,14 @@ fn delete_evidence_should_have_link_limit() {
 
         // try to delete evidence with link_count below actual
         assert_ok!(Groups::propose(
-            Origin::signed(auditors_member),
+            RuntimeOrigin::signed(auditors_member),
             auditors_group_id,
-            Box::new(crate::mock::Call::AuditsModule(
-                super::Call::delete_evidence(
+            Box::new(crate::mock::RuntimeCall::AuditsModule(
+                super::Call::delete_evidence {
                     audit_id,
                     evidence_id,
-                    <Test as Config>::MaxLinkRemove::get()
-                )
+                    link_count: <Test as Config>::MaxLinkRemove::get()
+                }
             )),
             1,
             100
@@ -771,41 +791,41 @@ fn delete_evidence_should_have_link_limit() {
 #[test]
 fn weights_should_not_be_excessive() {
     new_test_ext().execute_with(|| {
-        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+        const MAXIMUM_ALLOWED_WEIGHT_TIME: u64 = 130_000_000_000;
 
         let weight = <Test as Config>::WeightInfo::create_audit();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::delete_audit();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::link_audit();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::unlink_audit();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::accept_audit();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::assign_auditors_initial_assign();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::assign_auditors_replace();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::reject_audit();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::complete_audit();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::create_observation();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::create_evidence(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::NameLimit::get(),
             <Test as Config>::NameLimit::get(),
             <Test as Config>::NameLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::link_evidence();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::unlink_evidence();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight =
             <Test as Config>::WeightInfo::delete_evidence(<Test as Config>::MaxLinkRemove::get());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
     });
 }

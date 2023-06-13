@@ -1,7 +1,7 @@
 //! Tests for the module.
 use super::*;
 use crate::mock::*;
-use frame_support::{assert_ok, dispatch::Weight};
+use frame_support::assert_ok;
 use primitives::*;
 use std::convert::TryInto;
 
@@ -12,7 +12,7 @@ static ATTESTOR: u64 = 2;
 fn create_registry_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
@@ -30,7 +30,7 @@ fn create_registry_should_work() {
 fn updating_registry_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
@@ -42,7 +42,7 @@ fn updating_registry_should_work() {
             registry
         );
         assert_ok!(Provenance::update_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"John Snow".to_vec()
         ));
@@ -60,7 +60,7 @@ fn updating_registry_should_work() {
 fn remove_registry_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
@@ -69,7 +69,7 @@ fn remove_registry_should_work() {
             registry_id
         ));
         assert_ok!(Provenance::remove_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id
         ));
         assert!(!Registries::<Test>::contains_key(
@@ -83,13 +83,13 @@ fn remove_registry_should_work() {
 fn create_definition_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
         let threshold = 1u32;
         assert_ok!(Provenance::create_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
             vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
@@ -131,13 +131,13 @@ fn create_definition_should_work() {
 fn remove_definition_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
         let threshold = 1u32;
         assert_ok!(Provenance::create_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
             vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
@@ -150,7 +150,7 @@ fn remove_definition_should_work() {
 
         // remove definition
         assert_ok!(Provenance::remove_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             definition_id
         ));
@@ -166,13 +166,13 @@ fn remove_definition_should_work() {
 fn set_definition_inactive_and_active_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
         let threshold = 1u32;
         assert_ok!(Provenance::create_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
             vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
@@ -188,7 +188,7 @@ fn set_definition_inactive_and_active_should_work() {
         ));
 
         assert_ok!(Provenance::set_definition_inactive(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             definition_id
         ));
@@ -199,7 +199,7 @@ fn set_definition_inactive_and_active_should_work() {
         assert_eq!(definition.status, DefinitionStatus::Inactive);
 
         assert_ok!(Provenance::set_definition_active(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             definition_id
         ));
@@ -215,13 +215,13 @@ fn set_definition_inactive_and_active_should_work() {
 fn create_process_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
         let threshold = 1u32;
         assert_ok!(Provenance::create_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
             vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
@@ -233,7 +233,7 @@ fn create_process_should_work() {
         ));
 
         assert_ok!(Provenance::create_process(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             b"TestProcess".to_vec(),
@@ -259,13 +259,13 @@ fn create_process_should_work() {
 fn update_process_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
         let threshold = 1u32;
         assert_ok!(Provenance::create_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
             vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
@@ -277,7 +277,7 @@ fn update_process_should_work() {
         ));
 
         assert_ok!(Provenance::create_process(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             b"TestProcess".to_vec(),
@@ -298,7 +298,7 @@ fn update_process_should_work() {
         );
 
         assert_ok!(Provenance::update_process(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             definition_id,
             process_id,
@@ -320,13 +320,13 @@ fn update_process_should_work() {
 fn remove_process_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
         let threshold = 1u32;
         assert_ok!(Provenance::create_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
             vec![(b"TestStep".to_vec(), ATTESTOR, true, threshold)]
@@ -338,7 +338,7 @@ fn remove_process_should_work() {
         ));
 
         assert_ok!(Provenance::create_process(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             b"TestProcess".to_vec(),
@@ -358,7 +358,7 @@ fn remove_process_should_work() {
             }
         );
         assert_ok!(Provenance::remove_process(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             definition_id,
             process_id
@@ -374,13 +374,13 @@ fn remove_process_should_work() {
 fn attest_process_step_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
         let threshold = 1u32;
         assert_ok!(Provenance::create_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
             vec![
@@ -395,7 +395,7 @@ fn attest_process_step_should_work() {
         ));
 
         assert_ok!(Provenance::create_process(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             b"TestProcess".to_vec(),
@@ -416,7 +416,7 @@ fn attest_process_step_should_work() {
         );
         let definition_step_index = 0;
         assert_ok!(Provenance::attest_process_step(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             process_id,
@@ -459,7 +459,7 @@ fn attest_process_step_should_work() {
 
         let definition_step_index = 1;
         assert_ok!(Provenance::attest_process_step(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             process_id,
@@ -505,13 +505,13 @@ fn attest_process_step_should_work() {
 fn complete_process_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Provenance::create_registry(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             b"John Doe".to_vec()
         ));
         let registry_id = 1u32;
         let threshold = 1u32;
         assert_ok!(Provenance::create_definition(
-            Origin::signed(DEFINITION_OWNER),
+            RuntimeOrigin::signed(DEFINITION_OWNER),
             registry_id,
             b"TestDefinition".to_vec(),
             vec![
@@ -526,7 +526,7 @@ fn complete_process_should_work() {
         ));
 
         assert_ok!(Provenance::create_process(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             b"TestProcess".to_vec(),
@@ -547,7 +547,7 @@ fn complete_process_should_work() {
         );
         let definition_step_index = 0;
         assert_ok!(Provenance::attest_process_step(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             process_id,
@@ -588,7 +588,7 @@ fn complete_process_should_work() {
             }
         );
         assert_ok!(Provenance::complete_process(
-            Origin::signed(ATTESTOR),
+            RuntimeOrigin::signed(ATTESTOR),
             registry_id,
             definition_id,
             process_id
@@ -612,49 +612,49 @@ fn complete_process_should_work() {
 #[test]
 fn weights_should_not_be_excessive() {
     new_test_ext().execute_with(|| {
-        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+        const MAXIMUM_ALLOWED_WEIGHT_TIME: u64 = 130_000_000_000;
 
         let weight =
             <Test as Config>::WeightInfo::create_registry(<Test as Config>::NameLimit::get());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight =
             <Test as Config>::WeightInfo::update_registry(<Test as Config>::NameLimit::get());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
 
         let weight = <Test as Config>::WeightInfo::remove_registry();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
 
         let weight = <Test as Config>::WeightInfo::create_definition(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::NameLimit::get(),
             <Test as Config>::DefinitionStepLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::set_definition_active();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::set_definition_inactive();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::remove_definition(
             <Test as Config>::DefinitionStepLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::update_definition_step();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight =
             <Test as Config>::WeightInfo::create_process(<Test as Config>::NameLimit::get());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight =
             <Test as Config>::WeightInfo::update_process(<Test as Config>::NameLimit::get());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::remove_process(
             <Test as Config>::DefinitionStepLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::attest_process_step(
             <Test as Config>::AttributeLimit::get(),
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
     });
 }

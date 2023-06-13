@@ -2,7 +2,7 @@
 authors = ["Borlaug Blockchain"]
 edition = "2021"
 name = "pallet-settings"
-version = "0.1.0"
+version = "2.0.0"
 
 [dependencies]
 codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
@@ -22,9 +22,10 @@ extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = fal
 [dev-dependencies]
 chrono = "0.4"
 pallet-balances = {version = "21.0.0", default-features = false}
-runtime = {package = "borlaug-runtime", path = "../../runtime", default-features = false}
+runtime = {package = "borlaug-runtime", path = "../../runtime", features = ["std", "grandpa_aura"]}
 serde = {version = "1.0.130", default-features = false}
 sp-core = {version = "20.0.0", default-features = false}
+sp-io = {version = "22.0.0", default-features = false}
 
 [features]
 default = ["std"]

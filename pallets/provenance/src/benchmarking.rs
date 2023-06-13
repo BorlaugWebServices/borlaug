@@ -45,7 +45,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
-        ProvenancePallet::<T>::create_registry(origin.clone(), vec![42u8])?;
+        ProvenancePallet::<T>::create_registry(origin, vec![42u8])?;
 
         let registry_id=T::RegistryId::unique_saturated_from(1u32);
         assert!(<Registries<T>>::contains_key(caller.clone(),registry_id));
@@ -247,7 +247,7 @@ benchmarks! {
                 let threshold=T::MemberCount::unique_saturated_from(1u32);
                 steps.push((name,attestor,required,threshold));
         }
-        ProvenancePallet::<T>::create_definition(origin.clone(),registry_id,vec![42u8],steps)?;
+        ProvenancePallet::<T>::create_definition(origin,registry_id,vec![42u8],steps)?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let attestor:T::AccountId = whitelisted_caller();
 
@@ -288,7 +288,7 @@ benchmarks! {
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let definition_step_index=T::DefinitionStepIndex::unique_saturated_from(0u32);
         let attestor:T::AccountId = whitelisted_caller();
-        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor.clone()).into();
+        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor).into();
 
 
         ProvenancePallet::<T>::create_process(attestor_origin,registry_id,definition_id,vec![42u8])?;
@@ -333,7 +333,7 @@ benchmarks! {
 
 
 
-        ProvenancePallet::<T>::set_definition_active(origin.clone(),registry_id,definition_id)?;
+        ProvenancePallet::<T>::set_definition_active(origin,registry_id,definition_id)?;
 
         ProvenancePallet::<T>::create_process(attestor_origin,registry_id,definition_id,vec![42u8])?;
 
@@ -404,7 +404,7 @@ benchmarks! {
         let child_definition_id=T::DefinitionId::unique_saturated_from(2u32);
         assert!(<Definitions<T>>::contains_key(child_registry_id,child_definition_id));
 
-        ProvenancePallet::<T>::add_child_definition(origin.clone(),registry_id,definition_id,child_registry_id,child_definition_id)?;
+        ProvenancePallet::<T>::add_child_definition(origin,registry_id,definition_id,child_registry_id,child_definition_id)?;
 
     }: _(SystemOrigin::Signed(caller.clone()),registry_id,definition_id,child_registry_id,child_definition_id)
 
@@ -443,7 +443,7 @@ benchmarks! {
         ProvenancePallet::<T>::create_definition(origin,registry_id,vec![42u8],steps)?;
         let definition_id=T::DefinitionId::unique_saturated_from(1u32);
         let attestor:T::AccountId = whitelisted_caller();
-        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor.clone()).into();
+        let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(attestor).into();
 
         ProvenancePallet::<T>::create_process(attestor_origin,registry_id,definition_id,vec![42u8])?;
 

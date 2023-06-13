@@ -13,7 +13,7 @@ fn set_weight_to_fee_coefficients_should_work() {
         }
 
         assert_ok!(Settings::set_weight_to_fee_coefficients(
-            Origin::root(),
+            RuntimeOrigin::root(),
             new_coefficents.clone()
         ));
 
@@ -27,7 +27,10 @@ fn set_transaction_byte_fee_should_work() {
     new_test_ext().execute_with(|| {
         let new_fee = 10;
 
-        assert_ok!(Settings::set_transaction_byte_fee(Origin::root(), new_fee));
+        assert_ok!(Settings::set_transaction_byte_fee(
+            RuntimeOrigin::root(),
+            new_fee
+        ));
 
         let stored_fee = TransactionByteFee::<Test>::get();
         assert_eq!(stored_fee, new_fee);
@@ -39,7 +42,10 @@ fn set_fee_split_ratio_should_work() {
     new_test_ext().execute_with(|| {
         let new_ratio = 10u32;
 
-        assert_ok!(Settings::set_fee_split_ratio(Origin::root(), new_ratio));
+        assert_ok!(Settings::set_fee_split_ratio(
+            RuntimeOrigin::root(),
+            new_ratio
+        ));
 
         let stored_ratio = FeeSplitRatio::<Test>::get();
         assert_eq!(stored_ratio, new_ratio);
@@ -54,7 +60,7 @@ fn set_extrinsic_extra_should_work() {
         let extrinsic_index = 1u8;
 
         assert_ok!(Settings::set_extrinsic_extra(
-            Origin::root(),
+            RuntimeOrigin::root(),
             module_index,
             extrinsic_index,
             new_extra
@@ -73,7 +79,7 @@ fn remove_extrinsic_extra_should_work() {
         let extrinsic_index = 1u8;
 
         assert_ok!(Settings::remove_extrinsic_extra(
-            Origin::root(),
+            RuntimeOrigin::root(),
             module_index,
             extrinsic_index,
         ));

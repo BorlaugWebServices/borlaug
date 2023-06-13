@@ -482,10 +482,10 @@ pub mod pallet {
                 &group_account,
             );
 
-            <Audits<T>>::insert(&audit_id, audit);
+            <Audits<T>>::insert(audit_id, audit);
             <AuditByProposal<T>>::insert(proposal_id, audit_id);
-            <AuditsByCreator<T>>::insert(&group_account, &audit_id, ());
-            <AuditsByAuditingOrg<T>>::insert(&auditing_org, &audit_id, ());
+            <AuditsByCreator<T>>::insert(&group_account, audit_id, ());
+            <AuditsByAuditingOrg<T>>::insert(&auditing_org, audit_id, ());
 
             Self::deposit_event(Event::AuditCreated(group_account, proposal_id, audit_id));
             Ok(().into())
@@ -513,10 +513,10 @@ pub mod pallet {
             );
             ensure!(audit.audit_creator == group_account, <Error<T>>::NotCreator);
 
-            <Audits<T>>::remove(&audit_id);
-            <AuditByProposal<T>>::remove(&proposal_id);
-            <AuditsByCreator<T>>::remove(&group_account, &audit_id);
-            <AuditsByAuditingOrg<T>>::remove(&audit.auditing_org, &audit_id);
+            <Audits<T>>::remove(audit_id);
+            <AuditByProposal<T>>::remove(proposal_id);
+            <AuditsByCreator<T>>::remove(&group_account, audit_id);
+            <AuditsByAuditingOrg<T>>::remove(&audit.auditing_org, audit_id);
 
             Self::deposit_event(Event::AuditRemoved(group_account, proposal_id, audit_id));
             Ok(().into())
@@ -577,14 +577,14 @@ pub mod pallet {
 
             let replacing = audit.auditors.is_some();
             if replacing {
-                <AuditsByAuditors<T>>::remove(&audit.auditors.unwrap(), &audit_id);
+                <AuditsByAuditors<T>>::remove(&audit.auditors.unwrap(), audit_id);
             }
 
             audit.auditors = Some(auditors.clone());
 
             <Audits<T>>::insert(audit_id, audit);
 
-            <AuditsByAuditors<T>>::insert(&auditors, &audit_id, ());
+            <AuditsByAuditors<T>>::insert(&auditors, audit_id, ());
 
             Self::deposit_event(Event::AuditorsAssigned(
                 group_account,
@@ -810,9 +810,9 @@ pub mod pallet {
                 procedural_note_hash,
             };
 
-            <Observations<T>>::insert((&audit_id, &control_point_id), &observation_id, observation);
+            <Observations<T>>::insert((&audit_id, &control_point_id), observation_id, observation);
             <ObservationByProposal<T>>::insert(
-                &proposal_id,
+                proposal_id,
                 (audit_id, control_point_id, observation_id),
             );
 
@@ -884,7 +884,7 @@ pub mod pallet {
                 url: bounded_url,
             };
 
-            <Evidences<T>>::insert(&audit_id, &evidence_id, evidence);
+            <Evidences<T>>::insert(audit_id, evidence_id, evidence);
 
             <EvidenceByProposal<T>>::insert(proposal_id, (audit_id, evidence_id));
 
@@ -1054,8 +1054,8 @@ pub mod pallet {
                 <EvidenceLinksByObservation<T>>::remove(observation_id, evidence_id);
             }
 
-            <Evidences<T>>::remove(&audit_id, &evidence_id);
-            <EvidenceByProposal<T>>::remove(&evidence.proposal_id);
+            <Evidences<T>>::remove(audit_id, evidence_id);
+            <EvidenceByProposal<T>>::remove(evidence.proposal_id);
 
             Self::deposit_event(Event::EvidenceDeleted(
                 group_account,

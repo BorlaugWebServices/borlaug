@@ -3,7 +3,7 @@ authors = ["Borlaug Blockchain"]
 description = "A trait that supplies a customizable extra fixed weight for extrinsics"
 edition = "2021"
 name = "extrinsic-extra"
-version = "0.1.0"
+version = "2.0.0"
 
 [dependencies]
 # Substrate packages

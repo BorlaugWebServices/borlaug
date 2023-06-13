@@ -2,7 +2,7 @@
 authors = ["Borlaug Blockchain"]
 edition = "2021"
 name = "pallet-primitives"
-version = "0.1.0"
+version = "2.0.0"
 
 [dependencies]
 codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}

@@ -109,14 +109,12 @@ pub mod pallet {
     #[derive(
         Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
     )]
+    #[derive(Default)]
     pub enum Releases {
+        #[default]
         V0,
     }
-    impl Default for Releases {
-        fn default() -> Self {
-            Releases::V0
-        }
-    }
+    
     #[pallet::config]
     pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -656,13 +654,13 @@ pub mod pallet {
             let properties = enforce_limit_did_properties!(properties);
 
             ensure!(
-                <DidByController<T>>::contains_key(&group_account, &did),
+                <DidByController<T>>::contains_key(&group_account, did),
                 Error::<T>::NotController
             );
 
             properties.into_iter().for_each(|add_property| {
                 let hash = T::Hashing::hash_of(&add_property.name);
-                <DidDocumentProperties<T>>::insert(&did, &hash, add_property);
+                <DidDocumentProperties<T>>::insert(did, hash, add_property);
             });
 
             Self::deposit_event(Event::DidPropertiesAdded(account_id, group_account, did));
@@ -697,13 +695,13 @@ pub mod pallet {
                 .collect::<Result<Vec<_>, Error<T>>>()?;
 
             ensure!(
-                <DidByController<T>>::contains_key(&group_account, &did),
+                <DidByController<T>>::contains_key(&group_account, did),
                 Error::<T>::NotController
             );
 
             keys.into_iter().for_each(|key| {
                 let hash = T::Hashing::hash_of(&key);
-                <DidDocumentProperties<T>>::remove(&did, &hash);
+                <DidDocumentProperties<T>>::remove(did, hash);
             });
 
             Self::deposit_event(Event::DidPropertiesRemoved(account_id, group_account, did));
@@ -729,7 +727,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
             ensure!(
-                <DidByController<T>>::contains_key(&group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, target_did),
                 Error::<T>::NotController
             );
 
@@ -742,21 +740,21 @@ pub mod pallet {
                 Error::<T>::ControllerLimitExceeded
             );
 
-            let did_document = <DidDocuments<T>>::try_get(&target_did)
+            let did_document = <DidDocuments<T>>::try_get(target_did)
                 .map_err(|_| Error::<T>::DidDocumentNotFound)?;
 
             if let Some(remove) = remove.clone() {
                 remove.into_iter().for_each(|remove| {
                     if did_document.subject != remove {
-                        <DidByController<T>>::remove(&remove, &target_did);
-                        <DidControllers<T>>::remove(&target_did, &remove);
+                        <DidByController<T>>::remove(&remove, target_did);
+                        <DidControllers<T>>::remove(target_did, &remove);
                     }
                 });
             }
             if let Some(add) = add.clone() {
                 add.into_iter().for_each(|add| {
-                    <DidByController<T>>::insert(&add, &target_did, ());
-                    <DidControllers<T>>::insert(&target_did, &add, ());
+                    <DidByController<T>>::insert(&add, target_did, ());
+                    <DidControllers<T>>::insert(target_did, &add, ());
                 });
             }
             Self::deposit_event(Event::DidControllerUpdated(
@@ -786,7 +784,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, target_did),
                 Error::<T>::NotController
             );
 
@@ -797,13 +795,13 @@ pub mod pallet {
 
             claim_consumers.iter().for_each(|claim_consumer| {
                 <ClaimConsumers<T>>::insert(
-                    &target_did,
+                    target_did,
                     &claim_consumer.consumer,
                     claim_consumer.expiration,
                 );
                 <DidsByConsumer<T>>::insert(
                     &claim_consumer.consumer,
-                    &target_did,
+                    target_did,
                     claim_consumer.expiration,
                 );
             });
@@ -834,7 +832,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, target_did),
                 Error::<T>::NotController
             );
 
@@ -844,8 +842,8 @@ pub mod pallet {
             );
 
             claim_consumers.iter().for_each(|claim_consumer| {
-                <ClaimConsumers<T>>::remove(&target_did, claim_consumer);
-                <DidsByConsumer<T>>::remove(claim_consumer, &target_did);
+                <ClaimConsumers<T>>::remove(target_did, claim_consumer);
+                <DidsByConsumer<T>>::remove(claim_consumer, target_did);
             });
 
             Self::deposit_event(Event::ClaimConsumersRevoked(
@@ -874,7 +872,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, target_did),
                 Error::<T>::NotController
             );
 
@@ -885,13 +883,13 @@ pub mod pallet {
 
             claim_issuers.iter().for_each(|claim_issuer| {
                 <ClaimIssuers<T>>::insert(
-                    &target_did,
+                    target_did,
                     &claim_issuer.issuer,
                     claim_issuer.expiration,
                 );
                 <DidsByIssuer<T>>::insert(
                     &claim_issuer.issuer,
-                    &target_did,
+                    target_did,
                     claim_issuer.expiration,
                 );
             });
@@ -922,7 +920,7 @@ pub mod pallet {
             let (account_id, group_account) = ensure_account_or_executed!(origin);
 
             ensure!(
-                <DidByController<T>>::contains_key(&group_account, &target_did),
+                <DidByController<T>>::contains_key(&group_account, target_did),
                 Error::<T>::NotController
             );
 
@@ -932,8 +930,8 @@ pub mod pallet {
             );
 
             claim_issuers.iter().for_each(|claim_issuer| {
-                <ClaimIssuers<T>>::remove(&target_did, claim_issuer);
-                <DidsByIssuer<T>>::remove(claim_issuer, &target_did);
+                <ClaimIssuers<T>>::remove(target_did, claim_issuer);
+                <DidsByIssuer<T>>::remove(claim_issuer, target_did);
             });
 
             Self::deposit_event(Event::ClaimIssuersRevoked(
@@ -1006,7 +1004,7 @@ pub mod pallet {
 
             let claim_id = next_id!(NextClaimId<T>, T);
 
-            <Claims<T>>::insert(&target_did, claim_id, claim);
+            <Claims<T>>::insert(target_did, claim_id, claim);
 
             Self::deposit_event(Event::ClaimMade(
                 account_id,
@@ -1027,7 +1025,7 @@ pub mod pallet {
         #[pallet::call_index(11)]
         #[pallet::weight(<T as Config>::WeightInfo::attest_claim(
             statements.len() as u32,
-            <T as Config>::StatementLimit::get() as u32,
+            <T as Config>::StatementLimit::get(),
             get_max_statement_name_len(statements),
             get_max_statement_fact_len(statements),
 
@@ -1073,7 +1071,7 @@ pub mod pallet {
                 .collect::<Result<Vec<_>, Error<T>>>()?;
 
             if yes_votes.is_some() {
-                let claim = <Claims<T>>::get(&target_did, claim_id);
+                let claim = <Claims<T>>::get(target_did, claim_id);
                 ensure!(claim.is_some(), Error::<T>::NotFound);
                 ensure!(
                     yes_votes.unwrap() >= claim.unwrap().threshold,
@@ -1083,7 +1081,7 @@ pub mod pallet {
 
             let mut existing_statements_len = 0;
 
-            <Claims<T>>::mutate_exists(&target_did, claim_id, |maybe_claim| {
+            <Claims<T>>::mutate_exists(target_did, claim_id, |maybe_claim| {
                 if let Some(ref mut claim) = maybe_claim {
                     existing_statements_len = claim.statements.len();
 
@@ -1122,9 +1120,9 @@ pub mod pallet {
         /// - `claim_id` Claim to be attested
         #[pallet::call_index(12)]
         #[pallet::weight(<T as Config>::WeightInfo::revoke_attestation(
-            <T as Config>::StatementLimit::get() as u32,
-            <T as Config>::NameLimit::get() as u32,
-            <T as Config>::FactStringLimit::get() as u32,
+            <T as Config>::StatementLimit::get(),
+            <T as Config>::NameLimit::get(),
+            <T as Config>::FactStringLimit::get(),
         ))]
         pub fn revoke_attestation(
             origin: OriginFor<T>,
@@ -1143,7 +1141,7 @@ pub mod pallet {
             );
 
             if yes_votes.is_some() {
-                let claim = <Claims<T>>::get(&target_did, claim_id);
+                let claim = <Claims<T>>::get(target_did, claim_id);
                 ensure!(claim.is_some(), Error::<T>::NotFound);
                 ensure!(
                     yes_votes.unwrap() >= claim.unwrap().threshold,
@@ -1155,7 +1153,7 @@ pub mod pallet {
             let mut max_statement_name_len = 0;
             let mut max_statement_fact_len = 0;
 
-            <Claims<T>>::mutate_exists(&target_did, claim_id, |maybe_claim| {
+            <Claims<T>>::mutate_exists(target_did, claim_id, |maybe_claim| {
                 if let Some(ref mut claim) = maybe_claim {
                     //for correct weight calculation
                     existing_statements_len = claim.statements.len();
@@ -1173,8 +1171,8 @@ pub mod pallet {
             ));
             Ok(Some(<T as Config>::WeightInfo::revoke_attestation(
                 existing_statements_len as u32,
-                max_statement_name_len as u32,
-                max_statement_fact_len as u32,
+                max_statement_name_len,
+                max_statement_fact_len,
             ))
             .into())
         }
@@ -1258,10 +1256,10 @@ pub mod pallet {
             );
 
             for did in dids.into_iter() {
-                ensure!(<DidDocuments<T>>::contains_key(&did), Error::<T>::NotFound);
+                ensure!(<DidDocuments<T>>::contains_key(did), Error::<T>::NotFound);
 
-                <DidsByCatalog<T>>::insert(catalog_id, &did, ());
-                <DidCatalogs<T>>::insert(&did, catalog_id, ());
+                <DidsByCatalog<T>>::insert(catalog_id, did, ());
+                <DidCatalogs<T>>::insert(did, catalog_id, ());
             }
 
             Self::deposit_event(Event::CatalogDidsAdded(
@@ -1300,7 +1298,7 @@ pub mod pallet {
 
             for did in dids.into_iter() {
                 <DidsByCatalog<T>>::remove(catalog_id, did);
-                <DidCatalogs<T>>::remove(&did, catalog_id);
+                <DidCatalogs<T>>::remove(did, catalog_id);
             }
 
             Self::deposit_event(Event::CatalogDidsRemoved(
@@ -1357,10 +1355,10 @@ pub mod pallet {
                 .then(|| {
                     <DidDocuments<T>>::get(did).map(|did_document| {
                         let mut properties = Vec::new();
-                        <DidDocumentProperties<T>>::iter_prefix(&did)
+                        <DidDocumentProperties<T>>::iter_prefix(did)
                             .for_each(|(_hash, property)| properties.push(property));
                         let mut controllers = Vec::new();
-                        <DidControllers<T>>::iter_prefix(&did)
+                        <DidControllers<T>>::iter_prefix(did)
                             .for_each(|(controller, _)| controllers.push(controller));
                         (did_document, properties, controllers)
                     })
@@ -1369,7 +1367,7 @@ pub mod pallet {
         }
 
         pub fn is_controller(account_id: T::AccountId, did: Did) -> bool {
-            <DidControllers<T>>::contains_key(&did, &account_id)
+            <DidControllers<T>>::contains_key(did, &account_id)
         }
 
         pub fn get_did(
@@ -1386,10 +1384,10 @@ pub mod pallet {
         )> {
             <DidDocuments<T>>::get(did).map(|did_document| {
                 let mut properties = Vec::new();
-                <DidDocumentProperties<T>>::iter_prefix(&did)
+                <DidDocumentProperties<T>>::iter_prefix(did)
                     .for_each(|(_hash, property)| properties.push(property));
                 let mut controllers = Vec::new();
-                <DidControllers<T>>::iter_prefix(&did)
+                <DidControllers<T>>::iter_prefix(did)
                     .for_each(|(controller, _)| controllers.push(controller));
                 (did_document, properties, controllers)
             })
@@ -1417,7 +1415,7 @@ pub mod pallet {
             let hash = T::Hashing::hash_of(&name);
             let filter: &[u8] = &filter;
             <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
-                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                let property_maybe = <DidDocumentProperties<T>>::get(did, hash);
                 if let Some(property) = property_maybe {
                     let matching = match property.fact {
                         Fact::Text(value) => {
@@ -1447,7 +1445,7 @@ pub mod pallet {
             let mut matching_dids = vec![];
             let hash = T::Hashing::hash_of(&name);
             <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
-                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                let property_maybe = <DidDocumentProperties<T>>::get(did, hash);
                 if let Some(property) = property_maybe {
                     let matching = match property.fact {
                         Fact::U8(value) => min_max_check(value, min, max),
@@ -1472,7 +1470,7 @@ pub mod pallet {
             let mut matching_dids = vec![];
             let hash = T::Hashing::hash_of(&name);
             <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
-                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                let property_maybe = <DidDocumentProperties<T>>::get(did, hash);
                 if let Some(property) = property_maybe {
                     let matching = match property.fact {
                         Fact::Float(value) => {
@@ -1507,7 +1505,7 @@ pub mod pallet {
             let mut matching_dids = vec![];
             let hash = T::Hashing::hash_of(&name);
             <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
-                let property_maybe = <DidDocumentProperties<T>>::get(&did, hash);
+                let property_maybe = <DidDocumentProperties<T>>::get(did, hash);
                 if let Some(property) = property_maybe {
                     let matching = match property.fact {
                         Fact::Date(year, month, day) => {
@@ -1659,7 +1657,7 @@ pub mod pallet {
 
         pub fn get_claim_issuers(did: Did) -> Vec<(T::AccountId, T::Moment)> {
             let mut claim_issuers = Vec::new();
-            <ClaimIssuers<T>>::iter_prefix(&did)
+            <ClaimIssuers<T>>::iter_prefix(did)
                 .for_each(|(account_id, expiry)| claim_issuers.push((account_id, expiry)));
             claim_issuers
         }
@@ -1748,23 +1746,23 @@ pub mod pallet {
 
             let did = Did { id };
 
-            <DidBySubject<T>>::insert(subject, &did, ());
-            <DidByController<T>>::insert(controller, &did, ());
-            <DidControllers<T>>::insert(&did, controller, ());
+            <DidBySubject<T>>::insert(subject, did, ());
+            <DidByController<T>>::insert(controller, did, ());
+            <DidControllers<T>>::insert(did, controller, ());
             if *subject != *controller {
-                <DidByController<T>>::insert(subject, &did, ());
-                <DidControllers<T>>::insert(&did, subject, ());
+                <DidByController<T>>::insert(subject, did, ());
+                <DidControllers<T>>::insert(did, subject, ());
             }
 
             let did_doc = DidDocument {
                 subject: subject.clone(),
             };
-            <DidDocuments<T>>::insert(&did, did_doc);
+            <DidDocuments<T>>::insert(did, did_doc);
 
             if let Some(properties) = properties {
                 properties.into_iter().for_each(|property| {
                     let hash = T::Hashing::hash_of(&property.name);
-                    <DidDocumentProperties<T>>::insert(&did, &hash, property);
+                    <DidDocumentProperties<T>>::insert(did, hash, property);
                 });
             }
 

@@ -6,7 +6,7 @@
         {
             "label": "Tests - Audits",
             "type": "shell",
-            "command": "cargo test --package pallet-audits --lib --features 'instant_seal'  -- tests --nocapture",
+            "command": "cargo test --package pallet-audits --lib  -- tests --nocapture",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
@@ -15,7 +15,7 @@
         {
             "label": "Tests - Identity",
             "type": "shell",
-            "command": "cargo test --package pallet-identity --lib --features 'instant_seal'  -- tests --nocapture",
+            "command": "cargo test --package pallet-identity --lib  -- tests --nocapture",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
@@ -24,7 +24,7 @@
         {
             "label": "Tests - Provenance",
             "type": "shell",
-            "command": "cargo test --package pallet-provenance --lib --features 'instant_seal'  -- tests --nocapture",
+            "command": "cargo test --package pallet-provenance --lib  -- tests --nocapture",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
@@ -42,7 +42,7 @@
         {
             "label": "Tests - Groups",
             "type": "shell",
-            "command": "cargo test --package pallet-groups --lib --features 'instant_seal'  -- tests --nocapture",
+            "command": "cargo test --package pallet-groups --lib -- tests --nocapture",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
@@ -51,7 +51,7 @@
         {
             "label": "Tests - Settings",
             "type": "shell",
-            "command": "cargo test --package pallet-settings --lib --features 'instant_seal'  -- tests --nocapture",
+            "command": "cargo test --package pallet-settings --lib  -- tests --nocapture",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
@@ -240,7 +240,7 @@
         {
             "label": "Clippy",
             "type": "shell",
-            "command": "cargo clippy --fix --features 'grandpa_aura runtime-benchmarks' -- -Aclippy::type_complexity -Aclippy::enum_variant_names -Aclippy::tabs_in_doc_comments",
+            "command": "cargo clippy --all --all-targets --features 'grandpa_aura runtime-benchmarks' -- -Aclippy::type_complexity -Aclippy::enum_variant_names -Aclippy::tabs_in_doc_comments",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"

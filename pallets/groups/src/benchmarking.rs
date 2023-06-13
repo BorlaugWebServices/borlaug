@@ -808,7 +808,7 @@ benchmarks! {
         let origin=<T as Config>::GroupsOriginByGroupThreshold::try_successful_origin().unwrap();
         let call = Call::<T>::create_sub_group{
             name:   vec![42u8; 2_usize],
-            members:  vec![GroupMember{account:caller.clone(), weight:1u32.into()}],
+            members:  vec![GroupMember{account:caller, weight:1u32.into()}],
             threshold:     1u32.into(),
             initial_balance:    1_000_000u32.into()
         };

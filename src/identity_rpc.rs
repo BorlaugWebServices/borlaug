@@ -1093,8 +1093,8 @@ where
                 at,
                 catalog_id,
                 name.into(),
-                min.map(|min| f64::to_le_bytes(min)),
-                max.map(|max| f64::to_le_bytes(max)),
+                min.map(f64::to_le_bytes),
+                max.map(f64::to_le_bytes),
             )
             .map_err(convert_error!())?;
         Ok(dids.into_iter().map(|did| did.into()).collect())

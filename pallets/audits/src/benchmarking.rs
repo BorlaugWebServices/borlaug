@@ -127,7 +127,7 @@ benchmarks! {
         assert!(<Audits<T>>::contains_key(child_audit_id));
         let call = Call::<T>::accept_audit{audit_id:child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors:auditors};
+        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors};
         call.dispatch_bypass_filter(origin.clone())?;
         let call = Call::<T>::link_audit{parent_audit_id,child_audit_id};
     }: { call.dispatch_bypass_filter(origin)? }
@@ -144,7 +144,7 @@ benchmarks! {
         assert!(<Audits<T>>::contains_key(child_audit_id));
         let call = Call::<T>::accept_audit{audit_id:child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;
-        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors:auditors};
+        let call = Call::<T>::assign_auditors{audit_id:child_audit_id, auditors};
         call.dispatch_bypass_filter(origin.clone())?;
         let call = Call::<T>::link_audit{parent_audit_id,child_audit_id};
         call.dispatch_bypass_filter(origin.clone())?;

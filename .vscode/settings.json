@@ -8,9 +8,9 @@
         "titleBar.activeBackground": "#bd8e2a",
         "titleBar.activeForeground": "#FDFCFF"
     },
-    "rust-analyzer.cargo.noDefaultFeatures": true,
+    "rust-analyzer.cargo.noDefaultFeatures": false,
     "rust-analyzer.diagnostics.disabled": [
         "unresolved-import"
     ],
-    "crates.localCargoIndexBranch": ""
+    "crates.localCargoIndexBranch": "",
 }

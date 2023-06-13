@@ -59,7 +59,7 @@ pub mod pallet {
         Perbill,
     };
     use sp_runtime::traits::{AtLeast32BitUnsigned, UniqueSaturatedInto};
-    use sp_std::{fmt::Debug, marker::PhantomData, prelude::*};
+    use sp_std::{fmt::Debug, marker::PhantomData, prelude::*, vec};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {

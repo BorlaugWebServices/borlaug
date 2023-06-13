@@ -87,14 +87,12 @@ pub mod pallet {
     #[derive(
         Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
     )]
+    #[derive(Default)]
     pub enum Releases {
+        #[default]
         V0,
     }
-    impl Default for Releases {
-        fn default() -> Self {
-            Releases::V0
-        }
-    }
+    
 
     #[pallet::config]
     pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
@@ -509,7 +507,7 @@ pub mod pallet {
 
             <Registries<T>>::insert(
                 &group_account,
-                &registry_id,
+                registry_id,
                 Registry { name: bounded_name },
             );
 
@@ -544,7 +542,7 @@ pub mod pallet {
 
             let bounded_name = enforce_limit!(name);
 
-            <Registries<T>>::mutate_exists(&group_account, &registry_id, |maybe_registry| {
+            <Registries<T>>::mutate_exists(&group_account, registry_id, |maybe_registry| {
                 if let Some(ref mut registry) = maybe_registry {
                     registry.name = bounded_name;
                 }
@@ -599,7 +597,7 @@ pub mod pallet {
         #[pallet::weight(<T as Config>::WeightInfo::create_definition(
             name.len() as u32,
             steps.len() as u32,
-            get_max_step_name::<T::AccountId,T::MemberCount>(steps) as u32
+            get_max_step_name::<T::AccountId,T::MemberCount>(steps)
         ))]
         pub fn create_definition(
             origin: OriginFor<T>,
@@ -1322,7 +1320,7 @@ pub mod pallet {
             );
 
             Self::deposit_event(Event::ProcessCompleted(
-                sender.clone(),
+                sender,
                 registry_id,
                 definition_id,
                 process_id,

@@ -3,7 +3,7 @@ use super::*;
 use crate::mock::*;
 use chrono::Utc;
 use core::convert::TryInto;
-use frame_support::{assert_ok, dispatch::Weight};
+use frame_support::assert_ok;
 use primitives::*;
 
 #[test]
@@ -19,7 +19,7 @@ fn register_did_should_work() {
 
         // 1 creates a DID for itself
         assert_ok!(Identity::register_did(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             Some(vec![property])
         ));
 
@@ -61,7 +61,7 @@ fn register_did_for_should_work() {
 
         // 1 creates a DID for 2
         assert_ok!(Identity::register_did_for(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             2u64,
             Some(vec![property])
         ));
@@ -96,7 +96,7 @@ fn add_did_properties_should_work() {
         //required for randomness_collective_flip module
         System::set_block_number(1);
 
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
+        assert_ok!(Identity::register_did(RuntimeOrigin::signed(1), None));
 
         let mut dids_by_controller = Vec::new();
         DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
@@ -108,7 +108,7 @@ fn add_did_properties_should_work() {
 
         //check adding properties
         assert_ok!(Identity::add_did_properties(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             vec![
                 DidProperty {
@@ -149,7 +149,7 @@ fn remove_did_properties_should_work() {
         //required for randomness_collective_flip module
         System::set_block_number(1);
 
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
+        assert_ok!(Identity::register_did(RuntimeOrigin::signed(1), None));
 
         let mut dids_by_controller = Vec::new();
         DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
@@ -161,7 +161,7 @@ fn remove_did_properties_should_work() {
 
         //add properties
         assert_ok!(Identity::add_did_properties(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             vec![
                 DidProperty {
@@ -197,7 +197,7 @@ fn remove_did_properties_should_work() {
         //check removing properties
 
         assert_ok!(Identity::remove_did_properties(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             vec![b"name".to_vec()],
         ));
@@ -223,7 +223,7 @@ fn managing_controllers_should_work() {
         //required for randomness_collective_flip module
         System::set_block_number(1);
         // 1 creates a DID for itself
-        assert_ok!(Identity::register_did(Origin::signed(1), None));
+        assert_ok!(Identity::register_did(RuntimeOrigin::signed(1), None));
 
         let mut dids_by_controller = Vec::new();
         DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
@@ -235,7 +235,7 @@ fn managing_controllers_should_work() {
 
         // 1 adds 2 as controller
         assert_ok!(Identity::manage_controllers(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             Some(vec![2]),
             None
@@ -244,7 +244,7 @@ fn managing_controllers_should_work() {
 
         // 1 removes 2 as controller
         assert_ok!(Identity::manage_controllers(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             None,
             Some(vec![2])
@@ -259,7 +259,7 @@ fn create_catalog_should_work() {
         //required for randomness_collective_flip module
         System::set_block_number(1);
 
-        assert_ok!(Identity::create_catalog(Origin::signed(1),));
+        assert_ok!(Identity::create_catalog(RuntimeOrigin::signed(1),));
 
         let mut catalogs = Vec::new();
         Catalogs::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
@@ -279,7 +279,7 @@ fn add_dids_to_catalog_should_work() {
         //required for randomness_collective_flip module
         System::set_block_number(1);
 
-        assert_ok!(Identity::create_catalog(Origin::signed(1),));
+        assert_ok!(Identity::create_catalog(RuntimeOrigin::signed(1),));
 
         let mut catalogs = Vec::new();
         Catalogs::<Test>::iter_prefix(&1).for_each(|(catalog_id, _)| {
@@ -290,7 +290,7 @@ fn add_dids_to_catalog_should_work() {
         let catalog_id = catalogs[0];
 
         assert_ok!(Identity::register_did(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             Some(vec![DidProperty {
                 name: b"name".to_vec(),
                 fact: Fact::Text(b"John Doe".to_vec())
@@ -305,7 +305,7 @@ fn add_dids_to_catalog_should_work() {
         let did = dids_by_controller[0];
 
         assert_ok!(Identity::add_dids_to_catalog(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             catalog_id,
             vec![did]
         ));
@@ -321,7 +321,7 @@ fn authorize_claim_consumer_should_work() {
         System::set_block_number(1);
 
         assert_ok!(Identity::register_did(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             Some(vec![DidProperty {
                 name: b"name".to_vec(),
                 fact: Fact::Text(b"John Doe".to_vec())
@@ -337,7 +337,7 @@ fn authorize_claim_consumer_should_work() {
 
         let now = Utc::now().timestamp() as u64;
         assert_ok!(Identity::authorize_claim_consumers(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             vec![ClaimConsumer {
                 consumer: 2u64,
@@ -359,7 +359,7 @@ fn authorize_claim_issuer_should_work() {
         System::set_block_number(1);
 
         assert_ok!(Identity::register_did(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             Some(vec![DidProperty {
                 name: b"name".to_vec(),
                 fact: Fact::Text(b"John Doe".to_vec())
@@ -375,7 +375,7 @@ fn authorize_claim_issuer_should_work() {
 
         let now = Utc::now().timestamp() as u64;
         assert_ok!(Identity::authorize_claim_issuers(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             vec![ClaimIssuer {
                 issuer: 2u64,
@@ -397,7 +397,7 @@ fn make_claim_without_proposal_should_work() {
         System::set_block_number(1);
 
         assert_ok!(Identity::register_did(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             Some(vec![DidProperty {
                 name: b"name".to_vec(),
                 fact: Fact::Text(b"John Doe".to_vec())
@@ -413,7 +413,7 @@ fn make_claim_without_proposal_should_work() {
 
         let now = Utc::now().timestamp() as u64;
         assert_ok!(Identity::authorize_claim_consumers(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             vec![ClaimConsumer {
                 consumer: 2u64,
@@ -430,7 +430,7 @@ fn make_claim_without_proposal_should_work() {
         assert!(ClaimConsumers::<Test>::get(&did, &2).is_some());
 
         assert_ok!(Identity::make_claim(
-            Origin::signed(2),
+            RuntimeOrigin::signed(2),
             did,
             b"some desc".to_vec(),
             vec![Statement {
@@ -465,7 +465,7 @@ fn attest_claim_without_proposal_should_work() {
         System::set_block_number(1);
 
         assert_ok!(Identity::register_did(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             Some(vec![DidProperty {
                 name: b"name".to_vec(),
                 fact: Fact::Text(b"John Doe".to_vec())
@@ -481,7 +481,7 @@ fn attest_claim_without_proposal_should_work() {
 
         let now = Utc::now().timestamp() as u64;
         assert_ok!(Identity::authorize_claim_consumers(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             vec![ClaimConsumer {
                 consumer: 2u64,
@@ -498,7 +498,7 @@ fn attest_claim_without_proposal_should_work() {
         assert!(ClaimConsumers::<Test>::get(&did, &2).is_some());
 
         assert_ok!(Identity::make_claim(
-            Origin::signed(2),
+            RuntimeOrigin::signed(2),
             did,
             b"some desc".to_vec(),
             vec![Statement {
@@ -527,7 +527,7 @@ fn attest_claim_without_proposal_should_work() {
 
         let now = Utc::now().timestamp() as u64;
         assert_ok!(Identity::authorize_claim_issuers(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did,
             vec![ClaimIssuer {
                 issuer: 3u64,
@@ -538,7 +538,7 @@ fn attest_claim_without_proposal_should_work() {
         assert!(ClaimIssuers::<Test>::get(&did, &3).is_some());
 
         assert_ok!(Identity::attest_claim(
-            Origin::signed(3),
+            RuntimeOrigin::signed(3),
             did,
             1u32,
             vec![Statement {
@@ -560,20 +560,20 @@ fn attest_claim_without_proposal_should_work() {
 #[test]
 fn weights_should_not_be_excessive() {
     new_test_ext().execute_with(|| {
-        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+        const MAXIMUM_ALLOWED_WEIGHT_TIME: u64 = 130_000_000_000;
 
         let weight = <Test as Config>::WeightInfo::register_did(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
             <Test as Config>::PropertyLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::register_did_for(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
             <Test as Config>::PropertyLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         //register_did_for_bulk
         let weight = <Test as Config>::WeightInfo::register_did_for(
             <Test as Config>::NameLimit::get(),
@@ -581,70 +581,70 @@ fn weights_should_not_be_excessive() {
             <Test as Config>::BulkDidPropertyLimit::get(),
         )
         .saturating_mul(<Test as Config>::BulkDidLimit::get().into());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::add_did_properties(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
             <Test as Config>::PropertyLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::remove_did_properties(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::PropertyLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::manage_controllers(
             <Test as Config>::ControllerLimit::get(),
             <Test as Config>::ControllerLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::authorize_claim_consumers(
             <Test as Config>::ClaimConsumerLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::revoke_claim_consumers(
             <Test as Config>::ClaimConsumerLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::authorize_claim_issuers(
             <Test as Config>::ClaimIssuerLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::revoke_claim_issuers(
             <Test as Config>::ClaimIssuerLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::make_claim(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::StatementLimit::get(),
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::attest_claim(
             <Test as Config>::StatementLimit::get(),
             <Test as Config>::StatementLimit::get(),
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::revoke_attestation(
             <Test as Config>::StatementLimit::get(),
             <Test as Config>::NameLimit::get(),
             <Test as Config>::FactStringLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::create_catalog();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::remove_catalog();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::add_dids_to_catalog(
             <Test as Config>::CatalogDidLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
         let weight = <Test as Config>::WeightInfo::remove_dids_from_catalog(
             <Test as Config>::CatalogDidLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME);
     });
 }

@@ -1,3 +1,5 @@
+#![feature(more_qualified_paths)]
+
 //! # Group Module
 //!
 //! ## Overview
@@ -943,7 +945,7 @@ pub mod pallet {
                 AllowDeath,
             )?;
 
-            <Groups<T>>::remove(&sub_group_id);
+            <Groups<T>>::remove(sub_group_id);
             <GroupByAccount<T>>::remove(&sub_group.anonymous_account);
             <GroupChildren<T>>::remove(caller_group_id, sub_group_id);
             let mut member_count = 0;
@@ -1716,7 +1718,7 @@ pub mod pallet {
                 if let Some(old_weight) = old_member_maybe {
                     group.total_vote_weight -= old_weight;
                 }
-                <GroupMembers<T>>::remove(group_id, &account);
+                <GroupMembers<T>>::remove(group_id, account);
                 <MemberOf<T>>::remove(account, group_id);
             });
         }

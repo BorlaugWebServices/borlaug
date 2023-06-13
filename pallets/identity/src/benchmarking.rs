@@ -124,7 +124,7 @@ benchmarks! {
             dids_by_subject.push(did);
         });
         assert_eq!(dids_by_subject.len(), 1);
-        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&dids_by_subject[0]).count(), c as usize);
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(dids_by_subject[0]).count(), c as usize);
     }
 
     add_did_properties {
@@ -148,11 +148,11 @@ benchmarks! {
         let properties=create_properties(c,a,b,2);
         assert_eq!(properties.len(), c as usize);
 
-    }: _(SystemOrigin::Signed(caller.clone()),did, properties.clone())
+    }: _(SystemOrigin::Signed(caller.clone()),did, properties)
 
     verify {
-        assert!(<DidDocuments<T>>::contains_key(&did));
-        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&did).count(), c as usize);
+        assert!(<DidDocuments<T>>::contains_key(did));
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(did).count(), c as usize);
     }
 
     remove_did_properties {
@@ -176,15 +176,15 @@ benchmarks! {
         assert_eq!(dids_by_controller.len(), 1);
         let did=dids_by_controller[0];
 
-        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&did).count(), b as usize);
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(did).count(), b as usize);
 
         let remove_keys=origional_properties.into_iter().map(|property|property.name).collect();
 
     }: _(SystemOrigin::Signed(caller.clone()),did, remove_keys)
 
     verify {
-        assert!(<DidDocuments<T>>::contains_key(&did));
-        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(&did).count(),0);
+        assert!(<DidDocuments<T>>::contains_key(did));
+        assert_eq!(<DidDocumentProperties<T>>::iter_prefix(did).count(),0);
     }
 
     manage_controllers {
@@ -211,11 +211,11 @@ benchmarks! {
 
         let add_controllers=create_accounts::<T>(b,2);
 
-    }: _(SystemOrigin::Signed(caller.clone()),did,  Some(add_controllers.clone()),Some(origional_controllers.clone()))
+    }: _(SystemOrigin::Signed(caller.clone()),did,  Some(add_controllers.clone()),Some(origional_controllers))
 
     verify {
         let mut stored_controllers=Vec::new();
-        <DidControllers<T>>::iter_prefix(&did).for_each(|(_, controller)| {
+        <DidControllers<T>>::iter_prefix(did).for_each(|(_, controller)| {
             stored_controllers.push(controller);
         });
         assert_eq!(stored_controllers.len(), add_controllers.len()+1);
@@ -228,7 +228,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None)?;
+        IdentityPallet::<T>::register_did(origin,None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -246,7 +246,7 @@ benchmarks! {
 
     verify {
         let mut stored_consumers=Vec::new();
-        <ClaimConsumers<T>>::iter_prefix(&did).for_each(|(_, consumer)| {
+        <ClaimConsumers<T>>::iter_prefix(did).for_each(|(_, consumer)| {
             stored_consumers.push(consumer);
         });
         assert_eq!(stored_consumers.len(), claim_consumers.len());
@@ -273,13 +273,13 @@ benchmarks! {
         let now=now /(T::Moment::unique_saturated_from(1_000u32)) ;
         let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now}).collect();
 
-        IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
+        IdentityPallet::<T>::authorize_claim_consumers(origin,did,  claim_consumers_to_add)?;
 
     }: _(SystemOrigin::Signed(caller.clone()),did,  claim_consumers)
 
     verify {
         let mut stored_consumers=Vec::new();
-        <ClaimConsumers<T>>::iter_prefix(&did).for_each(|(_, consumer)| {
+        <ClaimConsumers<T>>::iter_prefix(did).for_each(|(_, consumer)| {
             stored_consumers.push(consumer);
         });
         assert_eq!(stored_consumers.len(), 0);
@@ -292,7 +292,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::register_did(origin.clone(),None)?;
+        IdentityPallet::<T>::register_did(origin,None)?;
 
         let mut dids_by_controller=Vec::new();
         <DidByController<T>>::iter_prefix(&caller).for_each(|(did, _)| {
@@ -310,7 +310,7 @@ benchmarks! {
 
     verify {
         let mut stored_issuers=Vec::new();
-        <ClaimIssuers<T>>::iter_prefix(&did).for_each(|(_, issuer)| {
+        <ClaimIssuers<T>>::iter_prefix(did).for_each(|(_, issuer)| {
             stored_issuers.push(issuer);
         });
         assert_eq!(stored_issuers.len(), claim_issuers.len());
@@ -337,13 +337,13 @@ benchmarks! {
         let now=now /(T::Moment::unique_saturated_from(1_000u32)) ;
         let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now}).collect();
 
-        IdentityPallet::<T>::authorize_claim_issuers(origin.clone(),did,  claim_issuers_to_add)?;
+        IdentityPallet::<T>::authorize_claim_issuers(origin,did,  claim_issuers_to_add)?;
 
     }: _(SystemOrigin::Signed(caller.clone()),did,  claim_issuers)
 
     verify {
         let mut stored_issuers=Vec::new();
-        <ClaimIssuers<T>>::iter_prefix(&did).for_each(|(_, issuer)| {
+        <ClaimIssuers<T>>::iter_prefix(did).for_each(|(_, issuer)| {
             stored_issuers.push(issuer);
         });
         assert_eq!(stored_issuers.len(), 0);
@@ -374,9 +374,9 @@ benchmarks! {
         let claim_consumers=vec![consumer.clone()];
         let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
-        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
+        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
 
-        IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
+        IdentityPallet::<T>::authorize_claim_consumers(origin,did,  claim_consumers_to_add)?;
 
         let description=vec![42u8; a as usize];
 
@@ -388,7 +388,7 @@ benchmarks! {
 
     verify {
         let mut claims=Vec::new();
-        <Claims<T>>::iter_prefix(&did).for_each(|(claim_id,claim)| {
+        <Claims<T>>::iter_prefix(did).for_each(|(claim_id,claim)| {
             claims.push(claim);
         });
         assert_eq!(claims.len(), 1);
@@ -425,7 +425,7 @@ benchmarks! {
         let claim_consumers=vec![consumer];
         let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
-        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
+        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
         IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
 
         let existing_statements=create_statements(a,5,5,1);
@@ -434,7 +434,7 @@ benchmarks! {
         IdentityPallet::<T>::make_claim(origin.clone(),did,vec![42u8],  existing_statements,threshold)?;
 
         let mut claims=Vec::new();
-        <Claims<T>>::iter_prefix(&did).for_each(|(claim_id,claim)| {
+        <Claims<T>>::iter_prefix(did).for_each(|(claim_id,claim)| {
             claims.push((claim_id,claim));
         });
         assert_eq!(claims.len(), 1);
@@ -446,8 +446,8 @@ benchmarks! {
         let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
 
-        let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
-        IdentityPallet::<T>::authorize_claim_issuers(origin.clone(),did,  claim_issuers_to_add)?;
+        let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
+        IdentityPallet::<T>::authorize_claim_issuers(origin,did,  claim_issuers_to_add)?;
 
         let attestor_statements=create_statements(b,c,d,2);
 
@@ -486,7 +486,7 @@ benchmarks! {
         let claim_consumers=vec![consumer];
         let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
-        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.clone().into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
+        let claim_consumers_to_add:Vec<ClaimConsumer<T::AccountId,T::Moment>>=claim_consumers.into_iter().map(|account| ClaimConsumer{consumer: account,expiration: now_plus}).collect();
         IdentityPallet::<T>::authorize_claim_consumers(origin.clone(),did,  claim_consumers_to_add)?;
 
         let existing_statements=create_statements(a,b,c,1);
@@ -495,7 +495,7 @@ benchmarks! {
         IdentityPallet::<T>::make_claim(origin.clone(),did,vec![42u8],  existing_statements,threshold)?;
 
         let mut claims=Vec::new();
-        <Claims<T>>::iter_prefix(&did).for_each(|(claim_id,claim)| {
+        <Claims<T>>::iter_prefix(did).for_each(|(claim_id,claim)| {
             claims.push((claim_id,claim));
         });
         assert_eq!(claims.len(), 1);
@@ -507,11 +507,11 @@ benchmarks! {
         let now= <timestamp::Pallet<T>>::get();
         let now_plus=now /(T::Moment::unique_saturated_from(1_000u32))+T::Moment::unique_saturated_from(1_000_000u32) ;
 
-        let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.clone().into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
-        IdentityPallet::<T>::authorize_claim_issuers(origin.clone(),did,  claim_issuers_to_add)?;
+        let claim_issuers_to_add:Vec<ClaimIssuer<T::AccountId,T::Moment>>=claim_issuers.into_iter().map(|account| ClaimIssuer{issuer: account,expiration: now_plus}).collect();
+        IdentityPallet::<T>::authorize_claim_issuers(origin,did,  claim_issuers_to_add)?;
 
         let attestor_origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(issuer.clone()).into();
-        IdentityPallet::<T>::attest_claim(attestor_origin.clone(),did,  claim_id, vec![],now_plus)?;
+        IdentityPallet::<T>::attest_claim(attestor_origin,did,  claim_id, vec![],now_plus)?;
 
         let claim=<Claims<T>>::get(did, claim_id);
         assert!(claim.is_some());
@@ -547,7 +547,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
         let origin:<T as frame_system::Config>::RuntimeOrigin=SystemOrigin::Signed(caller.clone()).into();
-        IdentityPallet::<T>::create_catalog(origin.clone())?;
+        IdentityPallet::<T>::create_catalog(origin)?;
 
         let catalog_id=T::CatalogId::unique_saturated_from(1u32);
         assert!(<Catalogs<T>>::contains_key(caller.clone(),catalog_id));
@@ -583,7 +583,7 @@ benchmarks! {
 
     verify {
         let mut catalog_dids=Vec::new();
-        <DidsByCatalog<T>>::iter_prefix(&catalog_id).for_each(|(did,_)| {
+        <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did,_)| {
             catalog_dids.push(did);
         });
         assert_eq!(catalog_dids.len(),a as usize);
@@ -610,13 +610,13 @@ benchmarks! {
         });
         assert_eq!(dids_by_controller.len(), a as usize);
 
-        IdentityPallet::<T>::add_dids_to_catalog(origin.clone(), catalog_id, dids_by_controller.clone())?;
+        IdentityPallet::<T>::add_dids_to_catalog(origin, catalog_id, dids_by_controller.clone())?;
 
     }: _(SystemOrigin::Signed(caller.clone()),catalog_id,dids_by_controller)
 
     verify {
         let mut dids_in_catalog=Vec::new();
-        <DidsByCatalog<T>>::iter_prefix(&catalog_id).for_each(|(did, _)| {
+        <DidsByCatalog<T>>::iter_prefix(catalog_id).for_each(|(did, _)| {
             dids_in_catalog.push(did);
         });
         assert_eq!(dids_in_catalog.len(), 0_usize);

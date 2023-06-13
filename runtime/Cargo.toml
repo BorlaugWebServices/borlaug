@@ -134,6 +134,7 @@ std = [
   "audits/std",
   "audits-runtime-api/std",
   "asset-registry-runtime-api/std",
+  "identity-runtime-api/std",
   "groups/std",
   "groups-runtime-api/std",
   "provenance-runtime-api/std",

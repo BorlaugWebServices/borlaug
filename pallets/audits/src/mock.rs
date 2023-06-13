@@ -1,8 +1,11 @@
 //! Mocks for the module.
 
 use crate as pallet_audits;
-use frame_support::parameter_types;
-use frame_system::{self as system, EnsureOneOf, EnsureSigned};
+use frame_support::{
+    parameter_types,
+    traits::{ConstU32, ConstU64, EitherOfDiverse},
+};
+use frame_system::{self as system, EnsureSigned};
 use runtime::primitives::NameLimit;
 use runtime::{
     GroupChainLimit, GroupMaxMembers, GroupMaxProposalLength, GroupMaxProposals, MaxLinkRemove,
@@ -42,41 +45,50 @@ parameter_types! {
 }
 
 impl system::Config for Test {
-    type BaseCallFilter = ();
+    type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = ();
     type BlockLength = ();
     type DbWeight = ();
-    type Origin = Origin;
+    type RuntimeOrigin = RuntimeOrigin;
     type RuntimeCall = RuntimeCall;
     type Index = u64;
     type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
-    type AccountId = AccountId;
+    type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = BlockHashCount;
+    type BlockHashCount = ConstU64<250>;
     type Version = ();
     type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<Balance>;
+    type AccountData = pallet_balances::AccountData<AccountId>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
-    type SS58Prefix = SS58Prefix;
+    type SS58Prefix = ();
+    type OnSetCode = ();
+    type MaxConsumers = ConstU32<16>;
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: Balance = 1;
+    pub const ExistentialDeposit: u64 = 1;
+    pub const MaxLocks: u32 = 10;
 }
 impl pallet_balances::Config for Test {
-    type MaxLocks = ();
-    type Balance = Balance;
+    type Balance = u64;
     type DustRemoval = ();
     type RuntimeEvent = RuntimeEvent;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = ();
+    type MaxLocks = MaxLocks;
+    type MaxReserves = ();
+    type ReserveIdentifier = [u8; 8];
+    type FreezeIdentifier = ();
+    type MaxFreezes = ();
+    type HoldIdentifier = ();
+    type MaxHolds = ();
 }
 
 impl settings::Config for Test {
@@ -102,27 +114,27 @@ impl pallet_audits::Config for Test {
 }
 
 impl groups::Config for Test {
-    type Origin = Origin;
+    type RuntimeEvent = RuntimeEvent;
+    type Origin = RuntimeOrigin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Test>;
     type GroupsOriginByCallerThreshold = groups::EnsureApproved<Test>;
     type GroupsOriginExecuted = groups::EnsureExecuted<Test>;
     type GroupsOriginAccountOrThreshold =
-        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureThreshold<Test>>;
+        EitherOfDiverse<EnsureSigned<AccountId>, groups::EnsureThreshold<Test>>;
     type GroupsOriginAccountOrApproved =
-        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureApproved<Test>>;
+        EitherOfDiverse<EnsureSigned<AccountId>, groups::EnsureApproved<Test>>;
     type GroupsOriginAccountOrExecuted =
-        EnsureOneOf<AccountId, EnsureSigned<AccountId>, groups::EnsureExecuted<Test>>;
-    type GetExtrinsicExtraSource = Settings;
-    type Proposal = Call;
+        EitherOfDiverse<EnsureSigned<AccountId>, groups::EnsureExecuted<Test>>;
+    type Proposal = RuntimeCall;
     type GroupId = u32;
     type ProposalId = u32;
     type MemberCount = u32;
     type Currency = Balances;
-    type RuntimeEvent = RuntimeEvent;
     type MaxProposals = GroupMaxProposals;
     type MaxProposalLength = GroupMaxProposalLength;
     type MaxMembers = GroupMaxMembers;
-    type WeightInfo = ();
+    type WeightInfo = groups::weights::SubstrateWeight<Test>;
+    type GetExtrinsicExtraSource = Settings;
     type NameLimit = NameLimit;
     type GroupChainLimit = GroupChainLimit;
 }

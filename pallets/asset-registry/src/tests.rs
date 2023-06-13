@@ -4,11 +4,11 @@ use super::*;
 use crate::mock::*;
 use chrono::Utc;
 use core::convert::TryInto;
-use frame_support::{assert_err, assert_ok, dispatch::Weight};
+use frame_support::{assert_err, assert_ok, BoundedVec};
 use primitives::*;
 
 fn create_did() -> Did {
-    let _ = Identity::register_did(Origin::signed(1), None);
+    let _ = Identity::register_did(RuntimeOrigin::signed(1), None);
     let mut dids_by_controller = Vec::new();
     identity::DidByController::<Test>::iter_prefix(&1).for_each(|(did, _)| {
         dids_by_controller.push(did);
@@ -18,7 +18,11 @@ fn create_did() -> Did {
 
 fn create_registry(did: Did) -> u32 {
     let name = b"name".to_vec();
-    assert_ok!(AssetRegistry::create_registry(Origin::signed(1), did, name));
+    assert_ok!(AssetRegistry::create_registry(
+        RuntimeOrigin::signed(1),
+        did,
+        name
+    ));
     1u32 //registry_id
 }
 
@@ -36,7 +40,7 @@ fn create_asset(did: Did, registry_id: u32) {
         acquired_date: Some(now),
     };
     assert_ok!(AssetRegistry::create_asset(
-        Origin::signed(1),
+        RuntimeOrigin::signed(1),
         did,
         registry_id,
         asset
@@ -62,7 +66,7 @@ fn create_lease(did_lessor: Did, did_lessee: Did) {
         effective_ts: now,
         expiry_ts: next_week,
     };
-    assert_ok!(AssetRegistry::new_lease(Origin::signed(1), lease));
+    assert_ok!(AssetRegistry::new_lease(RuntimeOrigin::signed(1), lease));
 }
 
 #[test]
@@ -77,7 +81,7 @@ fn creating_registry_should_work() {
         let name = b"name".to_vec();
 
         assert_ok!(AssetRegistry::create_registry(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_1,
             name
         ));
@@ -101,7 +105,7 @@ fn updating_registry_should_work() {
 
         let name = b"name".to_vec();
         assert_ok!(AssetRegistry::create_registry(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_1,
             name
         ));
@@ -109,7 +113,7 @@ fn updating_registry_should_work() {
 
         let new_name = b"new name".to_vec();
         assert_ok!(AssetRegistry::update_registry(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_1,
             registry_id,
             new_name
@@ -134,14 +138,14 @@ fn deleting_registry_should_work() {
 
         let name = b"name".to_vec();
         assert_ok!(AssetRegistry::create_registry(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_1,
             name
         ));
         let registry_id = 1u32;
 
         assert_ok!(AssetRegistry::delete_registry(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_1,
             registry_id,
         ));
@@ -179,7 +183,7 @@ fn creating_asset_should_work() {
             acquired_date: Some(now),
         };
         assert_ok!(AssetRegistry::create_asset(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_1,
             registry_id,
             asset
@@ -220,7 +224,7 @@ fn updating_asset_should_work() {
         };
 
         assert_ok!(AssetRegistry::update_asset(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_1,
             registry_id,
             asset_id,
@@ -248,7 +252,7 @@ fn deleting_asset_should_work() {
         let asset_id = 1u32;
 
         assert_ok!(AssetRegistry::delete_asset(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_1,
             registry_id,
             asset_id
@@ -295,7 +299,7 @@ fn creating_lease_should_work() {
             expiry_ts: next_week,
         };
 
-        assert_ok!(AssetRegistry::new_lease(Origin::signed(1), lease));
+        assert_ok!(AssetRegistry::new_lease(RuntimeOrigin::signed(1), lease));
 
         let lease_id = 1u32;
 
@@ -343,7 +347,7 @@ fn lease_asset_over_allocation_should_fail() {
             expiry_ts: next_week,
         };
 
-        assert_ok!(AssetRegistry::new_lease(Origin::signed(1), lease1));
+        assert_ok!(AssetRegistry::new_lease(RuntimeOrigin::signed(1), lease1));
 
         let lease_id = 1u32;
 
@@ -367,7 +371,7 @@ fn lease_asset_over_allocation_should_fail() {
         };
 
         assert_err!(
-            AssetRegistry::new_lease(Origin::signed(1), lease2),
+            AssetRegistry::new_lease(RuntimeOrigin::signed(1), lease2),
             Error::<Test>::AssetAllocationFailed
         );
 
@@ -386,7 +390,7 @@ fn voiding_lease_should_work() {
         create_lease(did_lessor, did_lessee);
         let lease_id = 1u32;
         assert_ok!(AssetRegistry::void_lease(
-            Origin::signed(1),
+            RuntimeOrigin::signed(1),
             did_lessor,
             lease_id
         ));
@@ -402,16 +406,16 @@ fn voiding_lease_should_work() {
 #[test]
 fn weights_should_not_be_excessive() {
     new_test_ext().execute_with(|| {
-        const MAXIMUM_ALLOWED_WEIGHT: Weight = 130_000_000_000;
+        const MAXIMUM_ALLOWED_WEIGHT_TIME_TIME: u64 = 130_000_000_000;
 
         let weight =
             <Test as Config>::WeightInfo::create_registry(<Test as Config>::NameLimit::get());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME_TIME);
         let weight =
             <Test as Config>::WeightInfo::update_registry(<Test as Config>::NameLimit::get());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME_TIME);
         let weight = <Test as Config>::WeightInfo::delete_registry();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME_TIME);
         let weight = <Test as Config>::WeightInfo::create_asset(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::NameLimit::get(),
@@ -420,7 +424,7 @@ fn weights_should_not_be_excessive() {
             <Test as Config>::FactStringLimit::get(),
             <Test as Config>::AssetPropertyLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME_TIME);
         let weight = <Test as Config>::WeightInfo::update_asset(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::NameLimit::get(),
@@ -429,16 +433,16 @@ fn weights_should_not_be_excessive() {
             <Test as Config>::FactStringLimit::get(),
             <Test as Config>::AssetPropertyLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME_TIME);
         let weight = <Test as Config>::WeightInfo::delete_asset();
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME_TIME);
         let weight = <Test as Config>::WeightInfo::new_lease(
             <Test as Config>::NameLimit::get(),
             <Test as Config>::LeaseAssetLimit::get(),
         );
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME_TIME);
         let weight =
             <Test as Config>::WeightInfo::void_lease(<Test as Config>::LeaseAssetLimit::get());
-        assert!(weight < MAXIMUM_ALLOWED_WEIGHT);
+        assert!(weight.ref_time() < MAXIMUM_ALLOWED_WEIGHT_TIME_TIME);
     });
 }

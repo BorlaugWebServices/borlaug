@@ -28,6 +28,7 @@ groups = {package = "pallet-groups", path = "../groups", default-features = fals
 
 [dev-dependencies]
 pallet-balances = {version = "21.0.0"}
+runtime = {package = "borlaug-runtime", path = "../../runtime", features = ["std", "grandpa_aura"]}
 serde_json = "1.0.41"
 sp-storage = {version = "12.0.0"}
 
