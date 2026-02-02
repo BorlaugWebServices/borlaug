@@ -1,10 +1,10 @@
 use super::fact::Fact;
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use scale_info::TypeInfo;
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::polkadot_sdk_frame::prelude::*;
 
 #[derive(
-    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,DecodeWithMemTracking
 )]
 pub struct AssetProperty<BoundedStringName, BoundedStringFact> {
     pub name: BoundedStringName,

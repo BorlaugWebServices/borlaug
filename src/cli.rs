@@ -1,4 +1,4 @@
-use sc_cli::RunCmd;
+use polkadot_sdk::sc_cli::RunCmd;
 
 #[derive(Debug, clap::Parser)]
 pub struct Cli {
@@ -13,41 +13,41 @@ pub struct Cli {
 pub enum Subcommand {
     /// Key management cli utilities
     #[command(subcommand)]
-    Key(sc_cli::KeySubcommand),
+    Key(polkadot_sdk::sc_cli::KeySubcommand),
 
     /// Build a chain specification.
-    BuildSpec(sc_cli::BuildSpecCmd),
+    BuildSpec(polkadot_sdk::sc_cli::BuildSpecCmd),
 
     /// Validate blocks.
-    CheckBlock(sc_cli::CheckBlockCmd),
+    CheckBlock(polkadot_sdk::sc_cli::CheckBlockCmd),
 
     /// Export blocks.
-    ExportBlocks(sc_cli::ExportBlocksCmd),
+    ExportBlocks(polkadot_sdk::sc_cli::ExportBlocksCmd),
 
     /// Export the state of a given block into a chain spec.
-    ExportState(sc_cli::ExportStateCmd),
+    ExportState(polkadot_sdk::sc_cli::ExportStateCmd),
 
     /// Import blocks.
-    ImportBlocks(sc_cli::ImportBlocksCmd),
+    ImportBlocks(polkadot_sdk::sc_cli::ImportBlocksCmd),
 
     /// Remove the whole chain.
-    PurgeChain(sc_cli::PurgeChainCmd),
+    PurgeChain(polkadot_sdk::sc_cli::PurgeChainCmd),
 
     /// Revert the chain to a previous state.
-    Revert(sc_cli::RevertCmd),
+    Revert(polkadot_sdk::sc_cli::RevertCmd),
 
     /// Sub-commands concerned with benchmarking.
     #[command(subcommand)]
-    Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+    Benchmark(polkadot_sdk::frame_benchmarking_cli::BenchmarkCmd),
 
     /// Try some command against runtime state.
     #[cfg(feature = "try-runtime")]
-    TryRuntime(try_runtime_cli::TryRuntimeCmd),
+    TryRuntime(polkadot_sdk::try_runtime_cli::TryRuntimeCmd),
 
     /// Try some command against runtime state. Note: `try-runtime` feature must be enabled.
     #[cfg(not(feature = "try-runtime"))]
     TryRuntime,
 
     /// Db meta columns information.
-    ChainInfo(sc_cli::ChainInfoCmd),
+    ChainInfo(polkadot_sdk::sc_cli::ChainInfoCmd),
 }

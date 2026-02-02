@@ -1,4 +1,6 @@
 #![no_std]
+extern crate alloc;
+
 pub mod asset;
 pub mod asset_property;
 pub mod attestation;

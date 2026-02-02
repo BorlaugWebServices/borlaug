@@ -42,19 +42,20 @@ mod tests;
 
 pub mod weights;
 
-#[frame_support::pallet]
+#[polkadot_sdk::frame_support::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-    use frame_system::pallet_prelude::*;
-    use primitives::{AssetAllocation, *};
-    use sp_runtime::{
+    use polkadot_sdk::frame_support::dispatch::DispatchResultWithPostInfo;
+    use polkadot_sdk::polkadot_sdk_frame::prelude::*;
+    use polkadot_sdk::sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One},
         Either,
     };
-    use sp_std::prelude::*;
+    use polkadot_sdk::sp_std::vec;
+    use polkadot_sdk::sp_std::vec::Vec;
+    use primitives::{AssetAllocation, *};
 
     const MODULE_INDEX: u8 = 4;
 
@@ -68,10 +69,8 @@ pub mod pallet {
     #[pallet::config]
     /// Configure the pallet by specifying the parameters and types on which it depends.
     pub trait Config:
-        frame_system::Config + timestamp::Config + groups::Config + identity::Config
+        polkadot_sdk::frame_system::Config + timestamp::Config + groups::Config + identity::Config
     {
-        /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         ///A unique id for each Asset Registry. Serial generated on chain.
         type RegistryId: Parameter
             + Member

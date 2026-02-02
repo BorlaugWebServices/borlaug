@@ -1,10 +1,11 @@
+use alloc::vec::Vec;
 use crate::{Attestation, Fact};
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{dispatch::Vec, scale_info::TypeInfo};
-use sp_runtime::RuntimeDebug;
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use polkadot_sdk::polkadot_sdk_frame::prelude::*;
 
 #[derive(
-    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,DecodeWithMemTracking
 )]
 pub struct Claim<AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact> {
     /// A claim description
@@ -20,7 +21,7 @@ pub struct Claim<AccountId, MemberCount, Moment, BoundedStringName, BoundedStrin
 }
 
 #[derive(
-    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, DecodeWithMemTracking,MaxEncodedLen, TypeInfo,
 )]
 pub struct Statement<BoundedStringName, BoundedStringFact> {
     /// Name of the property
@@ -31,14 +32,14 @@ pub struct Statement<BoundedStringName, BoundedStringFact> {
     pub for_issuer: bool,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, DecodeWithMemTracking, MaxEncodedLen, TypeInfo)]
 pub struct ClaimConsumer<AccountId, Moment> {
     pub consumer: AccountId,
     /// Expiration time
     pub expiration: Moment,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, DecodeWithMemTracking, MaxEncodedLen, TypeInfo)]
 pub struct ClaimIssuer<AccountId, Moment> {
     pub issuer: AccountId,
     /// Expiration time

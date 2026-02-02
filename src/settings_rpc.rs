@@ -2,17 +2,18 @@ use codec::Codec;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorObject},
+    types::error::{ ErrorObject},
 };
 use serde::{Deserialize, Serialize};
 use settings_runtime_api::SettingsApi as SettingsRuntimeApi;
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::HeaderBackend;
-use sp_runtime::{
+use polkadot_sdk::sp_api::ProvideRuntimeApi;
+use polkadot_sdk::sp_blockchain::HeaderBackend;
+use polkadot_sdk::sp_runtime::{
     traits::{AtLeast32BitUnsigned, Block as BlockT},
     Perbill,
 };
 use std::sync::Arc;
+use runtime::primitives::Balance;
 
 #[rpc(client, server)]
 pub trait SettingsApi<BlockHash, ModuleIndex, ExtrinsicIndex, Balance> {
@@ -45,34 +46,30 @@ pub trait SettingsApi<BlockHash, ModuleIndex, ExtrinsicIndex, Balance> {
     ) -> RpcResult<ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex>>;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct WeightToFeeCoefficientsResponse {
     //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
     pub weight_to_fee_coefficients: Vec<(u64, Perbill, bool, u8)>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct TransactionByteFeeResponse {
     //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
     pub transaction_byte_fee: u64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct FeeSplitRatioResponse {
     pub fee_split_ratio: u32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct ExtrinsicExtraResponse {
-    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
-    //TODO: change once bug is fixed
-    pub fee: Option<u64>,
+    pub fee: Option<Balance>,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct ExtrinsicExtrasResponse<ModuleIndex, ExtrinsicIndex> {
-    //u64 instead of Balance due to bug in serde https://github.com/paritytech/substrate/issues/4641
-    //TODO: change once bug is fixed
-    pub fees: Vec<(ModuleIndex, Vec<(ExtrinsicIndex, u64)>)>,
+    pub fees: Vec<(ModuleIndex, Vec<(ExtrinsicIndex, Balance)>)>,
 }
 
 pub struct Settings<C, M> {
@@ -113,26 +110,15 @@ static RPC_MODULE: &str = "Settings API";
 macro_rules! convert_error {
     () => {{
         |e| {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::RuntimeError.into(),
                 format!("Runtime Error in {}", RPC_MODULE),
                 Some(format!("{:?}", e)),
-            ))
+            )
         }
     }};
 }
 
-// macro_rules! decode_error {
-//     () => {{
-//         |e| {
-//             CallError::Custom(ErrorObject::owned(
-//                 Error::DecodeError.into(),
-//                 format!("Decode Error in {}", RPC_MODULE),
-//                 Some(format!("{:?}", e)),
-//             ))
-//         }
-//     }};
-// }
 
 #[async_trait]
 impl<C, Block, ModuleIndex, ExtrinsicIndex, Balance>

@@ -1,7 +1,7 @@
 pub mod deprecated {
     use codec::{Decode, Encode};
     use primitives::Compliance;
-    use sp_runtime::RuntimeDebug;
+    use polkadot_sdk::polkadot_sdk_frame::prelude::*;
 
     #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
     pub struct OldObservation {

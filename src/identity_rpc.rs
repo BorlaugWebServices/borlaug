@@ -5,7 +5,7 @@ use identity_runtime_api::IdentityApi as IdentityRuntimeApi;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorObject},
+    types::error::{ ErrorObject},
 };
 use pallet_primitives::{Attestation, DidDocument, DidProperty, Fact, Statement};
 use serde::{
@@ -15,9 +15,9 @@ use serde::{
         ser::Serializer,
     },
 };
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::HeaderBackend;
-use sp_runtime::traits::Block as BlockT;
+use polkadot_sdk::sp_api::ProvideRuntimeApi;
+use polkadot_sdk::sp_blockchain::HeaderBackend;
+use polkadot_sdk::sp_runtime::traits::Block as BlockT;
 use std::convert::TryFrom;
 use std::fmt;
 use std::sync::Arc;
@@ -270,8 +270,16 @@ impl fmt::Display for Did {
     }
 }
 
+
+
 #[derive(Debug)]
 pub struct DidParseError(String);
+
+impl fmt::Display for DidParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DID Parse Error: {}", self.0)
+    }
+}
 
 impl TryFrom<String> for Did {
     type Error = DidParseError;
@@ -309,17 +317,17 @@ impl Serialize for Did {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct CatalogResponse<CatalogId> {
     pub catalog_id: CatalogId,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct DidDocumentBasicResponse {
     pub did: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct DidDocumentResponse<AccountId> {
     pub subject: AccountId,
     pub controllers: Vec<AccountId>,
@@ -398,7 +406,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct DidPropertyResponse {
     pub name: String,
     pub fact: FactResponse,
@@ -445,7 +453,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct FactResponse {
     #[serde(rename = "type")]
     pub data_type: String,
@@ -691,21 +699,21 @@ where
 //     }
 // }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct StatementResponse {
     pub name: String,
     pub fact: FactResponse,
     pub for_issuer: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AttestationResponse<AccountId, Moment> {
     pub attested_by: AccountId,
     pub issued: Moment,
     pub valid_until: Moment,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct ClaimResponse<ClaimId, AccountId, MemberCount, Moment> {
     pub claim_id: ClaimId,
     pub description: String,
@@ -715,13 +723,13 @@ pub struct ClaimResponse<ClaimId, AccountId, MemberCount, Moment> {
     pub threshold: MemberCount,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AuthorizationsResponse<AccountId, Moment> {
     pub account: AccountId,
     pub valid_until: Moment,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AuthorizedDidResponse<Moment> {
     pub did: String,
     pub valid_until: Moment,
@@ -737,7 +745,7 @@ impl<Moment> From<(pallet_primitives::Did, Moment)> for AuthorizedDidResponse<Mo
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AuthorizedDidWithClaimsResponse<ClaimId, CatalogId, AccountId, MemberCount, Moment> {
     pub did: String,
     pub catalogs: Vec<CatalogId>,
@@ -833,34 +841,24 @@ static RPC_MODULE: &str = "Identity API";
 macro_rules! convert_error {
     () => {{
         |e| {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::RuntimeError.into(),
                 format!("Runtime Error in {}", RPC_MODULE),
                 Some(format!("{:?}", e)),
-            ))
+            )
         }
     }};
 }
 
-// macro_rules! decode_error {
-//     () => {{
-//         |e| {
-//             CallError::Custom(ErrorObject::owned(
-//                 Error::DecodeError.into(),
-//                 format!("Decode Error in {}", RPC_MODULE),
-//                 Some(format!("{:?}", e)),
-//             ))
-//         }
-//     }};
-// }
+
 macro_rules! not_found_error {
     ($id:expr) => {{
         {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::NotFoundError.into(),
                 format!("Entity not found Error in {}", RPC_MODULE),
                 Some(format!("{}", $id)),
-            ))
+            )
         }
     }};
 }

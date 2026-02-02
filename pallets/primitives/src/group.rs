@@ -1,9 +1,9 @@
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{dispatch::Vec, scale_info::TypeInfo};
-use sp_runtime::RuntimeDebug;
-
+use alloc::vec::Vec;
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use polkadot_sdk::polkadot_sdk_frame::prelude::*;
 #[derive(
-    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,DecodeWithMemTracking
 )]
 pub struct GroupMember<AccountId, MemberCount> {
     /// The members account
@@ -13,7 +13,7 @@ pub struct GroupMember<AccountId, MemberCount> {
 }
 
 #[derive(
-    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,DecodeWithMemTracking
 )]
 pub struct Group<GroupId, AccountId, MemberCount, BoundedString> {
     /// A name for the group.
@@ -27,7 +27,7 @@ pub struct Group<GroupId, AccountId, MemberCount, BoundedString> {
     /// If this group is a subgroup, this is the parent group.
     pub parent: Option<GroupId>,
 }
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo,DecodeWithMemTracking)]
 /// Info for keeping track of a motion being voted on.
 pub struct Votes<AccountId, MemberCount> {
     /// The number of approval votes that are needed to pass the motion.

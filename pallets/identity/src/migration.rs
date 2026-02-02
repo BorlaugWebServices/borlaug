@@ -1,8 +1,8 @@
 pub mod deprecated {
     use codec::{Decode, Encode};
-    use frame_support::dispatch::Vec;
+    use polkadot_sdk::polkadot_sdk_frame::prelude::*;
+    use polkadot_sdk::sp_std::vec::Vec;
     use primitives::Statement;
-    use sp_runtime::RuntimeDebug;
 
     #[derive(Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug)]
     pub struct OldClaim<AccountId, MemberCount, Moment, BoundedStringName, BoundedStringFact> {

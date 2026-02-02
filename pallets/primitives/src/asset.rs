@@ -1,10 +1,19 @@
+use alloc::vec::Vec;
 use crate::AssetProperty;
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{dispatch::Vec, scale_info::TypeInfo};
-use sp_runtime::RuntimeDebug;
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::polkadot_sdk_frame::prelude::*;
+use scale_info::TypeInfo;
 
 #[derive(
-    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+    Clone,
+    Encode,
+    Decode,
+    Eq,
+    PartialEq,
+    RuntimeDebug,
+    TypeInfo,
+    DecodeWithMemTracking,
+    MaxEncodedLen,
 )]
 pub struct Asset<Moment, Balance, BoundedStringName, BoundedStringFact> {
     pub properties: Vec<AssetProperty<BoundedStringName, BoundedStringFact>>,
@@ -19,7 +28,17 @@ pub struct Asset<Moment, Balance, BoundedStringName, BoundedStringFact> {
 }
 
 #[derive(
-    Encode, Decode, PartialOrd, Ord, PartialEq, Eq, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo,
+    Encode,
+    Decode,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Clone,
+    RuntimeDebug,
+    MaxEncodedLen,
+    TypeInfo,
+    DecodeWithMemTracking,
 )]
 pub enum AssetStatus {
     Draft,

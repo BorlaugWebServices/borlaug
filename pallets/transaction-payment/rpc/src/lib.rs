@@ -17,20 +17,22 @@
 
 //! RPC interface for the transaction payment pallet.
 
-use std::{convert::TryInto, sync::Arc};
+use std::sync::Arc;
 
 use codec::{Codec, Decode};
 use jsonrpsee::{
-	core::{Error as JsonRpseeError, RpcResult},
+	core::RpcResult,
 	proc_macros::rpc,
-	types::error::{CallError, ErrorCode, ErrorObject},
+	types::{
+		error::{ErrorCode, ErrorObject},
+	},
 };
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, InclusionFee, RuntimeDispatchInfo};
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::HeaderBackend;
-use sp_core::Bytes;
-use sp_rpc::number::NumberOrHex;
-use sp_runtime::traits::{Block as BlockT, MaybeDisplay};
+use polkadot_sdk::sp_api::ProvideRuntimeApi;
+use polkadot_sdk::sp_blockchain::HeaderBackend;
+use polkadot_sdk::sp_core::Bytes;
+use polkadot_sdk::sp_rpc::number::NumberOrHex;
+use polkadot_sdk::sp_runtime::traits::{Block as BlockT, MaybeDisplay};
 
 pub use pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi as TransactionPaymentRuntimeApi;
 
@@ -79,10 +81,10 @@ impl From<Error> for i32 {
 }
 
 impl<C, Block, Balance>
-	TransactionPaymentApiServer<
-		<Block as BlockT>::Hash,
-		RuntimeDispatchInfo<Balance, sp_weights::Weight>,
-	> for TransactionPayment<C, Block>
+TransactionPaymentApiServer<
+	<Block as BlockT>::Hash,
+	RuntimeDispatchInfo<Balance, polkadot_sdk::sp_weights::Weight>,
+> for TransactionPayment<C, Block>
 where
 	Block: BlockT,
 	C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Send + Sync + 'static,
@@ -93,31 +95,24 @@ where
 		&self,
 		encoded_xt: Bytes,
 		at: Option<Block::Hash>,
-	) -> RpcResult<RuntimeDispatchInfo<Balance, sp_weights::Weight>> {
+	) -> RpcResult<RuntimeDispatchInfo<Balance, polkadot_sdk::sp_weights::Weight>> {
 		let api = self.client.runtime_api();
 		let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
-
 		let encoded_len = encoded_xt.len() as u32;
-
-		let uxt: Block::Extrinsic = Decode::decode(&mut &*encoded_xt).map_err(|e| {
-			CallError::Custom(ErrorObject::owned(
-				Error::DecodeError.into(),
-				"Unable to query dispatch info.",
-				Some(format!("{:?}", e)),
-			))
-		})?;
-
-		fn map_err(error: impl ToString, desc: &'static str) -> CallError {
-			CallError::Custom(ErrorObject::owned(
+		fn map_err(error: impl ToString, desc: &'static str) -> jsonrpsee::types::ErrorObjectOwned {
+			ErrorObject::owned(
 				Error::RuntimeError.into(),
 				desc,
-				Some(error.to_string()),
-			))
+				Some(error.to_string())
+			)
 		}
+
+		let uxt: Block::Extrinsic = Decode::decode(&mut &*encoded_xt)
+			.map_err(|e| map_err(e, "Unable to query dispatch info."))?;
 
 		let res = api
 			.query_info(at_hash, uxt, encoded_len)
-			.map_err(|e| map_err(e, "Unable to query dispatch info."))?;
+			.map_err(|e| map_err(e, "Runtime error during query_info."))?;
 
 		Ok(RuntimeDispatchInfo {
 			weight: res.weight,
@@ -137,27 +132,27 @@ where
 		let encoded_len = encoded_xt.len() as u32;
 
 		let uxt: Block::Extrinsic = Decode::decode(&mut &*encoded_xt).map_err(|e| {
-			CallError::Custom(ErrorObject::owned(
+			ErrorObject::owned(
 				Error::DecodeError.into(),
 				"Unable to query fee details.",
 				Some(format!("{:?}", e)),
-			))
+			)
 		})?;
 		let fee_details = api.query_fee_details(at_hash, uxt, encoded_len).map_err(|e| {
-			CallError::Custom(ErrorObject::owned(
+			ErrorObject::owned(
 				Error::RuntimeError.into(),
 				"Unable to query fee details.",
 				Some(e.to_string()),
-			))
+			)
 		})?;
 
 		let try_into_rpc_balance = |value: Balance| {
 			value.try_into().map_err(|_| {
-				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				ErrorObject::owned(
 					ErrorCode::InvalidParams.code(),
 					format!("{} doesn't fit in NumberOrHex representation", value),
 					None::<()>,
-				)))
+				)
 			})
 		};
 

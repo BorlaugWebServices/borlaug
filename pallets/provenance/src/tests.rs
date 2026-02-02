@@ -1,7 +1,7 @@
 //! Tests for the module.
 use super::*;
 use crate::mock::*;
-use frame_support::assert_ok;
+use polkadot_sdk::frame_support::assert_ok;
 use primitives::*;
 use std::convert::TryInto;
 

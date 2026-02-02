@@ -3,12 +3,13 @@
 #![allow(clippy::unnecessary_mut_passed)]
 
 use codec::Codec;
-use frame_support::dispatch::Vec;
 use primitives::*;
+use polkadot_sdk::sp_api::decl_runtime_apis;
+use polkadot_sdk::sp_std::vec::Vec;
 
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
-sp_api::decl_runtime_apis! {
+decl_runtime_apis! {
     pub trait AssetRegistryApi<AccountId,ProposalId,RegistryId,AssetId,LeaseId,Moment,Balance,BoundedStringName,BoundedStringFact>
     where
     AccountId: Codec,

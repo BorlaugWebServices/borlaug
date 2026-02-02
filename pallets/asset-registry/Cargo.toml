@@ -5,14 +5,11 @@ name = "pallet-asset-registry"
 version = "2.0.0"
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
-frame-benchmarking = {default-features = false, version = "21.0.0", optional = true}
-frame-support = {version = "21.0.0", default-features = false}
-frame-system = {version = "21.0.0", default-features = false}
-scale-info = {version = "2.5.0", default-features = false, features = ["derive"]}
-sp-runtime = {version = "23.0.0", default-features = false}
-sp-std = {version = "7.0.0", default-features = false}
-timestamp = {package = "pallet-timestamp", version = "20.0.0", default-features = false}
+codec = { workspace = true }
+scale-info = { workspace = true, features = ["derive"] }
+timestamp = { workspace = true }
+
+polkadot-sdk = { workspace = true, default-features = false, features = ["runtime"] }
 
 extrinsic-extra = {path = "../../traits/extrinsic_extra", default-features = false}
 groups = {package = "pallet-groups", path = "../groups", default-features = false}
@@ -20,27 +17,33 @@ identity = {package = "pallet-identity", path = "../identity", default-features 
 primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
 
 [dev-dependencies]
-chrono = "0.4"
-pallet-balances = {version = "21.0.0", default-features = false}
+chrono = { workspace = true }
+polkadot-sdk = { workspace = true }
+serde = { workspace = true }
+pallet-balances = { workspace = true }
 runtime = {package = "borlaug-runtime", path = "../../runtime", features = ["std", "grandpa_aura"]}
-serde = {version = "1.0.130", default-features = false}
 settings = {package = "pallet-settings", path = "../settings", default-features = false}
-sp-core = {version = "20.0.0", default-features = false}
-sp-io = {version = "22.0.0", default-features = false}
+
 
 [features]
 default = ["std"]
-runtime-benchmarks = ["frame-benchmarking"]
+runtime-benchmarks = [
+  "polkadot-sdk/frame-benchmarking"
+]
 std = [
+  "polkadot-sdk/std",
+  "polkadot-sdk/sp-std",
+  "polkadot-sdk/frame-support",
+  "polkadot-sdk/frame-system",
+  "polkadot-sdk/sp-runtime",
   "codec/std",
-  "sp-std/std",
   "scale-info/std",
-  "frame-support/std",
-  "frame-system/std",
-  "sp-runtime/std",
   "timestamp/std",
   "primitives/std",
   "groups/std",
   "identity/std",
   "extrinsic-extra/std",
+]
+try-runtime = [
+  "polkadot-sdk/try-runtime",
 ]

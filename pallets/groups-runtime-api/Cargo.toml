@@ -5,19 +5,20 @@ name = "groups-runtime-api"
 version = "0.0.1"
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
-frame-support = {version = "21.0.0", default-features = false}
-primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
-sp-api = {version = "19.0.0-dev", default-features = false}
+codec = { workspace = true }
 
-[dev-dependencies]
-serde_json = "1.0"
+polkadot-sdk = { workspace = true, default-features = false, features = ["runtime"] }
+
+primitives = {package = "pallet-primitives", path = "../primitives", default-features = false}
+
 
 [features]
 default = ["std"]
 std = [
+  "polkadot-sdk/std",
+  "polkadot-sdk/sp-std",
+  "polkadot-sdk/sp-api",
+  "polkadot-sdk/frame-support",
   "codec/std",
-  "frame-support/std",
   "primitives/std",
-  "sp-api/std",
 ]

@@ -5,17 +5,17 @@ name = "utils"
 version = "2.0.0"
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
-frame-support = {version = "21.0.0", default-features = false}
-sp-core = {version = "20.0.0", default-features = false}
-sp-std = {version = "7.0.0", default-features = false}
+codec = {workspace = true}
+
+polkadot-sdk = { workspace = true, default-features = false, features = ["runtime"] }
 
 [features]
 default = ['std']
 no_std = []
 std = [
-  'codec/std',
-  "sp-core/std",
-  "sp-std/std",
-  'frame-support/std',
+  "polkadot-sdk/std",
+  "polkadot-sdk/sp-std",
+  "polkadot-sdk/sp-core",
+  "polkadot-sdk/frame-support",
+  'codec/std'
 ]

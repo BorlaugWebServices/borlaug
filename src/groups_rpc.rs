@@ -1,16 +1,16 @@
 use codec::Codec;
-use frame_support::dispatch::fmt::Display;
+use core::fmt::Display;
 use groups_runtime_api::GroupsApi as GroupsRuntimeApi;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorObject},
+    types::error::{ ErrorObject},
 };
 use pallet_primitives::{Group, GroupMember, Votes};
 use serde::{Deserialize, Serialize};
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::HeaderBackend;
-use sp_runtime::traits::{AtLeast32BitUnsigned, Block as BlockT};
+use polkadot_sdk::sp_api::ProvideRuntimeApi;
+use polkadot_sdk::sp_blockchain::HeaderBackend;
+use polkadot_sdk::sp_runtime::traits::{AtLeast32BitUnsigned, Block as BlockT};
 use std::sync::Arc;
 
 #[rpc(client, server)]
@@ -81,7 +81,7 @@ pub trait GroupsApi<BlockHash, AccountId, GroupId, MemberCount, ProposalId, Hash
     >;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct GroupResponse<GroupId, AccountId, MemberCount> {
     pub group_id: GroupId,
     pub name: String,
@@ -124,7 +124,7 @@ where
         }
     }
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct GroupMemberResponse<AccountId, MemberCount> {
     pub account: AccountId,
     pub weight: MemberCount,
@@ -140,7 +140,7 @@ impl<AccountId, MemberCount> From<GroupMember<AccountId, MemberCount>>
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct ProposalResponse<ProposalId, GroupId, AccountId, MemberCount> {
     pub proposal_id: ProposalId,
     pub group_id: GroupId,
@@ -182,7 +182,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct VotesResponse<AccountId, MemberCount> {
     pub threshold: MemberCount,
     pub total_vote_weight: MemberCount,
@@ -240,35 +240,25 @@ static RPC_MODULE: &str = "Groups API";
 macro_rules! convert_error {
     () => {{
         |e| {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::RuntimeError.into(),
                 format!("Runtime Error in {}", RPC_MODULE),
                 Some(format!("{:?}", e)),
-            ))
+            )
         }
     }};
 }
 
-// macro_rules! decode_error {
-//     () => {{
-//         |e| {
-//             CallError::Custom(ErrorObject::owned(
-//                 Error::DecodeError.into(),
-//                 format!("Decode Error in {}", RPC_MODULE),
-//                 Some(format!("{:?}", e)),
-//             ))
-//         }
-//     }};
-// }
+
 
 macro_rules! not_found_error {
     ($id:expr) => {{
         {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::NotFoundError.into(),
                 format!("Entity not found Error in {}", RPC_MODULE),
                 Some(format!("{}", $id)),
-            ))
+            )
         }
     }};
 }

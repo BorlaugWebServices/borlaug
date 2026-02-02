@@ -1,8 +1,8 @@
 //! Tests for the module.
 use super::*;
 use crate::mock::*;
-use frame_support::assert_ok;
-use sp_runtime::Perbill;
+use polkadot_sdk::frame_support::assert_ok;
+use polkadot_sdk::sp_runtime::Perbill;
 
 #[test]
 fn set_weight_to_fee_coefficients_should_work() {

@@ -41,30 +41,28 @@ mod tests;
 
 pub mod weights;
 
-#[frame_support::pallet]
+#[polkadot_sdk::frame_support::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
     use codec::Codec;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::{
+    use polkadot_sdk::frame_support::{
         dispatch::DispatchResultWithPostInfo,
         pallet_prelude::*,
-        traits::{Currency, Get},
+        traits::{Currency, Get,BuildGenesisConfig},
         weights::{WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial},
     };
-    use frame_system::pallet_prelude::*;
+    use polkadot_sdk::frame_system::pallet_prelude::*;
     use smallvec::SmallVec;
-    use sp_arithmetic::{
+    use polkadot_sdk::sp_arithmetic::{
         traits::{BaseArithmetic, Saturating},
         Perbill,
     };
-    use sp_runtime::traits::{AtLeast32BitUnsigned, UniqueSaturatedInto};
-    use sp_std::{fmt::Debug, marker::PhantomData, prelude::*, vec};
+    use polkadot_sdk::sp_runtime::traits::{AtLeast32BitUnsigned, UniqueSaturatedInto};
+    use polkadot_sdk::sp_std::{fmt::Debug, marker::PhantomData, prelude::*, vec};
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
-        /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+    pub trait Config: polkadot_sdk::frame_system::Config {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -151,7 +149,6 @@ pub mod pallet {
         pub extrinisic_extra: Vec<(T::ModuleIndex, Vec<(T::ExtrinsicIndex, T::Balance)>)>,
     }
 
-    #[cfg(feature = "std")]
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
@@ -163,7 +160,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             Pallet::<T>::initialize_weight_to_fee_coefficients(vec![WeightToFeeCoefficient {
                 coeff_integer: 1u32.into(),
@@ -443,7 +440,7 @@ pub mod pallet {
     }
 
     /// Implementor of `WeightToFeePolynomial` that can be changed in the settings pallet.
-    pub struct CustomizableFee<T: Config>(sp_std::marker::PhantomData<T>);
+    pub struct CustomizableFee<T: Config>(PhantomData<T>);
 
     impl<T: Config> WeightToFeePolynomial for CustomizableFee<T>
     where

@@ -6,58 +6,35 @@ version = "2.0.0"
 
 [dependencies]
 # third-party dependencies
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
-scale-info = {version = "2.5.0", default-features = false, features = ["derive"]}
-serde = {version = "1.0.126", features = ["derive"]}
+codec = { workspace = true }
+scale-info = { workspace = true }
+serde = {workspace = true, features = ["derive"]}
 
-sp-api = {version = "19.0.0-dev", default-features = false}
-sp-application-crypto = {version = "22.0.0", default-features = false}
-sp-authority-discovery = {version = "19.0.0", default-features = false}
-sp-block-builder = {version = "19.0.0", default-features = false}
-sp-core = {version = "20.0.0", default-features = false}
-sp-inherents = {version = "19.0.0", default-features = false}
-sp-offchain = {version = "19.0.0", default-features = false}
-sp-runtime = {version = "23.0.0", default-features = false}
-sp-session = {version = "20.0.0", default-features = false}
-sp-std = {version = "7.0.0", default-features = false}
-sp-transaction-pool = {version = "19.0.0", default-features = false}
-sp-version = {version = "21.0.0", default-features = false}
+polkadot-sdk = { workspace = true, default-features = false, features = ["runtime"] }
 
-frame-executive = {version = "21.0.0", default-features = false}
-frame-support = {version = "21.0.0", default-features = false}
-frame-system = {version = "21.0.0", default-features = false}
-frame-system-rpc-runtime-api = {version = "19.0.0", default-features = false}
-
-pallet-authorship = {version = "21.0.0", default-features = false}
-pallet-balances = {version = "21.0.0", default-features = false}
-pallet-collective = {version = "21.0.0", default-features = false}
-pallet-insecure-randomness-collective-flip = {version = "9.0.0", default-features = false}
-pallet-membership = {version = "21.0.0", default-features = false}
-pallet-proxy = {version = "21.0.0", default-features = false}
-pallet-sudo = {version = "21.0.0", default-features = false}
-pallet-timestamp = {version = "20.0.0", default-features = false}
-
-pallet-treasury = {version = "20.0.0", default-features = false}
+pallet-authorship =  { workspace = true }
+pallet-balances =  { workspace = true }
+pallet-collective =  { workspace = true }
+pallet-insecure-randomness-collective-flip =  { workspace = true }
+pallet-membership =  { workspace = true }
+pallet-proxy =  { workspace = true }
+pallet-sudo =  { workspace = true }
+pallet-timestamp =  { workspace = true }
+pallet-treasury = { workspace = true }
 
 # grandpa/babe/aura dependencies
 
-pallet-aura = {version = "20.0.0", default-features = false, optional = true}
-pallet-authority-discovery = {version = "21.0.0", default-features = false, optional = true}
-pallet-babe = {version = "21.0.0", default-features = false, optional = true}
-pallet-grandpa = {version = "21.0.0", default-features = false, optional = true}
-pallet-im-online = {version = "20.0.0", default-features = false, optional = true}
-pallet-offences = {version = "20.0.0", default-features = false, optional = true}
-pallet-session = {version = "21.0.0", default-features = false, optional = true}
-pallet-staking = {version = "21.0.0", default-features = false, optional = true}
-pallet-staking-reward-curve = {version = "6.0.0", default-features = false, optional = true}
-sp-consensus-aura = {version = "0.25.0", default-features = false, optional = true}
-sp-consensus-babe = {version = "0.25.0", default-features = false, optional = true}
-sp-staking = {version = "19.0.0", default-features = false}
+pallet-aura = { workspace = true, optional = true}
+pallet-authority-discovery = { workspace = true, optional = true}
+pallet-babe = { workspace = true, optional = true}
+pallet-grandpa =  { workspace = true, optional = true}
+pallet-im-online =  { workspace = true, optional = true}
+pallet-offences =  { workspace = true, optional = true}
+pallet-session = { workspace = true, optional = true}
+pallet-staking = { workspace = true, optional = true}
+pallet-staking-reward-curve =  { workspace = true, optional = true}
 
-# Used for runtime benchmarking
-frame-benchmarking = {version = "21.0.0", default-features = false, optional = true}
-frame-system-benchmarking = {version = "21.0.0", default-features = false, optional = true}
-hex-literal = {version = "0.4.1", optional = true}
+hex-literal = {workspace = true , optional = true}
 
 # Borlaug Dependencies
 asset-registry = {package = "pallet-asset-registry", path = "../pallets/asset-registry", default-features = false}
@@ -68,51 +45,53 @@ groups = {package = "pallet-groups", path = "../pallets/groups", default-feature
 groups-runtime-api = {path = "../pallets/groups-runtime-api", default-features = false}
 identity = {package = "pallet-identity", path = "../pallets/identity", default-features = false}
 identity-runtime-api = {path = "../pallets/identity-runtime-api", default-features = false}
-log = "0.4.17"
-pallet-primitives = {package = "pallet-primitives", path = "../pallets/primitives", default-features = false}
+log = { workspace = true }
+pallet-primitives = { path = "../pallets/primitives", default-features = false}
 provenance = {package = "pallet-provenance", path = "../pallets/provenance", default-features = false}
 provenance-runtime-api = {path = "../pallets/provenance-runtime-api", default-features = false}
 settings = {package = "pallet-settings", path = "../pallets/settings", default-features = false}
 settings-runtime-api = {path = "../pallets/settings-runtime-api", default-features = false}
 
-# substrate-validator-set = {path = "../pallets/substrate-validator-set", default-features = false, optional = true}
-
-# pallet-transaction-payment = {version = "21.0.0", default-features = false, optional = true}
-# pallet-transaction-payment-rpc-runtime-api = {version = "21.0.0", default-features = false, optional = true}
-
-pallet-transaction-payment = {version = "4.0.0-dev", path = "../pallets/transaction-payment", default-features = false}
+pallet-transaction-payment = { path = "../pallets/transaction-payment", default-features = false}
 pallet-transaction-payment-rpc-runtime-api = {path = "../pallets/transaction-payment/rpc/runtime-api", default-features = false}
 
-[dependencies.validator-set]
+
+[dependencies.substrate-validator-set]
 default-features = false
-package = 'substrate-validator-set'
 path = "../../substrate-validator-set"
 
 [build-dependencies]
-substrate-wasm-builder = "10.0.0"
+polkadot-sdk = { workspace = true, features = ["substrate-wasm-builder"] }
 
 [features]
-default = ["std"]
+default = ["std","grandpa_aura"]
 no_std = []
 std = [
-  "sp-authority-discovery/std",
-  "pallet-authority-discovery/std",
+  "polkadot-sdk/std",
+  "polkadot-sdk/runtime",
+  "polkadot-sdk/sp-api",
+  "polkadot-sdk/sp-authority-discovery",
+  "polkadot-sdk/sp-consensus-aura",
+  "polkadot-sdk/sp-consensus-babe",
+  "polkadot-sdk/sp-consensus-grandpa",
+  "polkadot-sdk/sp-core",
+  "polkadot-sdk/sp-inherents",
+  "polkadot-sdk/sp-offchain",
+  "polkadot-sdk/sp-runtime",
+  "polkadot-sdk/sp-session",
+  "polkadot-sdk/sp-std",
+  "polkadot-sdk/sp-timestamp",
+  "polkadot-sdk/sp-transaction-pool",
+  "polkadot-sdk/sp-version",
+  "polkadot-sdk/pallet-authority-discovery",
+  "polkadot-sdk/sp-application-crypto",
+  "polkadot-sdk/frame-system",
+  "polkadot-sdk/frame-support",
+  "polkadot-sdk/frame-executive",
+  "polkadot-sdk/frame-system-rpc-runtime-api",
   "codec/std",
-  "sp-std/std",
-  "sp-core/std",
-  "sp-runtime/std",
-  "sp-version/std",
-  "sp-offchain/std",
-  "sp-session/std",
-  "sp-transaction-pool/std",
-  "sp-api/std",
-  "sp-block-builder/std",
-  "sp-inherents/std",
-  "sp-consensus-babe/std",
-  "sp-application-crypto/std",
-  "frame-system/std",
-  "frame-support/std",
-  "frame-executive/std",
+  "scale-info/std",
+  "serde/std",
   "pallet-balances/std",
   "pallet-authorship/std",
   "pallet-im-online/std",
@@ -127,7 +106,6 @@ std = [
   "pallet-transaction-payment-rpc-runtime-api/std",
   "pallet-treasury/std",
   "pallet-offences/std",
-  "frame-system-rpc-runtime-api/std",
   "identity/std",
   "settings/std",
   "asset-registry/std",
@@ -144,7 +122,7 @@ std = [
   "pallet-aura/std",
   "pallet-grandpa/std",
   "pallet-proxy/std",
-  'validator-set/std',
+  "substrate-validator-set/std",
 ]
 
 grandpa_aura = [
@@ -153,7 +131,7 @@ grandpa_aura = [
   "pallet-session",
   "pallet-im-online",
   "pallet-authority-discovery",
-  "sp-consensus-aura",
+  "polkadot-sdk/sp-consensus-aura",
 ]
 grandpa_babe = [
   "pallet-babe",
@@ -164,24 +142,49 @@ grandpa_babe = [
   "pallet-staking-reward-curve",
   "pallet-im-online",
   "pallet-authority-discovery",
-  "sp-consensus-babe",
+  "polkadot-sdk/sp-consensus-babe",
 ]
 instant_seal = []
 
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-support/runtime-benchmarks",
-  "frame-system-benchmarking",
-  "frame-system/runtime-benchmarks",
+  "polkadot-sdk/runtime-benchmarks",
+  "polkadot-sdk/frame-benchmarking",
+  "polkadot-sdk/frame-support",
+  "polkadot-sdk/frame-system-benchmarking",
+  "polkadot-sdk/frame-system",
   "hex-literal",
   "pallet-balances/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
   "pallet-collective/runtime-benchmarks",
-  "sp-runtime/runtime-benchmarks",
   "identity/runtime-benchmarks",
   "settings/runtime-benchmarks",
   "asset-registry/runtime-benchmarks",
   "audits/runtime-benchmarks",
   "groups/runtime-benchmarks",
   "provenance/runtime-benchmarks",
+]
+
+try-runtime = [
+  "polkadot-sdk/try-runtime",
+  "pallet-authorship/try-runtime",
+  "pallet-balances/try-runtime",
+  "pallet-collective/try-runtime",
+  "pallet-membership/try-runtime",
+  "pallet-sudo/try-runtime",
+  "pallet-timestamp/try-runtime",
+  "pallet-transaction-payment/try-runtime",
+  "pallet-treasury/try-runtime",
+  "pallet-insecure-randomness-collective-flip/try-runtime",
+  "pallet-proxy/try-runtime",
+  "pallet-aura/try-runtime",
+  "pallet-grandpa/try-runtime",
+  "pallet-session/try-runtime",
+  "pallet-im-online/try-runtime",
+  "pallet-authority-discovery/try-runtime",
+  "asset-registry/try-runtime",
+  "audits/try-runtime",
+  "groups/try-runtime",
+  "identity/try-runtime",
+  "provenance/try-runtime",
+  "settings/try-runtime",
 ]

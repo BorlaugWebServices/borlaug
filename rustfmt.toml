@@ -1,0 +1,11 @@
+# Combine imports from the same crate into a single 'use' block
+imports_granularity = "Crate"
+
+# Group imports into: std/core, external crates, and local modules
+group_imports = "StdExternalCrate"
+
+# Sort alphabetically within those groups
+reorder_imports = true
+
+# Use the latest formatting features
+edition = "2021"

@@ -2,18 +2,18 @@ use runtime::{
     constants::currency::*,
     opaque::SessionKeys,
     primitives::{AccountId, Balance, Signature},
-    wasm_binary_unwrap, AuraConfig, BalancesConfig, Block, CouncilConfig, GenesisConfig,
+    wasm_binary_unwrap, AuraConfig, BalancesConfig, Block, CouncilConfig, RuntimeGenesisConfig,
     GrandpaConfig, SessionConfig, SettingsConfig, SudoConfig, SystemConfig, ValidatorSetConfig,
 };
-use sc_chain_spec::ChainSpecExtension;
-use sc_network::config::MultiaddrWithPeerId;
-use sc_service::ChainType;
+use polkadot_sdk::sc_chain_spec::ChainSpecExtension;
+use polkadot_sdk::sc_network::config::MultiaddrWithPeerId;
+use polkadot_sdk::sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_consensus_grandpa::AuthorityId as GrandpaId;
-use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use polkadot_sdk::sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use polkadot_sdk::sp_consensus_grandpa::AuthorityId as GrandpaId;
+use polkadot_sdk::sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
+use polkadot_sdk::sp_runtime::traits::{IdentifyAccount, Verify};
 use std::marker::PhantomData;
 
 type AccountPublic = <Signature as Verify>::Signer;
@@ -45,13 +45,13 @@ static SUDO: &str = "5DDR8KcLFHFDthLnDXyEgc53r8pgT1LqcWrk7jA8PWwjow29";
 #[serde(rename_all = "camelCase")]
 pub struct Extensions {
     /// Block numbers with known hashes.
-    pub fork_blocks: sc_client_api::ForkBlocks<Block>,
+    pub fork_blocks: polkadot_sdk::sc_client_api::ForkBlocks<Block>,
     /// Known bad block hashes.
-    pub bad_blocks: sc_client_api::BadBlocks<Block>,
+    pub bad_blocks: polkadot_sdk::sc_client_api::BadBlocks<Block>,
 }
 
 /// Specialized `ChainSpec`.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type ChainSpec = polkadot_sdk::sc_service::GenericChainSpec< Extensions>;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -74,7 +74,7 @@ fn get_endowed_accounts() -> Vec<AccountId> {
     ]
     .into_iter()
     .map(|public_key| {
-        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(public_key).unwrap())
+        AccountPublic::from(polkadot_sdk::sp_core::sr25519::Public::from_ss58check(public_key).unwrap())
             .into_account()
     })
     .collect()
@@ -84,7 +84,7 @@ fn get_initial_council() -> Vec<AccountId> {
     vec![COUNCIL]
         .into_iter()
         .map(|public_key| {
-            AccountPublic::from(sp_core::sr25519::Public::from_ss58check(public_key).unwrap())
+            AccountPublic::from(polkadot_sdk::sp_core::sr25519::Public::from_ss58check(public_key).unwrap())
                 .into_account()
         })
         .collect()
@@ -94,12 +94,11 @@ fn create_genesis(
     initial_authorities: Vec<(AccountId, AuraId, GrandpaId)>,
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
-) -> GenesisConfig {
+) -> RuntimeGenesisConfig {
     const ENDOWMENT: Balance = 10_000_000_000_000 * GRAM;
-    GenesisConfig {
+    RuntimeGenesisConfig {
         system: SystemConfig {
-            // Add Wasm runtime to storage.
-            code: wasm_binary_unwrap().to_vec(),
+            ..Default::default()
         },
         balances: BalancesConfig {
             balances: endowed_accounts
@@ -107,6 +106,8 @@ fn create_genesis(
                 .cloned()
                 .map(|k| (k, ENDOWMENT))
                 .collect(),
+            dev_accounts: None,
+            ..Default::default()
         },
         validator_set: ValidatorSetConfig {
             initial_validators: initial_authorities
@@ -125,12 +126,15 @@ fn create_genesis(
                     )
                 })
                 .collect::<Vec<_>>(),
+            non_authority_keys: vec![],
+            ..Default::default()
         },
         aura: AuraConfig {
             authorities: vec![],
         },
         grandpa: GrandpaConfig {
             authorities: vec![],
+            ..Default::default()
         },
         sudo: SudoConfig {
             // Assign network admin rights.
@@ -171,7 +175,7 @@ pub fn authority_keys_from_seed(seed: &str) -> (AccountId, AuraId, GrandpaId) {
     )
 }
 
-pub fn development_config_genesis() -> GenesisConfig {
+pub fn development_config_genesis() -> RuntimeGenesisConfig {
     let endowed_accounts = get_endowed_accounts();
 
     create_genesis(
@@ -183,26 +187,26 @@ pub fn development_config_genesis() -> GenesisConfig {
 
 /// Development config (single validator Alice)
 pub fn development_config() -> ChainSpec {
-    ChainSpec::from_genesis(
-        "Development",
-        "dev",
-        ChainType::Development,
-        development_config_genesis,
-        vec![],
-        None,
-        Some("borlaug"),
-        Some("aztec"),
-        Some(
-            json!({
-                "tokenDecimals": 6,
-                "tokenSymbol": "GRAM"
-            })
-            .as_object()
-            .expect("Created an object")
-            .clone(),
-        ),
-        Default::default(),
+    let wasm_binary = wasm_binary_unwrap();
+    polkadot_sdk::sc_service::GenericChainSpec::< Extensions>::builder(
+        wasm_binary,
+        Extensions::default(),
     )
+        .with_name("Development")
+        .with_id("dev")
+        .with_chain_type(ChainType::Development)
+        .with_genesis_config_patch(serde_json::to_value(development_config_genesis()).unwrap())
+        .with_protocol_id("borlaug")
+        .with_properties(
+            json!({
+            "tokenDecimals": 6,
+            "tokenSymbol": "GRAM"
+        })
+                .as_object()
+                .expect("Created an object")
+                .clone(),
+        )
+        .build()
 }
 /// Helper function to generate stash, controller and session key from public key
 pub fn authority_keys_from_public_keys(
@@ -211,22 +215,22 @@ pub fn authority_keys_from_public_keys(
     public_keys
         .into_iter()
         .map(|(aura_key, grandpa_key)| {
-            let aura = sp_core::sr25519::Public::from_ss58check(aura_key).unwrap();
+            let aura = polkadot_sdk::sp_core::sr25519::Public::from_ss58check(aura_key).unwrap();
             let account_id = AccountPublic::from(aura).into_account();
-            let grandpa = sp_core::ed25519::Public::from_ss58check(grandpa_key).unwrap();
+            let grandpa = polkadot_sdk::sp_core::ed25519::Public::from_ss58check(grandpa_key).unwrap();
             (account_id, aura.into(), grandpa.into())
         })
         .collect()
 }
 
-pub fn aztec_config_genesis() -> GenesisConfig {
+pub fn aztec_config_genesis() -> RuntimeGenesisConfig {
     //TODO: set up initial authorities
 
     let initial_authorities =
         authority_keys_from_public_keys(vec![(ALPHA, ALPHA_ED), (BETA, BETA_ED), (GAMA, GAMA_ED)]);
 
     let root_key =
-        AccountPublic::from(sp_core::sr25519::Public::from_ss58check(SUDO).unwrap()).into_account();
+        AccountPublic::from(polkadot_sdk::sp_core::sr25519::Public::from_ss58check(SUDO).unwrap()).into_account();
 
     let endowed_accounts = get_endowed_accounts();
 
@@ -235,35 +239,41 @@ pub fn aztec_config_genesis() -> GenesisConfig {
 
 /// Aztec chainspec
 pub fn aztec_config() -> ChainSpec {
-    ChainSpec::from_genesis(
-        "Borlaug Aztec",
-        "borlaug_aztec",
-        ChainType::Live,
-        aztec_config_genesis,
-        vec![],
-        None,
-        Some("borlaug"),
-        None,
-        Some(
-            json!({
-                "tokenDecimals": 6,
-                "tokenSymbol": "GRAM"
-            })
-            .as_object()
-            .expect("Created an object")
-            .clone(),
-        ),
-        Default::default(),
+    let wasm_binary = wasm_binary_unwrap();
+    polkadot_sdk::sc_service::GenericChainSpec::< Extensions>::builder(
+        wasm_binary,
+        Extensions::default(),
     )
+        .with_name("Borlaug Aztec")
+        .with_id("borlaug_aztec")
+        .with_chain_type(ChainType::Live)
+        .with_genesis_config_patch(serde_json::to_value(aztec_config_genesis()).unwrap())
+        .with_boot_nodes(vec![])
+        .with_protocol_id("borlaug")
+        .with_properties(
+            json!({
+            "tokenDecimals": 6,
+            "tokenSymbol": "GRAM"
+        })
+                .as_object()
+                .expect("Created an object")
+                .clone(),
+        )
+        .build()
+
 }
 /// chainspec for testing locally
 pub fn local_config() -> ChainSpec {
-    ChainSpec::from_genesis(
-        "Borlaug Aztec",
-        "borlaug_aztec",
-        ChainType::Live,
-        aztec_config_genesis,
-        vec![
+    let wasm_binary = wasm_binary_unwrap();
+    polkadot_sdk::sc_service::GenericChainSpec::< Extensions>::builder(
+        wasm_binary,
+        Extensions::default(),
+    )
+        .with_name("Borlaug Aztec")
+        .with_id("borlaug_aztec")
+        .with_chain_type(ChainType::Live)
+        .with_genesis_config_patch(serde_json::to_value(aztec_config_genesis()).unwrap())
+        .with_boot_nodes(vec![
             "/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEUomfFERvd2NVqs1hon8nbt2DXwaN9VmkCaZvLHQeUD3"
                 .parse::<MultiaddrWithPeerId>()
                 .unwrap(),
@@ -273,27 +283,24 @@ pub fn local_config() -> ChainSpec {
             "/ip4/127.0.0.1/tcp/30335/p2p/12D3KooWK11nqRKB794ZpfDNG4coJRFy5iT7Ma9NzXpoKJNHd5jr"
                 .parse::<MultiaddrWithPeerId>()
                 .unwrap(),
-        ],
-        None,
-        Some("borlaug"),
-        Some("aztec"),
-        Some(
+        ])
+        .with_protocol_id("borlaug")
+        .with_properties(
             json!({
-                "tokenDecimals": 6,
-                "tokenSymbol": "GRAM"
-            })
-            .as_object()
-            .expect("Created an object")
-            .clone(),
-        ),
-        Default::default(),
-    )
+            "tokenDecimals": 6,
+            "tokenSymbol": "GRAM"
+        })
+                .as_object()
+                .expect("Created an object")
+                .clone(),
+        )
+        .build()
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use sp_runtime::BuildStorage;
+    use polkadot_sdk::sp_runtime::BuildStorage;
 
     #[test]
     fn test_create_development_chain_spec() {

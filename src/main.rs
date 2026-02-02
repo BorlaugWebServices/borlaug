@@ -21,6 +21,6 @@ mod provenance_rpc;
 mod rpc;
 mod settings_rpc;
 
-fn main() -> sc_cli::Result<()> {
+fn main() -> polkadot_sdk::sc_cli::Result<()> {
     command::run()
 }

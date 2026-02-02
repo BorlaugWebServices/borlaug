@@ -22,11 +22,8 @@ use codec::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 use scale_info::TypeInfo;
+use polkadot_sdk::polkadot_sdk_frame::prelude::*;
 
-use sp_runtime::traits::{AtLeast32BitUnsigned, Zero};
-use sp_std::prelude::*;
-
-use frame_support::dispatch::DispatchClass;
 
 /// The base fee and adjusted weight and length fees constitute the _inclusion fee_.
 #[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
@@ -94,7 +91,7 @@ impl<Balance: AtLeast32BitUnsigned + Copy> FeeDetails<Balance> {
 /// Information related to a dispatchable's class, weight, and fee that can be queried from the
 /// runtime.
 #[derive(Eq, PartialEq, Encode, Decode, Default, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
+#[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize, Clone))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 #[cfg_attr(
 	feature = "std",
@@ -104,7 +101,7 @@ impl<Balance: AtLeast32BitUnsigned + Copy> FeeDetails<Balance> {
 	feature = "std",
 	serde(bound(deserialize = "Balance: std::str::FromStr, Weight: Deserialize<'de>"))
 )]
-pub struct RuntimeDispatchInfo<Balance, Weight = frame_support::weights::Weight> {
+pub struct RuntimeDispatchInfo<Balance, Weight = polkadot_sdk::frame_support::weights::Weight> {
 	/// Weight of this dispatch.
 	pub weight: Weight,
 	/// Class of this dispatch.
@@ -112,7 +109,7 @@ pub struct RuntimeDispatchInfo<Balance, Weight = frame_support::weights::Weight>
 	/// The inclusion fee of this dispatch.
 	///
 	/// This does not include a tip or anything else that
-	/// depends on the signature (i.e. depends on a `SignedExtension`).
+	/// depends on the signature (i.e. depends on a `TransactionExtension`).
 	#[cfg_attr(feature = "std", serde(with = "serde_balance"))]
 	pub partial_fee: Balance,
 }
@@ -139,7 +136,7 @@ mod serde_balance {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use frame_support::weights::Weight;
+	use polkadot_sdk::frame_support::weights::Weight;
 
 	#[test]
 	fn should_serialize_and_deserialize_properly_with_string() {

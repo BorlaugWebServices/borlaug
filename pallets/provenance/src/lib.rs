@@ -61,19 +61,23 @@ pub mod weights;
 
 pub mod migration;
 
-#[frame_support::pallet]
+#[polkadot_sdk::frame_support::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-    use frame_system::pallet_prelude::*;
-    use primitives::*;
-    use sp_runtime::{
-        traits::{AtLeast32Bit, CheckedAdd, One, Saturating, UniqueSaturatedFrom},
-        Either,
+    use polkadot_sdk::{
+        frame_support::traits::BuildGenesisConfig,
+        frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*},
+        frame_system::pallet_prelude::*,
+        sp_runtime::{
+            traits::{AtLeast32Bit, CheckedAdd, One, Saturating, UniqueSaturatedFrom},
+            Either,
+        },
+        sp_std::vec,
+        sp_std::vec::Vec,
     };
-    use sp_std::prelude::*;
+    use primitives::*;
 
     const MODULE_INDEX: u8 = 3;
 
@@ -84,21 +88,16 @@ pub mod pallet {
         Process = 33,
     }
 
-    #[derive(
-        Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
-    )]
-    #[derive(Default)]
+    #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq, Default)]
     pub enum Releases {
         #[default]
         V0,
     }
-    
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
-        /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
+    pub trait Config:
+        polkadot_sdk::frame_system::Config + timestamp::Config + groups::Config
+    {
         type RegistryId: Parameter
             + Member
             + AtLeast32Bit
@@ -321,7 +320,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         phantom: PhantomData<T>,
     }
-    #[cfg(feature = "std")]
+
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             GenesisConfig {
@@ -331,7 +330,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             <StorageVersion<T>>::put(Releases::V0);
         }
@@ -505,11 +504,7 @@ pub mod pallet {
 
             let registry_id = next_id!(NextRegistryId<T>, T);
 
-            <Registries<T>>::insert(
-                &group_account,
-                registry_id,
-                Registry { name: bounded_name },
-            );
+            <Registries<T>>::insert(&group_account, registry_id, Registry { name: bounded_name });
 
             Self::deposit_event(Event::RegistryCreated(
                 account_id,

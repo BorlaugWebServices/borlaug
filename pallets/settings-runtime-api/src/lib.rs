@@ -3,10 +3,11 @@
 #![allow(clippy::unnecessary_mut_passed)]
 
 use codec::Codec;
-use frame_support::dispatch::Vec;
-use sp_runtime::Perbill;
+use polkadot_sdk::polkadot_sdk_frame::prelude::*;
+use polkadot_sdk::sp_api::decl_runtime_apis;
+use polkadot_sdk::sp_std::vec::Vec;
 
-sp_api::decl_runtime_apis! {
+decl_runtime_apis! {
     pub trait SettingsApi<ModuleIndex,ExtrinsicIndex,Balance>
     where
     ModuleIndex: Codec,

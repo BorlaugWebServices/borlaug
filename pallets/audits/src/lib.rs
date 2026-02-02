@@ -43,6 +43,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::polkadot_sdk_frame as frame;
+pub use polkadot_sdk::polkadot_sdk_frame::pallet;
+
 pub use pallet::*;
 
 mod benchmarking;
@@ -56,19 +59,20 @@ pub mod weights;
 
 pub mod migration;
 
-#[frame_support::pallet]
+#[frame::pallet] 
 pub mod pallet {
-
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::{
-        dispatch::DispatchResultWithPostInfo, pallet_prelude::*, scale_info::TypeInfo,
+    use polkadot_sdk::frame_support::dispatch::DispatchResultWithPostInfo;
+    use polkadot_sdk::frame_support::traits::BuildGenesisConfig;
+    use polkadot_sdk::polkadot_sdk_frame::prelude::*;
+    use polkadot_sdk::sp_runtime::traits::{
+        AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One,
     };
-    use frame_system::pallet_prelude::*;
+    use polkadot_sdk::sp_std::vec::Vec;
     use primitives::*;
-    use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One};
-    use sp_std::prelude::*;
+    use scale_info::TypeInfo;
 
     const MODULE_INDEX: u8 = 5;
 
@@ -79,24 +83,13 @@ pub mod pallet {
         Evidence = 53,
     }
 
-    #[derive(
-        Encode,
-        Decode,
-        Default,
-        Clone,
-        frame_support::RuntimeDebug,
-        TypeInfo,
-        MaxEncodedLen,
-        PartialEq,
-    )]
+    #[derive(Encode, Decode, Default, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq)]
     pub enum Releases {
         #[default]
         V0,
     }
     #[pallet::config]
-    pub trait Config: frame_system::Config + groups::Config {
-        /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+    pub trait Config: polkadot_sdk::frame_system::Config + groups::Config {
         ///A unique id for each audit. Serial generated on chain.
         type AuditId: Parameter
             + Member
@@ -263,7 +256,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         phantom: PhantomData<T>,
     }
-    #[cfg(feature = "std")]
+
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             GenesisConfig {
@@ -273,7 +266,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             <StorageVersion<T>>::put(Releases::V0);
         }

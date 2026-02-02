@@ -4,7 +4,7 @@ use super::*;
 use crate::mock::*;
 use chrono::Utc;
 use core::convert::TryInto;
-use frame_support::{assert_err, assert_ok, BoundedVec};
+use polkadot_sdk::frame_support::{assert_err, assert_ok, BoundedVec};
 use primitives::*;
 
 fn create_did() -> Did {

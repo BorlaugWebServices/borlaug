@@ -1,10 +1,10 @@
 //! Tests for the module.
 use super::*;
-use crate as pallet_groups;
 use crate::mock::*;
 use core::convert::TryInto;
-use frame_support::assert_ok;
+use polkadot_sdk::frame_support::assert_ok;
 use primitives::*;
+use runtime::Weight;
 
 const MINIMUM_BALANCE: u64 = 1;
 
@@ -14,17 +14,16 @@ fn creating_new_group_should_work() {
         let caller = 1u64;
 
         // caller creates a Group
-        assert_ok!(<pallet_groups::Pallet<Test> as Pallet>::create_group {
-            // assert_ok!(GroupsModule::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group(
+            RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 1_000_000_000u64
-        });
+            1u32,
+            1_000_000_000u64
+        ));
 
         let group_id = 1u32;
 
@@ -55,10 +54,10 @@ fn update_group_should_work() {
         let member_3 = 3u64;
 
         // 1 creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![
+        assert_ok!(crate::Pallet::<Test>::create_group(
+            RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![
                 GroupMember {
                     account: caller,
                     weight: 1
@@ -68,19 +67,19 @@ fn update_group_should_work() {
                     weight: 1
                 }
             ],
-            threshold: 1u32,
-            initial_balance: 1_000_000_000u64
-        });
+            1u32,
+            1_000_000_000u64
+        ));
 
         let group_id = 1u32;
 
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::update_group {
                     name: Some(b"Test_2".to_vec()),
                     add_members: Some(vec![GroupMember {
@@ -91,9 +90,9 @@ fn update_group_should_work() {
                     threshold: Some(2)
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+            100
+        ));
 
         assert!(super::Groups::<Test>::contains_key(group_id));
         let group = super::Groups::<Test>::get(group_id).unwrap();
@@ -121,16 +120,16 @@ fn creating_new_sub_group_should_work() {
         let caller = 1u64;
 
         // 1 creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group(
+            RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 1_000_000_000u64
-        });
+            1u32,
+            1_000_000_000u64
+        ));
 
         let group_id = 1u32;
 
@@ -140,10 +139,10 @@ fn creating_new_sub_group_should_work() {
         let member_2 = 2u64;
         let member_3 = 3u64;
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
-            group_id: 1,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
+            1,
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::create_sub_group {
                     name: "Test".to_string().into(),
                     members: vec![
@@ -160,9 +159,9 @@ fn creating_new_sub_group_should_work() {
                     initial_balance: 1_000_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+            100
+        ));
 
         let sub_group_id = 2u32;
 
@@ -201,16 +200,16 @@ fn update_sub_group_should_work() {
         let caller = 1u64;
 
         // 1 creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group(
+            RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 1_000_000_000u64
-        });
+            1u32,
+            1_000_000_000u64
+        ));
 
         let group_id = 1u32;
 
@@ -220,20 +219,29 @@ fn update_sub_group_should_work() {
         let member_2 = 2u64;
         let member_3 = 3u64;
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
-                super::Call::create_sub_group(
-                    b"Test".to_vec(),
-                    vec![(member_2, 1), (member_3, 1)],
-                    2,
-                    1_000_000_000u64
-                )
+            Box::new(crate::mock::RuntimeCall::Groups(
+                super::Call::create_sub_group {
+                    name: b"Test".to_vec(),
+                    members: vec![
+                        GroupMember {
+                            account: member_2,
+                            weight: 1
+                        },
+                        GroupMember {
+                            account: member_3,
+                            weight: 1
+                        }
+                    ],
+                    threshold: 2,
+                    initial_balance: 1_000_000_000u64,
+                }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+            100
+        ));
 
         let sub_group_id = 2u32;
 
@@ -254,10 +262,10 @@ fn update_sub_group_should_work() {
         let member_4 = 4u64;
         let member_5 = 5u64;
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::update_sub_group {
                     sub_group_id,
                     name: Some(b"New Test".to_vec()),
@@ -279,9 +287,9 @@ fn update_sub_group_should_work() {
                     threshold: Some(3),
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+            100
+        ));
 
         assert!(super::Groups::<Test>::contains_key(sub_group_id));
         let sub_group = super::Groups::<Test>::get(sub_group_id).unwrap();
@@ -316,10 +324,10 @@ fn remove_group_should_work() {
         let member_2 = 2u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![
+        assert_ok!(crate::Pallet::<Test>::create_group(
+            RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![
                 GroupMember {
                     account: caller,
                     weight: 1
@@ -329,9 +337,9 @@ fn remove_group_should_work() {
                     weight: 1
                 }
             ],
-            threshold: 1u32,
-            initial_balance: 1_000_000_000u64
-        });
+            1u32,
+            1_000_000u64
+        ));
         let group_id = 1u32;
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
@@ -349,10 +357,10 @@ fn remove_group_should_work() {
         assert!(super::GroupMembers::<Test>::contains_key(group_id, caller));
 
         // Create a proposal
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::update_group {
                     name: None,
                     add_members: None,
@@ -360,9 +368,9 @@ fn remove_group_should_work() {
                     threshold: None,
                 }
             )),
-            threshold: 2,
-            length_bound: 100
-        });
+            2,
+            100
+        ));
 
         let proposal_id = 1u32;
 
@@ -374,15 +382,18 @@ fn remove_group_should_work() {
             .next()
             .is_some());
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(super::Call::remove_group(
-                group_id, caller
-            ))),
-            threshold: 1,
-            length_bound: 100
-        });
+            Box::new(crate::mock::RuntimeCall::Groups(
+                super::Call::remove_group {
+                    group_id,
+                    return_funds_too: caller
+                }
+            )),
+            1,
+            100
+        ));
 
         // verify storage cleaned up
         assert!(!super::Groups::<Test>::contains_key(group_id));
@@ -415,16 +426,16 @@ fn remove_sub_group_should_work() {
         let caller = 1u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group(
+            RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 2_000_000u64
-        });
+            1u32,
+            2_000_000u64
+        ));
         let group_id = 1u32;
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
@@ -432,10 +443,10 @@ fn remove_sub_group_should_work() {
 
         let member_2 = 2u64;
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::create_sub_group {
                     name: b"Test".to_vec(),
                     members: vec![GroupMember {
@@ -446,9 +457,9 @@ fn remove_sub_group_should_work() {
                     initial_balance: 1_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+            100
+        ));
 
         let sub_group_id = 2u32;
 
@@ -474,10 +485,10 @@ fn remove_sub_group_should_work() {
         ));
 
         // Create a proposal
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(member_2),
-            group_id: sub_group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(member_2),
+            sub_group_id,
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::update_sub_group {
                     sub_group_id,
                     name: None,
@@ -486,19 +497,19 @@ fn remove_sub_group_should_work() {
                     threshold: None,
                 }
             )),
-            threshold: 3,
-            length_bound: 100
-        });
+            3,
+            100
+        ));
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::remove_sub_group { sub_group_id }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+            100
+        ));
 
         // verify storage cleaned up
         assert!(!super::Groups::<Test>::contains_key(sub_group_id));
@@ -535,23 +546,23 @@ fn execute_should_work() {
         let caller = 1u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group(
+            RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 1_000_000_000u64
-        });
+            1u32,
+            1_000_000_000u64
+        ));
 
         let group_id = 1u32;
 
-        assert_ok!(Groups::execute {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::execute(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::update_group {
                     name: None,
                     add_members: None,
@@ -559,8 +570,8 @@ fn execute_should_work() {
                     threshold: None,
                 }
             )),
-            length_bound: 100
-        });
+            100
+        ));
 
         //TODO: detect event?
     });
@@ -573,10 +584,10 @@ fn vote_with_close_and_approve_should_work() {
         let member_2 = 2u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![
+        assert_ok!(crate::Pallet::<Test>::create_group(
+            RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![
                 GroupMember {
                     account: caller,
                     weight: 1
@@ -586,18 +597,18 @@ fn vote_with_close_and_approve_should_work() {
                     weight: 2
                 }
             ],
-            threshold: 3u32,
-            initial_balance: 2_000_000u64
-        });
+            3u32,
+            2_000_000u64
+        ));
         let group_id = 1u32;
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
 
         // Create a proposal
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose(
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::update_group {
                     name: Some(b"Updated".to_vec()),
                     add_members: None,
@@ -605,9 +616,9 @@ fn vote_with_close_and_approve_should_work() {
                     threshold: None,
                 }
             )),
-            threshold: 2,
-            length_bound: 100
-        });
+            2,
+            100
+        ));
 
         let proposal_id = 1u32;
 
@@ -621,7 +632,7 @@ fn vote_with_close_and_approve_should_work() {
         let (hash, _) = hash_maybe.unwrap();
 
         // Making vote by 2nd member
-        assert_ok!(Groups::vote(
+        assert_ok!(crate::Pallet::<Test>::vote(
             RuntimeOrigin::signed(member_2),
             group_id,
             proposal_id,
@@ -644,7 +655,7 @@ fn vote_with_close_and_approve_should_work() {
         assert_eq!(voting.ayes.len(), 2);
         assert_eq!(voting.nays.len(), 0);
 
-        let caller_vote_maybe = voting.ayes.iter().find(|aye| aye.account == &caller);
+        let caller_vote_maybe = voting.ayes.iter().find(|aye| aye.account == caller);
         assert!(caller_vote_maybe.is_some());
         let caller_vote = caller_vote_maybe.unwrap();
         assert_eq!(
@@ -654,7 +665,7 @@ fn vote_with_close_and_approve_should_work() {
                 weight: 1
             }
         );
-        let member_2_vote_maybe = voting.ayes.iter().find(|aye| aye.account == &member_2);
+        let member_2_vote_maybe = voting.ayes.iter().find(|aye| aye.account == member_2);
         assert!(member_2_vote_maybe.is_some());
         let member_2_vote = member_2_vote_maybe.unwrap();
         assert_eq!(
@@ -666,13 +677,13 @@ fn vote_with_close_and_approve_should_work() {
         );
 
         //close the proposal
-        assert_ok!(Groups::close {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::close (
+             RuntimeOrigin::signed(caller),
             group_id,
             proposal_id,
-            proposal_weight_bound: 1_000_000_000,
-            length_bound: 100
-        });
+            Weight::from(1_000_000_00064),
+           100
+       ) );
 
         //proposal storage cleaned up
         assert!(!super::Proposals::<Test>::contains_key(
@@ -699,10 +710,10 @@ fn vote_with_close_and_disapprove_should_work() {
         let member_2 = 2u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![
+        assert_ok!(crate::Pallet::<Test>::create_group (
+             RuntimeOrigin::signed(caller),
+           b"Test".to_vec(),
+             vec![
                 GroupMember {
                     account: caller,
                     weight: 1
@@ -712,18 +723,18 @@ fn vote_with_close_and_disapprove_should_work() {
                     weight: 2
                 }
             ],
-            threshold: 3u32,
-            initial_balance: 2_000_000u64
-        });
+             3u32,
+             2_000_000u64
+        ));
         let group_id = 1u32;
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
 
         // Create a proposal
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose (
+             RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+          Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::update_group {
                     name: Some(b"Updated".to_vec()),
                     add_members: None,
@@ -731,9 +742,9 @@ fn vote_with_close_and_disapprove_should_work() {
                     threshold: None,
                 }
             )),
-            threshold: 2,
-            length_bound: 100
-        });
+            2,
+            100
+        ));
 
         let proposal_id = 1u32;
 
@@ -747,7 +758,7 @@ fn vote_with_close_and_disapprove_should_work() {
         let (hash, _) = hash_maybe.unwrap();
 
         // Making vote by 2nd member
-        assert_ok!(Groups::vote(
+        assert_ok!(crate::Pallet::<Test>::vote(
             RuntimeOrigin::signed(member_2),
             group_id,
             proposal_id,
@@ -792,13 +803,15 @@ fn vote_with_close_and_disapprove_should_work() {
         );
 
         //close the proposal
-        assert_ok!(Groups::close {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(
+            crate::Pallet::<Test>::close (
+             RuntimeOrigin::signed(caller),
             group_id,
             proposal_id,
-            proposal_weight_bound: 100_000_000,
-            length_bound: 100
-        });
+          Weight::from(100_000_000u64),
+            100
+        )
+        );
 
         //proposal storage cleaned up
         assert!(!super::Proposals::<Test>::contains_key(
@@ -822,16 +835,16 @@ fn veto_yes_should_work() {
         let caller = 1u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group (
+           RuntimeOrigin::signed(caller),
+            b"Test".to_vec(),
+            vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 3_000_000u64
-        });
+           1u32,
+             3_000_000u64
+        ));
         let group_id = 1u32;
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
@@ -839,10 +852,10 @@ fn veto_yes_should_work() {
         let member_2 = 2u64;
         let member_3 = 3u64;
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose (
+           RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+           Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::create_sub_group {
                     name: "Test".to_string().into(),
                     members: vec![
@@ -859,17 +872,17 @@ fn veto_yes_should_work() {
                     initial_balance: 2_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+            100
+       ) );
         let sub_group_id = 2u32;
 
         //subgroup proposes creating another subgroup
         let member_4 = 2u64;
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(member_2),
+        assert_ok!(crate::Pallet::<Test>::propose (
+            RuntimeOrigin::signed(member_2),
             sub_group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+             Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::create_sub_group {
                     name: "SubSubGroup".to_string().into(),
                     members: vec![GroupMember {
@@ -880,9 +893,9 @@ fn veto_yes_should_work() {
                     initial_balance: 1_000_000u64
                 }
             )),
-            threshold: 2,
-            length_bound: 100
-        });
+            2,
+            100
+        ));
 
         let sub_sub_group_id = 3u32;
 
@@ -898,14 +911,14 @@ fn veto_yes_should_work() {
         let (hash, _) = hash_maybe.unwrap();
 
         // Caller vetos proposal in the affirmative
-        assert_ok!(Groups::veto {
-            origin: RuntimeOrigin::signed(caller),
-            group_id: sub_group_id,
+        assert_ok!(crate::Pallet::<Test>::veto (
+            RuntimeOrigin::signed(caller),
+             sub_group_id,
             proposal_id,
-            approve: true,
-            proposal_weight_bound: 10_000_000_000,
-            length_bound: 100
-        });
+             true,
+          Weight::from(10_000_000_000),
+           100
+        ));
 
         //proposal storage cleaned up
         assert!(!super::Proposals::<Test>::contains_key(
@@ -928,16 +941,16 @@ fn veto_no_should_work() {
         let caller = 1u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group (
+            RuntimeOrigin::signed(caller),
+           b"Test".to_vec(),
+        vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 3_000_000u64
-        });
+           1u32,
+             3_000_000u64
+        ));
         let group_id = 1u32;
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
@@ -945,10 +958,10 @@ fn veto_no_should_work() {
         let member_2 = 2u64;
         let member_3 = 3u64;
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose (
+             RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::create_sub_group {
                     name: "Test".to_string().into(),
                     members: vec![
@@ -965,17 +978,17 @@ fn veto_no_should_work() {
                     initial_balance: 2_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+             1,
+           100
+        ));
         let sub_group_id = 2u32;
 
         //subgroup proposes creating another subgroup
         let member_4 = 2u64;
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(member_2),
-            group_id: sub_group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+        assert_ok!(crate::Pallet::<Test>::propose (
+           RuntimeOrigin::signed(member_2),
+            sub_group_id,
+           Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::create_sub_group {
                     name: "SubSubGroup".to_string().into(),
                     members: vec![GroupMember {
@@ -986,9 +999,9 @@ fn veto_no_should_work() {
                     initial_balance: 1_000_000u64
                 }
             )),
-            threshold: 2,
-            length_bound: 100
-        });
+            2,
+             100
+        ));
 
         let sub_sub_group_id = 3u32;
 
@@ -1004,14 +1017,14 @@ fn veto_no_should_work() {
         let (hash, _) = hash_maybe.unwrap();
 
         // Caller vetos proposal in the affirmative
-        assert_ok!(Groups::veto {
-            origin: RuntimeOrigin::signed(caller),
-            group_id: sub_group_id,
+        assert_ok!(crate::Pallet::<Test>::veto (
+           RuntimeOrigin::signed(caller),
+            sub_group_id,
             proposal_id,
-            approve: false,
-            proposal_weight_bound: 100_000_000,
-            length_bound: 100
-        });
+             false,
+           Weight::from( 100_000_000),
+            100
+        ));
 
         //proposal storage cleaned up
         assert!(!super::Proposals::<Test>::contains_key(
@@ -1032,33 +1045,33 @@ fn withdraw_funds_group_should_work() {
         let caller = 1u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group (
+           RuntimeOrigin::signed(caller),
+           b"Test".to_vec(),
+            vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 2_000_000u64
-        });
+            1u32,
+             2_000_000u64
+        ));
 
         let group_id = 1u32;
         // verify group was created
         assert!(super::Groups::<Test>::contains_key(group_id));
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose (
+          RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::withdraw_funds_group {
                     target_account: caller,
                     amount: 1_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+             100
+        ));
 
         let group = super::Groups::<Test>::get(group_id).unwrap();
 
@@ -1080,16 +1093,16 @@ fn withdraw_funds_sub_group_should_work() {
         let caller = 1u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group (
+         RuntimeOrigin::signed(caller),
+           b"Test".to_vec(),
+             vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 3_000_000u64
-        });
+            1u32,
+            3_000_000u64
+        ));
 
         let group_id = 1u32;
         // verify group was created
@@ -1097,10 +1110,10 @@ fn withdraw_funds_sub_group_should_work() {
 
         let member_2 = 2u64;
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose (
+          RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+            Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::create_sub_group {
                     name: b"Test".to_vec(),
                     members: vec![GroupMember {
@@ -1111,9 +1124,9 @@ fn withdraw_funds_sub_group_should_work() {
                     initial_balance: 2_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+           100
+        ));
 
         let sub_group_id = 2u32;
 
@@ -1131,18 +1144,18 @@ fn withdraw_funds_sub_group_should_work() {
             1_000_000u64
         );
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose (
+            RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+             Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::withdraw_funds_sub_group {
                     sub_group_id,
                     amount: 1_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+             1,
+            100
+        ));
 
         let group = super::Groups::<Test>::get(group_id).unwrap();
 
@@ -1164,16 +1177,16 @@ fn send_funds_to_sub_group_should_work() {
         let caller = 1u64;
 
         // caller creates a Group
-        assert_ok!(Groups::create_group {
-            origin: RuntimeOrigin::signed(caller),
-            name: b"Test".to_vec(),
-            members: vec![GroupMember {
+        assert_ok!(crate::Pallet::<Test>::create_group (
+            RuntimeOrigin::signed(caller),
+             b"Test".to_vec(),
+            vec![GroupMember {
                 account: caller,
                 weight: 1
             }],
-            threshold: 1u32,
-            initial_balance: 3_000_000u64
-        });
+          1u32,
+             3_000_000u64
+        ));
 
         let group_id = 1u32;
         // verify group was created
@@ -1181,10 +1194,10 @@ fn send_funds_to_sub_group_should_work() {
 
         let member_2 = 2u64;
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose (
+             RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+           Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::create_sub_group {
                     name: "Test".to_string().into(),
                     members: vec![GroupMember {
@@ -1195,9 +1208,9 @@ fn send_funds_to_sub_group_should_work() {
                     initial_balance: 1_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+            1,
+           100
+        ));
 
         let sub_group_id = 2u32;
 
@@ -1215,18 +1228,18 @@ fn send_funds_to_sub_group_should_work() {
             2_000_000u64
         );
 
-        assert_ok!(Groups::propose {
-            origin: RuntimeOrigin::signed(caller),
+        assert_ok!(crate::Pallet::<Test>::propose (
+         RuntimeOrigin::signed(caller),
             group_id,
-            proposal: Box::new(crate::mock::RuntimeCall::Groups(
+             Box::new(crate::mock::RuntimeCall::Groups(
                 super::Call::send_funds_to_sub_group {
                     sub_group_id,
                     amount: 1_000_000u64
                 }
             )),
-            threshold: 1,
-            length_bound: 100
-        });
+             1,
+            100
+        ));
         let group = super::Groups::<Test>::get(group_id).unwrap();
 
         // verify funds were returned

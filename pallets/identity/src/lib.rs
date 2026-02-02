@@ -66,6 +66,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::polkadot_sdk_frame as frame;
+pub use polkadot_sdk::polkadot_sdk_frame::pallet;
+
 pub use pallet::*;
 
 mod benchmarking;
@@ -79,22 +82,25 @@ pub mod weights;
 
 pub mod migration;
 
-#[frame_support::pallet]
+#[frame::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
     use codec::Encode;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::sp_runtime::traits::Hash;
-    use frame_support::sp_runtime::Saturating;
-    use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-    use frame_system::pallet_prelude::*;
-    use primitives::*;
-    use sp_runtime::{
+    use polkadot_sdk::frame_support::sp_runtime::traits::Hash;
+    use polkadot_sdk::frame_support::sp_runtime::Saturating;
+    use polkadot_sdk::frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+    use polkadot_sdk::frame_system::pallet_prelude::*;
+    use polkadot_sdk::polkadot_sdk_frame::prelude::*;
+    use polkadot_sdk::sp_runtime::{
         traits::{AtLeast32Bit, CheckedAdd, One, UniqueSaturatedFrom},
         Either,
     };
-    use sp_std::prelude::*;
+    use polkadot_sdk::sp_std::vec;
+    use polkadot_sdk::sp_std::vec::Vec;
+    use primitives::*;
+
     use utils::like::ILike;
 
     const MODULE_INDEX: u8 = 2;
@@ -106,20 +112,16 @@ pub mod pallet {
         Claim = 23,
     }
 
-    #[derive(
-        Encode, Decode, Clone, frame_support::RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq,
-    )]
-    #[derive(Default)]
+    #[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq, Default)]
     pub enum Releases {
         #[default]
         V0,
     }
-    
-    #[pallet::config]
-    pub trait Config: frame_system::Config + timestamp::Config + groups::Config {
-        /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+    #[pallet::config]
+    pub trait Config:
+        polkadot_sdk::frame_system::Config + timestamp::Config + groups::Config
+    {
         type CatalogId: Parameter + AtLeast32Bit + Copy + PartialEq + MaxEncodedLen;
 
         type ClaimId: Parameter + AtLeast32Bit + Copy + PartialEq + MaxEncodedLen;
@@ -305,7 +307,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         phantom: PhantomData<T>,
     }
-    #[cfg(feature = "std")]
+
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             GenesisConfig {
@@ -315,7 +317,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             <StorageVersion<T>>::put(Releases::V0);
         }
@@ -1738,11 +1740,11 @@ pub mod pallet {
         ) {
             let nonce = Self::next_nonce();
             //TODO: upgrade - fix this
-            // let random = <randomness::Pallet<T>>::random(&b"mint_did context"[..]);
-            // let random = <randomness::Pallet<T>>::random_material();
-            let random = sp_core::H256::zero();
+            // let random = <pallet-insecure-randomness-collective-flip::Pallet<T>>::random(&b"mint_did context"[..]);
+            // let random = <pallet-insecure-randomness-collective-flip::Pallet<T>>::random_material();
+            let random = H256::zero();
             let encoded = (random, subject, nonce).encode();
-            let id = sp_io::hashing::blake2_256(&encoded);
+            let id = blake2_256(&encoded);
 
             let did = Did { id };
 

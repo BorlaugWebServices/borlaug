@@ -41,11 +41,13 @@
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
 
-use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
-};
-use sp_std::marker::PhantomData;
+use polkadot_sdk::sp_api::decl_runtime_apis;
+use core::marker::PhantomData;
+use polkadot_sdk::polkadot_sdk_frame::weights_prelude::RocksDbWeight;
+use polkadot_sdk::sp_weights::Weight;
+use polkadot_sdk::frame_system;
+use polkadot_sdk::polkadot_sdk_frame as frame;
+use frame::traits::Get;
 
 /// Weight functions needed for pallet_identity.
 pub trait WeightInfo {

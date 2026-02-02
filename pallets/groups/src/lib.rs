@@ -1,5 +1,6 @@
-#![feature(more_qualified_paths)]
+// #![feature(more_qualified_paths)]
 
+//! ```text
 //! # Group Module
 //!
 //! ## Overview
@@ -17,9 +18,9 @@
 //! #### For **Group** members
 //! * `update_group` - Members of a **Group** can update the group via a **Proposal**.
 //! * `remove_group` - Members of a **Group** can remove the group via a **Proposal**.
-//!                    Funds remaining in the **Group** account are transfered to the specified account.
+//!                    Funds remaining in the **Group** account are transferred to the specified account.
 //! * `create_sub_group` - A **Group** creates a **Sub-group**.
-//!                        The some funds are transfered from the **Group** account to the **Sub-group** account as part of creation.
+//!                        The some funds are transferred from the **Group** account to the **Sub-group** account as part of creation.
 //! * `update_sub_group` - Members of a **Group** can update a sub_group via a **Proposal**.
 //! * `remove_sub_group` - Members of a **Group** can remove a **Sub-group** of the **Group** via a **Proposal**.
 //! * `execute` - A member of a **Group**/**Sub-group** can execute certain extrinsics on behalf of the **Group**.
@@ -28,14 +29,13 @@
 //!               The threshold is not checked at this stage but is instead checked upon extrinsic execution and depends on the requirements of the extrinsic called.
 //!               If the specified threshold is 1, the extrinsic is executed immediately.
 //! * `vote` - A member of a **Group**/**Sub-group** can vote on pending **Proposals**
-//! *          A member may change thier vote while the **Proposal** is still in progress, but there is an extra charge.
+//! *          A member may change their vote while the **Proposal** is still in progress, but there is an extra charge.
 //! * `close` - After voting a caller should check the vote tallies and call `close` if the threshold is met or cannot be met.
 //! * `veto` - A member of a **Group** can veto an ongoing **Proposal** (override the existing votes with either yay or nay).
 //! * `withdraw_funds_group` - A **Group** can choose to withdraw funds from the group account to a chosen account via a **Proposal**
 //! * `withdraw_funds_sub_group` - A **Group** can choose to withdraw funds from one of its sub_groups into its account via a **Proposal**
 //! * `send_funds_to_sub_group` - A **Group** can choose to send funds from its account to one of its sub_groups into  via a **Proposal**
-//! Note: adding funds to a group account from an individual account can be done using the built in substrate tranfer extrinsic
-
+//! Note: adding funds to a group account from an individual account can be done using the built in substrate transfer extrinsic
 //!
 //! ### RPC Methods
 //!
@@ -47,8 +47,12 @@
 //! * `get_proposal` - Get a **Proposal**
 //! * `get_proposals` - Get the collection of outstanding **Proposals** of a **Group**
 //! * `get_voting` - Get the current votes on a **Proposal**
+//! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
+
+pub use polkadot_sdk::polkadot_sdk_frame::pallet;
+use polkadot_sdk::polkadot_sdk_frame as frame;
 
 pub use pallet::*;
 
@@ -62,35 +66,27 @@ pub mod weights;
 
 pub mod migration;
 
-#[frame_support::pallet]
+#[frame::pallet]
 pub mod pallet {
     pub use super::weights::WeightInfo;
     use core::convert::TryInto;
     use extrinsic_extra::GetExtrinsicExtra;
-    use frame_support::sp_runtime::traits::Hash;
-    use frame_support::{
-        codec::{Decode, Encode},
-        dispatch::{
-            DispatchResultWithPostInfo, Dispatchable, GetDispatchInfo, Parameter, PostDispatchInfo,
-            Vec,
-        },
-        ensure,
-        pallet_prelude::*,
-        traits::{Currency, ExistenceRequirement::AllowDeath, Get, ReservableCurrency},
-        weights::Weight,
+    use polkadot_sdk::{
+        polkadot_sdk_frame::prelude::*,
+        frame_support::traits::Currency,
+        frame_support::traits::ReservableCurrency,
+        sp_std::iter::Sum,
+        sp_std::vec::Vec,
+        sp_std::boxed::Box,
+        sp_std::vec,
+        polkadot_sdk_frame as frame,
+        sp_runtime::Either
     };
-    use frame_system::{self as system, pallet_prelude::*};
+    use codec::{Decode, Encode};
+    use frame_system::{self as system};
     use group_info::GroupInfo;
     use primitives::*;
-    use sp_io::hashing::blake2_256;
-    use sp_runtime::{
-        traits::{
-            AtLeast32Bit, AtLeast32BitUnsigned, CheckedAdd, One, Saturating, UniqueSaturatedInto,
-            Zero,
-        },
-        Either,
-    };
-    use sp_std::{iter::Sum, prelude::*, vec};
+    use frame::deps::frame_support::traits::ExistenceRequirement::AllowDeath;
 
     const MODULE_INDEX: u8 = 1;
 
@@ -106,7 +102,7 @@ pub mod pallet {
         Encode,
         Decode,
         Clone,
-        frame_support::RuntimeDebug,
+        RuntimeDebug,
         TypeInfo,
         MaxEncodedLen,
         PartialEq,
@@ -117,9 +113,8 @@ pub mod pallet {
     }
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
-        /// Because this pallet emits events, it depends on the runtime's definition of an event.
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+    pub trait Config: polkadot_sdk::frame_system::Config {
+
 
         type GroupId: Parameter + AtLeast32Bit + Default + Copy + PartialEq + MaxEncodedLen;
         type ProposalId: Parameter + AtLeast32Bit + Default + Copy + PartialEq + MaxEncodedLen;
@@ -242,7 +237,7 @@ pub mod pallet {
 
     /// Origin for groups module proposals.
 
-    #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, MaxEncodedLen, DecodeWithMemTracking,TypeInfo)]
     pub enum RawOrigin<AccountId, GroupId, ProposalId, MemberCount> {
         /// It has been executed by a member of a group.
         /// (group_id,member_account,group_account)
@@ -449,7 +444,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         phantom: PhantomData<T>,
     }
-    #[cfg(feature = "std")]
+
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             GenesisConfig {
@@ -459,7 +454,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
         fn build(&self) {
             <StorageVersion<T>>::put(Releases::V0);
         }
@@ -977,7 +972,7 @@ pub mod pallet {
         #[pallet::call_index(6)]
         #[pallet::weight(T::WeightInfo::execute(
             *length_bound
-        ).saturating_add(proposal.get_dispatch_info().weight))]
+        ).saturating_add(proposal.get_dispatch_info().call_weight))]
         pub fn execute(
             origin: OriginFor<T>,
             group_id: T::GroupId,
@@ -1029,7 +1024,7 @@ pub mod pallet {
             if *threshold == 1u32.into() {
                 T::WeightInfo::propose_execute(
                     *length_bound,
-                ).saturating_add(proposal.get_dispatch_info().weight)
+                ).saturating_add(proposal.get_dispatch_info().call_weight)
             } else {
                 T::WeightInfo::propose_proposed(
                     *length_bound,
@@ -1248,7 +1243,7 @@ pub mod pallet {
                     Error::<T>::WrongProposalLength
                 );
 
-                let dispatch_weight = proposal.get_dispatch_info().weight;
+                let dispatch_weight = proposal.get_dispatch_info().call_weight;
                 ensure!(
                     dispatch_weight.ref_time() <= proposal_weight_bound.ref_time()
                         && dispatch_weight.proof_size() <= proposal_weight_bound.proof_size(),
@@ -1364,7 +1359,7 @@ pub mod pallet {
                     proposal_len <= length_bound as usize,
                     Error::<T>::WrongProposalLength
                 );
-                let dispatch_weight = proposal.get_dispatch_info().weight;
+                let dispatch_weight = proposal.get_dispatch_info().call_weight;
                 ensure!(
                     dispatch_weight.ref_time() <= proposal_weight_bound.ref_time()
                         && dispatch_weight.proof_size() <= proposal_weight_bound.proof_size(),
@@ -1803,7 +1798,7 @@ pub mod pallet {
     }
 
     /// This just verifies that the origin came from a proposal. It does NOT do any threshold checks. The proposer specifies a threshold and that is used for voting. It is up to the recieving extrinsic to enforce a threshold.
-    pub struct EnsureApproved<T>(sp_std::marker::PhantomData<T>);
+    pub struct EnsureApproved<T>(core::marker::PhantomData<T>);
     impl<
             O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>, O>>
                 + From<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>>,
@@ -1853,7 +1848,7 @@ pub mod pallet {
         }
     }
     /// This just verifies that the origin came from a proposal. It does NOT do any threshold checks. The proposer specifies a threshold and that is used for voting. It is up to the recieving extrinsic to enforce a threshold.
-    pub struct EnsureExecuted<T>(sp_std::marker::PhantomData<T>);
+    pub struct EnsureExecuted<T>(core::marker::PhantomData<T>);
     impl<
             O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>, O>>
                 + From<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>>,
@@ -1884,7 +1879,7 @@ pub mod pallet {
 
     /// This verifies that the origin came from a proposal and enforces the threshold is at least as great as the group threshold. The proposer specifies a threshold and voting proceeds until that threshold.
 
-    pub struct EnsureThreshold<T>(sp_std::marker::PhantomData<T>);
+    pub struct EnsureThreshold<T>(core::marker::PhantomData<T>);
     impl<
             O: Into<Result<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>, O>>
                 + From<RawOrigin<T::AccountId, T::GroupId, T::ProposalId, T::MemberCount>>,

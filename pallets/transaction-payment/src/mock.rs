@@ -17,39 +17,134 @@
 
 use super::*;
 use crate as pallet_transaction_payment;
-
-use frame_support::{
+use pallet_balances::Call as BalancesCall;
+use polkadot_sdk::frame_support::traits::EnsureOrigin;
+use polkadot_sdk::frame_support::{
+    derive_impl,
     dispatch::DispatchClass,
     parameter_types,
-    traits::{ConstU32, ConstU64, EitherOfDiverse, Imbalance, OnUnbalanced},
+    traits::{fungible, Imbalance, OnUnbalanced},
     weights::{Weight, WeightToFee as WeightToFeeT},
 };
-use frame_system::{self as system, EnsureSigned};
-use pallet_balances::Call as BalancesCall;
-use runtime::{
-    GroupChainLimit, GroupMaxMembers, GroupMaxProposalLength, GroupMaxProposals, MaxLinkRemove,
-    UrlLimit,
-};
-use sp_core::H256;
-use sp_runtime::{
-    testing::Header,
-    traits::{BlakeTwo256, IdentityLookup},
-};
+use polkadot_sdk::frame_system as system;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
-type Block = frame_system::mocking::MockBlock<Runtime>;
+use polkadot_sdk::sp_runtime::Either; // Ensure this is imported
 
-frame_support::construct_runtime!(
+pub struct EnsureRootToGroupsThree;
+impl EnsureOrigin<RuntimeOrigin> for EnsureRootToGroupsThree {
+    type Success = (u32, u64, u64);
+
+    fn try_origin(o: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
+        // Explicitly type the result of the into() conversion
+        let result: Result<system::RawOrigin<u64>, RuntimeOrigin> = o.into();
+        result.and_then(|o| match o {
+            system::RawOrigin::Root => Ok((0, 0, 0)),
+            r => Err(RuntimeOrigin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
+        Ok(RuntimeOrigin::root())
+    }
+}
+
+pub struct OriginFive;
+impl EnsureOrigin<RuntimeOrigin> for OriginFive {
+    type Success = (u32, u32, Option<u32>, Option<u32>, u64);
+
+    fn try_origin(o: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
+        let result: Result<system::RawOrigin<u64>, RuntimeOrigin> = o.into();
+        result.and_then(|o| match o {
+            system::RawOrigin::Root => Ok((0, 0, None, None, 0)),
+            r => Err(RuntimeOrigin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
+        Ok(RuntimeOrigin::root())
+    }
+}
+
+pub struct OriginFiveEither;
+impl EnsureOrigin<RuntimeOrigin> for OriginFiveEither {
+    type Success = Either<u64, (u32, u32, Option<u32>, Option<u32>, u64)>;
+
+    fn try_origin(o: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
+        let result: Result<system::RawOrigin<u64>, RuntimeOrigin> = o.into();
+        result.and_then(|o| match o {
+            system::RawOrigin::Root => Ok(Either::Left(0)),
+            r => Err(RuntimeOrigin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
+        Ok(RuntimeOrigin::root())
+    }
+}
+
+pub struct OriginThreeEither;
+impl EnsureOrigin<RuntimeOrigin> for OriginThreeEither {
+    type Success = Either<u64, (u32, u64, u64)>;
+
+    fn try_origin(o: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
+        let result: Result<system::RawOrigin<u64>, RuntimeOrigin> = o.into();
+        result.and_then(|o| match o {
+            system::RawOrigin::Root => Ok(Either::Left(0)),
+            r => Err(RuntimeOrigin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
+        Ok(RuntimeOrigin::root())
+    }
+}
+
+type Balance = u64;
+
+impl settings::Config for Runtime {
+    type ChangeSettingOrigin = polkadot_sdk::frame_system::EnsureRoot<Self::AccountId>;
+    type ModuleIndex = u8;
+    type ExtrinsicIndex = u8;
+    type Currency = Balances;
+    type Balance = Balance;
+    type WeightInfo = ();
+}
+type Block = polkadot_sdk::frame_system::mocking::MockBlock<Runtime>;
+
+impl groups::Config for Runtime {
+    type GroupId = u32;
+    type ProposalId = u32;
+    type MemberCount = u32;
+    type Currency = Balances;
+    type Origin = RuntimeOrigin;
+    type GroupsOriginByGroupThreshold = OriginFive;
+    type GroupsOriginByCallerThreshold = OriginFive;
+    type GroupsOriginExecuted = EnsureRootToGroupsThree;
+    type GroupsOriginAccountOrThreshold = OriginFiveEither;
+    type GroupsOriginAccountOrApproved = OriginFiveEither;
+    type GroupsOriginAccountOrExecuted = OriginThreeEither;
+    type Proposal = RuntimeCall;
+    type MaxProposals = ConstU32<100>;
+    type MaxMembers = ConstU32<100>;
+    type MaxProposalLength = ();
+    type WeightInfo = ();
+    type GetExtrinsicExtraSource = settings::Pallet<Runtime>;
+    type NameLimit = ();
+    type GroupChainLimit = ();
+}
+
+polkadot_sdk::frame_support::construct_runtime!(
     pub struct Runtime
-    where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic,
     {
-        System: frame_system,
+        System: system,
         Balances: pallet_balances,
-        TransactionPayment: pallet_transaction_payment,
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>},
         Groups: groups,
+        Settings: settings,
     }
 );
 
@@ -75,79 +170,22 @@ impl Get<frame_system::limits::BlockWeights> for BlockWeights {
     }
 }
 
-impl groups::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Origin = RuntimeOrigin;
-    type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Runtime>;
-    type GroupsOriginByCallerThreshold = groups::EnsureApproved<Runtime>;
-    type GroupsOriginExecuted = groups::EnsureExecuted<Runtime>;
-    type GroupsOriginAccountOrThreshold =
-        EitherOfDiverse<EnsureSigned<AccountId>, groups::EnsureThreshold<Runtime>>;
-    type GroupsOriginAccountOrApproved =
-        EitherOfDiverse<EnsureSigned<AccountId>, groups::EnsureApproved<Runtime>>;
-    type GroupsOriginAccountOrExecuted =
-        EitherOfDiverse<EnsureSigned<AccountId>, groups::EnsureExecuted<Runtime>>;
-    type Proposal = RuntimeCall;
-    type GroupId = u32;
-    type ProposalId = u32;
-    type MemberCount = u32;
-    type Currency = Balances;
-    type MaxProposals = GroupMaxProposals;
-    type MaxProposalLength = GroupMaxProposalLength;
-    type MaxMembers = GroupMaxMembers;
-    type WeightInfo = groups::weights::SubstrateWeight<Runtime>;
-    type GetExtrinsicExtraSource = Settings;
-    type NameLimit = NameLimit;
-    type GroupChainLimit = GroupChainLimit;
-}
-
 parameter_types! {
     pub static WeightToFee: u64 = 1;
     pub static TransactionByteFee: u64 = 1;
     pub static OperationalFeeMultiplier: u8 = 5;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Runtime {
-    type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = BlockWeights;
-    type BlockLength = ();
-    type DbWeight = ();
-    type RuntimeOrigin = RuntimeOrigin;
-    type Index = u64;
-    type BlockNumber = u64;
-    type RuntimeCall = RuntimeCall;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
-    type AccountId = u64;
-    type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = ConstU64<250>;
-    type Version = ();
-    type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<u64>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = ();
-    type OnSetCode = ();
-    type MaxConsumers = ConstU32<16>;
+    type Block = Block;
+    type AccountData = pallet_balances::AccountData<Self::AccountId>;
 }
 
+#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Runtime {
-    type Balance = u64;
-    type RuntimeEvent = RuntimeEvent;
-    type DustRemoval = ();
-    type ExistentialDeposit = ConstU64<1>;
     type AccountStore = System;
-    type MaxLocks = ();
-    type MaxReserves = ();
-    type ReserveIdentifier = [u8; 8];
-    type WeightInfo = ();
-    type FreezeIdentifier = ();
-    type MaxFreezes = ();
-    type HoldIdentifier = ();
-    type MaxHolds = ();
 }
 
 impl WeightToFeeT for WeightToFee {
@@ -174,9 +212,13 @@ parameter_types! {
 }
 
 pub struct DealWithFees;
-impl OnUnbalanced<pallet_balances::NegativeImbalance<Runtime>> for DealWithFees {
-    fn on_unbalanceds<B>(
-        mut fees_then_tips: impl Iterator<Item = pallet_balances::NegativeImbalance<Runtime>>,
+impl OnUnbalanced<fungible::Credit<<Runtime as frame_system::Config>::AccountId, Balances>>
+    for DealWithFees
+{
+    fn on_unbalanceds(
+        mut fees_then_tips: impl Iterator<
+            Item = fungible::Credit<<Runtime as frame_system::Config>::AccountId, Balances>,
+        >,
     ) {
         if let Some(fees) = fees_then_tips.next() {
             FeeUnbalancedAmount::mutate(|a| *a += fees.peek());
@@ -187,11 +229,29 @@ impl OnUnbalanced<pallet_balances::NegativeImbalance<Runtime>> for DealWithFees 
     }
 }
 
+/// Weights used in testing.
+pub struct MockWeights;
+
+impl WeightInfo for MockWeights {
+    fn charge_transaction_payment() -> Weight {
+        Weight::from_parts(10, 0)
+    }
+}
+
 impl Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
+    type OnChargeTransaction = FungibleAdapter<Balances, DealWithFees>;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
     type WeightToFee = WeightToFee;
     type LengthToFee = TransactionByteFee;
     type FeeMultiplierUpdate = ();
+    type WeightInfo = MockWeights;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub fn new_test_ext() -> sp_io::TestExternalities {
+    crate::tests::ExtBuilder::default()
+        .base_weight(Weight::from_parts(100, 0))
+        .byte_fee(10)
+        .balance_factor(0)
+        .build()
 }

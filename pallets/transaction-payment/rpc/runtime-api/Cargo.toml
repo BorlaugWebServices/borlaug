@@ -13,18 +13,22 @@ version = "4.0.0-dev"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"]}
-pallet-transaction-payment = {version = "4.0.0-dev", path = "../../../transaction-payment", default-features = false}
-sp-api = {version = "19.0.0", default-features = false}
-sp-runtime = {version = "23.0.0", default-features = false}
-sp-weights = {version = "19.0.0", default-features = false}
+codec ={ workspace = true }
+
+polkadot-sdk = { workspace = true, default-features = false, features = ["runtime", "sp-api", "sp-std", "sp-weights", "sp-runtime"] }
+
+pallet-transaction-payment = {  path = "../../../transaction-payment", default-features = false }
+
 
 [features]
 default = ["std"]
 std = [
-  "codec/std",
-  "pallet-transaction-payment/std",
-  "sp-api/std",
-  "sp-runtime/std",
-  "sp-weights/std",
+    "polkadot-sdk/std",
+    "polkadot-sdk/sp-std",
+    "polkadot-sdk/runtime",
+    "polkadot-sdk/sp-api",
+    "polkadot-sdk/sp-runtime",
+    "polkadot-sdk/sp-weights",
+    "codec/std",
+    "pallet-transaction-payment/std",
 ]

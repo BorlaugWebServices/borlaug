@@ -13,13 +13,23 @@ version = "4.0.0-dev"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "3.4.0"}
-jsonrpsee = {version = "0.16.2", features = ["client-core", "server", "macros"]}
+codec ={ workspace = true }
+jsonrpsee = { workspace = true,  features = ["client-core", "server", "macros"] }
+
+polkadot-sdk = { workspace = true, default-features = false, features = ["runtime"] }
+
 pallet-transaction-payment-rpc-runtime-api = {path = "runtime-api", default-features = false}
 
-sp-api = {version = "19.0.0"}
-sp-blockchain = {version = "21.0.0"}
-sp-core = {version = "20.0.0"}
-sp-rpc = {version = "19.0.0"}
-sp-runtime = {version = "23.0.0"}
-sp-weights = {version = "19.0.0"}
+
+
+[features]
+default = ["std"]
+std = [
+    "polkadot-sdk/std",
+    "polkadot-sdk/runtime",
+    "polkadot-sdk/sp-api",
+    "polkadot-sdk/sp-core",
+    "polkadot-sdk/sp-runtime",
+    "polkadot-sdk/sp-weights",
+    "codec/std",
+]

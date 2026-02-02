@@ -2,7 +2,9 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-// Make the WASM binary available.
+#[cfg(feature = "runtime-benchmarks")]
+#[macro_use]
+extern crate frame_benchmarking; // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
@@ -18,28 +20,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 
 pub mod constants;
 pub mod primitives;
-use codec::{Decode, Encode, MaxEncodedLen};
-pub use frame_support::{
-    construct_runtime,
-    dispatch::DispatchClass,
-    parameter_types,
-    traits::{
-        ConstU128, ConstU32, ConstU64, Currency, Imbalance, InstanceFilter, KeyOwnerProofSystem,
-        OnUnbalanced, Randomness, U128CurrencyToVote,
-    },
-    traits::{EitherOfDiverse, Get},
-    weights::{
-        constants::{
-            BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
-        },
-        ConstantMultiplier, IdentityFee, Weight, WeightToFeeCoefficient,
-    },
-    BoundedVec, PalletId, RuntimeDebug, StorageValue,
-};
-use frame_system::{
-    limits::{BlockLength, BlockWeights},
-    EnsureRoot, EnsureSigned, EnsureWithSuccess,
-};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 #[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 #[cfg(feature = "grandpa_babe")]
@@ -48,7 +29,64 @@ use pallet_primitives::*;
 #[cfg(feature = "grandpa_babe")]
 use pallet_session::historical as pallet_session_historical;
 pub use pallet_timestamp::Call as TimestampCall;
-pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
+use crate::sp_api_hidden_includes_construct_runtime::hidden_include::genesis_builder_helper;
+pub use pallet_transaction_payment::{
+    CurrencyAdapter, FungibleAdapter, Multiplier, TargetedFeeAdjustment,
+};
+use polkadot_sdk::frame_support::traits::tokens::PayFromAccount;
+use polkadot_sdk::frame_support::traits::ConstBool;
+pub use polkadot_sdk::frame_support::{
+    construct_runtime,
+    dispatch::DispatchClass,
+    parameter_types,
+    traits::EitherOfDiverse,
+    traits::{
+        ConstU128, ConstU32, ConstU64, Currency, Imbalance, InstanceFilter, KeyOwnerProofSystem,
+        OnUnbalanced, Randomness,
+    },
+    weights::{
+        constants::{
+            BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
+        },
+        ConstantMultiplier, IdentityFee, Weight, WeightToFeeCoefficient,
+    },
+    BoundedVec, PalletId, StorageValue,
+};
+use polkadot_sdk::frame_system::{
+    limits::{BlockLength, BlockWeights},
+    EnsureRoot, EnsureSigned, EnsureWithSuccess,
+};
+use polkadot_sdk::sp_api::impl_runtime_apis;
+#[cfg(feature = "grandpa_aura")]
+use polkadot_sdk::sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use polkadot_sdk::sp_core::{Get, OpaqueMetadata};
+use polkadot_sdk::sp_inherents::{CheckInherentsResult, InherentData};
+use polkadot_sdk::sp_runtime::traits::AccountIdConversion;
+#[cfg(feature = "grandpa_babe")]
+use polkadot_sdk::sp_runtime::traits::{self, OpaqueKeys};
+#[cfg(feature = "grandpa_aura")]
+use polkadot_sdk::sp_runtime::traits::{self, OpaqueKeys};
+use polkadot_sdk::sp_runtime::RuntimeDebug;
+#[cfg(feature = "grandpa_babe")]
+use polkadot_sdk::sp_runtime::{
+    curve::PiecewiseLinear, impl_opaque_keys, traits::NumberFor,
+    transaction_validity::TransactionPriority,
+};
+use polkadot_sdk::sp_runtime::{
+    generic,
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded},
+    transaction_validity::{TransactionSource, TransactionValidity},
+    ApplyExtrinsicResult, ExtrinsicInclusionMode, FixedPointNumber, KeyTypeId, Perbill, Percent,
+    Permill, Perquintill,
+};
+#[cfg(feature = "grandpa_aura")]
+use polkadot_sdk::sp_runtime::{impl_opaque_keys, traits::NumberFor};
+#[cfg(feature = "grandpa_babe")]
+use polkadot_sdk::sp_staking::currency_to_vote::U128CurrencyToVote;
+use polkadot_sdk::sp_std::prelude::*;
+#[cfg(any(feature = "std", test))]
+use polkadot_sdk::sp_version::NativeVersion;
+use polkadot_sdk::sp_version::RuntimeVersion;
 use primitives::{
     AccountId, AssetId, AuditId, Balance, BlockNumber, BoundedStringFact, BoundedStringName,
     CatalogId, ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId,
@@ -56,37 +94,9 @@ use primitives::{
     Moment, NameLimit, ObservationId, ProcessId, ProposalId, RegistryId, Signature,
 };
 use scale_info::TypeInfo;
-use sp_api::impl_runtime_apis;
 #[cfg(feature = "grandpa_babe")]
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-#[cfg(feature = "grandpa_aura")]
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::OpaqueMetadata;
-use sp_inherents::{CheckInherentsResult, InherentData};
-#[cfg(feature = "grandpa_babe")]
-use sp_runtime::traits::{self, OpaqueKeys, SaturatedConversion};
-#[cfg(feature = "grandpa_aura")]
-use sp_runtime::traits::{self, OpaqueKeys, SaturatedConversion};
-use sp_runtime::{
-    create_runtime_str, generic,
-    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded},
-    transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, FixedPointNumber, KeyTypeId, Perbill, Percent, Permill, Perquintill,
-};
-#[cfg(feature = "grandpa_babe")]
-use sp_runtime::{
-    curve::PiecewiseLinear, impl_opaque_keys, traits::NumberFor,
-    transaction_validity::TransactionPriority,
-};
-#[cfg(feature = "grandpa_aura")]
-use sp_runtime::{impl_opaque_keys, traits::NumberFor};
-use sp_std::prelude::*;
-#[cfg(any(feature = "std", test))]
-use sp_version::NativeVersion;
-use sp_version::RuntimeVersion;
 
-#[cfg(any(feature = "std", test))]
-pub use frame_system::Call as SystemCall;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 #[cfg(any(feature = "std", test))]
@@ -94,11 +104,13 @@ pub use pallet_staking::StakerStatus;
 #[cfg(any(feature = "std", test))]
 pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
+pub use polkadot_sdk::frame_system::Call as SystemCall;
+#[cfg(any(feature = "std", test))]
+pub use polkadot_sdk::sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
 use constants::{currency::*, time::*};
-#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
+#[cfg(feature = "grandpa_babe")]
 use sp_runtime::generic::Era;
 
 /// Digest item type.
@@ -111,7 +123,7 @@ pub type DigestItem = generic::DigestItem;
 pub mod opaque {
     use super::*;
 
-    pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+    pub use polkadot_sdk::sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
     /// Opaque block header type.
     pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -138,38 +150,134 @@ pub mod opaque {
     }
 }
 
-pub struct Author;
-impl OnUnbalanced<NegativeImbalance> for Author {
-    fn on_nonzero_unbalanced(amount: NegativeImbalance) {
-        if let Some(author) = Authorship::author() {
-            Balances::resolve_creating(&author, amount);
-        }
+#[cfg(feature = "grandpa_babe")]
+construct_runtime!(
+    pub enum Runtime
+    {
+        System: frame_system ,
+        CollectiveFlip: pallet_insecure_randomness_collective_flip,
+        Balances: pallet_balances,
+        Session: pallet_session,
+        Historical: pallet_session_historical,
+        Staking: pallet_staking,
+        Timestamp: pallet_timestamp,
+        Authorship: pallet_authorship,
+        Babe: pallet_babe,
+        Grandpa: pallet_grandpa,
+        TransactionPayment: pallet_transaction_payment,
+        Sudo: pallet_sudo,
+        //BorlaugCommittee
+        Council: pallet_collective::<Instance1>,
+        Offences: pallet_offences,
+        Treasury: pallet_treasury,
+        ImOnline: pallet_im_online,
+        AuthorityDiscovery: pallet_authority_discovery,
+        Proxy: pallet_proxy,
+
+        // Contracts: pallet_contracts,
+
+        // // Governance
+        // GeneralCouncil: collective::<Instance1>,
+        // GeneralCouncilMembership: membership::<Instance1>,
+
+        // BWS Modules
+
+        Groups: groups,
+        //Borlaug
+        Settings: settings,
+        Identity: identity,
+        AssetRegistry: asset_registry,
+        Audits: audits,
+        Provenance: provenance,
     }
-}
+);
+#[cfg(feature = "grandpa_aura")]
+construct_runtime!(
+    pub enum Runtime
+    {
+        System: polkadot_sdk::frame_system,
+        CollectiveFlip: pallet_insecure_randomness_collective_flip,
+        Balances: pallet_balances,
+        Timestamp: pallet_timestamp,
+        Authorship: pallet_authorship,
+        ValidatorSet: substrate_validator_set,
+        Session: pallet_session,
+        // Historical: pallet_session_historical,
+        Aura: pallet_aura,
+        Grandpa: pallet_grandpa,
+        TransactionPayment: pallet_transaction_payment,
+        Sudo: pallet_sudo,
+        //BorlaugCommittee
+        Council: pallet_collective::<Instance1>,
+        // Offences: pallet_offences,
+        Treasury: pallet_treasury,
+        // ImOnline: pallet_im_online,
+        Proxy: pallet_proxy,
+        // Contracts: pallet_contracts,
 
-pub struct DealWithFees;
-impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
-        if let Some(fees) = fees_then_tips.next() {
-            let treasury_share = Settings::fee_split_ratio();
-            let author_share = 100 - treasury_share;
+        // // Governance
+        // GeneralCouncil: collective::<Instance1>,
+        // GeneralCouncilMembership: membership::<Instance1>,
 
-            let mut split = fees.ration(treasury_share, author_share);
-            if let Some(tips) = fees_then_tips.next() {
-                // for tips, if any,  (though this can be anything)
-                tips.ration_merge_into(treasury_share, author_share, &mut split);
-            }
-            Treasury::on_unbalanced(split.0);
+        // BWS Modules
+        Groups: groups,
+        Settings: settings,
+        Identity: identity,
+        AssetRegistry: asset_registry,
+        Audits: audits,
+        Provenance: provenance,
+    }
+);
+#[cfg(feature = "instant_seal")]
+construct_runtime!(
+    pub enum Runtime
+    {
+        System: frame_system,
+        CollectiveFlip: pallet_insecure_randomness_collective_flip,
+        Balances: pallet_balances,
 
-            Author::on_unbalanced(split.1);
+        Timestamp: pallet_timestamp,
+        Authorship: pallet_authorship,
+
+        TransactionPayment: pallet_transaction_payment,
+        Sudo: pallet_sudo,
+        Council: pallet_collective::<Instance1>,
+
+        Treasury: pallet_treasury,
+
+        Proxy: pallet_proxy,
+
+        // Contracts: pallet_contracts,
+
+        // // Governance
+        // GeneralCouncil: collective::<Instance1>,
+        // GeneralCouncilMembership: membership::<Instance1>,
+
+        // BWS Modules
+
+        Groups: groups,
+        Settings: settings,
+        Identity: identity,
+        AssetRegistry: asset_registry,
+        Audits: audits,
+        Provenance: provenance,
+    }
+);
+
+pub struct Author;
+impl<I: Imbalance<Balance>> OnUnbalanced<I> for Author {
+    fn on_nonzero_unbalanced(amount: I) {
+        if let Some(author) = Authorship::author() {
+            let _ = Balances::deposit_creating(&author, amount.peek());
         }
     }
 }
 
 /// This runtime version.
+#[polkadot_sdk::sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("borlaug-chain"),
-    impl_name: create_runtime_str!("borlaug-chain"),
+    spec_name: polkadot_sdk::sp_std::borrow::Cow::Borrowed("borlaug-chain"),
+    impl_name: polkadot_sdk::sp_std::borrow::Cow::Borrowed("borlaug-chain"),
     authoring_version: 2,
     // Per convention: if the runtime behavior changes, increment spec_version
     // and set impl_version to 0. If only runtime
@@ -179,7 +287,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
-    state_version: 1,
+    system_version: 1,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -227,9 +335,16 @@ parameter_types! {
     pub const SS58Prefix: u8 = 42;
 }
 
-impl frame_system::Config for Runtime {
+#[cfg(any(
+    feature = "grandpa_babe",
+    feature = "grandpa_aura",
+    feature = "instant_seal"
+))]
+impl polkadot_sdk::frame_system::Config for Runtime {
+    /// The ubiquitous event type.
+    type RuntimeEvent = RuntimeEvent;
     /// The basic call filter to use in dispatchable.
-    type BaseCallFilter = frame_support::traits::Everything;
+    type BaseCallFilter = polkadot_sdk::frame_support::traits::Everything;
     /// Block & extrinsics weights: base values and limits.
     type BlockWeights = RuntimeBlockWeights;
     /// The maximum length of a block (in bytes).
@@ -241,17 +356,13 @@ impl frame_system::Config for Runtime {
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
     type Lookup = AccountIdLookup<AccountId, ()>;
     /// The index type for storing how many extrinsics an account has signed.
-    type Index = Index;
-    /// The index type for blocks.
-    type BlockNumber = BlockNumber;
+    type Nonce = Index;
+
     /// The type for hashing blocks and tries.
     type Hash = Hash;
     /// The hashing algorithm used.
     type Hashing = BlakeTwo256;
-    /// The header type.
-    type Header = generic::Header<BlockNumber, BlakeTwo256>;
-    /// The ubiquitous event type.
-    type RuntimeEvent = RuntimeEvent;
+
     /// The ubiquitous origin type.
     type RuntimeOrigin = RuntimeOrigin;
     /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
@@ -276,6 +387,15 @@ impl frame_system::Config for Runtime {
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
     type MaxConsumers = ConstU32<16>;
+
+    type RuntimeTask = ();
+    type Block = Block;
+    type ExtensionsWeightInfo = ();
+    type SingleBlockMigrations = ();
+    type MultiBlockMigrator = ();
+    type PreInherents = ();
+    type PostInherents = ();
+    type PostTransactions = ();
 }
 #[cfg(feature = "grandpa_babe")]
 parameter_types! {
@@ -313,6 +433,8 @@ impl pallet_aura::Config for Runtime {
     type AuthorityId = AuraId;
     type DisabledValidators = ();
     type MaxAuthorities = ConstU32<32>;
+    type AllowMultipleBlocksPerSlot = ConstBool<false>;
+    type SlotDuration = pallet_aura::MinimumPeriodTimesTwo<Runtime>;
 }
 
 #[cfg(feature = "grandpa_babe")]
@@ -322,67 +444,59 @@ parameter_types! {
     /// We prioritize im-online heartbeats over election solution submission.
     pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
 }
-#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
-where
-    RuntimeCall: From<LocalCall>,
-{
-    fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
-        call: RuntimeCall,
-        public: <Signature as traits::Verify>::Signer,
-        account: AccountId,
-        nonce: Index,
-    ) -> Option<(
-        RuntimeCall,
-        <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload,
-    )> {
-        let tip = 0;
-        // take the biggest period possible.
-        let period = BlockHashCount::get()
-            .checked_next_power_of_two()
-            .map(|c| c / 2)
-            .unwrap_or(2) as u64;
-        let current_block = System::block_number()
-            .saturated_into::<u64>()
-            // The `System::block_number` is initialized with `n+1`,
-            // so the actual block number is `n`.
-            .saturating_sub(1);
-        let era = Era::mortal(period, current_block);
-        let extra = (
-            frame_system::CheckNonZeroSender::<Runtime>::new(),
-            frame_system::CheckSpecVersion::<Runtime>::new(),
-            frame_system::CheckTxVersion::<Runtime>::new(),
-            frame_system::CheckGenesis::<Runtime>::new(),
-            frame_system::CheckEra::<Runtime>::from(era),
-            frame_system::CheckNonce::<Runtime>::from(nonce),
-            frame_system::CheckWeight::<Runtime>::new(),
-            pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-        );
-        let raw_payload = SignedPayload::new(call, extra)
-            .map_err(|e| {
-                log::warn!("Unable to create signed payload: {:?}", e);
-            })
-            .ok()?;
-        let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
-        //TODO: is this correct?
-        let address = sp_runtime::MultiAddress::Id(account);
-        let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature, extra)))
-    }
-}
+// #[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
+// impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+// where
+//     RuntimeCall: From<LocalCall>,
+// {
+//     fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+//         call: RuntimeCall,
+//         public: Self::Public,
+//         account: AccountId,
+//         nonce: Index,
+//     ) -> Option<(
+//         RuntimeCall,
+//         <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload,
+//     )> {
+//         let tip = 0;
+//         // take the biggest period possible.
+//         let period = BlockHashCount::get()
+//             .checked_next_power_of_two()
+//             .map(|c| c / 2)
+//             .unwrap_or(2) as u64;
+//         let current_block = System::block_number()
+//             .saturated_into::<u64>()
+//             // The `System::block_number` is initialized with `n+1`,
+//             // so the actual block number is `n`.
+//             .saturating_sub(1);
+//         let era = Era::mortal(period, current_block);
+//         let extra = (
+//             frame_system::CheckNonZeroSender::<Runtime>::new(),
+//             frame_system::CheckSpecVersion::<Runtime>::new(),
+//             frame_system::CheckTxVersion::<Runtime>::new(),
+//             frame_system::CheckGenesis::<Runtime>::new(),
+//             frame_system::CheckEra::<Runtime>::from(era),
+//             frame_system::CheckNonce::<Runtime>::from(nonce),
+//             frame_system::CheckWeight::<Runtime>::new(),
+//             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+//         );
+//         let raw_payload = SignedPayload::new(call, extra)
+//             .map_err(|e| {
+//                 log::warn!("Unable to create signed payload: {:?}", e);
+//             })
+//             .ok()?;
+//         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+//         //TODO: is this correct?
+//         let address = sp_runtime::MultiAddress::Id(account);
+//         let (call, extra, _) = raw_payload.deconstruct();
+//         Some((call, (address, signature, extra)))
+//     }
+// }
 
 #[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
-impl frame_system::offchain::SigningTypes for Runtime {
+impl polkadot_sdk::frame_system::offchain::SigningTypes for Runtime {
     type Public = <Signature as traits::Verify>::Signer;
     type Signature = Signature;
-}
-#[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-where
-    RuntimeCall: From<C>,
-{
-    type Extrinsic = UncheckedExtrinsic;
-    type OverarchingCall = RuntimeCall;
 }
 
 #[cfg(feature = "grandpa_babe")]
@@ -407,8 +521,10 @@ impl pallet_grandpa::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
     type MaxAuthorities = ConstU32<32>;
+
+    type MaxNominators = ConstU32<0>;
     type MaxSetIdSessionEntries = ConstU64<0>;
-    type KeyOwnerProof = sp_core::Void;
+    type KeyOwnerProof = polkadot_sdk::sp_core::Void;
     type EquivocationReportSystem = ();
 }
 
@@ -445,7 +561,18 @@ pub const EXISTENTIAL_DEPOSIT: u128 = 500;
 
 /// A reason for placing a hold on funds.
 #[derive(
-    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, Debug, TypeInfo,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Encode,
+    Decode,
+    MaxEncodedLen,
+    Debug,
+    TypeInfo,
+    DecodeWithMemTracking,
 )]
 pub enum HoldReason {
     /// The NIS Pallet has reserved it for a non-fungible receipt.
@@ -462,12 +589,13 @@ impl pallet_balances::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type DustRemoval = ();
     type ExistentialDeposit = ConstU128<EXISTENTIAL_DEPOSIT>;
-    type AccountStore = frame_system::Pallet<Runtime>;
+    type AccountStore = polkadot_sdk::frame_system::Pallet<Runtime>;
     type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
     type FreezeIdentifier = ();
     type MaxFreezes = ();
-    type HoldIdentifier = HoldReason;
-    type MaxHolds = ConstU32<1>;
+    type RuntimeHoldReason = RuntimeHoldReason;
+    type RuntimeFreezeReason = RuntimeFreezeReason;
+    type DoneSlashHandler = ();
 }
 
 parameter_types! {
@@ -480,7 +608,6 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
     type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
     type WeightToFee = IdentityFee<Balance>;
@@ -492,11 +619,13 @@ impl pallet_transaction_payment::Config for Runtime {
         MinimumMultiplier,
         MaximumMultiplier,
     >;
+    type WeightInfo = pallet_transaction_payment::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_sudo::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
+    type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 // parameter_types! {
 //     pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
@@ -547,19 +676,23 @@ impl pallet_session::Config for Runtime {
 parameter_types! {
     pub const Period: u32 = 2 * MINUTES;
     pub const Offset: u32 = 0;
+     pub const KeyDeposit: Balance = 0;
 }
 
 #[cfg(feature = "grandpa_aura")]
 impl pallet_session::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type ValidatorId = <Self as frame_system::Config>::AccountId;
-    type ValidatorIdOf = validator_set::ValidatorOf<Self>;
+    type ValidatorId = <Self as polkadot_sdk::frame_system::Config>::AccountId;
+    type ValidatorIdOf = substrate_validator_set::ValidatorOf<Self>;
     type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
     type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
     type SessionManager = ValidatorSet;
     type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = opaque::SessionKeys;
     type WeightInfo = ();
+    type Currency = Balances;
+    type KeyDeposit = KeyDeposit;
+    type DisablingStrategy = ();
 }
 #[cfg(feature = "grandpa_babe")]
 impl pallet_session::historical::Config for Runtime {
@@ -646,40 +779,54 @@ parameter_types! {
     pub const MaxBalance: Balance = Balance::max_value();
 }
 
+impl traits::TypedGet for TreasuryAccountId {
+    type Type = AccountId;
+    fn get() -> AccountId {
+        TreasuryPalletId::get().into_account_truncating()
+    }
+}
+pub struct TreasuryAccountId;
+impl Get<AccountId> for TreasuryAccountId {
+    fn get() -> AccountId {
+        TreasuryPalletId::get().into_account_truncating()
+    }
+}
+
 impl pallet_treasury::Config for Runtime {
     type PalletId = TreasuryPalletId;
     type Currency = Balances;
-    type ApproveOrigin = EitherOfDiverse<
-        EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
-    >;
+
     type RejectOrigin = EitherOfDiverse<
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
     >;
     type RuntimeEvent = RuntimeEvent;
-    type OnSlash = ();
-    type ProposalBond = ProposalBond;
-    type ProposalBondMinimum = ProposalBondMinimum;
-    type ProposalBondMaximum = ();
+
     type SpendPeriod = SpendPeriod;
     type Burn = Burn;
     type BurnDestination = ();
-    //TODO: is this correct
     type SpendFunds = ();
     type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
     type MaxApprovals = MaxApprovals;
     type SpendOrigin = EnsureWithSuccess<EnsureRoot<AccountId>, AccountId, MaxBalance>;
+    type AssetKind = ();
+    type Beneficiary = AccountId;
+    type BeneficiaryLookup = AccountIdLookup<AccountId, ()>;
+    type Paymaster = PayFromAccount<pallet_balances::Pallet<Runtime>, TreasuryAccountId>;
+    type BalanceConverter =
+        polkadot_sdk::frame_support::traits::tokens::UnityAssetBalanceConversion;
+    type PayoutPeriod = ConstU32<0>;
+    type BlockNumberProvider = polkadot_sdk::frame_system::Pallet<Runtime>;
 }
 
 parameter_types! {
     pub const MinAuthorities: u32 = 2;
 }
 
-impl validator_set::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
+impl substrate_validator_set::Config for Runtime {
     type AddRemoveOrigin = EnsureRoot<AccountId>;
     type MinAuthorities = MinAuthorities;
+    type WeightInfo = substrate_validator_set::weights::SubstrateWeight<Runtime>;
 }
 
 // parameter_types! {
@@ -761,7 +908,7 @@ parameter_types! {
     pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
     pub const CouncilMaxProposals: u32 = 100;
     pub const CouncilMaxMembers: u32 = 100;
-    // pub MaxCollectivesProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
+    pub MaxProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -775,7 +922,10 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
     type DefaultVote = pallet_collective::PrimeDefaultVote;
     type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
     type SetMembersOrigin = EnsureRoot<Self::AccountId>;
-    // type MaxProposalWeight = MaxCollectivesProposalWeight;
+    type MaxProposalWeight = MaxProposalWeight;
+    type DisapproveOrigin = EnsureRoot<AccountId>;
+    type KillOrigin = EnsureRoot<AccountId>;
+    type Consideration = ();
 }
 
 parameter_types! {
@@ -802,6 +952,7 @@ parameter_types! {
     RuntimeDebug,
     MaxEncodedLen,
     TypeInfo,
+    DecodeWithMemTracking,
 )]
 pub enum ProxyType {
     Any,
@@ -852,10 +1003,11 @@ impl pallet_proxy::Config for Runtime {
     type CallHasher = BlakeTwo256;
     type AnnouncementDepositBase = AnnouncementDepositBase;
     type AnnouncementDepositFactor = AnnouncementDepositFactor;
+
+    type BlockNumberProvider = polkadot_sdk::frame_system::Pallet<Runtime>;
 }
 
 impl settings::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
     type WeightInfo = settings::weights::SubstrateWeight<Runtime>;
     type ChangeSettingOrigin = EitherOfDiverse<
         EnsureRoot<AccountId>,
@@ -875,7 +1027,6 @@ parameter_types! {
 }
 
 impl groups::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
     type Origin = RuntimeOrigin;
     type GroupsOriginByGroupThreshold = groups::EnsureThreshold<Runtime>;
     type GroupsOriginByCallerThreshold = groups::EnsureApproved<Runtime>;
@@ -913,7 +1064,7 @@ parameter_types! {
 impl identity::Config for Runtime {
     type CatalogId = CatalogId;
     type ClaimId = ClaimId;
-    type RuntimeEvent = RuntimeEvent;
+
     type WeightInfo = identity::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
     type FactStringLimit = FactStringLimit;
@@ -935,7 +1086,7 @@ impl asset_registry::Config for Runtime {
     type AssetId = AssetId;
     type LeaseId = LeaseId;
     type Balance = Balance;
-    type RuntimeEvent = RuntimeEvent;
+
     type WeightInfo = asset_registry::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
     type FactStringLimit = FactStringLimit;
@@ -949,7 +1100,6 @@ parameter_types! {
 }
 pub type BoundedStringUrl = BoundedVec<u8, UrlLimit>;
 impl audits::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
     type AuditId = AuditId;
     type ControlPointId = ControlPointId;
     type EvidenceId = EvidenceId;
@@ -968,7 +1118,7 @@ impl provenance::Config for Runtime {
     type DefinitionId = primitives::DefinitionId;
     type DefinitionStepIndex = primitives::DefinitionStepIndex;
     type ProcessId = primitives::ProcessId;
-    type RuntimeEvent = RuntimeEvent;
+
     type WeightInfo = provenance::weights::SubstrateWeight<Runtime>;
     type NameLimit = NameLimit;
     type FactStringLimit = FactStringLimit;
@@ -979,131 +1129,30 @@ impl provenance::Config for Runtime {
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
-#[cfg(feature = "grandpa_babe")]
-construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = primitives::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        System: frame_system ,
-        CollectiveFlip: pallet_insecure_randomness_collective_flip,
-        Balances: pallet_balances,
-        Session: pallet_session,
-        Historical: pallet_session_historical,
-        Staking: pallet_staking,
-        Timestamp: pallet_timestamp,
-        Authorship: pallet_authorship,
-        Babe: pallet_babe,
-        Grandpa: pallet_grandpa,
-        TransactionPayment: pallet_transaction_payment,
-        Sudo: pallet_sudo,
-        //BorlaugCommittee
-        Council: pallet_collective::<Instance1>,
-        Offences: pallet_offences,
-        Treasury: pallet_treasury,
-        ImOnline: pallet_im_online,
-        AuthorityDiscovery: pallet_authority_discovery,
-        Proxy: pallet_proxy,
+pub struct DealWithFees;
 
-        // Contracts: pallet_contracts,
+impl OnUnbalanced<pallet_balances::NegativeImbalance<Runtime>> for DealWithFees {
+    fn on_unbalanceds(
+        mut fees_then_tips: impl Iterator<Item = pallet_balances::NegativeImbalance<Runtime>>,
+    ) {
+        if let Some(fees) = fees_then_tips.next() {
+            let treasury_share = Settings::fee_split_ratio();
+            let author_share = 100 - treasury_share;
 
-        // // Governance
-        // GeneralCouncil: collective::<Instance1>,
-        // GeneralCouncilMembership: membership::<Instance1>,
+            let mut split = fees.ration(treasury_share, author_share);
 
-        // BWS Modules
+            if let Some(tips) = fees_then_tips.next() {
+                tips.ration_merge_into(80, 20, &mut split);
+            }
 
-        Groups: groups,
-        //Borlaug
-        Settings: settings,
-        Identity: identity,
-        AssetRegistry: asset_registry,
-        Audits: audits,
-        Provenance: provenance,
+            Treasury::on_unbalanced(split.0);
+            Author::on_unbalanced(split.1);
+        }
     }
-);
-#[cfg(feature = "grandpa_aura")]
-construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = primitives::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        System: frame_system,
-        CollectiveFlip: pallet_insecure_randomness_collective_flip,
-        Balances: pallet_balances,
-        Timestamp: pallet_timestamp,
-        Authorship: pallet_authorship,
-        ValidatorSet: validator_set,
-        Session: pallet_session,
-        // Historical: pallet_session_historical,
-        Aura: pallet_aura,
-        Grandpa: pallet_grandpa,
-        TransactionPayment: pallet_transaction_payment,
-        Sudo: pallet_sudo,
-        //BorlaugCommittee
-        Council: pallet_collective::<Instance1>,
-        // Offences: pallet_offences,
-        Treasury: pallet_treasury,
-        // ImOnline: pallet_im_online,
-        Proxy: pallet_proxy,
-        // Contracts: pallet_contracts,
-
-        // // Governance
-        // GeneralCouncil: collective::<Instance1>,
-        // GeneralCouncilMembership: membership::<Instance1>,
-
-        // BWS Modules
-        Groups: groups,
-        Settings: settings,
-        Identity: identity,
-        AssetRegistry: asset_registry,
-        Audits: audits,
-        Provenance: provenance,
-    }
-);
-// #[cfg(feature = "instant_seal")]
-// construct_runtime!(
-//     pub enum Runtime where
-//         Block = Block,
-//         NodeBlock = primitives::Block,
-//         UncheckedExtrinsic = UncheckedExtrinsic
-//     {
-//         System: frame_system,
-//         CollectiveFlip: pallet_insecure_randomness_collective_flip,
-//         Balances: pallet_balances,
-
-//         Timestamp: pallet_timestamp,
-//         Authorship: pallet_authorship,
-
-//         TransactionPayment: pallet_transaction_payment,
-//         Sudo: pallet_sudo,
-//         Council: pallet_collective::<Instance1>,
-
-//         Treasury: pallet_treasury,
-
-//         Proxy: pallet_proxy,
-
-//         // Contracts: pallet_contracts,
-
-//         // // Governance
-//         // GeneralCouncil: collective::<Instance1>,
-//         // GeneralCouncilMembership: membership::<Instance1>,
-
-//         // BWS Modules
-
-//         Groups: groups,
-//         Settings: settings,
-//         Identity: identity,
-//         AssetRegistry: asset_registry,
-//         Audits: audits,
-//         Provenance: provenance,
-//     }
-// );
+}
 
 /// The address format for describing accounts.
-pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
+pub type Address = polkadot_sdk::sp_runtime::MultiAddress<AccountId, ()>;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
@@ -1113,15 +1162,16 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
+
 pub type SignedExtra = (
-    frame_system::CheckNonZeroSender<Runtime>,
-    frame_system::CheckSpecVersion<Runtime>,
-    frame_system::CheckTxVersion<Runtime>,
-    frame_system::CheckGenesis<Runtime>,
-    frame_system::CheckEra<Runtime>,
-    frame_system::CheckNonce<Runtime>,
-    frame_system::CheckWeight<Runtime>,
-    pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+    polkadot_sdk::frame_system::CheckNonZeroSender<Runtime>,
+    polkadot_sdk::frame_system::CheckSpecVersion<Runtime>,
+    polkadot_sdk::frame_system::CheckTxVersion<Runtime>,
+    polkadot_sdk::frame_system::CheckGenesis<Runtime>,
+    polkadot_sdk::frame_system::CheckEra<Runtime>,
+    polkadot_sdk::frame_system::CheckNonce<Runtime>,
+    polkadot_sdk::frame_system::CheckWeight<Runtime>,
+    // pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -1130,23 +1180,18 @@ pub type UncheckedExtrinsic =
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 
-type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<
+pub type Executive = polkadot_sdk::frame_executive::Executive<
     Runtime,
     Block,
-    frame_system::ChainContext<Runtime>,
+    polkadot_sdk::frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
     //TODO: do we need to add Migrations struct for runtime upgrades
 >;
-
-#[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
-extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
@@ -1166,21 +1211,22 @@ mod benches {
 }
 
 impl_runtime_apis! {
-    impl sp_api::Core<Block> for Runtime {
+    impl polkadot_sdk::sp_api::Core<Block> for Runtime {
         fn version() -> RuntimeVersion {
             VERSION
         }
 
-        fn execute_block(block: Block) {
-            Executive::execute_block(block)
-        }
 
-        fn initialize_block(header: &<Block as BlockT>::Header) {
+    fn execute_block(block: generic::LazyBlock<Header, UncheckedExtrinsic>) {
+        Executive::execute_block(block)
+    }
+
+  fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
             Executive::initialize_block(header)
         }
     }
 
-    impl sp_api::Metadata<Block> for Runtime {
+    impl polkadot_sdk::sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
             OpaqueMetadata::new(Runtime::metadata().into())
         }
@@ -1188,12 +1234,12 @@ impl_runtime_apis! {
             Runtime::metadata_at_version(version)
         }
 
-        fn metadata_versions() -> sp_std::vec::Vec<u32> {
+        fn metadata_versions() -> Vec<u32> {
             Runtime::metadata_versions()
         }
     }
 
-    impl sp_block_builder::BlockBuilder<Block> for Runtime {
+    impl polkadot_sdk::sp_block_builder::BlockBuilder<Block> for Runtime {
         fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
             Executive::apply_extrinsic(extrinsic)
         }
@@ -1206,13 +1252,13 @@ impl_runtime_apis! {
             data.create_extrinsics()
         }
 
-        fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
+       fn check_inherents(block: generic::LazyBlock<Header, UncheckedExtrinsic>, data: InherentData) -> CheckInherentsResult {
             data.check_extrinsics(&block)
         }
 
     }
 
-    impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
+    impl polkadot_sdk::sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(
             source: TransactionSource,
             tx: <Block as BlockT>::Extrinsic,
@@ -1223,25 +1269,25 @@ impl_runtime_apis! {
     }
 
 
-    impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
+    impl polkadot_sdk::sp_offchain::OffchainWorkerApi<Block> for Runtime {
         fn offchain_worker(header: &<Block as BlockT>::Header) {
             Executive::offchain_worker(header)
         }
     }
 
     #[cfg(feature = "grandpa_aura")]
-    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-        fn slot_duration() -> sp_consensus_aura::SlotDuration {
-            sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
+    impl polkadot_sdk::sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
+        fn slot_duration() -> polkadot_sdk::sp_consensus_aura::SlotDuration {
+            polkadot_sdk::sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
         }
 
-        fn authorities() -> Vec<AuraId> {
-            Aura::authorities().into_inner()
-        }
+fn authorities() -> Vec<AuraId> {
+        pallet_aura::Authorities::<Runtime>::get().into_inner()
+    }
     }
 
 
-    impl sp_session::SessionKeys<Block> for Runtime {
+    impl polkadot_sdk::sp_session::SessionKeys<Block> for Runtime {
         #[allow(unused_variables)]
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             #[cfg(any(feature = "grandpa_babe",feature = "grandpa_aura"))]
@@ -1383,7 +1429,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
+    impl polkadot_sdk::frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
         fn account_nonce(account: AccountId) -> Index {
             System::account_nonce(account)
         }
@@ -1691,16 +1737,30 @@ impl_runtime_apis! {
         }
     }
 
+impl polkadot_sdk::sp_genesis_builder::GenesisBuilder<Block> for Runtime {
+    fn build_state(config: Vec<u8>) -> polkadot_sdk::sp_genesis_builder::Result {
+        genesis_builder_helper::build_state::<RuntimeGenesisConfig>(config)
+    }
+
+    fn get_preset(id: &Option<polkadot_sdk::sp_genesis_builder::PresetId>) -> Option<Vec<u8>> {
+        genesis_builder_helper::get_preset::<RuntimeGenesisConfig>(id, |_| None)
+    }
+
+    fn preset_names() -> Vec<polkadot_sdk::sp_genesis_builder::PresetId> {
+        polkadot_sdk::sp_std::vec![]
+    }
+}
+
 
     #[cfg(feature = "runtime-benchmarks")]
-    impl frame_benchmarking::Benchmark<Block> for Runtime {
+    impl polkadot_sdk::frame_benchmarking::Benchmark<Block> for Runtime {
         fn benchmark_metadata(extra: bool) -> (
-            Vec<frame_benchmarking::BenchmarkList>,
+            Vec<polkadot_sdk::frame_benchmarking::BenchmarkList>,
             Vec<frame_support::traits::StorageInfo>,
         ) {
-            use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
-            use frame_support::traits::StorageInfoTrait;
-            use frame_system_benchmarking::Pallet as SystemBench;
+            use polkadot_sdk::frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
+            use polkadot_sdk::frame_support::traits::StorageInfoTrait;
+            use polkadot_sdk::frame_system_benchmarking::Pallet as SystemBench;
             use baseline::Pallet as BaselineBench;
 
             let mut list = Vec::<BenchmarkList>::new();
@@ -1713,8 +1773,8 @@ impl_runtime_apis! {
         }
 
         fn dispatch_benchmark(
-            config: frame_benchmarking::BenchmarkConfig
-        ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+            config: polkadot_sdk::frame_benchmarking::BenchmarkConfig
+        ) -> Result<Vec<polkadot_sdk::frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
             use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch, TrackedStorageKey};
 
             use frame_system_benchmarking::Pallet as SystemBench;

@@ -25,8 +25,13 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use polkadot_sdk::sp_api::decl_runtime_apis;
 use core::marker::PhantomData;
+use polkadot_sdk::polkadot_sdk_frame::weights_prelude::RocksDbWeight;
+use polkadot_sdk::sp_weights::Weight;
+use polkadot_sdk::frame_system;
+use polkadot_sdk::polkadot_sdk_frame as frame;
+use frame::traits::Get;
 
 /// Weight functions needed for pallet_asset_registry.
 pub trait WeightInfo {

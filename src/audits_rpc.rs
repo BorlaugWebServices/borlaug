@@ -1,16 +1,16 @@
 use audits_runtime_api::AuditsApi as AuditsRuntimeApi;
 use codec::Codec;
-use frame_support::dispatch::fmt::Display;
+use core::fmt::Display;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorObject},
+    types::error::{ErrorObject},
 };
 use pallet_primitives::{Audit, AuditStatus, Compliance, Evidence, Observation};
 use serde::{Deserialize, Serialize};
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::HeaderBackend;
-use sp_runtime::traits::Block as BlockT;
+use polkadot_sdk::sp_api::ProvideRuntimeApi;
+use polkadot_sdk::sp_blockchain::HeaderBackend;
+use polkadot_sdk::sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
 #[rpc(client, server)]
@@ -128,7 +128,7 @@ pub trait AuditsApi<
     ) -> RpcResult<Vec<EvidenceId>>;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AuditResponse<AccountId, ProposalId, AuditId> {
     pub audit_id: AuditId,
     pub proposal_id: ProposalId,
@@ -157,7 +157,7 @@ impl<AccountId, ProposalId, AuditId> From<(AuditId, Audit<AccountId, ProposalId>
         }
     }
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct ObservationResponse<ObservationId, EvidenceId, ProposalId> {
     pub observation_id: ObservationId,
     pub proposal_id: ProposalId,
@@ -206,7 +206,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct EvidenceResponse<EvidenceId, ProposalId> {
     pub evidence_id: EvidenceId,
     pub proposal_id: ProposalId,
@@ -281,34 +281,24 @@ static RPC_MODULE: &str = "Audits API";
 macro_rules! convert_error {
     () => {{
         |e| {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::RuntimeError.into(),
                 format!("Runtime Error in {}", RPC_MODULE),
                 Some(format!("{:?}", e)),
-            ))
+            )
         }
     }};
 }
 
-// macro_rules! decode_error {
-//     () => {{
-//         |e| {
-//             CallError::Custom(ErrorObject::owned(
-//                 Error::DecodeError.into(),
-//                 format!("Decode Error in {}", RPC_MODULE),
-//                 Some(format!("{:?}", e)),
-//             ))
-//         }
-//     }};
-// }
+
 macro_rules! not_found_error {
     ($id:expr) => {{
         {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::NotFoundError.into(),
                 format!("Entity not found Error in {}", RPC_MODULE),
                 Some(format!("{}", $id)),
-            ))
+            )
         }
     }};
 }

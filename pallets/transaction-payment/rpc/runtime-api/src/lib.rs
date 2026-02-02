@@ -19,38 +19,47 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+use polkadot_sdk::sp_std::prelude::*;
+
+
+
 use codec::Codec;
-use sp_runtime::traits::MaybeDisplay;
+use polkadot_sdk::sp_api::decl_runtime_apis;
+use polkadot_sdk::sp_runtime::traits::MaybeDisplay;
 
 pub use pallet_transaction_payment::{FeeDetails, InclusionFee, RuntimeDispatchInfo};
 
-sp_api::decl_runtime_apis! {
-	#[api_version(4)]
-	pub trait TransactionPaymentApi<Balance> where
-		Balance: Codec + MaybeDisplay,
-	{
-		fn query_info(uxt: Block::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance>;
-		fn query_fee_details(uxt: Block::Extrinsic, len: u32) -> FeeDetails<Balance>;
-		fn query_weight_to_fee(weight: sp_weights::Weight) -> Balance;
-		fn query_length_to_fee(length: u32) -> Balance;
-	}
+decl_runtime_apis! {
+    #[api_version(4)]
+    pub trait TransactionPaymentApi<Balance> where
+        Balance: Codec + MaybeDisplay,
+    {
+        fn query_info(uxt: Block::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance>;
+        fn query_fee_details(uxt: Block::Extrinsic, len: u32) -> FeeDetails<Balance>;
+        fn query_weight_to_fee(weight: polkadot_sdk::sp_weights::Weight) -> Balance;
+        fn query_length_to_fee(length: u32) -> Balance;
+    }
 
-	#[api_version(3)]
-	pub trait TransactionPaymentCallApi<Balance, Call>
-	where
-		Balance: Codec + MaybeDisplay,
-		Call: Codec,
-	{
-		/// Query information of a dispatch class, weight, and fee of a given encoded `Call`.
-		fn query_call_info(call: Call, len: u32) -> RuntimeDispatchInfo<Balance>;
+    #[api_version(3)]
+    pub trait TransactionPaymentCallApi<Balance, Call>
+    where
+        Balance: Codec + MaybeDisplay,
+        Call: Codec,
+    {
+        /// Query information of a dispatch class, weight, and fee of a given encoded `Call`.
+        fn query_call_info(call: Call, len: u32) -> RuntimeDispatchInfo<Balance>;
 
-		/// Query fee details of a given encoded `Call`.
-		fn query_call_fee_details(call: Call, len: u32) -> FeeDetails<Balance>;
+        /// Query fee details of a given encoded `Call`.
+        fn query_call_fee_details(call: Call, len: u32) -> FeeDetails<Balance>;
 
-		/// Query the output of the current `WeightToFee` given some input.
-		fn query_weight_to_fee(weight: sp_weights::Weight) -> Balance;
+        /// Query the output of the current `WeightToFee` given some input.
+        fn query_weight_to_fee(weight: polkadot_sdk::sp_weights::Weight) -> Balance;
 
-		/// Query the output of the current `LengthToFee` given some input.
-		fn query_length_to_fee(length: u32) -> Balance;
-	}
+        /// Query the output of the current `LengthToFee` given some input.
+        fn query_length_to_fee(length: u32) -> Balance;
+    }
 }

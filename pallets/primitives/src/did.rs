@@ -1,11 +1,6 @@
-use codec::{Decode, Encode, MaxEncodedLen};
-// use sp_core::H256;
-// use sp_io;
-// use sp_runtime::traits::Hash;
-// use sp_runtime::traits::Printable;
-use frame_support::scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
-use sp_std::prelude::*;
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use polkadot_sdk::polkadot_sdk_frame::prelude::*;
 
 /// Borlaug DID.
 /// DID is of the format: "did:bws:<32 Hex characters>".
@@ -24,6 +19,7 @@ use sp_std::prelude::*;
     Copy,
     RuntimeDebug,
     MaxEncodedLen,
+    DecodeWithMemTracking,
     TypeInfo,
 )]
 pub struct Did {

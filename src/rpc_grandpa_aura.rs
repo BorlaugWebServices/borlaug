@@ -31,7 +31,6 @@
 #![warn(missing_docs)]
 
 use std::sync::Arc;
-
 use jsonrpsee::RpcModule;
 use runtime::primitives::{
     AccountId, AssetId, AuditId, Balance, Block, BoundedStringFact, BoundedStringName, CatalogId,
@@ -40,12 +39,12 @@ use runtime::primitives::{
     ProposalId, RegistryId,
 };
 use runtime::BoundedStringUrl;
-use sc_client_api::AuxStore;
-pub use sc_rpc_api::DenyUnsafe;
-use sc_transaction_pool_api::TransactionPool;
-use sp_api::ProvideRuntimeApi;
-use sp_block_builder::BlockBuilder;
-use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
+use polkadot_sdk::sc_client_api::AuxStore;
+pub use polkadot_sdk::sc_rpc_api::DenyUnsafe;
+use polkadot_sdk::sc_transaction_pool_api::TransactionPool;
+use polkadot_sdk::sp_api::ProvideRuntimeApi;
+use polkadot_sdk::sp_block_builder::BlockBuilder;
+use polkadot_sdk::sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
 /// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -54,6 +53,7 @@ pub struct FullDeps<C, P> {
     /// Transaction pool instance.
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls
+    #[allow(dead_code)]
     pub deny_unsafe: DenyUnsafe,
 }
 
@@ -69,7 +69,7 @@ where
         + Sync
         + Send
         + 'static,
-    C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
+    C::Api: polkadot_sdk::substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BlockBuilder<Block>,
     C::Api: groups_runtime_api::GroupsApi<
@@ -132,7 +132,7 @@ where
     P: TransactionPool + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
-    use substrate_frame_rpc_system::{System, SystemApiServer};
+    use polkadot_sdk::substrate_frame_rpc_system::{System, SystemApiServer};
 
     use crate::asset_registry_rpc::{AssetRegistry, AssetRegistryApiServer};
     use crate::audits_rpc::{Audits, AuditsApiServer};
@@ -145,10 +145,10 @@ where
     let FullDeps {
         client,
         pool,
-        deny_unsafe,
+        deny_unsafe:_,
     } = deps;
 
-    module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
+    module.merge(System::new(client.clone(), pool).into_rpc())?;
     module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
     module.merge(Groups::new(client.clone()).into_rpc())?;

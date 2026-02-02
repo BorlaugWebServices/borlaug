@@ -3,12 +3,13 @@
 #![allow(clippy::unnecessary_mut_passed)]
 
 use codec::Codec;
-use frame_support::dispatch::Vec;
+use polkadot_sdk::sp_api::decl_runtime_apis;
+use polkadot_sdk::sp_std::vec::Vec;
 use primitives::group::{Group, GroupMember, Votes};
 
 // Here we declare the runtime API. It is implemented it the `impl` block in
 // runtime amalgamator file (the `runtime/src/lib.rs`)
-sp_api::decl_runtime_apis! {
+decl_runtime_apis! {
     pub trait GroupsApi<AccountId,GroupId,MemberCount,ProposalId,Hash,BoundedString,Balance>
     where
     AccountId: Codec,

@@ -7,41 +7,56 @@ license = "Apache-2.0"
 name = "pallet-transaction-payment"
 readme = "README.md"
 repository = "https://github.com/paritytech/substrate/"
-version = "4.0.0-dev"
+version = "43.0.0"
+
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"]}
-frame-support = {version = "21.0.0", default-features = false}
-frame-system = {version = "21.0.0", default-features = false}
-scale-info = {version = "2.5.0", default-features = false, features = ["derive"]}
-serde = {version = "1.0.101", optional = true}
-smallvec = "1.4.1"
-sp-core = {version = "20.0.0", default-features = false}
-sp-io = {version = "22.0.0", default-features = false}
-sp-runtime = {version = "23.0.0", default-features = false}
-sp-std = {version = "7.0.0", default-features = false}
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"],  workspace = true }
+serde = { workspace = true, optional = true }
+
+polkadot-sdk = { workspace = true, default-features = false, features = ["runtime"] }
 
 groups = {package = "pallet-groups", path = "../groups", default-features = false}
 
 [dev-dependencies]
-pallet-balances = {version = "21.0.0"}
+polkadot-sdk = { workspace = true, features = ["node"] }
+
+pallet-balances = { workspace = true }
 runtime = {package = "borlaug-runtime", path = "../../runtime", features = ["std", "grandpa_aura"]}
-serde_json = "1.0.41"
-sp-storage = {version = "12.0.0"}
+serde_json = { workspace = true }
+settings = {package = "pallet-settings", path = "../settings"}
+
 
 [features]
 default = ["std"]
 std = [
+  "polkadot-sdk/std",
+  "polkadot-sdk/runtime",
+  "polkadot-sdk/sp-std",
+  "polkadot-sdk/sp-runtime",
+  "polkadot-sdk/sp-io",
+  "polkadot-sdk/sp-api",
+  "polkadot-sdk/sp-core",
+  "polkadot-sdk/frame-support",
+  "polkadot-sdk/frame-system",
   "serde",
   "codec/std",
-  "sp-std/std",
-  "sp-runtime/std",
-  "frame-support/std",
-  "frame-system/std",
-  "sp-io/std",
-  "sp-core/std",
+  "scale-info/std",
   "groups/std",
+  "serde",
+]
+runtime-benchmarks = [
+  "polkadot-sdk/runtime-benchmarks",
+  "polkadot-sdk/frame-benchmarking",
+  "polkadot-sdk/frame-support",
+  "polkadot-sdk/frame-system",
+  "pallet-balances/runtime-benchmarks",
+  "polkadot-sdk/sp-runtime",
+]
+try-runtime = [
+  "polkadot-sdk/try-runtime",
 ]

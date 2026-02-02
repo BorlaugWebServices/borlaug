@@ -1,12 +1,9 @@
 //! Low-level types used throughout the code.
 
-use frame_support::parameter_types;
-use frame_support::BoundedVec;
-use sp_runtime::{
-    generic,
-    traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature, OpaqueExtrinsic,
-};
+use polkadot_sdk::frame_support::parameter_types;
+use polkadot_sdk::frame_support::BoundedVec;
+use polkadot_sdk::sp_runtime::AccountId32;
+use polkadot_sdk::sp_runtime::{generic, traits::BlakeTwo256, MultiSignature, OpaqueExtrinsic};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -16,7 +13,7 @@ pub type Signature = MultiSignature;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type AccountId = AccountId32;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of them.
 pub type AccountIndex = u32;
@@ -31,7 +28,7 @@ pub type Moment = u64;
 pub type Index = u32;
 
 /// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
+pub type Hash = polkadot_sdk::sp_core::H256;
 
 /// A timestamp: milliseconds since the unix epoch.
 /// `u64` is enough to represent a duration of half a billion years, when the

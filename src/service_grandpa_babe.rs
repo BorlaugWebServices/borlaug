@@ -516,7 +516,6 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 //     use node_primitives::{Block, DigestItem, Signature};
 //     use runtime::constants::{currency::CENTS, time::SLOT_DURATION};
 //     use runtime::{Address, BalancesCall, Call, UncheckedExtrinsic};
-//     use sc_client_api::BlockBackend;
 //     use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
 //     use sc_consensus_epochs::descendent_query;
 //     use sc_keystore::LocalKeystore;

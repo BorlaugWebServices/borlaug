@@ -3,9 +3,9 @@
 use super::*;
 use crate::mock::*;
 use core::convert::TryInto;
-use frame_support::assert_ok;
+use polkadot_sdk::frame_support::assert_ok;
 use primitives::*;
-use sp_core::blake2_256;
+use polkadot_sdk::sp_core::blake2_256;
 
 fn create_group(member: u64, group_id: u32) -> u64 {
     assert_ok!(Groups::create_group(
@@ -105,7 +105,7 @@ fn assign_auditors(
 }
 
 fn get_proposal_id() -> u32 {
-    let last_event = frame_system::Pallet::<Test>::events()
+    let last_event = polkadot_sdk::frame_system::Pallet::<Test>::events()
         .last()
         .unwrap()
         .clone();
@@ -753,7 +753,7 @@ fn delete_evidence_should_have_link_limit() {
             100
         ));
 
-        let last_event = frame_system::Pallet::<Test>::events()
+        let last_event = polkadot_sdk::frame_system::Pallet::<Test>::events()
             .last()
             .unwrap()
             .clone();

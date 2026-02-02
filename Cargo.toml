@@ -12,152 +12,118 @@ panic = "unwind"
 name = "borlaug"
 path = "src/main.rs"
 
+
+
 [dependencies]
 # third-party dependencies
-clap = {version = "4.0.9", features = ["derive"]}
-codec = {package = "parity-scale-codec", version = "3.4.0"}
-futures = {version = "0.3.9", features = ["compat"]}
+clap = { version = "4.0.9", features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.6.1" }
+futures = { version = "0.3.9", features = ["compat"] }
 hex = "0.4"
-hex-literal = "0.4.1"
-jsonrpsee = {version = "0.16.2", features = ["server"]}
-log = "0.4.17"
-parking_lot = "0.12.1"
-serde = {version = "1.0.130", features = ["derive"]}
 
-# primitives
-sp-authority-discovery = "19.0.0"
+serde = { version = "1.0.226", features = ["derive"] }
+serde_json ={ version = "1.0.41" }
+jsonrpsee = { workspace = true, features = ["server"] }
 
-# client dependencies
-# sp-finality-grandpa = {version = "0.10.0-dev", optional = true}
-sp-inherents = "19.0.0"
-sp-keystore = "0.26.0"
-sp-runtime = "23.0.0"
-sp-timestamp = {version = "19.0.0", optional = true}
-sp-transaction-pool = "19.0.0"
-structopt = "0.3.17"
-substrate-frame-rpc-system = "21.0.0"
+pallet-transaction-payment = { path = "pallets/transaction-payment" }
 
-pallet-transaction-payment = {path = "pallets/transaction-payment"}
+runtime = { package = "borlaug-runtime", path = "runtime" }
 
-# frame dependencies
-pallet-im-online = {version = "20.0.0", default-features = false}
+asset-registry-runtime-api = { path = "pallets/asset-registry-runtime-api" }
+audits-runtime-api = { path = "pallets/audits-runtime-api" }
+groups-runtime-api = { path = "pallets/groups-runtime-api" }
+identity-runtime-api = { path = "pallets/identity-runtime-api" }
+provenance-runtime-api = { path = "pallets/provenance-runtime-api" }
+settings-runtime-api = { path = "pallets/settings-runtime-api" }
+pallet-primitives = { path = "pallets/primitives", default-features = false }
+pallet-transaction-payment-rpc = { path = "pallets/transaction-payment/rpc" }
 
-# These dependencies are used for runtime benchmarking
-frame-benchmarking = {default-features = false, version = "21.0.0"}
-frame-benchmarking-cli = {version = "25.0.0", optional = true}
+chrono = { workspace = true,  features = ["serde"] }
 
-runtime = {package = "borlaug-runtime", path = "runtime", optional = true}
-
-asset-registry-runtime-api = {path = "pallets/asset-registry-runtime-api"}
-audits-runtime-api = {path = "pallets/audits-runtime-api"}
-groups-runtime-api = {path = "pallets/groups-runtime-api"}
-identity-runtime-api = {path = "pallets/identity-runtime-api"}
-provenance-runtime-api = {path = "pallets/provenance-runtime-api"}
-settings-runtime-api = {path = "pallets/settings-runtime-api"}
-
-pallet-primitives = {path = "pallets/primitives", default-features = false}
-
-pallet-transaction-payment-rpc = {path = "pallets/transaction-payment/rpc"}
-# pallet-transaction-payment-rpc = {version = "23.0.0"}
-
-chrono = {version = "0.4.9", features = ["serde"]}
-frame-support = "21.0.0"
-frame-system = {version = "21.0.0"}
-# node-inspect = {version = "0.8.0", optional = true}
-# node-executor = {version = "2.0.0"}
-sc-authority-discovery = "0.27.0"
-sc-basic-authorship = "0.27.0"
-sc-chain-spec = "20.0.0"
-sc-cli = {version = "0.29.0", optional = true}
-sc-client-api = "21.0.0"
-sc-consensus = "0.26.0"
-sc-consensus-aura = {version = "0.27.0", optional = true}
-sc-consensus-babe = {version = "0.27.0", optional = true}
-sc-consensus-babe-rpc = {version = "0.27.0", optional = true}
-sc-consensus-epochs = "0.26.0"
-sc-consensus-grandpa = {version = "0.12.0", optional = true}
-sc-consensus-manual-seal = {version = "0.28.0", optional = true}
-sc-consensus-slots = "0.26.0"
-sc-executor = {version = "0.25.0"}
-sc-finality-grandpa = "0.24.0"
-sc-finality-grandpa-rpc = {version = "0.25.0", optional = true}
-sc-keystore = "18.0.0"
-sc-network = "0.27.0"
-sc-network-common = {version = "0.26.0"}
-sc-rpc = "22.0.0"
-sc-rpc-api = "0.26.0"
-sc-service = "0.28.0"
-sc-sync-state-rpc = "0.27.0"
-sc-telemetry = "8.0.0"
-sc-transaction-pool = "21.0.0"
-sc-transaction-pool-api = "21.0.0"
-serde_json = "1.0.41"
-sp-api = "19.0.0"
-sp-block-builder = "19.0.0"
-sp-blockchain = "21.0.0"
-sp-consensus = "0.25.0"
-sp-consensus-aura = {version = "0.25.0", optional = true}
-sp-consensus-babe = {version = "0.25.0", optional = true}
-sp-consensus-grandpa = {version = "6.0.0", optional = true}
-sp-core = "20.0.0"
-sp-keyring = {version = "23.0.0"}
+polkadot-sdk = {  workspace = true, features = ["node"] }
 
 [build-dependencies]
-clap = {version = "4.0.9", optional = true}
-clap_complete = {version = "4.0.2", optional = true}
-frame-benchmarking-cli = {version = "25.0.0", optional = true}
-# node-inspect = {version = "0.8.0", optional = true}
-sc-cli = {version = "0.29.0", optional = true}
-substrate-build-script-utils = {version = "5.0.0", optional = true}
-substrate-frame-cli = {version = "25.0.0", optional = true}
-try-runtime-cli = {version = "0.31.0", optional = true}
-vergen = "8.1.1"
+clap = { version = "4.0.9", optional = true }
+clap_complete = { version = "4.0.2", optional = true }
+polkadot-sdk = { workspace = true, features = ["substrate-build-script-utils"] }
 
 [workspace]
 members = ["runtime", "pallets/*"]
 
+[workspace.dependencies]
+codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false }
+chrono = "0.4"
+scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
+serde = { version = "1.0.226", default-features = false }
+serde_json = { version = "1.0.41", default-features = false }
+smallvec = "1.5.0"
+hex = "0.4"
+hex-literal = { version = "0.4.1" }
+log = "0.4.17"
+jsonrpsee = { version = "0.24",  features = ["client-core", "server", "macros"] }
+
+polkadot-sdk = { git = "https://github.com/paritytech/polkadot-sdk", tag ="polkadot-v1.21.0", default-features = false }
+
+pallet-insecure-randomness-collective-flip = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+timestamp = { package = "pallet-timestamp", git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-authorship = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-collective = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-membership = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-proxy = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-sudo = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-treasury = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-authority-discovery = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-babe = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-grandpa = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-im-online = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-offences = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-session = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-staking = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+pallet-staking-reward-curve = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.21.0", default-features = false }
+
+
+
 [features]
 cli = [
-  # "node-inspect",
-  "sc-cli",
-  "frame-benchmarking-cli",
-  "substrate-frame-cli",
-  "sc-service/rocksdb",
-  "clap",
-  "clap_complete",
-  "substrate-build-script-utils",
-  "try-runtime-cli",
+    "polkadot-sdk/sc-cli",
+    "polkadot-sdk/frame-benchmarking-cli",
+    "polkadot-sdk/sc-service",
+    "clap",
+    "clap_complete",
+    "polkadot-sdk/substrate-build-script-utils",
 ]
-default = ["cli"]
+default = ["cli","grandpa_aura"]
 # use grandpa / babe consensus (chain must not be stopped)
 grandpa_babe = [
-  "sp-consensus-babe", # "sp-finality-grandpa",
-  "sc-consensus-babe-rpc",
-  "sc-consensus-babe",
-  "sc-consensus-grandpa",
-  "sc-finality-grandpa-rpc",
-  "sp-consensus-grandpa",
-  "runtime/grandpa_babe",
-  "sp-timestamp",
+    "polkadot-sdk/sp-consensus-babe",
+    "polkadot-sdk/sc-consensus-babe-rpc",
+    "polkadot-sdk/sc-consensus-babe",
+    "polkadot-sdk/sc-consensus-grandpa",
+    "runtime/grandpa_babe",
+    "polkadot-sdk/sc-network"
 ]
 # use grandpa / aura consensus
 grandpa_aura = [
-  "sp-consensus-aura", # "sp-finality-grandpa",
-  "sc-consensus-aura",
-  "sc-consensus-grandpa",
-  "sc-finality-grandpa-rpc",
-  "sp-consensus-grandpa",
-  "runtime/grandpa_aura",
-  "sp-timestamp",
+    "polkadot-sdk/sc-consensus-aura",
+    "polkadot-sdk/sc-consensus-grandpa",
+    "polkadot-sdk/sp-consensus-aura",
+    "polkadot-sdk/sc-network"
 ]
 # use instant seal consensus - useful for development, but not to be used in production
-
 instant_seal = [
-  "sc-consensus-manual-seal",
-  "sp-timestamp",
-  "runtime/instant_seal",
+    "polkadot-sdk/sc-consensus-manual-seal",
+    "runtime/instant_seal",
 ]
 runtime-benchmarks = [
-  "runtime/runtime-benchmarks",
-  "frame-benchmarking-cli/runtime-benchmarks",
+    "runtime/runtime-benchmarks",
+    "polkadot-sdk/runtime-benchmarks",
+    "polkadot-sdk/frame-benchmarking-cli",
 ]
+try-runtime = [
+    "runtime/try-runtime",
+    "polkadot-sdk/try-runtime",
+]
+

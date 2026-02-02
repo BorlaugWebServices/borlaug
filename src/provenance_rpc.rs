@@ -4,16 +4,16 @@ use core::fmt::Display;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorObject},
+    types::error::{ ErrorObject},
 };
 use pallet_primitives::{
     Definition, DefinitionStep, Process, ProcessStatus, ProcessStep, Registry,
 };
 use provenance_runtime_api::ProvenanceApi as ProvenanceRuntimeApi;
 use serde::{Deserialize, Serialize};
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::HeaderBackend;
-use sp_runtime::traits::Block as BlockT;
+use polkadot_sdk::sp_api::ProvideRuntimeApi;
+use polkadot_sdk::sp_blockchain::HeaderBackend;
+use polkadot_sdk::sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
 #[rpc(client, server)]
@@ -237,7 +237,7 @@ pub trait ProvenanceApi<
     ) -> RpcResult<bool>;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct RegistryResponse<RegistryId> {
     pub registry_id: RegistryId,
     pub name: String,
@@ -256,7 +256,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct DefinitionResponse<AccountId, RegistryId, DefinitionId, MemberCount, DefinitionStepIndex>
 {
     pub registry_id: RegistryId,
@@ -315,7 +315,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct DefinitionStepResponse<AccountId, MemberCount, DefinitionStepIndex> {
     pub definition_step_index: DefinitionStepIndex,
     pub name: String,
@@ -348,7 +348,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct ProcessResponse<
     RegistryId,
     DefinitionId,
@@ -473,7 +473,7 @@ where
         }
     }
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct ProcessStepResponse<ProposalId, DefinitionStepIndex, Moment> {
     pub proposal_id: Option<ProposalId>,
     pub definition_step_index: DefinitionStepIndex,
@@ -512,7 +512,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AttributeResponse {
     pub name: String,
     pub fact: FactResponse,
@@ -556,34 +556,24 @@ static RPC_MODULE: &str = "Provenance API";
 macro_rules! convert_error {
     () => {{
         |e| {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::RuntimeError.into(),
                 format!("Runtime Error in {}", RPC_MODULE),
                 Some(format!("{:?}", e)),
-            ))
+            )
         }
     }};
 }
 
-// macro_rules! decode_error {
-//     () => {{
-//         |e| {
-//             CallError::Custom(ErrorObject::owned(
-//                 Error::DecodeError.into(),
-//                 format!("Decode Error in {}", RPC_MODULE),
-//                 Some(format!("{:?}", e)),
-//             ))
-//         }
-//     }};
-// }
+
 macro_rules! not_found_error {
     ($id:expr) => {{
         {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 Error::DecodeError.into(),
                 format!("Entity not found Error in {}", RPC_MODULE),
                 Some(format!("{}", $id)),
-            ))
+            )
         }
     }};
 }
@@ -892,11 +882,11 @@ where
             "InProgress" => ProcessStatus::InProgress,
             "Completed" => ProcessStatus::Completed,
             _ => {
-                return Err(CallError::Custom(ErrorObject::owned(
+                return Err(ErrorObject::owned(
                     Error::RuntimeError.into(),
                     "Unknown status",
                     Some("Unknown status"),
-                ))
+                )
                 .into())
             }
         };

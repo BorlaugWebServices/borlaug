@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
-use jsonrpsee::RpcModule;
+use polkadot_sdk::sc_service::jsonrpsee::RpcModule;
 use runtime::primitives::{
     AccountId, AssetId, AuditId, Balance, Block, BoundedStringFact, BoundedStringName, CatalogId,
     ClaimId, ControlPointId, DefinitionId, DefinitionStepIndex, EvidenceId, ExtrinsicIndex,

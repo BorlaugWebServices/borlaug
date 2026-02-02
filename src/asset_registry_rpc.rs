@@ -5,15 +5,15 @@ use core::fmt::Display;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
-    types::error::{CallError, ErrorObject},
 };
+use jsonrpsee::types::{ErrorObject};
 use pallet_primitives::{
     Asset, AssetAllocation, AssetProperty, AssetStatus, LeaseAgreement, Registry,
 };
 use serde::{Deserialize, Serialize};
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::HeaderBackend;
-use sp_runtime::traits::{AtLeast32BitUnsigned, Block as BlockT};
+use polkadot_sdk::sp_api::ProvideRuntimeApi;
+use polkadot_sdk::sp_blockchain::HeaderBackend;
+use polkadot_sdk::sp_runtime::traits::{AtLeast32BitUnsigned, Block as BlockT};
 use std::sync::Arc;
 
 #[rpc(client, server)]
@@ -78,7 +78,7 @@ pub trait AssetRegistryApi<
     ) -> RpcResult<Vec<LeaseAllocationResponse<LeaseId, Moment>>>;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct RegistryResponse<RegistryId> {
     pub registry_id: RegistryId,
     pub name: String,
@@ -97,7 +97,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AssetResponse<AssetId, Moment> {
     pub asset_id: AssetId,
     pub properties: Vec<AssetPropertyResponse>,
@@ -156,7 +156,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AssetPropertyResponse {
     pub name: String,
     pub fact: FactResponse,
@@ -174,7 +174,7 @@ where
         }
     }
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct LeaseAgreementResponse<LeaseId, ProposalId, RegistryId, AssetId, Moment> {
     pub lease_id: LeaseId,
     pub proposal_id: Option<ProposalId>,
@@ -217,7 +217,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct AssetAllocationResponse<RegistryId, AssetId> {
     pub registry_id: RegistryId,
     pub asset_id: AssetId,
@@ -235,7 +235,7 @@ impl<RegistryId, AssetId> From<AssetAllocation<RegistryId, AssetId>>
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct LeaseAllocationResponse<LeaseId, Moment> {
     pub lease_id: LeaseId,
     pub allocation: u64,
@@ -271,11 +271,11 @@ static RPC_MODULE: &str = "AssetRegistry API";
 macro_rules! convert_error {
     () => {{
         |e| {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 1i32,
                 format!("Runtime Error in {}", RPC_MODULE),
                 Some(format!("{:?}", e)),
-            ))
+            )
         }
     }};
 }
@@ -283,11 +283,11 @@ macro_rules! convert_error {
 macro_rules! not_found_error {
     ($id:expr) => {{
         {
-            CallError::Custom(ErrorObject::owned(
+            ErrorObject::owned(
                 404i32,
                 format!("Entity not found Error in {}", RPC_MODULE),
                 Some(format!("{}", $id)),
-            ))
+            )
         }
     }};
 }

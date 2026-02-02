@@ -5,29 +5,24 @@ name = "pallet-primitives"
 version = "2.0.0"
 
 [dependencies]
-codec = {package = "parity-scale-codec", version = "3.4.0", default-features = false}
-scale-info = {version = "2.5.0", default-features = false, features = ["derive"]}
-serde = {version = "1.0.101", default-features = false, features = ["derive"]}
+codec =  { workspace = true }
+scale-info = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"]}
+timestamp = { workspace = true}
 
-sp-core = {version = "20.0.0", default-features = false}
-sp-runtime = {version = "23.0.0", default-features = false}
-sp-std = {version = "7.0.0", default-features = false}
-
-timestamp = {package = "pallet-timestamp", version = "20.0.0", default-features = false}
-
-frame-support = {version = "21.0.0", default-features = false}
-frame-system = {version = "21.0.0", default-features = false}
+polkadot-sdk = { workspace = true, default-features = false, features = ["runtime"] }
 
 [features]
 default = ["std"]
 no_std = []
 std = [
+  "polkadot-sdk/std",
+  "polkadot-sdk/sp-std",
+  "polkadot-sdk/sp-runtime",
+  "polkadot-sdk/frame-support",
+  "polkadot-sdk/frame-system",
+  "polkadot-sdk/sp-core",
   "serde/std",
   "codec/std",
-  "sp-runtime/std",
-  "sp-core/std",
-  "sp-std/std",
   "timestamp/std",
-  "frame-system/std",
-  "frame-support/std",
 ]

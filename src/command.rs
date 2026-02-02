@@ -20,13 +20,16 @@ use crate::{
     cli::{Cli, Subcommand},
     service,
 };
-use frame_benchmarking_cli::*;
-// use node_executor::ExecutorDispatch;
-
+#[cfg(feature = "runtime-benchmarks")]
+use polkadot_sdk::{
+    sc_cli::CliConfiguration,
+    frame_benchmarking_cli::PalletCmd,
+};
+use polkadot_sdk::frame_benchmarking_cli::*;
+use polkadot_sdk::sc_cli::SubstrateCli;
+use polkadot_sdk::sc_service::PartialComponents;
+use polkadot_sdk::sp_keyring::Sr25519Keyring;
 use runtime::{Block, EXISTENTIAL_DEPOSIT};
-use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-use sc_service::PartialComponents;
-use sp_keyring::Sr25519Keyring;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -73,7 +76,7 @@ impl SubstrateCli for Cli {
         Ok(spec)
     }
     #[cfg(any(feature = "grandpa_babe", feature = "grandpa_aura"))]
-    fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+    fn load_spec(&self, id: &str) -> Result<Box<dyn polkadot_sdk::sc_service::ChainSpec>, String> {
         let spec = match id {
             "" => {
                 return Err(
@@ -90,14 +93,10 @@ impl SubstrateCli for Cli {
         };
         Ok(spec)
     }
-
-    fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-        &runtime::VERSION
-    }
 }
 
 /// Parse and run command line arguments
-pub fn run() -> sc_cli::Result<()> {
+pub fn run() -> polkadot_sdk::sc_cli::Result<()> {
     let cli = Cli::from_args();
 
     match &cli.subcommand {
@@ -166,7 +165,7 @@ pub fn run() -> sc_cli::Result<()> {
                     ..
                 } = service::new_partial(&config)?;
                 let aux_revert = Box::new(|client, _, blocks| {
-                    sc_consensus_grandpa::revert(client, blocks)?;
+                    polkadot_sdk::sc_consensus_grandpa::revert(client, blocks)?;
                     Ok(())
                 });
                 Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
@@ -179,16 +178,17 @@ pub fn run() -> sc_cli::Result<()> {
                 // This switch needs to be in the client, since the client decides
                 // which sub-commands it wants to support.
                 match cmd {
-                    BenchmarkCmd::Pallet(cmd) => {
-                        if !cfg!(feature = "runtime-benchmarks") {
-                            return Err(
-                                "Runtime benchmarking wasn't enabled when building the node. \
-							You can enable it with `--features runtime-benchmarks`."
-                                    .into(),
-                            );
+                    BenchmarkCmd::Pallet(_cmd) => {
+                        #[cfg(feature = "runtime-benchmarks")]
+                        {
+                            _cmd.run::<Block, service::RuntimeExecutor>(config)
                         }
-
-                        cmd.run::<Block, service::ExecutorDispatch>(config)
+                        #[cfg(not(feature = "runtime-benchmarks"))]
+                        {
+                            let _ = config; // Silence unused variable warning
+                            Err("Runtime benchmarking wasn't enabled when building the node. \
+                 You can enable it with `--features runtime-benchmarks`.".into())
+                        }
                     }
                     BenchmarkCmd::Block(cmd) => {
                         let PartialComponents { client, .. } = service::new_partial(&config)?;
@@ -214,11 +214,12 @@ pub fn run() -> sc_cli::Result<()> {
                         let ext_builder = RemarkBuilder::new(client.clone());
 
                         cmd.run(
-                            config,
+                            config.database.path().ok_or("No DB path")?.to_string_lossy().into_owned(),
                             client,
                             inherent_benchmark_data()?,
                             Vec::new(),
                             &ext_builder,
+                            true,
                         )
                     }
                     BenchmarkCmd::Extrinsic(cmd) => {
@@ -275,7 +276,7 @@ pub fn run() -> sc_cli::Result<()> {
         None => {
             let runner = cli.create_runner(&cli.run)?;
             runner.run_node_until_exit(|config| async move {
-                service::new_full(config).map_err(sc_cli::Error::Service)
+                service::new_full(config).map_err(polkadot_sdk::sc_cli::Error::Service)
             })
         }
     }

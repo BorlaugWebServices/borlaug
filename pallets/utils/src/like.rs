@@ -25,7 +25,7 @@
 //! To do a patten matching, use `Like`:
 //!
 //! ```
-//! use like::Like;
+//! use utils::like::Like;
 //!
 //! assert!(Like::<false>::like("Hello, world!", "Hello%").unwrap());
 //! ```
@@ -33,7 +33,7 @@
 //! To do a case-insensitive pattern matching, use `ILike`:
 //!
 //! ```
-//! use like::ILike;
+//! use utils::like::ILike;
 //!
 //! assert!(ILike::<false>::ilike("Hello, world!", "HELLO%").unwrap());
 //! ```
@@ -41,15 +41,12 @@
 //! To convert the pattern to use standard backslash escape convention, use `Escape`:
 //!
 //! ```
-//! use like::Escape;
+//! use utils::like::Escape;
 //!
 //! assert_eq!("Hello$%".escape("$").unwrap(), "Hello\\%");
 //! ```
 
-use frame_support::dispatch::Vec;
-
-// use std::error::Error;
-// use std::fmt::{self, Display};
+use alloc::vec::Vec;
 
 /// SQL `like` style pattern matching.
 ///
@@ -362,10 +359,10 @@ impl<'a> Bytes<'a> {
     //     str.to_string()
     // }
 
-    #[inline]
-    fn to_vec(&self) -> Vec<u8> {
-        self.bytes.into()
-    }
+    // #[inline]
+    // fn to_vec(&self) -> Vec<u8> {
+    //     self.bytes.into()
+    // }
 }
 
 #[derive(Clone)]
@@ -580,7 +577,7 @@ trait Owned {
 trait ToOwned {
     type Owned: Owned;
 
-    fn to_owned(&self) -> Self::Owned;
+    // fn to_owned(&self) -> Self::Owned;
 }
 
 /// Errors which can occur when attempting to convert escape.
@@ -672,16 +669,6 @@ where
     Ok(result)
 }
 
-// impl Owned for String {
-//     fn new(size: usize) -> String {
-//         String::with_capacity(size)
-//     }
-
-//     fn append(&mut self, ch: char) {
-//         self.push(ch)
-//     }
-// }
-
 impl Owned for Vec<u8> {
     fn new(size: usize) -> Vec<u8> {
         Vec::with_capacity(size)
@@ -692,33 +679,9 @@ impl Owned for Vec<u8> {
     }
 }
 
-// impl<'a> ToOwned for StrTraverser<'a> {
-//     type Owned = String;
-
-//     fn to_owned(&self) -> Self::Owned {
-//         self.bytes.to_str()
-//     }
-// }
-
 impl<'a> ToOwned for BytesTraverser<'a> {
     type Owned = Vec<u8>;
-
-    fn to_owned(&self) -> Self::Owned {
-        self.bytes.to_vec()
-    }
 }
-
-// impl Escape for str {
-//     type Err = InvalidEscapeError;
-//     type Output = String;
-
-//     #[inline]
-//     fn escape(&self, esc: &Self) -> Result<Self::Output, Self::Err> {
-//         let mut p = StrTraverser::new(self);
-//         let mut e = StrTraverser::new(esc);
-//         escape(&mut p, &mut e)
-//     }
-// }
 
 impl Escape for [u8] {
     type Err = InvalidEscapeError;

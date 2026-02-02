@@ -6,9 +6,11 @@ name = "extrinsic-extra"
 version = "2.0.0"
 
 [dependencies]
-# Substrate packages
-frame-support = {version = "21.0.0", default-features = false}
+polkadot-sdk = { workspace = true, default-features = false }
 
 [features]
 default = ['std']
-std = ["frame-support/std"]
+std = [
+    "polkadot-sdk/std",
+    "polkadot-sdk/frame-support",
+]

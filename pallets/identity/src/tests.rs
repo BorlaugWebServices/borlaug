@@ -3,7 +3,7 @@ use super::*;
 use crate::mock::*;
 use chrono::Utc;
 use core::convert::TryInto;
-use frame_support::assert_ok;
+use polkadot_sdk::frame_support::assert_ok;
 use primitives::*;
 
 #[test]
